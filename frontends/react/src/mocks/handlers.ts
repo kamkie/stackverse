@@ -6,7 +6,7 @@
 import { http as mswHttp, HttpResponse } from "msw";
 import { createOpenApiHttp } from "openapi-msw";
 import type { components, paths } from "../api/schema";
-import { db, nextId, SEED_MESSAGES } from "./db";
+import { db, nextId } from "./db";
 import { getCurrentUser, MOCK_USERS, setCurrentUser, type MockUserName } from "./state";
 
 type Problem = components["schemas"]["Problem"];
@@ -30,11 +30,26 @@ function validationProblem(errors: FieldError[]): Problem {
   return { ...problem(400, "Validation failed"), errors };
 }
 
-function fieldError(field: string, messageKey: string): FieldError {
+/**
+ * Message text from the (runtime-editable) messages table, resolved per
+ * SPEC rule 8: requested language → en → the key itself.
+ */
+function lookupMessage(key: string, lang: string): string {
+  const inLanguage = (language: string) =>
+    db.messages.find((m) => m.key === key && m.language === language)?.text;
+  return inLanguage(lang) ?? inLanguage("en") ?? key;
+}
+
+/** Language for a localized response body (SPEC rule 11: lang → Accept-Language → en). */
+function requestLanguage(request: Request): string {
+  return resolveLanguage(null, request.headers.get("Accept-Language"));
+}
+
+function fieldError(field: string, messageKey: string, lang: string): FieldError {
   return {
     field,
     messageKey,
-    message: SEED_MESSAGES["en"]?.[messageKey] ?? messageKey,
+    message: lookupMessage(messageKey, lang),
   };
 }
 
@@ -43,6 +58,39 @@ function fieldError(field: string, messageKey: string): FieldError {
 function hasRole(role: "moderator" | "admin"): boolean {
   return getCurrentUser()?.roles.includes(role) === true;
 }
+
+/**
+ * SPEC rule 17: a blocked account gets `403` on every authenticated call
+ * (the anonymous public surface keeps working). Returns null when the caller
+ * may proceed.
+ */
+function blockedGuard(request: Request): Response | null {
+  const user = getCurrentUser();
+  if (!user) return null;
+  const account = db.users.find((u) => u.username === user.username);
+  if (account?.status !== "blocked") return null;
+  return HttpResponse.json(
+    problem(
+      403,
+      "Forbidden",
+      lookupMessage("error.account.blocked", requestLanguage(request)),
+    ),
+    { status: 403, headers: { "Content-Type": "application/problem+json" } },
+  );
+}
+
+/**
+ * Applied before the typed handlers: returning nothing lets MSW fall through
+ * to them. Public message reads stay available to blocked users; everything
+ * else under /api is an authenticated call once a session exists.
+ */
+const blockedGate = mswHttp.all("/api/*", ({ request }) => {
+  const url = new URL(request.url);
+  if (request.method === "GET" && url.pathname.startsWith("/api/v1/messages")) {
+    return undefined;
+  }
+  return blockedGuard(request) ?? undefined;
+});
 
 function paginate<T>(items: T[], pageParam: string | null, sizeParam: string | null) {
   const page = Math.max(0, Number(pageParam ?? 0) || 0);
@@ -88,10 +136,10 @@ function normalizeTags(tags: string[] | undefined): string[] {
   return [...new Set((tags ?? []).map((tag) => tag.trim().toLowerCase()))];
 }
 
-function validateBookmark(input: BookmarkInput): FieldError[] {
+function validateBookmark(input: BookmarkInput, lang: string): FieldError[] {
   const errors: FieldError[] = [];
   if (!input.url) {
-    errors.push(fieldError("url", "validation.url.required"));
+    errors.push(fieldError("url", "validation.url.required", lang));
   } else {
     let valid = input.url.length <= 2000;
     try {
@@ -100,35 +148,35 @@ function validateBookmark(input: BookmarkInput): FieldError[] {
     } catch {
       valid = false;
     }
-    if (!valid) errors.push(fieldError("url", "validation.url.invalid"));
+    if (!valid) errors.push(fieldError("url", "validation.url.invalid", lang));
   }
   if (!input.title || input.title.trim() === "") {
-    errors.push(fieldError("title", "validation.title.required"));
+    errors.push(fieldError("title", "validation.title.required", lang));
   } else if (input.title.length > 200) {
-    errors.push(fieldError("title", "validation.title.too-long"));
+    errors.push(fieldError("title", "validation.title.too-long", lang));
   }
   if (input.notes && input.notes.length > 4000) {
-    errors.push(fieldError("notes", "validation.notes.too-long"));
+    errors.push(fieldError("notes", "validation.notes.too-long", lang));
   }
   const tags = normalizeTags(input.tags);
   if (tags.length > 10) {
-    errors.push(fieldError("tags", "validation.tags.too-many"));
+    errors.push(fieldError("tags", "validation.tags.too-many", lang));
   } else if (tags.some((tag) => !TAG_PATTERN.test(tag))) {
-    errors.push(fieldError("tags", "validation.tag.invalid"));
+    errors.push(fieldError("tags", "validation.tag.invalid", lang));
   }
   return errors;
 }
 
-function validateMessage(input: MessageInput): FieldError[] {
+function validateMessage(input: MessageInput, lang: string): FieldError[] {
   const errors: FieldError[] = [];
   if (!input.key || input.key.length > 150 || !MESSAGE_KEY_PATTERN.test(input.key)) {
-    errors.push(fieldError("key", "validation.message.key.invalid"));
+    errors.push(fieldError("key", "validation.message.key.invalid", lang));
   }
   if (!input.language || !LANGUAGE_PATTERN.test(input.language)) {
-    errors.push(fieldError("language", "validation.message.language.invalid"));
+    errors.push(fieldError("language", "validation.message.language.invalid", lang));
   }
   if (!input.text || input.text.trim() === "") {
-    errors.push(fieldError("text", "validation.message.text.required"));
+    errors.push(fieldError("text", "validation.message.text.required", lang));
   }
   return errors;
 }
@@ -194,7 +242,7 @@ const createBookmark = http.post("/api/v1/bookmarks", async ({ request, response
   if (!user) return response(401).json(unauthorized());
 
   const input = await request.json();
-  const errors = validateBookmark(input);
+  const errors = validateBookmark(input, requestLanguage(request));
   if (errors.length > 0) return response(400).json(validationProblem(errors));
 
   const now = new Date().toISOString();
@@ -229,12 +277,16 @@ const updateBookmark = http.put(
     }
 
     const input = await request.json();
-    const errors = validateBookmark(input);
+    const errors = validateBookmark(input, requestLanguage(request));
     if (errors.length > 0) return response(400).json(validationProblem(errors));
 
     if (bookmark.status === "hidden" && input.visibility === "public") {
       return response(409).json(
-        problem(409, "Conflict", SEED_MESSAGES["en"]?.["error.bookmark.hidden-publish"]),
+        problem(
+          409,
+          "Conflict",
+          lookupMessage("error.bookmark.hidden-publish", requestLanguage(request)),
+        ),
       );
     }
 
@@ -304,12 +356,13 @@ const reportBookmark = http.post(
     }
 
     const input = await request.json();
+    const lang = requestLanguage(request);
     const errors: FieldError[] = [];
     if (!["spam", "offensive", "broken-link", "other"].includes(input.reason)) {
-      errors.push(fieldError("reason", "validation.report.reason.invalid"));
+      errors.push(fieldError("reason", "validation.report.reason.invalid", lang));
     }
     if (input.comment && input.comment.length > 1000) {
-      errors.push(fieldError("comment", "validation.report.comment.too-long"));
+      errors.push(fieldError("comment", "validation.report.comment.too-long", lang));
     }
     if (errors.length > 0) return response(400).json(validationProblem(errors));
 
@@ -466,7 +519,9 @@ const setUserAccountStatus = http.put(
     }
     if (input.status === "blocked" && !input.reason?.trim()) {
       return response(400).json(
-        validationProblem([fieldError("reason", "validation.block.reason.required")]),
+        validationProblem([
+          fieldError("reason", "validation.block.reason.required", requestLanguage(request)),
+        ]),
       );
     }
 
@@ -555,9 +610,19 @@ const getAdminStats = http.get("/api/v1/admin/stats", ({ request, response }) =>
 function resolveLanguage(lang: string | null, acceptLanguage: string | null): string {
   const supported = new Set(db.messages.map((m) => m.language));
   if (lang && supported.has(lang)) return lang;
-  for (const part of (acceptLanguage ?? "").split(",")) {
-    const code = part.split(";")[0]?.trim().toLowerCase().slice(0, 2);
-    if (code && supported.has(code)) return code;
+  // First supported language in quality order (SPEC rule 8).
+  const ranked = (acceptLanguage ?? "")
+    .split(",")
+    .map((part) => {
+      const [tag = "", ...params] = part.trim().split(";");
+      const qParam = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
+      const q = qParam ? Number(qParam.slice(2)) : 1;
+      return { code: tag.trim().toLowerCase().slice(0, 2), q: Number.isNaN(q) ? 0 : q };
+    })
+    .filter((entry) => entry.code && entry.q > 0)
+    .sort((a, b) => b.q - a.q);
+  for (const { code } of ranked) {
+    if (supported.has(code)) return code;
   }
   return "en";
 }
@@ -593,7 +658,13 @@ const getMessageBundle = http.get(
   },
 );
 
-const listMessages = http.get("/api/v1/messages", ({ query, response }) => {
+const listMessages = http.get("/api/v1/messages", ({ query, request, response }) => {
+  const etag = `W/"messages-${db.messagesVersion}"`;
+  const headers = { ETag: etag, "Cache-Control": "no-cache" };
+  if (request.headers.get("If-None-Match") === etag) {
+    return response(304).empty({ headers });
+  }
+
   let items = [...db.messages].sort(
     (a, b) => a.key.localeCompare(b.key) || a.language.localeCompare(b.language),
   );
@@ -602,7 +673,7 @@ const listMessages = http.get("/api/v1/messages", ({ query, response }) => {
   const language = query.get("language");
   if (language) items = items.filter((m) => m.language === language);
   return response(200).json(paginate(items, query.get("page"), query.get("size")), {
-    headers: { ETag: `W/"messages-${db.messagesVersion}"`, "Cache-Control": "no-cache" },
+    headers,
   });
 });
 
@@ -611,7 +682,7 @@ const createMessage = http.post("/api/v1/messages", async ({ request, response }
   if (!hasRole("admin")) return response(403).json(forbidden());
 
   const input = await request.json();
-  const errors = validateMessage(input);
+  const errors = validateMessage(input, requestLanguage(request));
   if (errors.length > 0) return response(400).json(validationProblem(errors));
   if (db.messages.some((m) => m.key === input.key && m.language === input.language)) {
     return response(409).json(
@@ -637,12 +708,15 @@ const createMessage = http.post("/api/v1/messages", async ({ request, response }
   });
 });
 
-const getMessage = http.get("/api/v1/messages/{id}", ({ params, response }) => {
+const getMessage = http.get("/api/v1/messages/{id}", ({ params, request, response }) => {
   const message = db.messages.find((m) => m.id === params.id);
   if (!message) return response(404).json(notFound());
-  return response(200).json(message, {
-    headers: { ETag: `W/"message-${message.id}-${db.messagesVersion}"`, "Cache-Control": "no-cache" },
-  });
+  const etag = `W/"message-${message.id}-${db.messagesVersion}"`;
+  const headers = { ETag: etag, "Cache-Control": "no-cache" };
+  if (request.headers.get("If-None-Match") === etag) {
+    return response(304).empty({ headers });
+  }
+  return response(200).json(message, { headers });
 });
 
 const updateMessage = http.put(
@@ -655,7 +729,7 @@ const updateMessage = http.put(
     if (!message) return response(404).json(notFound());
 
     const input = await request.json();
-    const errors = validateMessage(input);
+    const errors = validateMessage(input, requestLanguage(request));
     if (errors.length > 0) return response(400).json(validationProblem(errors));
     if (
       db.messages.some(
@@ -753,6 +827,7 @@ const authHandlers = [
 ];
 
 export const handlers = [
+  blockedGate,
   listBookmarksV2,
   createBookmark,
   updateBookmark,

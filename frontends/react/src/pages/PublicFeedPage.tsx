@@ -37,6 +37,7 @@ export function PublicFeedPage() {
           type="search"
           className="sv-input"
           placeholder={t("ui.bookmarks.search.placeholder")}
+          aria-label={t("ui.bookmarks.search.placeholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

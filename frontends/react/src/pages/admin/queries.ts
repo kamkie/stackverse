@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "../../api/client";
 import type { components, operations } from "../../api/schema";
+import { useI18n } from "../../i18n/I18nProvider";
 
 export type Report = components["schemas"]["Report"];
 export type ReportStatus = components["schemas"]["ReportStatus"];
@@ -113,9 +114,13 @@ export function useMessages(query: MessagesQuery) {
 
 function useInvalidateMessages() {
   const queryClient = useQueryClient();
-  // Message writes change the bundle too, but the bundle refreshes via its own
-  // ETag revalidation on the next language (re)load.
-  return () => void queryClient.invalidateQueries({ queryKey: ["admin", "messages"] });
+  const { refresh } = useI18n();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: ["admin", "messages"] });
+    // Message writes change the served bundle; revalidate it so visible UI
+    // text updates without a language switch (unchanged bundles cost a 304).
+    refresh();
+  };
 }
 
 export function useCreateMessage() {

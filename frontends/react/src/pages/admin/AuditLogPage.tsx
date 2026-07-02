@@ -55,6 +55,7 @@ export function AuditLogPage() {
         <input
           type="date"
           className="sv-input"
+          aria-label={t("ui.field.from")}
           value={from}
           onChange={(e) => {
             setFrom(e.target.value);
@@ -64,6 +65,7 @@ export function AuditLogPage() {
         <input
           type="date"
           className="sv-input"
+          aria-label={t("ui.field.to")}
           value={to}
           onChange={(e) => {
             setTo(e.target.value);

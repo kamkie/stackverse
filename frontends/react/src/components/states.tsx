@@ -1,3 +1,5 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { ApiError, isUnauthorized } from "../api/problem";
 import { LOGIN_URL } from "../auth/session";
 import { useI18n } from "../i18n/I18nProvider";
@@ -13,6 +15,14 @@ export function Loading() {
 /** A 401 means the session died — treat as logged out and offer login. */
 export function LoginPrompt() {
   const { t } = useI18n();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Drop the cached identity too, so the header and role-gated navigation
+    // flip to logged-out instead of showing a stale username.
+    void queryClient.invalidateQueries({ queryKey: ["session"] });
+    queryClient.removeQueries({ queryKey: ["me"] });
+  }, [queryClient]);
   return (
     <div className="sv-empty">
       <a className="sv-button sv-button--primary" href={LOGIN_URL}>

@@ -24,6 +24,8 @@ interface I18nContextValue {
   setLang: (lang: string) => void;
   /** Message for a key; falls back to the key's last segment. */
   t: (key: string) => string;
+  /** Revalidates the bundle (cheap 304 when unchanged) — call after message writes. */
+  refresh: () => void;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
@@ -82,6 +84,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     localStorage.getItem(LANG_STORAGE_KEY),
   );
   const [bundle, setBundle] = useState<MessageBundle | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +99,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [lang]);
+  }, [lang, reloadTick]);
 
   const t = useCallback(
     (key: string): string =>
@@ -109,6 +112,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLangState(next);
   }, []);
 
+  const refresh = useCallback(() => setReloadTick((tick) => tick + 1), []);
+
   useEffect(() => {
     if (!bundle) return;
     document.documentElement.lang = bundle.language;
@@ -116,8 +121,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [bundle]);
 
   const value = useMemo<I18nContextValue>(
-    () => ({ lang, resolvedLanguage: bundle?.language ?? "en", setLang, t }),
-    [lang, bundle, setLang, t],
+    () => ({ lang, resolvedLanguage: bundle?.language ?? "en", setLang, t, refresh }),
+    [lang, bundle, setLang, t, refresh],
   );
 
   // Hold rendering until the first bundle arrives so screens never flash keys.
