@@ -1,4 +1,7 @@
 # pnpm project config (pnpm 11 reads this even for single-package projects).
+# Note: nodeLinker: pnp was tried and reverted (2026-07-02) — pnpm 11.8 still
+# materializes the full .pnpm virtual store next to .pnp.cjs, and vitest hangs
+# indefinitely under it. Revisit only if pnpm's PnP support matures.
 allowBuilds:
   # msw's postinstall only regenerates public/mockServiceWorker.js, which is
   # committed — no need to run scripts on install.
