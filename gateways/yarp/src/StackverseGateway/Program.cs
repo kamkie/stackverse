@@ -26,13 +26,14 @@ builder.WebHost.UseUrls($"http://*:{gateway.Port}");
 
 // --- Observability: OTLP export of traces, metrics, and logs. Endpoint,
 // --- protocol, and service name come from the standard OTEL_* env vars
-// --- (see gateways/README.md); inert unless an endpoint is configured.
-// --- OTEL_SDK_DISABLED mirrors the SDK convention other stacks get for free.
+// --- (see gateways/README.md). Export is opt-in: the documented default for
+// --- OTEL_SDK_DISABLED is `true`, so it takes an explicit `false` (plus a
+// --- configured endpoint) to turn the pipeline on.
 var otlpEndpointConfigured =
     !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT"));
-var otelSdkDisabled = string.Equals(
-    Environment.GetEnvironmentVariable("OTEL_SDK_DISABLED"), "true", StringComparison.OrdinalIgnoreCase);
-if (otlpEndpointConfigured && !otelSdkDisabled)
+var otelExportEnabled = string.Equals(
+    Environment.GetEnvironmentVariable("OTEL_SDK_DISABLED"), "false", StringComparison.OrdinalIgnoreCase);
+if (otlpEndpointConfigured && otelExportEnabled)
 {
     builder.Services.AddOpenTelemetry()
         .WithTracing(tracing => tracing
