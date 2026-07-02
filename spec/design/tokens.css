@@ -1,0 +1,131 @@
+/*
+ * Stackverse design tokens — part of the contract.
+ *
+ * Every frontend implementation loads this file verbatim (no copies, no
+ * overrides) so that all frontends render identically and the only thing
+ * left to compare is the framework code. Components consume these custom
+ * properties via stackverse.css; implementations must not restyle them.
+ *
+ * Dark mode follows the OS preference (prefers-color-scheme) — there is no
+ * in-app theme switcher, by design.
+ */
+
+:root {
+  /* ---- Typography ---------------------------------------------------- */
+  --sv-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Noto Sans", sans-serif;
+  --sv-font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas,
+    "Liberation Mono", Menlo, monospace;
+
+  --sv-text-xs: 0.75rem;   /* 12px — badges, meta lines           */
+  --sv-text-sm: 0.875rem;  /* 14px — secondary text, table cells  */
+  --sv-text-md: 1rem;      /* 16px — body                         */
+  --sv-text-lg: 1.125rem;  /* 18px — card titles                  */
+  --sv-text-xl: 1.375rem;  /* 22px — page headings                */
+  --sv-text-2xl: 1.75rem;  /* 28px — stat values, brand           */
+
+  --sv-leading-tight: 1.25;
+  --sv-leading-normal: 1.5;
+
+  --sv-weight-normal: 400;
+  --sv-weight-medium: 500;
+  --sv-weight-bold: 700;
+
+  /* ---- Spacing (4px base) -------------------------------------------- */
+  --sv-space-1: 0.25rem;   /*  4px */
+  --sv-space-2: 0.5rem;    /*  8px */
+  --sv-space-3: 0.75rem;   /* 12px */
+  --sv-space-4: 1rem;      /* 16px */
+  --sv-space-5: 1.5rem;    /* 24px */
+  --sv-space-6: 2rem;      /* 32px */
+  --sv-space-7: 3rem;      /* 48px */
+  --sv-space-8: 4rem;      /* 64px */
+
+  /* ---- Radii & elevation --------------------------------------------- */
+  --sv-radius-sm: 4px;
+  --sv-radius-md: 8px;
+  --sv-radius-lg: 12px;
+  --sv-radius-full: 999px;
+
+  --sv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.06);
+  --sv-shadow-md: 0 4px 12px rgb(0 0 0 / 0.10);
+  --sv-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.18);
+
+  /* ---- Layout --------------------------------------------------------- */
+  --sv-content-max: 64rem;   /* main column                         */
+  --sv-sidebar-width: 14rem; /* tag / admin sidebar                 */
+  --sv-header-height: 3.5rem;
+
+  /* ---- Color — light -------------------------------------------------- */
+  --sv-color-bg: #f6f7f9;             /* page background               */
+  --sv-color-surface: #ffffff;        /* cards, header, sidebar        */
+  --sv-color-surface-sunken: #eef0f3; /* wells, table header, code     */
+  --sv-color-border: #d9dde3;
+  --sv-color-border-strong: #b8bfc9;
+
+  --sv-color-text: #1c2430;
+  --sv-color-text-muted: #5c6675;
+  --sv-color-text-faint: #8a93a1;
+
+  --sv-color-primary: #2563eb;          /* actions, links, active nav  */
+  --sv-color-primary-hover: #1d4fd7;
+  --sv-color-primary-contrast: #ffffff;
+  --sv-color-primary-soft: #dbe7fe;     /* selected chips, active rows */
+
+  --sv-color-danger: #dc2626;
+  --sv-color-danger-hover: #b91c1c;
+  --sv-color-danger-contrast: #ffffff;
+  --sv-color-danger-soft: #fee2e2;
+
+  --sv-color-warning: #b45309;          /* moderation flags            */
+  --sv-color-warning-soft: #fef3c7;
+
+  --sv-color-success: #15803d;
+  --sv-color-success-soft: #dcfce7;
+
+  --sv-color-focus-ring: #2563eb66;
+  --sv-color-backdrop: rgb(15 20 28 / 0.45);
+
+  --sv-color-chart-1: #2563eb;          /* primary series              */
+  --sv-color-chart-2: #7c3aed;          /* secondary series            */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --sv-shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+    --sv-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+
+    --sv-color-bg: #12161c;
+    --sv-color-surface: #1a2029;
+    --sv-color-surface-sunken: #12161c;
+    --sv-color-border: #2c3542;
+    --sv-color-border-strong: #46536a;
+
+    --sv-color-text: #e6eaf0;
+    --sv-color-text-muted: #9aa5b4;
+    --sv-color-text-faint: #6b7686;
+
+    --sv-color-primary: #5b8def;
+    --sv-color-primary-hover: #79a2f2;
+    --sv-color-primary-contrast: #0d1420;
+    --sv-color-primary-soft: #1e3a8a66;
+
+    --sv-color-danger: #ef6a6a;
+    --sv-color-danger-hover: #f28b8b;
+    --sv-color-danger-contrast: #1c0d0d;
+    --sv-color-danger-soft: #7f1d1d55;
+
+    --sv-color-warning: #f5c063;
+    --sv-color-warning-soft: #78350f55;
+
+    --sv-color-success: #5dc98a;
+    --sv-color-success-soft: #14532d55;
+
+    --sv-color-focus-ring: #5b8def77;
+    --sv-color-backdrop: rgb(0 0 0 / 0.6);
+
+    --sv-color-chart-1: #5b8def;
+    --sv-color-chart-2: #a78bfa;
+  }
+}

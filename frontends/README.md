@@ -4,15 +4,33 @@ One directory per implementation (`react`, `angular`, ...). The frontend is a SP
 consumes [spec/openapi.yaml](../spec/openapi.yaml) *through the gateway* and holds
 **no authentication state** — not even a token. The session cookie is invisible to it.
 
-## Shared design (goal)
+## Shared design
 
 All frontends must render the same design — same layout, colors, and spacing — so
 that the only thing left to compare is the framework code (the TodoMVC approach:
-a shared stylesheet, not a per-stack reinvention). A shared plain-CSS package will
-be defined with the first frontend implementation and become part of the contract;
-until then the rule to respect is: **no CSS frameworks or UI kits** (Tailwind,
-Material, Bootstrap, ...) — they would make implementations differ in exactly the
-dimension this repo holds constant.
+a shared stylesheet, not a per-stack reinvention). The shared design lives in
+[spec/design/](../spec/design) and is part of the contract:
+
+- [spec/design/tokens.css](../spec/design/tokens.css) — design tokens as `--sv-*`
+  CSS custom properties: colors (light + `prefers-color-scheme: dark`), typography,
+  spacing, radii, shadows, layout dimensions.
+- [spec/design/stackverse.css](../spec/design/stackverse.css) — framework-agnostic,
+  `sv-`prefixed component classes (buttons, forms, cards, tags, badges, tables,
+  dialog, dashboard stats/chart, states).
+
+Rules:
+
+1. Load both files **verbatim** — reference or bundle them from `spec/design/`
+   directly (or copy byte-identical at build time); never fork or edit a copy.
+2. Build markup out of the `sv-*` classes. If something an implementation needs
+   is not styled yet, extend `spec/design/` — app-local stylesheets are not
+   allowed. A change to `spec/design/` is a contract change: it must keep every
+   existing frontend rendering correctly.
+3. **No CSS frameworks or UI kits** (Tailwind, Material, Bootstrap, ...) — they
+   would make implementations differ in exactly the dimension this repo holds
+   constant.
+4. Dark mode follows `prefers-color-scheme` via the tokens; no in-app theme
+   switcher.
 
 ## Contract with the gateway
 

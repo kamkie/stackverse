@@ -1,0 +1,45 @@
+import type { ReactNode } from "react";
+import type { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
+import type { components } from "../api/schema";
+import { ErrorState, Loading } from "../components/states";
+import { useI18n } from "../i18n/I18nProvider";
+import type { Bookmark } from "./queries";
+
+type CursorPage = components["schemas"]["BookmarkCursorPage"];
+
+interface BookmarkListProps {
+  query: UseInfiniteQueryResult<InfiniteData<CursorPage>, Error>;
+  renderBookmark: (bookmark: Bookmark) => ReactNode;
+}
+
+/** Cursor-paginated list with the "load more" UX of `GET /api/v2/bookmarks`. */
+export function BookmarkList({ query, renderBookmark }: BookmarkListProps) {
+  const { t } = useI18n();
+
+  if (query.isPending) return <Loading />;
+  if (query.isError) return <ErrorState error={query.error} />;
+
+  const bookmarks = query.data.pages.flatMap((page) => page.items);
+
+  if (bookmarks.length === 0) {
+    return <div className="sv-empty">{t("ui.bookmarks.empty")}</div>;
+  }
+
+  return (
+    <>
+      <ul className="sv-card-list">{bookmarks.map(renderBookmark)}</ul>
+      {query.hasNextPage && (
+        <div className="sv-load-more">
+          <button
+            type="button"
+            className="sv-button"
+            onClick={() => void query.fetchNextPage()}
+            disabled={query.isFetchingNextPage}
+          >
+            {t("ui.action.load-more")}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}

@@ -77,7 +77,7 @@ Every implementation must satisfy:
 | Backend | Node.js (TypeScript) | `backends/node-ts` | planned |
 | Gateway | Spring Cloud Gateway | `gateways/spring-cloud-gateway` | planned |
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done |
-| Frontend | React | `frontends/react` | planned |
+| Frontend | React | `frontends/react` | ✅ done |
 | Frontend | Angular | `frontends/angular` | planned |
 
 ## Quickstart
