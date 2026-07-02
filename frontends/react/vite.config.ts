@@ -9,6 +9,17 @@ const mockEnabled = process.env["VITE_API_MOCK"] !== "false";
 // Receives batched console output from the browser (posted by
 // src/dev/forwardConsoleToDevServer.ts) and prints it to the dev server's
 // stdout, so browser logs land in the terminal and dev-server.log.
+const FORWARDED_LEVELS = new Set(["log", "info", "warn", "error", "debug"]);
+
+// Everything in the batch is client-controlled: strip control characters and
+// encode newlines so a console.log (or crafted POST) can't forge log lines.
+function sanitizeLogField(value: unknown): string {
+  return String(value)
+    .replace(/\r?\n/g, "\\n")
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+}
+
 function clientLogForwarder(): Plugin {
   return {
     name: "stackverse:client-log-forwarder",
@@ -41,7 +52,10 @@ function clientLogForwarder(): Plugin {
               message: string;
               time: string;
             }[];
-            for (const { level, message, time } of entries) {
+            for (const entry of entries) {
+              const level = FORWARDED_LEVELS.has(entry.level) ? entry.level : "log";
+              const time = sanitizeLogField(entry.time);
+              const message = sanitizeLogField(entry.message);
               console.log(`[browser] ${time} ${level.toUpperCase().padEnd(5)} ${message}`);
             }
           } catch {
