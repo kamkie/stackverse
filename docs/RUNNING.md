@@ -10,8 +10,8 @@ No Docker, no backend — the API and the OIDC dance are mocked in the browser
 
 ```sh
 cd frontends/react
-pnpm install
-pnpm dev          # http://localhost:5173
+yarn install
+yarn dev          # http://localhost:5173
 ```
 
 Pick who you are before clicking *Log in* (browser devtools console):
@@ -28,12 +28,12 @@ prefixed `[browser]`). To also capture everything to a file:
 
 ```sh
 # POSIX
-pnpm dev 2>&1 | tee dev-server.log
+yarn dev 2>&1 | tee dev-server.log
 ```
 
 ```powershell
 # PowerShell
-pnpm dev 2>&1 | Tee-Object -FilePath dev-server.log
+yarn dev 2>&1 | Tee-Object -FilePath dev-server.log
 ```
 
 ## 2. Infrastructure only
