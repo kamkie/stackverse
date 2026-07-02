@@ -132,11 +132,16 @@ test("actioning hides the bookmark and auto-resolves sibling reports", async ({ 
     409,
   );
 
-  // the sibling was auto-actioned with the same resolver and note
-  const queue = (await (
-    await admin.get("/api/v1/admin/reports?status=actioned&size=100")
-  ).json()) as { items: Report[] };
-  const autoResolved = queue.items.find((item) => item.id === sibling.id);
+  // the sibling was auto-actioned with the same resolver and note — page
+  // through the whole actioned queue, long-lived databases hold many pages
+  let autoResolved: Report | undefined;
+  for (let page = 0; autoResolved === undefined; page++) {
+    const queue = (await (
+      await admin.get(`/api/v1/admin/reports?status=actioned&size=100&page=${page}`)
+    ).json()) as { items: Report[]; totalPages: number };
+    autoResolved = queue.items.find((item) => item.id === sibling.id);
+    if (page >= queue.totalPages - 1) break;
+  }
   expect(autoResolved, "sibling report must be auto-resolved").toBeDefined();
   expect(autoResolved?.status).toBe("actioned");
   expect(autoResolved?.resolvedBy).toBe("moderator");
