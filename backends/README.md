@@ -23,6 +23,9 @@ with the semantics from [docs/SPEC.md](../docs/SPEC.md).
   seed lives at the repo root, build backend images with the repository root as build
   context: `docker build -f backends/<impl>/Dockerfile .`
 - **Errors** are RFC 9457 problem documents (`application/problem+json`).
+- **Logging** follows [docs/LOGGING.md](../docs/LOGGING.md): stdout only, OTLP
+  export behind `OTEL_SDK_DISABLED`, expected 4xx never logged as errors,
+  secrets never logged at all.
 - **Listen on `PORT`** (default 8080), expose `/healthz` and `/readyz`.
 - **Ship a `Dockerfile`** (multi-stage, non-root user) so the image plugs into
   `compose.yaml` via `BACKEND_IMAGE`.

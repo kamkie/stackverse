@@ -88,6 +88,9 @@ on the corresponding form fields, not as a generic toast.
 ## Conventions
 
 - Generate or hand-write API types from the OpenAPI spec — but the spec is the truth.
+- Logging: see [docs/LOGGING.md](../docs/LOGGING.md) §8 — production bundles
+  keep the browser console clean; dev-server console forwarding stays dev-only
+  and sanitizes its input.
 - Production build must be servable as static files by any gateway (`GATEWAY` serves
   the bundle); dev mode runs its own server which gateways can proxy via `FRONTEND_URL`.
 - Ship a `Dockerfile`; the image plugs into `compose.yaml` via `FRONTEND_IMAGE`.

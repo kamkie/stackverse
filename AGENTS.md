@@ -7,6 +7,7 @@ implemented in many stacks. Read these before changing anything:
 - [docs/SPEC.md](docs/SPEC.md) — functional rules (canonical for behavior)
 - [spec/openapi.yaml](spec/openapi.yaml) — API shapes and status codes (canonical for the wire)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — BFF/session-auth architecture, gateway route contract, ports
+- [docs/LOGGING.md](docs/LOGGING.md) — logging requirements, normative for every implementation
 
 ## Ground rules
 

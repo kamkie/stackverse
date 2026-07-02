@@ -21,6 +21,10 @@ to. The full route contract and login flow live in
 The gateway makes no business decisions. If a request has a valid session it is
 relayed; authorization is the backend's job.
 
+Logging follows [docs/LOGGING.md](../docs/LOGGING.md) — in particular: tokens,
+cookies and the client secret never appear in logs, and a failed token refresh
+(session destroyed, request degraded to anonymous) is a `WARN`, not an error.
+
 ## Configuration (environment variables)
 
 | Variable | Default | Purpose |
