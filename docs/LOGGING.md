@@ -243,7 +243,8 @@ no per-environment profiles.
 | secrets kept out of logs | ✅ | ✅ | ✅ |
 | `LOG_LEVEL` honored | ✅ | ✅ | n/a |
 | trace id on console lines when tracing on | ✅ | ✅ | n/a |
-| stable `event` names (§5) | ✅ | ✅ | n/a |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | n/a |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ❌ gap | n/a |
 | JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | n/a |
 | dev-only console forwarding, sanitized | n/a | n/a | ✅ |
 
