@@ -8,7 +8,10 @@ import dev.stackverse.backend.bookmark.Visibility
 import dev.stackverse.backend.common.ConflictProblem
 import dev.stackverse.backend.common.NotFoundProblem
 import dev.stackverse.backend.common.Validator
+import dev.stackverse.backend.common.logEvent
 import dev.stackverse.backend.common.nowUtc
+import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
@@ -24,6 +27,9 @@ class ModerationService(
     private val bookmarkRepository: BookmarkRepository,
     private val auditService: AuditService,
 ) {
+
+    // moderation events are diagnostics only (docs/LOGGING.md §5) — the audit trail stays authoritative
+    private val log = LoggerFactory.getLogger(javaClass)
 
     /** SPEC rule 13: only public, non-hidden bookmarks can be reported; anything else is a 404 mask. */
     fun report(reporter: String, bookmarkId: UUID, request: ReportRequest): Report {
@@ -44,7 +50,7 @@ class ModerationService(
             throw ConflictProblem("You already have an open report on this bookmark.")
         }
         return try {
-            reportRepository.saveAndFlush(
+            val report = reportRepository.saveAndFlush(
                 Report(
                     bookmarkId = bookmarkId,
                     reporter = reporter,
@@ -57,6 +63,15 @@ class ModerationService(
                     createdAt = nowUtc(),
                 ),
             )
+            log.logEvent(
+                Level.INFO, "report_created", "success", "Report created on a public bookmark",
+                "actor" to reporter,
+                "resource_type" to "report",
+                "resource_id" to report.id.toString(),
+                "bookmark_id" to bookmarkId.toString(),
+                "reason" to report.reason.wire,
+            )
+            report
         } catch (e: DataIntegrityViolationException) {
             // lost the race against a concurrent report by the same user — same outcome as the pre-check
             throw ConflictProblem("You already have an open report on this bookmark.")
@@ -116,6 +131,14 @@ class ModerationService(
             bookmark.id.toString(),
             mapOf("from" to previous.wire, "to" to status.wire, "note" to request.note),
         )
+        log.logEvent(
+            Level.INFO, "bookmark_status_changed", "success", "Bookmark moderation status changed",
+            "actor" to actor,
+            "resource_type" to "bookmark",
+            "resource_id" to bookmark.id.toString(),
+            "from" to previous.wire,
+            "to" to status.wire,
+        )
         return bookmark
     }
 
@@ -136,6 +159,15 @@ class ModerationService(
                 "autoResolved" to autoResolved,
             ),
         )
+        log.logEvent(
+            Level.INFO, "report_resolved", "success", "Report resolved",
+            "actor" to actor,
+            "resource_type" to "report",
+            "resource_id" to report.id.toString(),
+            "bookmark_id" to report.bookmarkId.toString(),
+            "resolution" to resolution.wire,
+            "auto_resolved" to autoResolved,
+        )
     }
 
     private fun hideBookmark(actor: String, bookmarkId: UUID, note: String?) {
@@ -149,6 +181,14 @@ class ModerationService(
                 "bookmark",
                 bookmark.id.toString(),
                 mapOf("from" to BookmarkStatus.ACTIVE.wire, "to" to BookmarkStatus.HIDDEN.wire, "note" to note),
+            )
+            log.logEvent(
+                Level.INFO, "bookmark_status_changed", "success", "Bookmark hidden by an actioned report",
+                "actor" to actor,
+                "resource_type" to "bookmark",
+                "resource_id" to bookmark.id.toString(),
+                "from" to BookmarkStatus.ACTIVE.wire,
+                "to" to BookmarkStatus.HIDDEN.wire,
             )
         }
     }

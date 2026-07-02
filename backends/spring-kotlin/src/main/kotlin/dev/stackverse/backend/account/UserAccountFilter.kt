@@ -1,9 +1,12 @@
 package dev.stackverse.backend.account
 
+import dev.stackverse.backend.common.logEvent
 import dev.stackverse.backend.message.MessageLocalizer
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.security.core.context.SecurityContextHolder
@@ -23,11 +26,18 @@ class UserAccountFilter(
     private val objectMapper: ObjectMapper,
 ) : OncePerRequestFilter() {
 
+    // `log`, not `logger` — the inherited GenericFilterBean field keeps that name
+    private val log = LoggerFactory.getLogger(javaClass)
+
     override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
         val authentication = SecurityContextHolder.getContext().authentication
         if (authentication is JwtAuthenticationToken) {
             val account = accountService.recordSeen(authentication.name)
             if (account.status == UserAccountStatus.BLOCKED) {
+                log.logEvent(
+                    Level.WARN, "blocked_user_rejected", "denied", "Refused a request from a blocked account",
+                    "actor" to authentication.name,
+                )
                 response.status = HttpStatus.FORBIDDEN.value()
                 response.contentType = MediaType.APPLICATION_PROBLEM_JSON_VALUE
                 objectMapper.writeValue(

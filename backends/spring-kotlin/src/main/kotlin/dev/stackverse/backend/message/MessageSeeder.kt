@@ -1,7 +1,9 @@
 package dev.stackverse.backend.message
 
+import dev.stackverse.backend.common.logEvent
 import dev.stackverse.backend.common.nowUtc
 import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -52,7 +54,13 @@ class MessageSeeder(
             Message(key = key, language = language, text = text, description = null, createdAt = now, updatedAt = now)
         }
         repository.saveAll(missing)
-        log.info("Message seed '{}': {} inserted, {} already present", language, missing.size, entries.size - missing.size)
+        log.logEvent(
+            Level.INFO, "message_seed_imported", "success",
+            "Message seed '$language': ${missing.size} inserted, ${entries.size - missing.size} already present",
+            "language" to language,
+            "inserted" to missing.size,
+            "skipped" to entries.size - missing.size,
+        )
     }
 }
 
