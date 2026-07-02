@@ -73,6 +73,10 @@ test("update and delete are owner-only; non-owners get 404 even for public bookm
   const update = { url: created.url, title: "hijacked" };
   await expectProblem(await mentor.put(`/api/v1/bookmarks/${created.id}`, { data: update }), 404);
   await expectProblem(await mentor.delete(`/api/v1/bookmarks/${created.id}`), 404);
+  // the 404 must be a refusal, not a cover-up — the bookmark is untouched
+  const after = await demo.get(`/api/v1/bookmarks/${created.id}`);
+  expect(after.status()).toBe(200);
+  expect(((await after.json()) as Bookmark).title).toBe(created.title);
 });
 
 test("the owner can update; owner and createdAt stay immutable", async ({ demo }) => {
