@@ -1,0 +1,6 @@
+# backend/gateway images are built with the repo root as context (they need spec/)
+.git
+.idea
+**/build
+**/.gradle
+**/node_modules

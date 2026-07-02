@@ -82,5 +82,12 @@
   "validation.message.text.required": "Message text is required.",
   "validation.report.reason.invalid": "Report reason must be one of: spam, offensive, broken-link, other.",
   "validation.report.comment.too-long": "Report comment must be at most 1000 characters.",
-  "validation.block.reason.required": "A reason is required when blocking a user."
+  "validation.block.reason.required": "A reason is required when blocking a user.",
+  "validation.block.reason.too-long": "Block reason must be at most 1000 characters.",
+  "validation.resolution.invalid": "Resolution must be one of: dismissed, actioned.",
+  "validation.resolution.note.too-long": "Resolution note must be at most 1000 characters.",
+  "validation.bookmark-status.invalid": "Status must be one of: active, hidden.",
+  "validation.bookmark-status.note.too-long": "Note must be at most 1000 characters.",
+  "validation.message.text.too-long": "Message text must be at most 2000 characters.",
+  "validation.message.description.too-long": "Description must be at most 1000 characters."
 }

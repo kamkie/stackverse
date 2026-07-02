@@ -44,6 +44,8 @@ services:
       KC_HOSTNAME: http://localhost:8180
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
+      # the healthcheck below probes /health/ready on the management port (9000)
+      KC_HEALTH_ENABLED: "true"
     ports:
       - "8180:8080"
     volumes:
@@ -66,11 +68,11 @@ services:
       DB_USER: stackverse
       DB_PASSWORD: stackverse
       OIDC_ISSUER_URI: http://localhost:8180/realms/stackverse
+      # the issuer host above is not dialable from inside the network, so keys
+      # are fetched from the keycloak service directly; iss validation is unchanged
+      OIDC_JWKS_URI: http://keycloak:8080/realms/stackverse/protocol/openid-connect/certs
     ports:
       - "8080:8080"
-    extra_hosts:
-      # lets the backend resolve the host-facing issuer URL to the keycloak container
-      - "localhost:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

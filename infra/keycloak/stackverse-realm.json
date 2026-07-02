@@ -36,7 +36,7 @@
         "pkce.code.challenge.method": "S256",
         "post.logout.redirect.uris": "http://localhost:8000/*"
       },
-      "defaultClientScopes": ["profile", "email"],
+      "defaultClientScopes": ["basic", "profile", "email", "roles"],
       "protocolMappers": [
         {
           "name": "audience-stackverse-api",

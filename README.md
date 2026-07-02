@@ -71,7 +71,7 @@ Every implementation must satisfy:
 
 | Component | Stack | Directory | Status |
 |---|---|---|---|
-| Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | planned |
+| Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | done |
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | planned |
 | Backend | Go (stdlib + chi) | `backends/go` | planned |
 | Backend | Node.js (TypeScript) | `backends/node-ts` | planned |
