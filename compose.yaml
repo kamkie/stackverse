@@ -44,6 +44,8 @@ services:
       KC_HOSTNAME: http://localhost:8180
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
+      # the healthcheck below probes /health/ready on the management port (9000)
+      KC_HEALTH_ENABLED: "true"
     ports:
       - "8180:8080"
     volumes:
