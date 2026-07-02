@@ -267,7 +267,7 @@ app.UseWhen(
                     .GetRequiredService<AccessTokenManager>()
                     .GetAccessTokenAsync(auth, context.RequestAborted);
             }
-            catch (IdpUnreachableException)
+            catch (IdpUnavailableException)
             {
                 // Transient IdP outage (already logged as dependency_call_failed): the
                 // refresh token may still be valid, so the session stays. Failing the

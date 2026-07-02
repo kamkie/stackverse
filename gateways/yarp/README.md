@@ -64,11 +64,13 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   the browser's cookies and the CSRF header are stripped before proxying.
 - **Refresh failures are two different animals** (semantics pinned in
   [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)). An IdP that *rejects* the
-  refresh proves the session is dead: destroy it, `token_refresh_failed` at WARN,
-  degrade the request to anonymous. An IdP that is *unreachable* proves nothing
-  about the session, so [AccessTokenManager.cs](src/StackverseGateway/AccessTokenManager.cs)
+  refresh — an authoritative `400`/`401` from the token endpoint (RFC 6749 §5.2)
+  — proves the session is dead: destroy it, `token_refresh_failed` at WARN,
+  degrade the request to anonymous. An IdP that is *unavailable* — unreachable,
+  answering `5xx`/`429`, or answering garbage — proves nothing about the session,
+  so [AccessTokenManager.cs](src/StackverseGateway/AccessTokenManager.cs)
   logs `dependency_call_failed` at ERROR (`dependency=keycloak`) and throws
-  `IdpUnreachableException`; the `/api` guard translates it into a `503` problem
+  `IdpUnavailableException`; the `/api` guard translates it into a `503` problem
   document and the session — whose refresh token may still be valid — survives.
   Degrading to anonymous here would silently serve a logged-in user public-only
   data; failing loudly and recoverably is the lesser evil.
