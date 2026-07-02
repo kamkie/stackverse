@@ -63,9 +63,13 @@ Rules:
 
 - Cookie: `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev, name `stackverse_session`.
 - Token refresh is the gateway's job — transparent to both SPA and backend.
-- CSRF: state-changing `/api/*` requests must be protected (SameSite is the baseline;
-  a double-submit or custom-header check is the recommended hardening — each gateway
-  documents its mechanism).
+- CSRF: `SameSite=Lax` on the session cookie is the baseline; on top of it every
+  gateway implements the same double-submit check. The gateway issues a readable
+  `XSRF-TOKEN` cookie (not `HttpOnly`; `SameSite=Lax`, `Secure` outside local dev)
+  to every browser, and state-changing `/api/**` requests (`POST`/`PUT`/`PATCH`/`DELETE`)
+  must echo its value in an `X-XSRF-TOKEN` header. Missing or mismatched header →
+  `403` with an `application/problem+json` body. All gateways implement exactly this
+  mechanism — cookie name, header name, protected methods, and status code included.
 - The gateway adds nothing to the API semantics: no rewriting of bodies, no auth
   decisions beyond "is there a valid session".
 - The gateway is version-agnostic: `/api/**` covers `/api/v1/**`, `/api/v2/**`,
