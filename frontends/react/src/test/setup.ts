@@ -17,6 +17,7 @@ afterEach(() => {
   resetDb();
   setCurrentUser(null);
   localStorage.clear();
+  sessionStorage.clear();
 });
 
 afterAll(() => server.close());
