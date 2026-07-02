@@ -48,7 +48,7 @@ public sealed class RpInitiatedLogout(
                     (int)response.StatusCode);
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
             logger.LogWarning(exception, "IdP logout failed; local session destroyed anyway");
         }

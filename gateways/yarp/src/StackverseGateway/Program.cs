@@ -217,8 +217,11 @@ app.MapPost("/auth/logout", async (HttpContext context, RpInitiatedLogout idpLog
     var auth = await context.AuthenticateAsync();
     if (auth.Succeeded)
     {
-        await idpLogout.LogoutAsync(auth.Properties!, context.RequestAborted);
+        // Local session first: logout must not depend on the IdP being reachable
+        // or the client staying connected. The IdP revocation is best effort and
+        // deliberately ignores the request abort — the user's intent is recorded.
         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        await idpLogout.LogoutAsync(auth.Properties!, CancellationToken.None);
     }
     return Results.NoContent();
 });
