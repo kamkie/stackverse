@@ -46,6 +46,19 @@ docker compose up -d
 docker compose logs -f          # or: docker compose logs -f keycloak
 ```
 
+## 2b. Full stack (dev mode, one terminal tab per module)
+
+Infra in Docker, backend/gateway/frontend as live dev processes (hot reload)
+in their own Windows Terminal tabs, each tee'ing its output to
+`.logs/<module>.log` at the repo root:
+
+```sh
+./scripts/dev-stack.sh      # or: ./scripts/dev-stack.ps1
+```
+
+App on http://localhost:8000 (gateway proxies the Vite dev server). Stop with
+Ctrl+C per tab and `docker compose down`.
+
 ## 3. Full stack (containers)
 
 Build images and run any backend + gateway + frontend combination:

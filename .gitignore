@@ -1,6 +1,9 @@
 # local env
 .env
 
+# dev-mode logs tee'd by scripts/dev-stack.ps1 (shared with agents, never committed)
+.logs/
+
 # Claude Code: launch.json (dev-server config) is committed; the rest is local
 .claude/*
 !.claude/launch.json

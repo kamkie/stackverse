@@ -29,13 +29,21 @@ implemented in many stacks. Read these before changing anything:
 
 - Work inside one implementation directory at a time; each has its own build and
   toolchain. Run builds/tests from that directory, not the repo root.
+- **Repo scripts ship in both flavors.** Anything in `scripts/` exists as a `.ps1`
+  *and* a `.sh` doing the same thing — add or change them together. Test the shell
+  flavor through Git Bash or WSL, not by reading it.
 - Update the implementation matrix in `README.md` when an implementation changes status.
 - `compose.yaml` at the root runs infra (`docker compose up -d`) and pluggable
   app combos (`--profile app` with `BACKEND_IMAGE`/`GATEWAY_IMAGE`).
 
 ## Full dev mode (each module in a visible terminal)
 
-Infra in Docker, each module as a dev process in its own terminal tab:
+`./scripts/dev-stack.ps1` (Windows) starts the Docker infra, waits for Keycloak,
+and opens one Windows Terminal tab per module. Each tab tees its output to
+`.logs/<module>.log` at the repo root (gitignored), so humans watch the terminals
+and agents read the files — check there before asking for log output.
+
+What the script runs (also the manual recipe):
 
 1. `docker compose up -d` from the repo root; wait for Keycloak to report healthy.
 2. Backend — in `backends/spring-kotlin`: `./gradlew bootRun` (defaults match the compose infra).
