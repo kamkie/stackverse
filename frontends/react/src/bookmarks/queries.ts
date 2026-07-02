@@ -23,9 +23,13 @@ export interface BookmarkFilters {
  * of the deprecated offset v1 listing. The cursor is opaque: it goes straight
  * from `nextCursor` back into the next request, never parsed.
  */
-export function useBookmarks(filters: BookmarkFilters) {
+export function useBookmarks(
+  filters: BookmarkFilters,
+  options: { enabled?: boolean } = {},
+) {
   return useInfiniteQuery({
     queryKey: ["bookmarks", filters],
+    enabled: options.enabled ?? true,
     queryFn: async ({ pageParam }) =>
       unwrap(
         await api.GET("/api/v2/bookmarks", {

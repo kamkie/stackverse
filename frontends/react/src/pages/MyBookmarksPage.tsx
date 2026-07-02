@@ -28,7 +28,11 @@ export function MyBookmarksPage() {
   const [deleting, setDeleting] = useState<Bookmark | null>(null);
 
   const filters = useMemo(() => ({ tags: activeTags, q }), [activeTags, q]);
-  const bookmarks = useBookmarks(filters);
+  // The list is owner-only: don't fire the query into a guaranteed 401 while
+  // anonymous (the page renders a login prompt instead, below).
+  const bookmarks = useBookmarks(filters, {
+    enabled: session.data?.authenticated === true,
+  });
   const deleteBookmark = useDeleteBookmark();
 
   const toggleTag = (tag: string) =>
