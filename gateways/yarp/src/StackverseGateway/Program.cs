@@ -134,8 +134,13 @@ builder.Services.AddReverseProxy()
     .LoadFromMemory(routes, clusters)
     .AddTransforms(context =>
     {
+        // The browser's cookies (session key, CSRF token) are gateway-only state;
+        // nothing upstream may see them — the session lives at the edge.
+        context.AddRequestHeaderRemove("Cookie");
         if (context.Route.RouteId == "api")
         {
+            // Validated at the gateway; not part of the API semantics.
+            context.AddRequestHeaderRemove(Csrf.HeaderName);
             context.AddRequestTransform(transform =>
             {
                 // Placed by the /api guard middleware below.

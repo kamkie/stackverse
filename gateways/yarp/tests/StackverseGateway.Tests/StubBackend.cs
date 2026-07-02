@@ -15,6 +15,8 @@ public sealed class StubBackend : IAsyncDisposable
     private readonly WebApplication _app;
 
     public string? LastAuthorization { get; private set; }
+    public string? LastCookie { get; private set; }
+    public string? LastCsrfHeader { get; private set; }
     public string? LastPath { get; private set; }
     public string Url => _app.Urls.First();
 
@@ -27,6 +29,8 @@ public sealed class StubBackend : IAsyncDisposable
         _app.Map("/api/{**rest}", (HttpContext context) =>
         {
             LastAuthorization = context.Request.Headers.Authorization.ToString();
+            LastCookie = context.Request.Headers.Cookie.ToString();
+            LastCsrfHeader = context.Request.Headers["X-XSRF-TOKEN"].ToString();
             LastPath = context.Request.Path.Value;
             return Results.Json(new { ok = true });
         });

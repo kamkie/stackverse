@@ -69,6 +69,7 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         Assert.Equal("/api/v1/bookmarks", fixture.Backend.LastPath);
         Assert.StartsWith("Bearer ", fixture.Backend.LastAuthorization);
+        Assert.Equal("", fixture.Backend.LastCookie); // browser cookies never leave the gateway
         var jwtPayload = DecodeJwtPayload(fixture.Backend.LastAuthorization!["Bearer ".Length..]);
         Assert.Equal("demo", jwtPayload.GetProperty("preferred_username").GetString());
         Assert.Contains("stackverse-api", jwtPayload.GetProperty("aud").ToString());
@@ -93,6 +94,7 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
             var validResponse = await client.SendAsync(valid);
             Assert.Equal(HttpStatusCode.OK, validResponse.StatusCode);
             Assert.StartsWith("Bearer ", fixture.Backend.LastAuthorization);
+            Assert.Equal("", fixture.Backend.LastCsrfHeader); // consumed at the gateway
         }
 
         // --- Logout destroys the session and answers 204.
