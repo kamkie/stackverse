@@ -43,14 +43,17 @@ public sealed class RpInitiatedLogout(
 
             if (!response.IsSuccessStatusCode)
             {
-                logger.LogWarning(
-                    "IdP logout returned {StatusCode}; local session destroyed anyway",
-                    (int)response.StatusCode);
+                logger.Event(LogLevel.Warning, "idp_logout_failed", "failure",
+                    $"IdP logout returned {(int)response.StatusCode}; local session destroyed anyway",
+                    fields: [("error_code", "idp_rejected"), ("idp_status", (int)response.StatusCode)]);
             }
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "IdP logout failed; local session destroyed anyway");
+            logger.Event(LogLevel.Warning, "idp_logout_failed", "failure",
+                "IdP logout failed; local session destroyed anyway",
+                exception,
+                [("error_code", "idp_unreachable")]);
         }
     }
 }

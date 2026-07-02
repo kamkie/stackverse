@@ -75,9 +75,10 @@ public sealed class AccessTokenManager(
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogInformation(
-                "Token refresh rejected by the IdP ({StatusCode}); treating the session as expired",
-                (int)response.StatusCode);
+            // degraded but self-healing (the caller destroys the session) — WARN per docs/LOGGING.md §5
+            logger.Event(LogLevel.Warning, "token_refresh_failed", "failure",
+                $"Token refresh rejected by the IdP ({(int)response.StatusCode}); treating the session as expired",
+                fields: [("error_code", "idp_rejected"), ("idp_status", (int)response.StatusCode)]);
             return null;
         }
 

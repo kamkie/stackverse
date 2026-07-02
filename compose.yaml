@@ -80,6 +80,8 @@ services:
       OTEL_SERVICE_NAME: stackverse-backend
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
     ports:
       - "8080:8080"
     depends_on:
@@ -113,6 +115,8 @@ services:
       OTEL_SERVICE_NAME: stackverse-gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
     ports:
       - "8000:8000"
     volumes:

@@ -69,6 +69,12 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
   Actuator's health groups provide.
 - The audit `detail` column is `jsonb` mapped as a JSON string; the API renders it
   back as an object.
+- Logging (docs/LOGGING.md) uses Spring Boot's built-in structured console
+  logging in its **ECS flavor** — UTC timestamps, and both the MDC (where the
+  OTel Java agent puts `trace_id`/`span_id`) and SLF4J key-value pairs (how the
+  contract's `event`/`outcome` fields are attached) land as JSON fields. The
+  `LOG_FORMAT` mapping lives in an `EnvironmentPostProcessor` so configuration
+  stays env-only — no `logback.xml`.
 - "Unresolvable cursor → 400" is interpreted as *undecodable*: a well-formed but
   never-issued cursor is indistinguishable, on a stateless service, from a legitimate
   cursor whose boundary row was deleted between pages — and that one must keep

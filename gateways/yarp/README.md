@@ -49,6 +49,13 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   require front-channel logout, which the `204` contract deliberately trades away;
   if the residual SSO window ever matters, that is a contract-level decision for
   all gateways, not a local one.
+- **Logging** (docs/LOGGING.md) uses the built-in console formatters:
+  `AddJsonConsole` by default (UTC RFC 3339 timestamps; activity tracking puts
+  `TraceId`/`SpanId` into the logged scopes), `AddSimpleConsole` for
+  `LOG_FORMAT=text`. The contract's `event`/`outcome` fields travel as
+  structured logging state via the small `EventLog` extension; framework
+  categories stay capped at `Warning` so per-request hosting noise (health
+  probes included) stays out of INFO logs.
 - **Anonymous `/api/**` requests relay without a token.** The spec's public surface
   (public bookmark feeds, message reads) works logged-out; the backend owns
   per-endpoint auth. A session that can no longer refresh is destroyed and the

@@ -24,6 +24,9 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 var gateway = GatewayOptions.Load(builder.Configuration);
 builder.WebHost.UseUrls($"http://*:{gateway.Port}");
 
+// --- Console logging: LOG_LEVEL and LOG_FORMAT per docs/LOGGING.md §8.
+LoggingSetup.Configure(builder);
+
 // --- Observability: OTLP export of traces, metrics, and logs. Endpoint,
 // --- protocol, and service name come from the standard OTEL_* env vars
 // --- (see gateways/README.md). Export is opt-in: the documented default for
@@ -82,6 +85,18 @@ builder.Services.AddAuthentication(options =>
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.LoginPath = "/auth/login";
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnSignedIn = context =>
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("StackverseGateway.Session")
+                    .Event(LogLevel.Information, "session_created", "success",
+                        "Session ticket stored in Redis, cookie issued",
+                        fields: [("actor", context.Principal?.Identity?.Name)]);
+                return Task.CompletedTask;
+            },
+        };
     })
     .AddOpenIdConnect(options =>
     {
@@ -111,6 +126,26 @@ builder.Services.AddAuthentication(options =>
             OnRedirectToIdentityProvider = context =>
             {
                 context.ProtocolMessage.RedirectUri = new Uri(gateway.PublicUrl, "/auth/callback").ToString();
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("StackverseGateway.Oidc")
+                    .Event(LogLevel.Information, "oidc_callback_completed", "success",
+                        "Authorization code flow completed",
+                        fields: [("actor", context.Principal?.Identity?.Name)]);
+                return Task.CompletedTask;
+            },
+            // an expected client/IdP signal, not an application error — INFO, and only
+            // the failure type: the message could echo client-controlled query values
+            OnRemoteFailure = context =>
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("StackverseGateway.Oidc")
+                    .Event(LogLevel.Information, "oidc_callback_completed", "failure",
+                        "Authorization code flow failed",
+                        fields: [("error_code", context.Failure?.GetType().Name ?? "remote_failure")]);
                 return Task.CompletedTask;
             },
         };
@@ -204,6 +239,15 @@ app.UseWhen(
     {
         if (!Csrf.IsValid(context.Request))
         {
+            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+            app.Logger.Event(LogLevel.Information, "csrf_validation_failed", "denied",
+                "Rejected a state-changing /api request without a matching CSRF header",
+                fields:
+                [
+                    ("method", EventLog.Sanitize(context.Request.Method)),
+                    // the decoded path is client-controlled input (§6)
+                    ("path", EventLog.Sanitize(context.Request.Path.Value)),
+                ]);
             await Problems.Write(context, StatusCodes.Status403Forbidden,
                 "Forbidden", $"Missing or mismatched {Csrf.HeaderName} header.");
             return;
@@ -219,6 +263,9 @@ app.UseWhen(
                 // The session can no longer produce a token: destroy it and degrade to
                 // anonymous. The SPA notices via the backend's 401 or /auth/session.
                 await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                app.Logger.Event(LogLevel.Information, "session_destroyed", "success",
+                    "Session destroyed after a failed token refresh; request degraded to anonymous",
+                    fields: [("reason", "token_refresh_failed"), ("actor", auth.Principal?.Identity?.Name)]);
             }
             else
             {
@@ -247,6 +294,9 @@ app.MapPost("/auth/logout", async (HttpContext context, RpInitiatedLogout idpLog
         // or the client staying connected. The IdP revocation is best effort and
         // deliberately ignores the request abort — the user's intent is recorded.
         await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+        app.Logger.Event(LogLevel.Information, "session_destroyed", "success",
+            "Session destroyed by user logout",
+            fields: [("reason", "logout"), ("actor", auth.Principal?.Identity?.Name)]);
         await idpLogout.LogoutAsync(auth.Properties!, CancellationToken.None);
     }
     return Results.NoContent();
@@ -261,6 +311,32 @@ if (gateway.FrontendUrl is null)
 }
 
 app.MapReverseProxy();
+
+// --- Lifecycle contract events (docs/LOGGING.md §5): `application_start` with the
+// --- effective configuration (secrets excluded), `application_stop` on orderly
+// --- shutdown so restarts stay distinguishable from crashes.
+app.Lifetime.ApplicationStarted.Register(() =>
+    app.Logger.Event(LogLevel.Information, "application_start", "success",
+        "Stackverse gateway is up and accepting requests",
+        fields:
+        [
+            ("port", gateway.Port),
+            ("backend_url", gateway.BackendUrl),
+            ("frontend_url", gateway.FrontendUrl),
+            ("public_url", gateway.PublicUrl),
+            // endpoints only: in a StackExchange.Redis configuration string every
+            // option (password included) is a `name=value` segment, and REDIS_URL
+            // accepts such raw strings verbatim — so anything with '=' stays out (§6)
+            ("redis_endpoint", string.Join(",", gateway.RedisConfiguration.Split(',').Where(s => !s.Contains('=')))),
+            ("oidc_issuer_uri", gateway.OidcIssuerUri),
+            ("oidc_client_id", gateway.OidcClientId),
+            ("log_level", builder.Configuration["LOG_LEVEL"] ?? "info"),
+            ("log_format", builder.Configuration["LOG_FORMAT"] ?? "json"),
+            ("otel_sdk_disabled", !(otlpEndpointConfigured && otelExportEnabled)),
+        ]));
+app.Lifetime.ApplicationStopping.Register(() =>
+    app.Logger.Event(LogLevel.Information, "application_stop", "success",
+        "Stackverse gateway shutting down"));
 
 app.Run();
 

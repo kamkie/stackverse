@@ -1,6 +1,11 @@
 server:
   port: ${PORT:8080}
 
+logging:
+  level:
+    # docs/LOGGING.md §8 — relaxed binding accepts the contract's lowercase values
+    root: ${LOG_LEVEL:info}
+
 spring:
   application:
     name: stackverse-backend-spring-kotlin

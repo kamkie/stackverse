@@ -2,8 +2,11 @@ package dev.stackverse.backend.config
 
 import dev.stackverse.backend.account.UserAccountFilter
 import dev.stackverse.backend.account.UserAccountService
+import dev.stackverse.backend.common.logEvent
 import dev.stackverse.backend.message.MessageLocalizer
 import jakarta.servlet.http.HttpServletResponse
+import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -15,7 +18,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
 import org.springframework.security.oauth2.core.OAuth2Error
 import org.springframework.security.oauth2.core.OAuth2TokenValidator
 import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
@@ -50,6 +55,8 @@ data class OidcProperties(
 @EnableMethodSecurity
 class SecurityConfig {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     @Bean
     fun securityFilterChain(
         http: HttpSecurity,
@@ -71,7 +78,13 @@ class SecurityConfig {
             }
             .oauth2ResourceServer { resourceServer ->
                 resourceServer.jwt { it.jwtAuthenticationConverter(jwtAuthenticationConverter()) }
-                resourceServer.authenticationEntryPoint { _, response, _ ->
+                // fires only when a bearer token was presented and rejected — an expected
+                // 401 and a security signal, never above INFO (docs/LOGGING.md §3)
+                resourceServer.authenticationEntryPoint { _, response, exception ->
+                    log.logEvent(
+                        Level.INFO, "jwt_validation_failed", "failure", "Rejected a bearer token",
+                        "error_code" to ((exception as? OAuth2AuthenticationException)?.error?.errorCode ?: "invalid_token"),
+                    )
                     writeProblem(response, objectMapper, HttpStatus.UNAUTHORIZED, "Missing or invalid bearer token.")
                 }
             }
@@ -80,6 +93,10 @@ class SecurityConfig {
                     writeProblem(response, objectMapper, HttpStatus.UNAUTHORIZED, "Authentication is required.")
                 }
                 it.accessDeniedHandler { _, response, _ ->
+                    log.logEvent(
+                        Level.INFO, "authz_denied", "denied", "Denied a request lacking the required role",
+                        "actor" to SecurityContextHolder.getContext().authentication?.name,
+                    )
                     writeProblem(response, objectMapper, HttpStatus.FORBIDDEN, "You do not have the role required for this operation.")
                 }
             }

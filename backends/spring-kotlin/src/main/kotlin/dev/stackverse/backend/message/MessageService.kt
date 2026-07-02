@@ -4,7 +4,10 @@ import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.common.ConflictProblem
 import dev.stackverse.backend.common.NotFoundProblem
 import dev.stackverse.backend.common.Validator
+import dev.stackverse.backend.common.logEvent
 import dev.stackverse.backend.common.nowUtc
+import org.slf4j.LoggerFactory
+import org.slf4j.event.Level
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -18,6 +21,9 @@ class MessageService(
     private val repository: MessageRepository,
     private val auditService: AuditService,
 ) {
+
+    // message CRUD events are diagnostics only (docs/LOGGING.md §5) — the audit trail stays authoritative
+    private val log = LoggerFactory.getLogger(javaClass)
 
     fun create(actor: String, request: MessageRequest): Message {
         val input = validate(request)
@@ -36,6 +42,7 @@ class MessageService(
             ),
         )
         auditService.record(actor, "message.created", "message", message.id.toString(), snapshot(message))
+        logMessageEvent("message_created", "Message created", actor, message)
         return message
     }
 
@@ -52,6 +59,7 @@ class MessageService(
         message.description = input.description
         message.updatedAt = nowUtc()
         auditService.record(actor, "message.updated", "message", message.id.toString(), snapshot(message))
+        logMessageEvent("message_updated", "Message updated", actor, message)
         return message
     }
 
@@ -59,6 +67,19 @@ class MessageService(
         val message = repository.findById(id).orElseThrow { NotFoundProblem() }
         repository.delete(message)
         auditService.record(actor, "message.deleted", "message", message.id.toString(), snapshot(message))
+        logMessageEvent("message_deleted", "Message deleted", actor, message)
+    }
+
+    /** The message key is safe to log: validated against `KEY_PATTERN`, so no free-form client text. */
+    private fun logMessageEvent(event: String, description: String, actor: String, message: Message) {
+        log.logEvent(
+            Level.INFO, event, "success", description,
+            "actor" to actor,
+            "resource_type" to "message",
+            "resource_id" to message.id.toString(),
+            "message_key" to message.key,
+            "language" to message.language,
+        )
     }
 
     /**
