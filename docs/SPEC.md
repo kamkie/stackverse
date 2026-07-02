@@ -192,7 +192,8 @@ An implementation is **done** when:
 - [ ] `/healthz` (liveness) and `/readyz` (readiness, checks DB) respond correctly
 - [ ] A `Dockerfile` builds the service; the image runs in `compose.yaml` via `BACKEND_IMAGE`
 - [ ] Configuration comes exclusively from environment variables (see [backends/README.md](../backends/README.md))
-- [ ] The shared contract test suite passes against the running service *(planned)*
+- [ ] The shared conformance suite ([conformance/](../conformance)) passes against
+      the running service: `./scripts/conformance.sh` / `.ps1` (see [RUNNING.md](RUNNING.md))
 
 ## Out of scope (on purpose)
 

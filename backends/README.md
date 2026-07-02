@@ -48,6 +48,16 @@ with the semantics from [docs/SPEC.md](../docs/SPEC.md).
 
 No config files, no profiles-per-environment — the environment is the configuration.
 
+## Validating an implementation
+
+The contract is executable: with the compose infra up and the backend running,
+`./scripts/conformance.sh` / `.ps1` (the black-box suite in
+[conformance/](../conformance)) checks role enforcement, ownership masking,
+v1/v2 pagination and deprecation headers, ETag revalidation, the moderation
+state machine, blocking, audit and stats — no gateway or frontend required.
+A backend is not "done" until it passes (see the acceptance checklist in
+[docs/SPEC.md](../docs/SPEC.md)).
+
 ## Per-implementation README
 
 Each implementation's README covers only what is *specific to that stack*: how to run

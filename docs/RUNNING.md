@@ -112,6 +112,28 @@ drives the real app — Keycloak login included — through every required scree
 
 Point it at a different gateway with `STACKVERSE_URL=http://host:port`.
 
+## Contract conformance tests
+
+With just the infra and one backend running (mode 2 with the backend from your
+IDE, or dev mode) — no gateway or frontend needed — the black-box suite in
+`conformance/` checks the backend against [spec/openapi.yaml](../spec/openapi.yaml)
+and [docs/SPEC.md](SPEC.md): role enforcement, ownership masking, the v1/v2
+pagination exhibit with its deprecation headers, ETag revalidation, the
+moderation state machine, blocking, audit, stats.
+
+```sh
+./scripts/conformance.sh                 # or: ./scripts/conformance.ps1
+./scripts/conformance.sh -g pagination   # extra args go to `playwright test`
+```
+
+`BACKEND_URL` (default http://localhost:8080) and `KEYCLOAK_URL` (default
+http://localhost:8180) point it elsewhere. The suite bypasses the gateway:
+it takes per-role tokens straight from the dev realm's
+`stackverse-conformance` password-grant client. That client ships in the
+realm import — infra created before the client existed needs a one-time
+`docker compose up -d --force-recreate keycloak` (dev Keycloak has no
+persistent volume, so recreating re-imports the realm).
+
 ## Observability
 
 An all-in-one [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm)

@@ -71,6 +71,21 @@ What the script runs (also the manual recipe):
 Use the app at http://localhost:8000 (gateway). Stop with Ctrl+C per tab and
 `docker compose down`.
 
+## Contract conformance tests (`conformance/`)
+
+`./scripts/conformance.ps1` / `./scripts/conformance.sh` run the black-box API
+suite in `conformance/` **directly against a backend** — only the compose infra
+and one backend need to run, no gateway or frontend. `BACKEND_URL` (default
+http://localhost:8080) and `KEYCLOAK_URL` (default http://localhost:8180)
+override the targets; per-role tokens come from the dev realm's
+`stackverse-conformance` password-grant client. This is the executable form of
+`spec/openapi.yaml` + `docs/SPEC.md` and the acceptance gate for every backend
+implementation. Tests create uniquely-named data and run serially (moderation
+and blocking mutate shared state). The Keycloak client ships in the realm
+import; infra created before the client existed needs a one-time
+`docker compose up -d --force-recreate keycloak` (dev Keycloak keeps no
+volume, so recreating re-imports the realm).
+
 ## End-to-end tests (`e2e/`)
 
 `./scripts/e2e.ps1` / `./scripts/e2e.sh` run the Playwright suite against a
