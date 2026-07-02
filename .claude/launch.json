@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "react-frontend-mock",
+      "runtimeExecutable": "pwsh",
+      "runtimeArgs": [
+        "-NoProfile",
+        "-Command",
+        "Remove-Item Env:FORCE_COLOR -ErrorAction SilentlyContinue; $env:NO_COLOR='1'; Set-Location frontends/react; pnpm dev 2>&1 | Tee-Object -FilePath dev-server.log"
+      ],
+      "port": 5173
+    }
+  ]
+}

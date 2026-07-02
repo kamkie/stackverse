@@ -19,6 +19,11 @@ COPY --from=build /build/build/libs/*.jar app.jar
 # the message seed is part of the contract (SPEC rule 12) and ships inside the image
 COPY spec/messages seed/messages
 ENV SEED_MESSAGES_DIR=/app/seed/messages
+# OpenTelemetry auto-instrumentation (traces/metrics/logs over OTLP). Inert
+# unless enabled per-run: set OTEL_SDK_DISABLED=false and OTEL_* env vars
+# (see docs/RUNNING.md and compose.yaml's observability profile).
+ADD --chmod=444 https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.29.0/opentelemetry-javaagent.jar otel-javaagent.jar
+ENV OTEL_SDK_DISABLED=true
 USER app
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:/app/otel-javaagent.jar", "-jar", "app.jar"]

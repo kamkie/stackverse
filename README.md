@@ -82,6 +82,9 @@ Every implementation must satisfy:
 
 ## Quickstart
 
+All run modes (frontend-only dev, full stack, observability, logs) are covered
+in [docs/RUNNING.md](docs/RUNNING.md); the short version:
+
 Infrastructure only (PostgreSQL, Redis, Keycloak with a pre-imported realm):
 
 ```sh
@@ -95,6 +98,9 @@ BACKEND_IMAGE=stackverse/backend-spring-kotlin:local \
 GATEWAY_IMAGE=stackverse/gateway-yarp:local \
 docker compose --profile app up
 ```
+
+or, building the images first: `BUILD=1 ./scripts/run-stack.sh`
+(PowerShell: `./scripts/run-stack.ps1 -Build`).
 
 Then open http://localhost:8000 and log in as `demo` / `demo` (regular user),
 `moderator` / `moderator` (reports queue, dashboard), or `admin` / `admin`

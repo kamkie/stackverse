@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 using StackverseGateway;
 using Yarp.ReverseProxy.Configuration;
@@ -20,6 +23,29 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 
 var gateway = GatewayOptions.Load(builder.Configuration);
 builder.WebHost.UseUrls($"http://*:{gateway.Port}");
+
+// --- Observability: OTLP export of traces, metrics, and logs. Endpoint,
+// --- protocol, and service name come from the standard OTEL_* env vars
+// --- (see gateways/README.md). Export is opt-in: the documented default for
+// --- OTEL_SDK_DISABLED is `true`, so it takes an explicit `false` (plus a
+// --- configured endpoint) to turn the pipeline on.
+var otlpEndpointConfigured =
+    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT"));
+var otelExportEnabled = string.Equals(
+    Environment.GetEnvironmentVariable("OTEL_SDK_DISABLED"), "false", StringComparison.OrdinalIgnoreCase);
+if (otlpEndpointConfigured && otelExportEnabled)
+{
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(tracing => tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter())
+        .WithMetrics(metrics => metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter())
+        .WithLogging(logging => logging.AddOtlpExporter());
+}
 
 // --- Redis: session tickets, and Data Protection keys so any instance can decrypt
 // --- the session cookie and OIDC state. Both are required for statelessness.

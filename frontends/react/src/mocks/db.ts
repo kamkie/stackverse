@@ -188,9 +188,20 @@ function createDb(): Db {
     users,
     audit,
     messages,
-    messagesVersion: 1,
+    // Derived from the seed content so ETags change when spec/messages/*.json
+    // change — otherwise a browser holding a cached bundle would 304 forever.
+    messagesVersion: seedHash(),
     statsVersion: 1,
   };
+}
+
+function seedHash(): number {
+  const text = JSON.stringify(SEED_MESSAGES);
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (hash * 31 + text.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }
 
 export let db: Db = createDb();
