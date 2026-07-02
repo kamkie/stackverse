@@ -56,7 +56,7 @@ Every gateway implementation exposes the same surface on port **8000**:
 | `GET /auth/callback` | code exchange, create session, redirect to `/` |
 | `POST /auth/logout` | destroy session, RP-initiated logout at the IdP, `204` |
 | `GET /auth/session` | `200 {"authenticated":true,"username":...}` or `200 {"authenticated":false}` — for the SPA |
-| `/api/**` | proxy to backend with token relay; `401` problem document if no session |
+| `/api/**` | proxy to backend — token relay when a session exists, anonymous relay without a token otherwise (the spec's public surface works logged-out); which endpoints require auth is the backend's decision |
 | `/**` | serve / proxy the frontend SPA |
 
 Rules:
@@ -71,7 +71,10 @@ Rules:
   `403` with an `application/problem+json` body. All gateways implement exactly this
   mechanism — cookie name, header name, protected methods, and status code included.
 - The gateway adds nothing to the API semantics: no rewriting of bodies, no auth
-  decisions beyond "is there a valid session".
+  decisions — it attaches a token when it has one and the backend authorizes per
+  endpoint. A `401` the SPA sees on `/api/*` is the backend's problem document
+  passed through untouched, never a gateway redirect. Browser cookies are
+  gateway-only state and are stripped before proxying.
 - The gateway is version-agnostic: `/api/**` covers `/api/v1/**`, `/api/v2/**`,
   and anything after — API versioning is entirely the backend's concern.
 

@@ -25,16 +25,30 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
     }
 
     [Fact]
-    public async Task Api_without_a_session_returns_401_problem_document_not_a_redirect()
+    public async Task Anonymous_api_requests_relay_without_a_bearer_token()
     {
         using var client = CreateClient();
 
-        var response = await client.GetAsync("/api/v1/bookmarks");
+        // The spec's public surface (public bookmark feeds, message reads) must work
+        // logged-out: the gateway relays and the backend decides per endpoint.
+        var response = await client.GetAsync("/api/v2/bookmarks?visibility=public");
 
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("", fixture.Backend.LastAuthorization);
+        Assert.Equal("", fixture.Backend.LastCookie);
+    }
+
+    [Fact]
+    public async Task Anonymous_state_changing_requests_still_require_the_csrf_header()
+    {
+        using var client = CreateClient();
+
+        var response = await client.PostAsync("/api/v1/bookmarks", JsonContent(new { url = "https://example.com" }));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
-        Assert.Equal(401, problem.GetProperty("status").GetInt32());
+        Assert.Equal(403, problem.GetProperty("status").GetInt32());
     }
 
     [Fact]
@@ -104,8 +118,10 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         var afterLogout = await GetJsonAsync(client, "/auth/session");
         Assert.False(afterLogout.GetProperty("authenticated").GetBoolean());
 
+        // The dead session no longer yields a token — the relay degrades to anonymous.
         var apiAfterLogout = await client.GetAsync("/api/v1/bookmarks");
-        Assert.Equal(HttpStatusCode.Unauthorized, apiAfterLogout.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, apiAfterLogout.StatusCode);
+        Assert.Equal("", fixture.Backend.LastAuthorization);
     }
 
     /// <summary>

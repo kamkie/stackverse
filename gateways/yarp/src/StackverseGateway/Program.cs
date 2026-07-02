@@ -165,37 +165,37 @@ app.Use((context, next) =>
     return next(context);
 });
 
-// Guard /api/** before the proxy: no session → 401 problem (never a redirect),
-// CSRF mismatch on state-changing methods → 403 problem, then a fresh access token.
+// Guard /api/** before the proxy: CSRF on state-changing methods (403 problem),
+// then a fresh access token when a session exists. Anonymous requests relay
+// without a token — the spec's public surface must work logged-out, and which
+// endpoints require auth is the backend's decision, not the gateway's.
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api"),
     api => api.Use(async (context, next) =>
     {
-        var auth = await context.AuthenticateAsync();
-        if (!auth.Succeeded)
-        {
-            await Problems.Write(context, StatusCodes.Status401Unauthorized,
-                "Unauthorized", "No active session. Log in via /auth/login.");
-            return;
-        }
         if (!Csrf.IsValid(context.Request))
         {
             await Problems.Write(context, StatusCodes.Status403Forbidden,
                 "Forbidden", $"Missing or mismatched {Csrf.HeaderName} header.");
             return;
         }
-        var accessToken = await context.RequestServices
-            .GetRequiredService<AccessTokenManager>()
-            .GetAccessTokenAsync(auth, context.RequestAborted);
-        if (accessToken is null)
+        var auth = await context.AuthenticateAsync();
+        if (auth.Succeeded)
         {
-            // The session can no longer produce a token; destroy it so the SPA sees a clean logged-out state.
-            await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            await Problems.Write(context, StatusCodes.Status401Unauthorized,
-                "Unauthorized", "Session expired. Log in again via /auth/login.");
-            return;
+            var accessToken = await context.RequestServices
+                .GetRequiredService<AccessTokenManager>()
+                .GetAccessTokenAsync(auth, context.RequestAborted);
+            if (accessToken is null)
+            {
+                // The session can no longer produce a token: destroy it and degrade to
+                // anonymous. The SPA notices via the backend's 401 or /auth/session.
+                await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+            else
+            {
+                context.Items["gw:access-token"] = accessToken;
+            }
         }
-        context.Items["gw:access-token"] = accessToken;
         await next();
     }));
 

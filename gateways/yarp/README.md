@@ -34,9 +34,12 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
 - **PAR is disabled.** .NET auto-upgrades to Pushed Authorization Requests when the
   IdP advertises them; the plain front-channel authorization request is kept so all
   gateway stacks exhibit identical wire behavior.
-- **No session on `/api/**` → `401`** `application/problem+json`, never a redirect;
-  CSRF violations → `403` problem document (mechanism pinned in
-  [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)).
+- **Anonymous `/api/**` requests relay without a token.** The spec's public surface
+  (public bookmark feeds, message reads) works logged-out; the backend owns
+  per-endpoint auth. A session that can no longer refresh is destroyed and the
+  request degrades to anonymous. CSRF violations → `403` problem document
+  (mechanism pinned in [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)), and
+  the browser's cookies and the CSRF header are stripped before proxying.
 
 ## Configuration
 
