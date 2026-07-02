@@ -23,26 +23,34 @@ public sealed class RpInitiatedLogout(
             return;
         }
 
-        var options = oidcOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
-        var metadata = await options.ConfigurationManager!.GetConfigurationAsync(cancellationToken);
-
-        using var response = await options.Backchannel.PostAsync(
-            metadata.EndSessionEndpoint,
-            new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["client_id"] = options.ClientId!,
-                ["client_secret"] = options.ClientSecret!,
-                ["refresh_token"] = refreshToken,
-            }),
-            cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        // Best effort throughout: an unreachable or unhappy IdP must never keep the
+        // local session alive — the caller destroys it regardless, and Keycloak's
+        // SSO session still times out on its own.
+        try
         {
-            // Best effort: the local session is destroyed regardless, and Keycloak's
-            // SSO session will still time out on its own.
-            logger.LogWarning(
-                "IdP logout returned {StatusCode}; local session destroyed anyway",
-                (int)response.StatusCode);
+            var options = oidcOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
+            var metadata = await options.ConfigurationManager!.GetConfigurationAsync(cancellationToken);
+
+            using var response = await options.Backchannel.PostAsync(
+                metadata.EndSessionEndpoint,
+                new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["client_id"] = options.ClientId!,
+                    ["client_secret"] = options.ClientSecret!,
+                    ["refresh_token"] = refreshToken,
+                }),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning(
+                    "IdP logout returned {StatusCode}; local session destroyed anyway",
+                    (int)response.StatusCode);
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "IdP logout failed; local session destroyed anyway");
         }
     }
 }
