@@ -1,6 +1,7 @@
 package dev.stackverse.backend.bookmark
 
 import dev.stackverse.backend.common.PageResponse
+import dev.stackverse.backend.common.requireMaxLength
 import dev.stackverse.backend.common.requireValidPaging
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -37,6 +38,7 @@ class BookmarkV1Controller(private val service: BookmarkService) {
         authentication: Authentication?,
     ): PageResponse<BookmarkResponse> {
         requireValidPaging(page, size)
+        requireMaxLength(q, 200, "q")
         val result = service.listOffset(authentication?.name, BookmarkListQuery(tag.orEmpty(), q, visibility), page, size)
         return PageResponse.of(result) { BookmarkResponse.of(it) }
     }
@@ -79,6 +81,7 @@ class BookmarkV2Controller(private val service: BookmarkService) {
         authentication: Authentication?,
     ): BookmarkCursorPageResponse {
         requireValidPaging(page = 0, size = size)
+        requireMaxLength(q, 200, "q")
         val slice = service.listKeyset(
             authentication?.name,
             BookmarkListQuery(tag.orEmpty(), q, visibility),

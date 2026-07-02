@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude
 import dev.stackverse.backend.common.BadRequestProblem
 import dev.stackverse.backend.common.NotFoundProblem
 import dev.stackverse.backend.common.PageResponse
+import dev.stackverse.backend.common.requireMaxLength
 import dev.stackverse.backend.common.requireValidPaging
 import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
@@ -56,6 +57,7 @@ class AdminUserController(
         @RequestParam(defaultValue = "20") size: Int,
     ): PageResponse<UserAccountResponse> {
         requireValidPaging(page, size)
+        requireMaxLength(q, 100, "q")
         val qLike = q?.takeIf { it.isNotBlank() }?.let { "%${escapeLike(it.lowercase())}%" }
         val result = repository.search(qLike, status, Pageable.ofSize(size).withPage(page))
         return PageResponse.of(result) { UserAccountResponse.of(it.account, it.bookmarkCount) }
