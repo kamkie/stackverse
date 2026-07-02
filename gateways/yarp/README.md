@@ -34,6 +34,21 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
 - **PAR is disabled.** .NET auto-upgrades to Pushed Authorization Requests when the
   IdP advertises them; the plain front-channel authorization request is kept so all
   gateway stacks exhibit identical wire behavior.
+- **Logout semantics: local-first, IdP best-effort.** Logout is three separate
+  deaths: the gateway session (Redis ticket + cookie — the only credential the
+  browser holds), the Keycloak SSO session (a backchannel network call), and the
+  already-issued access token (dies only by expiry, ≤5 min — neither ordering
+  changes that). The local session is destroyed *first* because it is the only
+  death the gateway can guarantee; the IdP revocation follows, detached from the
+  request abort and with failures swallowed. The asymmetry that justifies the
+  order: if revocation fails, the worst case is that the same browser can
+  re-login without a password until Keycloak's SSO idle timeout — a bounded
+  footnote. The reverse order's worst case is a browser that stays logged in
+  after the user asked not to be — logout as fiction, the exact failure this
+  repo argues against. Killing Keycloak's browser cookie deterministically would
+  require front-channel logout, which the `204` contract deliberately trades away;
+  if the residual SSO window ever matters, that is a contract-level decision for
+  all gateways, not a local one.
 - **Anonymous `/api/**` requests relay without a token.** The spec's public surface
   (public bookmark feeds, message reads) works logged-out; the backend owns
   per-endpoint auth. A session that can no longer refresh is destroyed and the
