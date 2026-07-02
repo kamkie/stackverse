@@ -149,7 +149,11 @@ export function UsersPage() {
                         </button>
                       ) : (
                         // The API rejects self-blocking, so don't offer it.
-                        me.data?.username !== user.username && (
+                        // Wait for /me before showing any Block button — while
+                        // it is pending every row would pass the !== check,
+                        // including the admin's own.
+                        me.data !== undefined &&
+                        me.data.username !== user.username && (
                           <button
                             type="button"
                             className="sv-button sv-button--sm"
