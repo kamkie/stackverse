@@ -43,6 +43,6 @@ localStorage.setItem("stackverse.mock.login-as", "admin");     // full backoffic
 
 ## Production
 
-`npm run build` emits plain static files (`dist/`) servable by any gateway;
+`pnpm build` emits plain static files (`dist/`) servable by any gateway;
 there is no server-side rendering and no runtime configuration — all API
 calls are relative (`/api/...`, `/auth/...`) and carry the session cookie.
