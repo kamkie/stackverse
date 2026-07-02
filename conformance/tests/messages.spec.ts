@@ -122,9 +122,15 @@ test("create, update and delete round-trip; duplicates conflict", async ({ admin
   await expectProblem(await anon.get(`/api/v1/messages/${created.id}`), 404);
 });
 
-test("any message write changes the ETags of affected reads", async ({ anon, admin }) => {
+test("the bundle revalidates with ETag / 304 and any write invalidates it", async ({ anon, admin }) => {
   const before = await anon.get("/api/v1/messages/bundle?lang=en");
   const staleEtag = before.headers()["etag"] ?? "";
+  expect(staleEtag, "bundle reads must carry an ETag (rule 10)").toBeTruthy();
+  expect(before.headers()["cache-control"]).toContain("no-cache");
+  const revalidated = await anon.get("/api/v1/messages/bundle?lang=en", {
+    headers: { "If-None-Match": staleEtag },
+  });
+  expect(revalidated.status()).toBe(304);
 
   const created = await createMessage(admin, {
     key: `conformance.etag.${uid()}`,
@@ -136,7 +142,9 @@ test("any message write changes the ETags of affected reads", async ({ anon, adm
     headers: { "If-None-Match": staleEtag },
   });
   expect(after.status(), "a write must invalidate the previous ETag").toBe(200);
-  expect(after.headers()["etag"]).not.toBe(staleEtag);
+  const freshEtag = after.headers()["etag"];
+  expect(freshEtag).toBeTruthy();
+  expect(freshEtag).not.toBe(staleEtag);
 
   await admin.delete(`/api/v1/messages/${created.id}`);
 });
