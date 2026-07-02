@@ -24,6 +24,12 @@ public sealed class GatewayFixture : IAsyncLifetime
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public string KeycloakBaseUrl => _keycloak.GetBaseAddress().TrimEnd('/');
 
+    /// <summary>
+    /// Simulates an IdP outage by stopping the Keycloak container. Fixtures are
+    /// class-scoped, so only the test class that calls this sees the dead IdP.
+    /// </summary>
+    public Task StopKeycloakAsync() => _keycloak.StopAsync();
+
     public async Task InitializeAsync()
     {
         await Task.WhenAll(_redis.StartAsync(), _keycloak.StartAsync(), Backend.StartAsync());

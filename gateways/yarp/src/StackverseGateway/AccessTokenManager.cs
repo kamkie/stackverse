@@ -28,7 +28,9 @@ public sealed class AccessTokenManager(
 
     /// <summary>
     /// Returns a valid access token for the authenticated session, or null when the
-    /// session can no longer produce one (refresh token expired or revoked).
+    /// session can no longer produce one (refresh token expired or revoked). Throws
+    /// <see cref="IdpUnreachableException"/> when the IdP cannot be asked at all —
+    /// that outcome says nothing about the session, so the caller must not destroy it.
     /// </summary>
     public async Task<string?> GetAccessTokenAsync(AuthenticateResult auth, CancellationToken cancellationToken)
     {
@@ -60,33 +62,59 @@ public sealed class AccessTokenManager(
         }
 
         var options = oidcOptions.Get(OpenIdConnectDefaults.AuthenticationScheme);
-        var metadata = await options.ConfigurationManager!.GetConfigurationAsync(cancellationToken);
 
-        using var response = await options.Backchannel.PostAsync(
-            metadata.TokenEndpoint,
-            new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "refresh_token",
-                ["refresh_token"] = refreshToken,
-                ["client_id"] = options.ClientId!,
-                ["client_secret"] = options.ClientSecret!,
-            }),
-            cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
+        // Only an IdP that *rejects* the refresh proves the session is dead. An IdP
+        // that cannot be reached (or answers garbage) proves nothing, so that path
+        // must not fall through to "destroy the session": log the dependency failure
+        // and throw, letting the /api guard fail the request while the session stays.
+        string newAccessToken, newRefreshToken;
+        int expiresIn;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        try
         {
-            // degraded but self-healing (the caller destroys the session) — WARN per docs/LOGGING.md §5
-            logger.Event(LogLevel.Warning, "token_refresh_failed", "failure",
-                $"Token refresh rejected by the IdP ({(int)response.StatusCode}); treating the session as expired",
-                fields: [("error_code", "idp_rejected"), ("idp_status", (int)response.StatusCode)]);
-            return null;
-        }
+            var metadata = await options.ConfigurationManager!.GetConfigurationAsync(cancellationToken);
 
-        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        var root = payload.RootElement;
-        var newAccessToken = root.GetProperty("access_token").GetString()!;
-        var newRefreshToken = root.TryGetProperty("refresh_token", out var rotated) ? rotated.GetString()! : refreshToken;
-        var expiresIn = root.TryGetProperty("expires_in", out var lifetime) ? lifetime.GetInt32() : 300;
+            using var response = await options.Backchannel.PostAsync(
+                metadata.TokenEndpoint,
+                new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"] = "refresh_token",
+                    ["refresh_token"] = refreshToken,
+                    ["client_id"] = options.ClientId!,
+                    ["client_secret"] = options.ClientSecret!,
+                }),
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                // degraded but self-healing (the caller destroys the session) — WARN per docs/LOGGING.md §5
+                logger.Event(LogLevel.Warning, "token_refresh_failed", "failure",
+                    $"Token refresh rejected by the IdP ({(int)response.StatusCode}); treating the session as expired",
+                    fields: [("error_code", "idp_rejected"), ("idp_status", (int)response.StatusCode)]);
+                return null;
+            }
+
+            using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var root = payload.RootElement;
+            newAccessToken = root.GetProperty("access_token").GetString()!;
+            newRefreshToken = root.TryGetProperty("refresh_token", out var rotated) ? rotated.GetString()! : refreshToken;
+            expiresIn = root.TryGetProperty("expires_in", out var lifetime) ? lifetime.GetInt32() : 300;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw; // the client went away — not an IdP outage
+        }
+        catch (Exception exception)
+        {
+            logger.Event(LogLevel.Error, "dependency_call_failed",
+                exception is OperationCanceledException ? "timeout" : "failure",
+                "Keycloak was unreachable during token refresh; the session is kept",
+                exception,
+                ("dependency", "keycloak"),
+                ("duration_ms", stopwatch.ElapsedMilliseconds),
+                ("error_code", exception.GetType().Name));
+            throw new IdpUnreachableException(exception);
+        }
 
         properties.UpdateTokenValue("access_token", newAccessToken);
         properties.UpdateTokenValue("refresh_token", newRefreshToken);
@@ -105,3 +133,10 @@ public sealed class AccessTokenManager(
         return newAccessToken;
     }
 }
+
+/// <summary>
+/// A token refresh failed because the IdP was unreachable or unintelligible — a
+/// transient dependency outage, distinct from the IdP rejecting the refresh token.
+/// </summary>
+public sealed class IdpUnreachableException(Exception inner)
+    : Exception("The IdP could not be reached to refresh the access token", inner);

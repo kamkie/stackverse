@@ -22,8 +22,10 @@ The gateway makes no business decisions. If a request has a valid session it is
 relayed; authorization is the backend's job.
 
 Logging follows [docs/LOGGING.md](../docs/LOGGING.md) — in particular: tokens,
-cookies and the client secret never appear in logs, and a failed token refresh
-(session destroyed, request degraded to anonymous) is a `WARN`, not an error.
+cookies and the client secret never appear in logs, and a token refresh the IdP
+*rejected* (session destroyed, request degraded to anonymous) is a `WARN`, not an
+error. An *unreachable* IdP is a dependency failure: `ERROR`, session kept,
+request answered `503` (see [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md)).
 
 ## Configuration (environment variables)
 
