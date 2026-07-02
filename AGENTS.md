@@ -55,6 +55,16 @@ What the script runs (also the manual recipe):
 Use the app at http://localhost:8000 (gateway). Stop with Ctrl+C per tab and
 `docker compose down`.
 
+## End-to-end tests (`e2e/`)
+
+`./scripts/e2e.ps1` / `./scripts/e2e.sh` run the Playwright suite against a
+**running stack** (dev mode or containers; `STACKVERSE_URL` overrides the
+default http://localhost:8000). The suite is black-box and contract-level: it
+logs in through the real Keycloak form (`demo`/`moderator`/`admin`), exercises
+every required screen from `frontends/README.md`, and works against any
+backend + gateway + frontend combination. Tests create uniquely-named data and
+run serially (`workers: 1`) because moderation actions mutate shared state.
+
 ### Windows Terminal pitfalls (launching tabs programmatically)
 
 Use `wt -w <window-name> new-tab --title <t> ...` — one invocation per tab; the named

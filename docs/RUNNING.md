@@ -100,6 +100,18 @@ The frontend image is a file carrier, not a server: on `up` it copies its
 static build into a shared volume and exits, and the gateway serves those
 files (`SPA_ROOT`). The gateway waits for that copy before starting.
 
+## End-to-end tests
+
+With a stack running (either mode above), the Playwright suite in `e2e/`
+drives the real app — Keycloak login included — through every required screen:
+
+```sh
+./scripts/e2e.sh            # or: ./scripts/e2e.ps1
+./scripts/e2e.sh --headed   # extra args go to `playwright test`
+```
+
+Point it at a different gateway with `STACKVERSE_URL=http://host:port`.
+
 ## Observability
 
 An all-in-one [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm)
