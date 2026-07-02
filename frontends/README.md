@@ -29,8 +29,10 @@ Rules:
 3. **No CSS frameworks or UI kits** (Tailwind, Material, Bootstrap, ...) — they
    would make implementations differ in exactly the dimension this repo holds
    constant.
-4. Dark mode follows `prefers-color-scheme` via the tokens; no in-app theme
-   switcher.
+4. Dark mode follows `prefers-color-scheme` by default and can be forced via
+   `data-theme="light" | "dark"` on `<html>`. Every frontend provides a theme
+   switcher (auto / light / dark), persists the choice client-side (e.g.
+   `localStorage` key `stackverse.theme`), and applies it before first paint.
 
 ## Contract with the gateway
 

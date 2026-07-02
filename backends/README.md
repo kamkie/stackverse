@@ -39,6 +39,7 @@ with the semantics from [docs/SPEC.md](../docs/SPEC.md).
 | `DB_PASSWORD` | `stackverse` | database password |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/stackverse` | token issuer to validate against |
 | `OIDC_JWKS_URI` | *(derived from the issuer via OIDC discovery)* | where to fetch signing keys when the issuer host is not dialable from the container (in compose: `http://keycloak:8080/realms/stackverse/protocol/openid-connect/certs`); `iss` validation still uses `OIDC_ISSUER_URI` |
+| `OTEL_SDK_DISABLED` | `true` | set `false` to export traces/metrics/logs over OTLP; standard `OTEL_*` vars (`OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, ...) configure the export (see [docs/RUNNING.md](../docs/RUNNING.md)) |
 
 No config files, no profiles-per-environment — the environment is the configuration.
 

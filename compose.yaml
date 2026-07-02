@@ -4,6 +4,11 @@
 #   BACKEND_IMAGE=stackverse/backend-spring-kotlin:local \
 #   GATEWAY_IMAGE=stackverse/gateway-yarp:local \
 #   docker compose --profile app up
+#
+# Observability (Grafana + OTLP collector, see docs/RUNNING.md) is a separate
+# profile; enable telemetry export with OTEL_SDK_DISABLED=false:
+#
+#   OTEL_SDK_DISABLED=false docker compose --profile app --profile observability up
 
 name: stackverse
 
@@ -71,6 +76,9 @@ services:
       # the issuer host above is not dialable from inside the network, so keys
       # are fetched from the keycloak service directly; iss validation is unchanged
       OIDC_JWKS_URI: http://keycloak:8080/realms/stackverse/protocol/openid-connect/certs
+      OTEL_SERVICE_NAME: stackverse-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
     ports:
       - "8080:8080"
     depends_on:
@@ -91,6 +99,9 @@ services:
       OIDC_CLIENT_ID: stackverse-gateway
       OIDC_CLIENT_SECRET: stackverse-secret
       PUBLIC_URL: http://localhost:8000
+      OTEL_SERVICE_NAME: stackverse-gateway
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
+      OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
     ports:
       - "8000:8000"
     extra_hosts:
@@ -102,6 +113,16 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+
+  # All-in-one observability: OTLP collector + Prometheus + Tempo + Loki +
+  # Grafana. Dev-grade by design — one container, no persistence.
+  lgtm:
+    profiles: [observability]
+    image: grafana/otel-lgtm:0.28.0
+    ports:
+      - "3000:3000" # Grafana UI (admin / admin)
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
 
 volumes:
   postgres-data:

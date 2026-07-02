@@ -111,13 +111,15 @@ a:hover {
   gap: var(--sv-space-3);
 }
 
-.sv-lang-switch {
+.sv-lang-switch,
+.sv-theme-switch {
   display: flex;
   align-items: center;
   gap: var(--sv-space-1);
 }
 
-.sv-lang-option {
+.sv-lang-option,
+.sv-theme-option {
   padding: var(--sv-space-1) var(--sv-space-2);
   border: none;
   border-radius: var(--sv-radius-sm);
@@ -129,12 +131,14 @@ a:hover {
   cursor: pointer;
 }
 
-.sv-lang-option:hover {
+.sv-lang-option:hover,
+.sv-theme-option:hover {
   background: var(--sv-color-surface-sunken);
   color: var(--sv-color-text);
 }
 
-.sv-lang-option.is-active {
+.sv-lang-option.is-active,
+.sv-theme-option.is-active {
   background: var(--sv-color-primary-soft);
   color: var(--sv-color-primary);
 }

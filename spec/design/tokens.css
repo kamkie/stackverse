@@ -6,11 +6,15 @@
  * left to compare is the framework code. Components consume these custom
  * properties via stackverse.css; implementations must not restyle them.
  *
- * Dark mode follows the OS preference (prefers-color-scheme) — there is no
- * in-app theme switcher, by design.
+ * Dark mode follows the OS preference (prefers-color-scheme) by default, and
+ * can be forced with data-theme="light" | "dark" on the <html> element.
+ * Frontends expose this as a theme switcher (auto / light / dark), persist
+ * the choice, and apply it before first paint to avoid a flash.
  */
 
 :root {
+  color-scheme: light dark; /* auto; pinned by the data-theme rules below */
+
   /* ---- Typography ---------------------------------------------------- */
   --sv-font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
     Arial, "Noto Sans", sans-serif;
@@ -90,8 +94,13 @@
   --sv-color-chart-2: #7c3aed;          /* secondary series            */
 }
 
+/* The dark palette applies when the OS prefers dark and the user hasn't
+   forced light, or when the user forces dark. The two blocks below must stay
+   identical — update both when changing a dark token. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
     --sv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --sv-shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
     --sv-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
@@ -128,4 +137,48 @@
     --sv-color-chart-1: #5b8def;
     --sv-color-chart-2: #a78bfa;
   }
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --sv-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --sv-shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+  --sv-shadow-lg: 0 12px 32px rgb(0 0 0 / 0.6);
+
+  --sv-color-bg: #12161c;
+  --sv-color-surface: #1a2029;
+  --sv-color-surface-sunken: #12161c;
+  --sv-color-border: #2c3542;
+  --sv-color-border-strong: #46536a;
+
+  --sv-color-text: #e6eaf0;
+  --sv-color-text-muted: #9aa5b4;
+  --sv-color-text-faint: #6b7686;
+
+  --sv-color-primary: #5b8def;
+  --sv-color-primary-hover: #79a2f2;
+  --sv-color-primary-contrast: #0d1420;
+  --sv-color-primary-soft: #1e3a8a66;
+
+  --sv-color-danger: #ef6a6a;
+  --sv-color-danger-hover: #f28b8b;
+  --sv-color-danger-contrast: #1c0d0d;
+  --sv-color-danger-soft: #7f1d1d55;
+
+  --sv-color-warning: #f5c063;
+  --sv-color-warning-soft: #78350f55;
+
+  --sv-color-success: #5dc98a;
+  --sv-color-success-soft: #14532d55;
+
+  --sv-color-focus-ring: #5b8def77;
+  --sv-color-backdrop: rgb(0 0 0 / 0.6);
+
+  --sv-color-chart-1: #5b8def;
+  --sv-color-chart-2: #a78bfa;
 }

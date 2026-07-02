@@ -5,6 +5,9 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 using StackExchange.Redis;
 using StackverseGateway;
 using Yarp.ReverseProxy.Configuration;
@@ -20,6 +23,28 @@ var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 
 var gateway = GatewayOptions.Load(builder.Configuration);
 builder.WebHost.UseUrls($"http://*:{gateway.Port}");
+
+// --- Observability: OTLP export of traces, metrics, and logs. Endpoint,
+// --- protocol, and service name come from the standard OTEL_* env vars
+// --- (see gateways/README.md); inert unless an endpoint is configured.
+// --- OTEL_SDK_DISABLED mirrors the SDK convention other stacks get for free.
+var otlpEndpointConfigured =
+    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT"));
+var otelSdkDisabled = string.Equals(
+    Environment.GetEnvironmentVariable("OTEL_SDK_DISABLED"), "true", StringComparison.OrdinalIgnoreCase);
+if (otlpEndpointConfigured && !otelSdkDisabled)
+{
+    builder.Services.AddOpenTelemetry()
+        .WithTracing(tracing => tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter())
+        .WithMetrics(metrics => metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddOtlpExporter())
+        .WithLogging(logging => logging.AddOtlpExporter());
+}
 
 // --- Redis: session tickets, and Data Protection keys so any instance can decrypt
 // --- the session cookie and OIDC state. Both are required for statelessness.

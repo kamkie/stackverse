@@ -1,6 +1,10 @@
 # local env
 .env
 
+# Claude Code: launch.json (dev-server config) is committed; the rest is local
+.claude/*
+!.claude/launch.json
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

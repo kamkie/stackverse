@@ -33,5 +33,6 @@ relayed; authorization is the backend's job.
 | `OIDC_CLIENT_ID` | `stackverse-gateway` | OIDC client id |
 | `OIDC_CLIENT_SECRET` | `stackverse-secret` | OIDC client secret (dev value) |
 | `PUBLIC_URL` | `http://localhost:8000` | external base URL for OIDC redirects |
+| `OTEL_SDK_DISABLED` | `true` | set `false` to export traces/metrics/logs over OTLP; standard `OTEL_*` vars (`OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, ...) configure the export (see [docs/RUNNING.md](../docs/RUNNING.md)) |
 
 Ship a `Dockerfile`; the image plugs into `compose.yaml` via `GATEWAY_IMAGE`.

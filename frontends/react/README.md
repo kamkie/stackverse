@@ -10,12 +10,12 @@ admins can translate them later through the Messages screen without a deploy.
 ## Commands
 
 ```sh
-npm install
-npm run dev           # dev server on :5173, API mocked in-browser (MSW)
-VITE_API_MOCK=false npm run dev   # proxy /api and /auth to a gateway on :8000
-npm test              # vitest + Testing Library against the same MSW handlers
-npm run build         # type-check + static production bundle in dist/
-npm run generate:api  # regenerate src/api/schema.ts from spec/openapi.yaml
+pnpm install
+pnpm dev              # dev server on :5173, API mocked in-browser (MSW)
+VITE_API_MOCK=false pnpm dev   # proxy /api and /auth to a gateway on :8000
+pnpm test             # vitest + Testing Library against the same MSW handlers
+pnpm build            # type-check + static production bundle in dist/
+pnpm generate:api     # regenerate src/api/schema.ts from spec/openapi.yaml
 ```
 
 ## API types & mocks are derived from the contract
