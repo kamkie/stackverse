@@ -27,9 +27,10 @@ class LifecycleLogging(private val environment: Environment, private val dataSou
         log.logEvent(
             Level.INFO, "application_start", "success", "Stackverse backend is up and accepting requests",
             "port" to environment.getProperty("server.port"),
-            // the pool's actual JDBC URL (host/port/database only — credentials are separate properties);
-            // the static property would lie under test-managed connections
-            "db_url" to (dataSource as? HikariDataSource)?.jdbcUrl,
+            // the pool's actual JDBC URL (the static property would lie under test-managed
+            // connections), with the query part dropped — a deployment overriding the URL
+            // can smuggle credentials in as ?user=…&password=… (§6)
+            "db_url" to (dataSource as? HikariDataSource)?.jdbcUrl?.substringBefore('?'),
             "oidc_issuer_uri" to environment.getProperty("stackverse.oidc.issuer-uri"),
             "oidc_jwks_uri" to environment.getProperty("stackverse.oidc.jwks-uri")?.ifBlank { null },
             "seed_messages_dir" to environment.getProperty("stackverse.seed.messages-dir"),
