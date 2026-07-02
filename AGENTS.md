@@ -33,6 +33,13 @@ implemented in many stacks. Read these before changing anything:
 - **Repo scripts ship in both flavors.** Anything in `scripts/` exists as a `.ps1`
   *and* a `.sh` doing the same thing — add or change them together. Test the shell
   flavor through Git Bash or WSL, not by reading it.
+- **Docs follow the change, unprompted.** Any change that touches behavior, scripts,
+  env vars, ports, run modes, or contract surface updates every affected document in
+  the same change set — README (quickstart, layout, matrix, contract list),
+  `docs/RUNNING.md`, `docs/ARCHITECTURE.md`, `docs/LOGGING.md` (incl. its
+  conformance table), `docs/INTENT.md` for scope shifts, the component READMEs, and
+  this file. Also verify cross-references: a document cited for a claim must
+  actually make that claim. Waiting to be asked is a defect.
 - Update the implementation matrix in `README.md` when an implementation changes status.
 - `compose.yaml` at the root runs infra (`docker compose up -d`) and pluggable
   app combos (`--profile app` with `BACKEND_IMAGE`/`GATEWAY_IMAGE`).
