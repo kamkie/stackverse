@@ -40,6 +40,14 @@ implemented in many stacks. Read these before changing anything:
   conformance table), `docs/INTENT.md` for scope shifts, the component READMEs, and
   this file. Also verify cross-references: a document cited for a claim must
   actually make that claim. Waiting to be asked is a defect.
+- **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
+  authoring agent asks the other agent for review and triages the findings — fix
+  them or answer them on the PR:
+  - Claude-authored branch → Codex review: `/codex-cr`, or
+    `codex -C <main-repo-root> "review branch <name> ..."` (Codex thread cwd is
+    always the main repo root, never a `.claude/worktrees` path; reference the
+    branch by name).
+  - Codex-authored branch → Claude review: `claude -p "/review <PR number>"`.
 - Update the implementation matrix in `README.md` when an implementation changes status.
 - `compose.yaml` at the root runs infra (`docker compose up -d`) and pluggable
   app combos (`--profile app` with `BACKEND_IMAGE`/`GATEWAY_IMAGE`).
