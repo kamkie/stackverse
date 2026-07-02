@@ -48,6 +48,10 @@ implemented in many stacks. Read these before changing anything:
     always the main repo root, never a `.claude/worktrees` path; reference the
     branch by name).
   - Codex-authored branch → Claude review: `claude -p "/review <PR number>"`.
+  - Commits that implement review findings credit the reviewing agent as
+    co-author alongside the authoring agent's own trailer: add
+    `Co-Authored-By: Codex <noreply@openai.com>` when fixing Codex findings,
+    `Co-Authored-By: Claude <noreply@anthropic.com>` when fixing Claude findings.
 - Update the implementation matrix in `README.md` when an implementation changes status.
 - `compose.yaml` at the root runs infra (`docker compose up -d`) and pluggable
   app combos (`--profile app` with `BACKEND_IMAGE`/`GATEWAY_IMAGE`).
