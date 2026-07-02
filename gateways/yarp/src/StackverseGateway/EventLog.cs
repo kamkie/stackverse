@@ -33,6 +33,38 @@ public static class EventLog
     }
 
     /// <summary>
+    /// Sanitizes a client-controlled value before it becomes a log field (docs/LOGGING.md §6):
+    /// newlines are encoded, other control characters stripped, length capped — mirroring the
+    /// reference implementation in the Vite client-log forwarder.
+    /// </summary>
+    public static string? Sanitize(string? value, int maxLength = 200)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+        value = value.Replace("\r\n", "\n"); // one newline, one escape
+        var builder = new System.Text.StringBuilder(Math.Min(value.Length, maxLength));
+        foreach (var ch in value)
+        {
+            if (builder.Length >= maxLength)
+            {
+                builder.Append('…');
+                break;
+            }
+            if (ch is '\n' or '\r')
+            {
+                builder.Append("\\n");
+            }
+            else if (!char.IsControl(ch))
+            {
+                builder.Append(ch);
+            }
+        }
+        return builder.ToString();
+    }
+
+    /// <summary>
     /// The console/OTLP providers enumerate the pairs as structured fields;
     /// <see cref="ToString"/> keeps the human-readable message separate from them.
     /// </summary>

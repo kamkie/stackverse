@@ -26,4 +26,22 @@ public sealed class LoggingSetupTests
     {
         Assert.Equal(expectText, LoggingSetup.IsTextFormat(value));
     }
+
+    [Theory]
+    [InlineData(null, null)]
+    [InlineData("/api/v1/bookmarks", "/api/v1/bookmarks")]
+    [InlineData("line1\r\nline2", "line1\\nline2")] // newlines encoded, never raw (§6)
+    [InlineData("a\0b\u001bc", "abc")] // other control characters stripped
+    public void Client_controlled_log_fields_are_sanitized(string? value, string? expected)
+    {
+        Assert.Equal(expected, EventLog.Sanitize(value));
+    }
+
+    [Fact]
+    public void Client_controlled_log_fields_are_length_capped()
+    {
+        var sanitized = EventLog.Sanitize(new string('a', 500));
+        Assert.Equal(200 + 1, sanitized!.Length); // capped plus the ellipsis marker
+        Assert.EndsWith("…", sanitized);
+    }
 }
