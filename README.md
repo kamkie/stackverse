@@ -68,6 +68,10 @@ Every implementation must satisfy:
 - [docs/LOGGING.md](docs/LOGGING.md) — logging requirements (what to emit, what never to log)
 - Component conventions: [backends/](backends/README.md) · [gateways/](gateways/README.md) · [frontends/](frontends/README.md)
 
+The contract is executable: the black-box suite in [conformance/](conformance)
+runs any backend through the API rules above (`./scripts/conformance.sh`),
+and the [e2e/](e2e) suite drives any composed stack through the UI.
+
 ## Implementation matrix
 
 | Component | Stack | Directory | Status |
@@ -108,7 +112,9 @@ For development — infra in Docker, each module as a hot-reloading dev process
 in its own terminal tab, logs tee'd to `.logs/` — use `./scripts/dev-stack.sh`
 (PowerShell: `./scripts/dev-stack.ps1`). With any stack running, the
 end-to-end suite drives the real app through every required screen:
-`./scripts/e2e.sh` (PowerShell: `./scripts/e2e.ps1`).
+`./scripts/e2e.sh` (PowerShell: `./scripts/e2e.ps1`). With just infra and a
+backend, `./scripts/conformance.sh` (PowerShell: `./scripts/conformance.ps1`)
+checks that backend against the API contract directly.
 
 Then open http://localhost:8000 and log in as `demo` / `demo` (regular user),
 `moderator` / `moderator` (reports queue, dashboard), or `admin` / `admin`
@@ -128,6 +134,7 @@ docs/          functional spec, architecture
 backends/      one directory per backend implementation
 gateways/      one directory per gateway implementation
 frontends/     one directory per frontend implementation
+conformance/   black-box API contract suite, run directly against any backend
 e2e/           black-box Playwright suite for any composed stack
 infra/         shared infrastructure config (Keycloak realm, ...)
 scripts/       build/run/test helpers, each as a .ps1 + .sh pair

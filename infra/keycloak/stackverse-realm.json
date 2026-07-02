@@ -48,6 +48,29 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "stackverse-conformance",
+      "name": "Contract conformance suite (password grant, dev only)",
+      "description": "Lets conformance/ obtain per-role tokens directly, bypassing the gateway. Never mirror this client in a real deployment.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "defaultClientScopes": ["basic", "profile", "email", "roles"],
+      "protocolMappers": [
+        {
+          "name": "audience-stackverse-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "stackverse-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
