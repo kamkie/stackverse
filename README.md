@@ -103,6 +103,12 @@ docker compose --profile app up
 or, building the images first: `BUILD=1 ./scripts/run-stack.sh`
 (PowerShell: `./scripts/run-stack.ps1 -Build`).
 
+For development — infra in Docker, each module as a hot-reloading dev process
+in its own terminal tab, logs tee'd to `.logs/` — use `./scripts/dev-stack.sh`
+(PowerShell: `./scripts/dev-stack.ps1`). With any stack running, the
+end-to-end suite drives the real app through every required screen:
+`./scripts/e2e.sh` (PowerShell: `./scripts/e2e.ps1`).
+
 Then open http://localhost:8000 and log in as `demo` / `demo` (regular user),
 `moderator` / `moderator` (reports queue, dashboard), or `admin` / `admin`
 (full backoffice).
@@ -121,7 +127,9 @@ docs/          functional spec, architecture
 backends/      one directory per backend implementation
 gateways/      one directory per gateway implementation
 frontends/     one directory per frontend implementation
+e2e/           black-box Playwright suite for any composed stack
 infra/         shared infrastructure config (Keycloak realm, ...)
+scripts/       build/run/test helpers, each as a .ps1 + .sh pair
 compose.yaml   infra + pluggable app combination
 ```
 
