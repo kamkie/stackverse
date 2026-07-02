@@ -80,6 +80,12 @@ a:hover {
   min-width: 0;
 }
 
+.sv-nav--vertical {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sv-space-1);
+}
+
 .sv-nav-link {
   padding: var(--sv-space-1) var(--sv-space-3);
   border-radius: var(--sv-radius-md);
@@ -103,6 +109,34 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--sv-space-3);
+}
+
+.sv-lang-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-1);
+}
+
+.sv-lang-option {
+  padding: var(--sv-space-1) var(--sv-space-2);
+  border: none;
+  border-radius: var(--sv-radius-sm);
+  background: transparent;
+  color: var(--sv-color-text-muted);
+  font: inherit;
+  font-size: var(--sv-text-xs);
+  font-weight: var(--sv-weight-bold);
+  cursor: pointer;
+}
+
+.sv-lang-option:hover {
+  background: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text);
+}
+
+.sv-lang-option.is-active {
+  background: var(--sv-color-primary-soft);
+  color: var(--sv-color-primary);
 }
 
 .sv-username {
