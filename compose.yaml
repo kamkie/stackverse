@@ -1,8 +1,9 @@
 # Infrastructure runs with plain `docker compose up -d`.
-# App components (backend/gateway) are behind the `app` profile and pluggable:
+# App components (backend/gateway/frontend) are behind the `app` profile and pluggable:
 #
 #   BACKEND_IMAGE=stackverse/backend-spring-kotlin:local \
 #   GATEWAY_IMAGE=stackverse/gateway-yarp:local \
+#   FRONTEND_IMAGE=stackverse/frontend-react:local \
 #   docker compose --profile app up
 #
 # Observability (Grafana + OTLP collector, see docs/RUNNING.md) is a separate
@@ -87,6 +88,15 @@ services:
       keycloak:
         condition: service_healthy
 
+  # One-shot: the image's default command publishes its static build (/dist)
+  # into the shared volume and exits; the gateway serves it via SPA_ROOT.
+  frontend:
+    profiles: [app]
+    # default is a non-existent placeholder — set FRONTEND_IMAGE (or .env) to a real image
+    image: ${FRONTEND_IMAGE:-stackverse/frontend:unset}
+    volumes:
+      - spa-dist:/spa
+
   gateway:
     profiles: [app]
     # default is a non-existent placeholder — set GATEWAY_IMAGE (or .env) to a real image
@@ -99,11 +109,14 @@ services:
       OIDC_CLIENT_ID: stackverse-gateway
       OIDC_CLIENT_SECRET: stackverse-secret
       PUBLIC_URL: http://localhost:8000
+      SPA_ROOT: /spa
       OTEL_SERVICE_NAME: stackverse-gateway
       OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4317
       OTEL_SDK_DISABLED: ${OTEL_SDK_DISABLED:-true}
     ports:
       - "8000:8000"
+    volumes:
+      - spa-dist:/spa:ro
     extra_hosts:
       - "localhost:host-gateway"
     depends_on:
@@ -113,6 +126,8 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+      frontend:
+        condition: service_completed_successfully
 
   # All-in-one observability: OTLP collector + Prometheus + Tempo + Loki +
   # Grafana. Dev-grade by design — one container, no persistence.
@@ -126,3 +141,6 @@ services:
 
 volumes:
   postgres-data:
+  # the frontend's static build, published by the frontend one-shot and served
+  # read-only by the gateway (SPA_ROOT)
+  spa-dist:

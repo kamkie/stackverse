@@ -90,4 +90,9 @@ on the corresponding form fields, not as a generic toast.
 - Generate or hand-write API types from the OpenAPI spec — but the spec is the truth.
 - Production build must be servable as static files by any gateway (`GATEWAY` serves
   the bundle); dev mode runs its own server which gateways can proxy via `FRONTEND_URL`.
+- Ship a `Dockerfile`; the image plugs into `compose.yaml` via `FRONTEND_IMAGE`.
+  It builds with the **repo root** as context (the build bundles `spec/design`),
+  and the final image is a file carrier, not a server: the static build lives at
+  `/dist` and the default command publishes it into the volume mounted at `/spa`,
+  which the gateway serves via `SPA_ROOT`.
 - Per-implementation README covers stack-specific tooling only.

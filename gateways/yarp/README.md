@@ -58,11 +58,8 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
 
 ## Configuration
 
-All shared variables from [gateways/README.md](../README.md), plus:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `SPA_ROOT` | `wwwroot` (bundled placeholder page) | directory of the SPA production build to serve when `FRONTEND_URL` is unset |
+All shared variables from [gateways/README.md](../README.md). `SPA_ROOT`
+defaults to the bundled `wwwroot` (a placeholder page) when unset.
 
 ## Run
 

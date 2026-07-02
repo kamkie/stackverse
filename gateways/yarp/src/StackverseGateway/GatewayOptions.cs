@@ -3,8 +3,8 @@ using System.Text;
 namespace StackverseGateway;
 
 /// <summary>
-/// Environment-driven configuration — one property per variable in gateways/README.md,
-/// plus the implementation-specific SPA_ROOT (see the local README).
+/// Environment-driven configuration — one property per variable in gateways/README.md.
+/// SPA_ROOT is consumed directly as WebRootPath in Program.cs.
 /// </summary>
 public sealed record GatewayOptions
 {

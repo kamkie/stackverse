@@ -48,10 +48,10 @@ docker compose logs -f          # or: docker compose logs -f keycloak
 
 ## 3. Full stack (containers)
 
-Build images and run any backend + gateway combination:
+Build images and run any backend + gateway + frontend combination:
 
 ```sh
-./scripts/build-images.sh                # spring-kotlin + yarp (defaults)
+./scripts/build-images.sh                # spring-kotlin + yarp + react (defaults)
 ./scripts/run-stack.sh                   # or: BUILD=1 ./scripts/run-stack.sh
 ```
 
@@ -79,7 +79,13 @@ Manual image builds (what the script does):
 docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin/Dockerfile .
 # gateway images build with their own directory as context
 docker build -t stackverse/gateway-yarp:local gateways/yarp
+# frontend images build with the REPO ROOT as context (they bundle spec/design)
+docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .
 ```
+
+The frontend image is a file carrier, not a server: on `up` it copies its
+static build into a shared volume and exits, and the gateway serves those
+files (`SPA_ROOT`). The gateway waits for that copy before starting.
 
 ## Observability
 

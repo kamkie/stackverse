@@ -91,11 +91,12 @@ Infrastructure only (PostgreSQL, Redis, Keycloak with a pre-imported realm):
 docker compose up -d
 ```
 
-Full stack (once implementations exist) — pick any combination via env vars:
+Full stack — pick any combination via env vars:
 
 ```sh
 BACKEND_IMAGE=stackverse/backend-spring-kotlin:local \
 GATEWAY_IMAGE=stackverse/gateway-yarp:local \
+FRONTEND_IMAGE=stackverse/frontend-react:local \
 docker compose --profile app up
 ```
 
