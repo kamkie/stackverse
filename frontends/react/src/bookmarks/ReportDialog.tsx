@@ -1,0 +1,79 @@
+import { useState, type SubmitEvent } from "react";
+import { ApiError, fieldErrorFor } from "../api/problem";
+import { Dialog } from "../components/Dialog";
+import { Field } from "../components/Field";
+import { useI18n } from "../i18n/I18nProvider";
+import { useReportBookmark, type Bookmark, type ReportInput } from "./queries";
+
+const REASONS: ReportInput["reason"][] = ["spam", "offensive", "broken-link", "other"];
+
+export function ReportDialog({
+  bookmark,
+  onClose,
+}: {
+  bookmark: Bookmark;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const report = useReportBookmark();
+  const [reason, setReason] = useState<ReportInput["reason"]>("spam");
+  const [comment, setComment] = useState("");
+
+  function submit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    report.mutate(
+      {
+        id: bookmark.id,
+        body: { reason, ...(comment ? { comment } : {}) },
+      },
+      { onSuccess: onClose },
+    );
+  }
+
+  const error = report.error;
+  const conflict = error instanceof ApiError && error.status === 409;
+
+  return (
+    <Dialog title={t("ui.action.report")} onClose={onClose}>
+      <form className="sv-form" onSubmit={submit}>
+        <Field label={t("ui.field.reason")} error={fieldErrorFor(error, "reason")}>
+          <select
+            className="sv-select"
+            value={reason}
+            onChange={(e) => setReason(e.target.value as ReportInput["reason"])}
+          >
+            {REASONS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label={t("ui.field.comment")} error={fieldErrorFor(error, "comment")}>
+          <textarea
+            className="sv-textarea"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
+        </Field>
+        {conflict && (
+          <div className="sv-alert sv-alert--warning" role="alert">
+            {error.message}
+          </div>
+        )}
+        <div className="sv-form-actions">
+          <button type="button" className="sv-button" onClick={onClose}>
+            {t("ui.action.cancel")}
+          </button>
+          <button
+            type="submit"
+            className="sv-button sv-button--primary"
+            disabled={report.isPending}
+          >
+            {t("ui.action.report")}
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
