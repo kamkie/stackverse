@@ -4,6 +4,7 @@ import dev.stackverse.backend.account.UserAccountFilter
 import dev.stackverse.backend.account.UserAccountService
 import dev.stackverse.backend.message.MessageLocalizer
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
@@ -14,11 +15,28 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2Error
+import org.springframework.security.oauth2.core.OAuth2TokenValidator
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.JwtDecoder
+import org.springframework.security.oauth2.jwt.JwtValidators
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder
+import org.springframework.security.oauth2.jwt.SupplierJwtDecoder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter
 import org.springframework.security.web.SecurityFilterChain
 import tools.jackson.databind.ObjectMapper
+
+@ConfigurationProperties("stackverse.oidc")
+data class OidcProperties(
+    /** Expected `iss` claim; also the OIDC discovery endpoint when no JWKS URI is given. */
+    val issuerUri: String,
+    /** Where to fetch signing keys when the issuer host is not directly dialable (compose). */
+    val jwksUri: String?,
+    val audience: String,
+)
 
 /**
  * Stateless resource server: every request stands on its own bearer JWT, validated
@@ -70,6 +88,37 @@ class SecurityConfig {
                 BearerTokenAuthenticationFilter::class.java,
             )
         return http.build()
+    }
+
+    /**
+     * Built lazily (first request, not startup) so the service comes up even while the
+     * IdP is still booting. Signature keys come from the issuer's OIDC discovery, or
+     * straight from `OIDC_JWKS_URI` when set; `iss` and `aud` are validated either way.
+     */
+    @Bean
+    fun jwtDecoder(properties: OidcProperties): JwtDecoder = SupplierJwtDecoder {
+        val decoder = if (properties.jwksUri.isNullOrBlank()) {
+            NimbusJwtDecoder.withIssuerLocation(properties.issuerUri).build()
+        } else {
+            NimbusJwtDecoder.withJwkSetUri(properties.jwksUri).build()
+        }
+        decoder.setJwtValidator(
+            DelegatingOAuth2TokenValidator(
+                JwtValidators.createDefaultWithIssuer(properties.issuerUri),
+                audienceValidator(properties.audience),
+            ),
+        )
+        decoder
+    }
+
+    private fun audienceValidator(audience: String) = OAuth2TokenValidator<Jwt> { jwt ->
+        if (audience in jwt.audience.orEmpty()) {
+            OAuth2TokenValidatorResult.success()
+        } else {
+            OAuth2TokenValidatorResult.failure(
+                OAuth2Error("invalid_token", "The token is missing the required audience '$audience'.", null),
+            )
+        }
     }
 
     /** Identity = `preferred_username`; authorities = `realm_access.roles` (SPEC rule 6). */

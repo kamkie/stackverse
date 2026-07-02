@@ -38,6 +38,7 @@ with the semantics from [docs/SPEC.md](../docs/SPEC.md).
 | `DB_USER` | `stackverse` | database user |
 | `DB_PASSWORD` | `stackverse` | database password |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/stackverse` | token issuer to validate against |
+| `OIDC_JWKS_URI` | *(derived from the issuer via OIDC discovery)* | where to fetch signing keys when the issuer host is not dialable from the container (in compose: `http://keycloak:8080/realms/stackverse/protocol/openid-connect/certs`); `iss` validation still uses `OIDC_ISSUER_URI` |
 
 No config files, no profiles-per-environment — the environment is the configuration.
 

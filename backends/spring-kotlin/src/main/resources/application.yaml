@@ -12,14 +12,14 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/stackverse}
-          audiences: stackverse-api
-
 stackverse:
+  oidc:
+    issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/stackverse}
+    # inside compose the issuer host (localhost:8180) is not dialable from a
+    # container; keys are then fetched here while the issuer claim stays as-is
+    jwks-uri: ${OIDC_JWKS_URI:}
+    audience: stackverse-api
+
   seed:
     # language = filename; the directory lives at the repo root (spec/messages)
     # and is copied into the container image by the Dockerfile
