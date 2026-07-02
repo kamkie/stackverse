@@ -51,6 +51,11 @@ localStorage.setItem("stackverse.mock.login-as", "admin");     // full backoffic
 
 ## Production
 
-`pnpm build` emits plain static files (`dist/`) servable by any gateway;
+`yarn build` emits plain static files (`dist/`) servable by any gateway;
 there is no server-side rendering and no runtime configuration — all API
 calls are relative (`/api/...`, `/auth/...`) and carry the session cookie.
+
+The `Dockerfile` builds the same bundle into a carrier image
+(`stackverse/frontend-react:local`) that `compose.yaml` plugs in via
+`FRONTEND_IMAGE` — build it with the **repo root** as context (see
+[docs/RUNNING.md](../../docs/RUNNING.md)).

@@ -27,7 +27,8 @@ relayed; authorization is the backend's job.
 |---|---|---|
 | `PORT` | `8000` | HTTP listen port |
 | `BACKEND_URL` | `http://localhost:8080` | upstream API |
-| `FRONTEND_URL` | *(unset)* | SPA dev server to proxy; if unset, serve the bundled build |
+| `FRONTEND_URL` | *(unset)* | SPA dev server to proxy; if unset, serve static files |
+| `SPA_ROOT` | *(unset)* | directory of the SPA production build to serve when `FRONTEND_URL` is unset; if also unset, serve an implementation-bundled placeholder page (`compose.yaml` mounts the frontend image's build here) |
 | `REDIS_URL` | `redis://localhost:6379` | session store |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/stackverse` | IdP realm |
 | `OIDC_CLIENT_ID` | `stackverse-gateway` | OIDC client id |

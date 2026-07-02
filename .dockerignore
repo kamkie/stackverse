@@ -1,6 +1,16 @@
-# backend/gateway images are built with the repo root as context (they need spec/)
+# backend/frontend images are built with the repo root as context (they need spec/);
+# keep the context lean and make sure no host build output leaks into the images
 .git
 .idea
+.claude
 **/build
+**/dist
 **/.gradle
+**/.kotlin
 **/node_modules
+**/bin
+**/obj
+**/.pnp.*
+**/.yarn/unplugged
+**/.yarn/install-state.gz
+**/*.log
