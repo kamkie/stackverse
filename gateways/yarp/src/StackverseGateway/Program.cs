@@ -242,7 +242,12 @@ app.UseWhen(
             // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
             app.Logger.Event(LogLevel.Information, "csrf_validation_failed", "denied",
                 "Rejected a state-changing /api request without a matching CSRF header",
-                fields: [("method", context.Request.Method), ("path", context.Request.Path.Value)]);
+                fields:
+                [
+                    ("method", EventLog.Sanitize(context.Request.Method)),
+                    // the decoded path is client-controlled input (§6)
+                    ("path", EventLog.Sanitize(context.Request.Path.Value)),
+                ]);
             await Problems.Write(context, StatusCodes.Status403Forbidden,
                 "Forbidden", $"Missing or mismatched {Csrf.HeaderName} header.");
             return;
@@ -319,8 +324,10 @@ app.Lifetime.ApplicationStarted.Register(() =>
             ("backend_url", gateway.BackendUrl),
             ("frontend_url", gateway.FrontendUrl),
             ("public_url", gateway.PublicUrl),
-            // host:port only — a configured Redis password lives behind the first comma
-            ("redis_endpoint", gateway.RedisConfiguration.Split(',')[0]),
+            // endpoints only: in a StackExchange.Redis configuration string every
+            // option (password included) is a `name=value` segment, and REDIS_URL
+            // accepts such raw strings verbatim — so anything with '=' stays out (§6)
+            ("redis_endpoint", string.Join(",", gateway.RedisConfiguration.Split(',').Where(s => !s.Contains('=')))),
             ("oidc_issuer_uri", gateway.OidcIssuerUri),
             ("oidc_client_id", gateway.OidcClientId),
             ("log_level", builder.Configuration["LOG_LEVEL"] ?? "info"),
