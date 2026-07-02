@@ -241,14 +241,14 @@ no per-environment profiles.
 | lifecycle events at `INFO` | ✅ | ✅ | n/a |
 | expected 4xx not logged as errors | ✅ | ✅ | n/a |
 | secrets kept out of logs | ✅ | ✅ | ✅ |
-| `LOG_LEVEL` honored | ❌ gap | ❌ gap | n/a |
-| trace id on console lines when tracing on | ❌ gap | ❌ gap | n/a |
-| stable `event` names (§5) | ❌ gap | ❌ gap | n/a |
-| JSON console by default (`LOG_FORMAT`) | ❌ gap | ❌ gap | n/a |
+| `LOG_LEVEL` honored | ✅ | ✅ | n/a |
+| trace id on console lines when tracing on | ✅ | ✅ | n/a |
+| stable `event` names (§5) | ✅ | ✅ | n/a |
+| JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | n/a |
 | dev-only console forwarding, sanitized | n/a | n/a | ✅ |
 
 Gaps are tracked here on purpose: a new implementation must satisfy every
-row; the `❌` rows are the agreed backlog for the existing ones.
+row, and any `❌` an implementation accrues is its agreed, visible backlog.
 
 Pre-release checklist (per implementation):
 
