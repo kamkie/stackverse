@@ -20,4 +20,5 @@ RUN yarn build
 
 FROM busybox:1.37
 COPY --from=build /build/frontends/react/dist /dist
-CMD ["sh", "-c", "rm -rf /spa/* && cp -R /dist/. /spa/"]
+# find -delete (not rm /spa/*) so stale dotfiles from older builds go too
+CMD ["sh", "-c", "find /spa -mindepth 1 -delete && cp -R /dist/. /spa/"]
