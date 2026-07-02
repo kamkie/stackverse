@@ -1,0 +1,26 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: stackverse-backend-spring-kotlin
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stackverse}
+    username: ${DB_USER:stackverse}
+    password: ${DB_PASSWORD:stackverse}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/stackverse}
+          audiences: stackverse-api
+
+stackverse:
+  seed:
+    # language = filename; the directory lives at the repo root (spec/messages)
+    # and is copied into the container image by the Dockerfile
+    messages-dir: ${SEED_MESSAGES_DIR:../../spec/messages}
