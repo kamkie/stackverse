@@ -10,13 +10,21 @@ admins can translate them later through the Messages screen without a deploy.
 ## Commands
 
 ```sh
-pnpm install
-pnpm dev              # dev server on :5173, API mocked in-browser (MSW)
-VITE_API_MOCK=false pnpm dev   # proxy /api and /auth to a gateway on :8000
-pnpm test             # vitest + Testing Library against the same MSW handlers
-pnpm build            # type-check + static production bundle in dist/
-pnpm generate:api     # regenerate src/api/schema.ts from spec/openapi.yaml
+yarn install
+yarn dev              # dev server on :5173, API mocked in-browser (MSW)
+VITE_API_MOCK=false yarn dev   # proxy /api and /auth to a gateway on :8000
+yarn test             # vitest + Testing Library against the same MSW handlers
+yarn build            # type-check + static production bundle in dist/
+yarn generate:api     # regenerate src/api/schema.ts from spec/openapi.yaml
 ```
+
+Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
+through `.pnp.cjs` and packages live in the global cache. Editor support:
+`yarn dlx @yarnpkg/sdks vscode` (SDKs are committed under `.yarn/sdks`).
+Heads-up: Vite 8 prints a deprecation warning for PnP ("discouraged,
+PnP-specific bugs will no longer be actively worked on") — everything works
+today (dev, build, vitest); if a future Vite breaks PnP, switch
+`.yarnrc.yml` to `nodeLinker: node-modules`.
 
 ## API types & mocks are derived from the contract
 

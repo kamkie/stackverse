@@ -7,7 +7,7 @@
       "runtimeArgs": [
         "-NoProfile",
         "-Command",
-        "Remove-Item Env:FORCE_COLOR -ErrorAction SilentlyContinue; $env:NO_COLOR='1'; Set-Location frontends/react; pnpm dev 2>&1 | Tee-Object -FilePath dev-server.log"
+        "Remove-Item Env:FORCE_COLOR -ErrorAction SilentlyContinue; $env:NO_COLOR='1'; Set-Location frontends/react; yarn dev 2>&1 | Tee-Object -FilePath dev-server.log"
       ],
       "port": 5173
     }
