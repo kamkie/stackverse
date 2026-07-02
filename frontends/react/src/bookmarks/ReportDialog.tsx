@@ -44,7 +44,7 @@ export function ReportDialog({
           >
             {REASONS.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {t(`ui.report.reason.${r}`)}
               </option>
             ))}
           </select>

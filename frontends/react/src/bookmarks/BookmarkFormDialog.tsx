@@ -87,8 +87,8 @@ export function BookmarkFormDialog({ bookmark, onClose }: BookmarkFormDialogProp
             value={visibility}
             onChange={(e) => setVisibility(e.target.value as BookmarkInput["visibility"])}
           >
-            <option value="private">private</option>
-            <option value="public">public</option>
+            <option value="private">{t("ui.visibility.private")}</option>
+            <option value="public">{t("ui.visibility.public")}</option>
           </select>
         </Field>
         {error instanceof ApiError && error.status === 409 && (

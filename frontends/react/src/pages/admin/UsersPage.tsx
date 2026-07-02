@@ -112,10 +112,12 @@ export function UsersPage() {
                           className="sv-badge sv-badge--danger"
                           title={user.blockedReason}
                         >
-                          {user.status}
+                          {t("ui.user.status.blocked")}
                         </span>
                       ) : (
-                        <span className="sv-badge sv-badge--success">{user.status}</span>
+                        <span className="sv-badge sv-badge--success">
+                          {t("ui.user.status.active")}
+                        </span>
                       )}
                     </td>
                     <td className="sv-cell-actions">

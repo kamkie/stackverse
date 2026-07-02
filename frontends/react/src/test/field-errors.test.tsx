@@ -18,8 +18,8 @@ describe("localized field errors", () => {
     await user.click(await screen.findByRole("button", { name: "PL" }));
     await screen.findByRole("link", { name: "Moje zakładki" });
 
-    await user.click(screen.getByRole("button", { name: "add" }));
-    const urlInput = await screen.findByLabelText("url");
+    await user.click(screen.getByRole("button", { name: "Dodaj" }));
+    const urlInput = await screen.findByLabelText("Adres URL");
     await user.type(urlInput, "not-a-valid-url");
     await user.click(screen.getByRole("button", { name: "Zapisz" }));
 
@@ -32,7 +32,7 @@ describe("localized field errors", () => {
     expect(urlInput).toHaveAccessibleDescription(
       "Adres URL musi być poprawnym adresem http(s).",
     );
-    expect(screen.getByLabelText("title")).toHaveAccessibleDescription(
+    expect(screen.getByLabelText("Tytuł")).toHaveAccessibleDescription(
       "Tytuł jest wymagany.",
     );
     // Not a toast: no page-level alert outside the form fields.

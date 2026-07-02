@@ -32,7 +32,7 @@ export function BookmarkCard({
           </span>
         )}
         {bookmark.visibility === "public" && (
-          <span className="sv-badge">{bookmark.visibility}</span>
+          <span className="sv-badge">{t("ui.visibility.public")}</span>
         )}
       </div>
       <span className="sv-bookmark-url">{bookmark.url}</span>

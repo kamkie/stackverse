@@ -33,7 +33,7 @@ export function ReportsPage() {
         >
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {t(`ui.report.status.${s}`)}
             </option>
           ))}
         </select>
@@ -64,7 +64,9 @@ export function ReportsPage() {
                   <td className="sv-cell-mono">{report.bookmarkId.slice(0, 8)}</td>
                   <td>{report.reporter}</td>
                   <td>
-                    <span className="sv-badge">{report.reason}</span>
+                    <span className="sv-badge">
+                      {t(`ui.report.reason.${report.reason}`)}
+                    </span>
                   </td>
                   <td>{report.comment}</td>
                   <td className="sv-cell-actions">
@@ -95,7 +97,7 @@ export function ReportsPage() {
                       <span
                         className={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}
                       >
-                        {report.status}
+                        {t(`ui.report.status.${report.status}`)}
                       </span>
                     )}
                   </td>
