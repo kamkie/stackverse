@@ -74,7 +74,3 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
   cursor whose boundary row was deleted between pages — and that one must keep
   working. Only cursors that fail to decode into a `(createdAt, id)` position are
   rejected.
-- A handful of validation keys this implementation needs (e.g.
-  `validation.resolution.invalid`) are not part of the seeded contract messages;
-  they carry built-in English fallback text, and the messages table still overrides
-  them if an admin creates the key at runtime.

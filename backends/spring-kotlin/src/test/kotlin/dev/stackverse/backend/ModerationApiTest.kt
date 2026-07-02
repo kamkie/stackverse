@@ -151,12 +151,11 @@ class ModerationApiTest : IntegrationTest() {
     }
 
     @Test
-    fun `invalid resolution yields a field error with human-readable fallback text`() {
+    fun `invalid resolution yields a localized field error`() {
         val bookmarkId = createBookmark("alice")
         val reportId = objectMapper.readTree(report("bob", bookmarkId).andReturn().response.contentAsString)
             .get("id").asString()
 
-        // the key is not in the seeded messages, so the built-in English text must serve
         mockMvc.perform(
             put("/api/v1/admin/reports/{id}", reportId).with(moderator())
                 .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"ignore"}"""),
@@ -164,6 +163,14 @@ class ModerationApiTest : IntegrationTest() {
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errors[0].messageKey").value("validation.resolution.invalid"))
             .andExpect(jsonPath("$.errors[0].message").value("Resolution must be one of: dismissed, actioned."))
+
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", reportId).with(moderator())
+                .header("Accept-Language", "pl")
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"ignore"}"""),
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errors[0].message").value("Rozstrzygnięcie musi być jednym z: dismissed, actioned."))
     }
 
     @Test

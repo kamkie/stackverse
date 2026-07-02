@@ -35,5 +35,12 @@
   "validation.message.text.required": "Treść komunikatu jest wymagana.",
   "validation.report.reason.invalid": "Powód zgłoszenia musi być jednym z: spam, offensive, broken-link, other.",
   "validation.report.comment.too-long": "Komentarz zgłoszenia może mieć najwyżej 1000 znaków.",
-  "validation.block.reason.required": "Powód jest wymagany przy blokowaniu użytkownika."
+  "validation.block.reason.required": "Powód jest wymagany przy blokowaniu użytkownika.",
+  "validation.block.reason.too-long": "Powód blokady może mieć najwyżej 1000 znaków.",
+  "validation.resolution.invalid": "Rozstrzygnięcie musi być jednym z: dismissed, actioned.",
+  "validation.resolution.note.too-long": "Notatka rozstrzygnięcia może mieć najwyżej 1000 znaków.",
+  "validation.bookmark-status.invalid": "Status musi być jednym z: active, hidden.",
+  "validation.bookmark-status.note.too-long": "Notatka może mieć najwyżej 1000 znaków.",
+  "validation.message.text.too-long": "Treść komunikatu może mieć najwyżej 2000 znaków.",
+  "validation.message.description.too-long": "Opis może mieć najwyżej 1000 znaków."
 }
