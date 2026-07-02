@@ -20,9 +20,21 @@ function clientLogForwarder(): Plugin {
           res.end();
           return;
         }
+        const MAX_BODY_BYTES = 256 * 1024;
+        let received = 0;
         let body = "";
-        req.on("data", (chunk: Buffer) => (body += chunk));
+        req.on("data", (chunk: Buffer) => {
+          received += chunk.length;
+          if (received > MAX_BODY_BYTES) {
+            res.statusCode = 413;
+            res.end();
+            req.destroy();
+            return;
+          }
+          body += chunk;
+        });
         req.on("end", () => {
+          if (res.writableEnded) return;
           try {
             const entries = JSON.parse(body) as {
               level: string;
