@@ -1,0 +1,118 @@
+{
+  "realm": "stackverse",
+  "enabled": true,
+  "registrationAllowed": false,
+  "sslRequired": "none",
+  "roles": {
+    "realm": [
+      {
+        "name": "moderator",
+        "description": "Moderation queue, report resolution, bookmark hide/restore, dashboard stats"
+      },
+      {
+        "name": "admin",
+        "description": "Everything a moderator can, plus messages, user directory/blocking, audit log",
+        "composite": true,
+        "composites": {
+          "realm": ["moderator"]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "stackverse-gateway",
+      "name": "Stackverse Gateway (BFF)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "stackverse-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:8000/*"],
+      "postLogoutRedirectUris": ["http://localhost:8000/*"],
+      "webOrigins": ["http://localhost:8000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8000/*"
+      },
+      "defaultClientScopes": ["profile", "email"],
+      "protocolMappers": [
+        {
+          "name": "audience-stackverse-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "stackverse-api",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "demo",
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "email": "demo@stackverse.local",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "mentor",
+      "enabled": true,
+      "firstName": "Mentor",
+      "lastName": "User",
+      "email": "mentor@stackverse.local",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "mentor",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "moderator",
+      "enabled": true,
+      "firstName": "Moderator",
+      "lastName": "User",
+      "email": "moderator@stackverse.local",
+      "emailVerified": true,
+      "realmRoles": ["moderator"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "moderator",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin@stackverse.local",
+      "emailVerified": true,
+      "realmRoles": ["admin"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

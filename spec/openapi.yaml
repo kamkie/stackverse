@@ -1,0 +1,1388 @@
+openapi: 3.1.0
+info:
+  title: Stackverse Bookmarks API
+  version: 1.0.0
+  description: |
+    The contract every Stackverse backend implements and every frontend consumes.
+
+    Authentication is a bearer JWT supplied by the gateway (token relay) — clients
+    behind the gateway never handle tokens themselves. Business rules that don't fit
+    an OpenAPI document live in `docs/SPEC.md`.
+
+    Versioning is URI-based (`/api/v{n}/...`) and evolves per operation: breaking
+    changes introduce a successor version that coexists with the deprecated
+    predecessor, which keeps answering with `Deprecation`, `Sunset`, and
+    `Link rel="successor-version"` headers. The v1 → v2 bookmarks listing is the
+    permanent exhibit of this policy (see `docs/SPEC.md`).
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://localhost:8000
+    description: through the gateway (session cookie, token relayed for you)
+  - url: http://localhost:8080
+    description: backend directly (you must supply the bearer token yourself)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: bookmarks
+  - name: tags
+  - name: moderation
+    description: Reporting public bookmarks and processing the moderation queue.
+  - name: backoffice
+    description: Admin panel endpoints under `/api/admin/**` — user directory, audit log, dashboard stats.
+  - name: messages
+    description: |
+      Runtime-managed localized messages. Public reads with ETag revalidation;
+      writes require the `admin` role. Language resolution: `lang` query parameter,
+      then `Accept-Language`, then `en` (see `docs/SPEC.md`).
+  - name: me
+  - name: meta
+    description: operational endpoints, not proxied by the gateway
+
+paths:
+  /api/v1/bookmarks:
+    get:
+      operationId: listBookmarks
+      tags: [bookmarks]
+      summary: List bookmarks (offset pagination — deprecated)
+      deprecated: true
+      description: |
+        Returns the caller's own bookmarks, newest first. With `visibility=public`
+        returns public bookmarks from all users and works without authentication.
+        Hidden bookmarks never appear in the public feed; owners see their own
+        hidden bookmarks with `status: hidden`.
+
+        **Deprecated** in favor of the cursor-paginated `GET /api/v2/bookmarks`.
+        Kept fully functional as the living example of deprecation signaling —
+        every response carries `Deprecation`, `Sunset`, and a successor `Link`.
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: tag
+          in: query
+          description: Filter by tag. Repeatable; multiple values are combined with AND.
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Tag'
+          explode: true
+        - name: q
+          in: query
+          description: Case-insensitive substring match over title and notes.
+          schema:
+            type: string
+            maxLength: 200
+        - name: visibility
+          in: query
+          schema:
+            $ref: '#/components/schemas/Visibility'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of bookmarks.
+          headers:
+            Deprecation:
+              $ref: '#/components/headers/Deprecation'
+            Sunset:
+              $ref: '#/components/headers/Sunset'
+            Link:
+              $ref: '#/components/headers/SuccessorLink'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createBookmark
+      tags: [bookmarks]
+      summary: Create a bookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkInput'
+      responses:
+        '201':
+          description: Created. `Location` header points at the new resource.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v2/bookmarks:
+    get:
+      operationId: listBookmarksV2
+      tags: [bookmarks]
+      summary: List bookmarks (cursor pagination)
+      description: |
+        Successor of `GET /api/v1/bookmarks`. Same semantics and filters, but
+        keyset pagination: pass the `nextCursor` from the previous page to get the
+        next one. Cursors are opaque — clients must never parse or construct them.
+        Stable under concurrent inserts (no skipped or duplicated items between
+        pages). `nextCursor` is absent on the last page.
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: tag
+          in: query
+          description: Filter by tag. Repeatable; multiple values are combined with AND.
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Tag'
+          explode: true
+        - name: q
+          in: query
+          description: Case-insensitive substring match over title and notes.
+          schema:
+            type: string
+            maxLength: 200
+        - name: visibility
+          in: query
+          schema:
+            $ref: '#/components/schemas/Visibility'
+        - name: cursor
+          in: query
+          description: Opaque cursor from the previous page's `nextCursor`. Omit for the first page.
+          schema:
+            type: string
+            maxLength: 500
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A slice of bookmarks, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookmarkCursorPage'
+        '400':
+          description: Validation failure — including a malformed or unresolvable cursor.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/bookmarks/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getBookmark
+      tags: [bookmarks]
+      summary: Get a bookmark
+      description: |
+        Owners can always read their bookmarks; others only when the bookmark is
+        public. A private bookmark of another user yields `404`, not `403` —
+        existence is not disclosed.
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: The bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateBookmark
+      tags: [bookmarks]
+      summary: Replace a bookmark (owner only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkInput'
+      responses:
+        '200':
+          description: The updated bookmark.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The bookmark is hidden by moderation and cannot be set to public.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      operationId: deleteBookmark
+      tags: [bookmarks]
+      summary: Delete a bookmark (owner only)
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/bookmarks/{id}/reports:
+    post:
+      operationId: reportBookmark
+      tags: [moderation]
+      summary: Report a public bookmark
+      description: |
+        Any authenticated user may report a bookmark that is public and visible to
+        them. At most one `open` report per user per bookmark (`409`); a new report
+        is allowed once the previous one is resolved. Private or hidden bookmarks
+        yield `404` — existence is not disclosed.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportInput'
+      responses:
+        '201':
+          description: Report created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The caller already has an open report on this bookmark.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/admin/reports:
+    get:
+      operationId: listReports
+      tags: [moderation]
+      summary: Moderation queue (moderator)
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+            default: open
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of reports, oldest open first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/admin/reports/{id}:
+    put:
+      operationId: resolveReport
+      tags: [moderation]
+      summary: Resolve an open report (moderator)
+      description: |
+        `dismissed` leaves the bookmark alone; `actioned` hides it and auto-resolves
+        every other open report on the same bookmark as `actioned` with the same
+        resolver and note. Resolving a non-open report yields `409`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportResolutionInput'
+      responses:
+        '200':
+          description: The resolved report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The report is not open.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/admin/bookmarks/{id}/status:
+    put:
+      operationId: setBookmarkStatus
+      tags: [moderation]
+      summary: Hide or restore a bookmark (moderator)
+      description: 'Restoring sets `status: active` and leaves `visibility` untouched.'
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkStatusInput'
+      responses:
+        '200':
+          description: The bookmark with its new status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Bookmark'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/users:
+    get:
+      operationId: listUserAccounts
+      tags: [backoffice]
+      summary: User directory (admin)
+      description: App-level accounts, lazily provisioned from JWTs — not Keycloak's user store.
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive substring match on username.
+          schema:
+            type: string
+            maxLength: 100
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/UserAccountStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of user accounts, most recently seen first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccountPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/admin/users/{username}:
+    get:
+      operationId: getUserAccount
+      tags: [backoffice]
+      summary: One user account (admin)
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/admin/users/{username}/status:
+    put:
+      operationId: setUserAccountStatus
+      tags: [backoffice]
+      summary: Block or unblock a user (admin)
+      description: |
+        Blocking takes effect on the caller's next request — no session revocation.
+        Admins cannot block themselves (`409`).
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserStatusInput'
+      responses:
+        '200':
+          description: The account with its new status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccount'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Admins cannot block themselves.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/admin/audit-log:
+    get:
+      operationId: listAuditEntries
+      tags: [backoffice]
+      summary: Browse the audit trail (admin)
+      parameters:
+        - name: actor
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          description: Exact action, e.g. `report.resolved`.
+          schema:
+            type: string
+        - name: targetType
+          in: query
+          schema:
+            type: string
+        - name: targetId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of audit entries, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [backoffice]
+      summary: Dashboard stats (moderator)
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Totals, a 30-day zero-filled daily series, and top tags.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStats'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/v1/messages:
+    get:
+      operationId: listMessages
+      tags: [messages]
+      summary: List messages (public, paginated)
+      security: []
+      parameters:
+        - name: key
+          in: query
+          description: Exact message key.
+          schema:
+            $ref: '#/components/schemas/MessageKey'
+        - name: language
+          in: query
+          schema:
+            $ref: '#/components/schemas/LanguageCode'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: A page of messages.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    post:
+      operationId: createMessage
+      tags: [messages]
+      summary: Create a message (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageInput'
+      responses:
+        '201':
+          description: Created. `Location` header points at the new resource.
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /api/v1/messages/bundle:
+    get:
+      operationId: getMessageBundle
+      tags: [messages]
+      summary: Flat key→text bundle for one resolved language
+      description: |
+        Returns every message key with its text in the resolved language
+        (`lang` parameter → `Accept-Language` → `en`); keys missing in that
+        language fall back to their `en` text. `Content-Language` reports the
+        language actually served. This is what frontends load on startup and
+        on language switch.
+      security: []
+      parameters:
+        - name: lang
+          in: query
+          description: Explicit language override; unsupported values fall back silently.
+          schema:
+            $ref: '#/components/schemas/LanguageCode'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The bundle.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Language:
+              description: Language actually served.
+              schema:
+                $ref: '#/components/schemas/LanguageCode'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBundle'
+        '304':
+          $ref: '#/components/responses/NotModified'
+
+  /api/v1/messages/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: getMessage
+      tags: [messages]
+      summary: Get a message (public)
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: The message.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      operationId: updateMessage
+      tags: [messages]
+      summary: Replace a message (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageInput'
+      responses:
+        '200':
+          description: The updated message.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      operationId: deleteMessage
+      tags: [messages]
+      summary: Delete a message (admin only)
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/v1/tags:
+    get:
+      operationId: listTags
+      tags: [tags]
+      summary: List the caller's tags with usage counts, most used first
+      responses:
+        '200':
+          description: Tag usage.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tags]
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TagCount'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/me:
+    get:
+      operationId: getMe
+      tags: [me]
+      summary: Identity of the caller, as derived from the validated JWT
+      responses:
+        '200':
+          description: The caller.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /healthz:
+    get:
+      operationId: livenessProbe
+      tags: [meta]
+      summary: Liveness — process is up
+      security: []
+      responses:
+        '200':
+          description: Alive.
+  /readyz:
+    get:
+      operationId: readinessProbe
+      tags: [meta]
+      summary: Readiness — dependencies (database) are reachable
+      security: []
+      responses:
+        '200':
+          description: Ready to serve traffic.
+        '503':
+          description: Not ready.
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Access token issued by Keycloak, relayed by the gateway. Backends validate
+        issuer, signature (via JWKS), expiry, and audience; identity comes from the
+        `preferred_username` claim, roles from `realm_access.roles`. Operations
+        marked "admin only" require the `admin` role.
+
+  parameters:
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      description: Entity tag from a previous response; an unchanged representation returns `304`.
+      schema:
+        type: string
+
+  headers:
+    ETag:
+      description: Entity tag of the current representation.
+      schema:
+        type: string
+    CacheControl:
+      description: 'Always `no-cache`: responses may be stored but must be revalidated before reuse.'
+      schema:
+        type: string
+    Deprecation:
+      description: RFC 9745 — when the operation was deprecated, as `@` + Unix seconds.
+      schema:
+        type: string
+        example: '@1782864000'
+    Sunset:
+      description: RFC 8594 — HTTP-date after which the operation may be removed.
+      schema:
+        type: string
+        example: 'Thu, 01 Jul 2027 00:00:00 GMT'
+    SuccessorLink:
+      description: RFC 8288 link to the replacing operation.
+      schema:
+        type: string
+        example: '</api/v2/bookmarks>; rel="successor-version"'
+
+  schemas:
+    Visibility:
+      type: string
+      enum: [private, public]
+
+    Tag:
+      type: string
+      pattern: '^[a-z0-9-]{1,30}$'
+
+    LanguageCode:
+      type: string
+      pattern: '^[a-z]{2}$'
+      description: Two-letter lowercase ISO 639-1 code.
+
+    MessageKey:
+      type: string
+      pattern: '^[a-z0-9-]+(\.[a-z0-9-]+)*$'
+      maxLength: 150
+      description: Dot-separated lowercase segments, e.g. `ui.nav.my-bookmarks`.
+
+    MessageInput:
+      type: object
+      required: [key, language, text]
+      properties:
+        key:
+          $ref: '#/components/schemas/MessageKey'
+        language:
+          $ref: '#/components/schemas/LanguageCode'
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        description:
+          type: string
+          maxLength: 1000
+          description: Context for translators.
+
+    Message:
+      allOf:
+        - $ref: '#/components/schemas/MessageInput'
+        - type: object
+          required: [id, createdAt, updatedAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    MessagePage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    MessageBundle:
+      type: object
+      required: [language, messages]
+      properties:
+        language:
+          $ref: '#/components/schemas/LanguageCode'
+        messages:
+          type: object
+          additionalProperties:
+            type: string
+          description: Flat key → localized text map.
+
+    BookmarkInput:
+      type: object
+      required: [url, title]
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2000
+          description: Absolute http(s) URL.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        notes:
+          type: string
+          maxLength: 4000
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            $ref: '#/components/schemas/Tag'
+          description: Normalized server-side — trimmed, lowercased, deduplicated.
+        visibility:
+          $ref: '#/components/schemas/Visibility'
+          default: private
+
+    BookmarkStatus:
+      type: string
+      enum: [active, hidden]
+      description: Server-managed; changes only through moderation.
+
+    Bookmark:
+      allOf:
+        - $ref: '#/components/schemas/BookmarkInput'
+        - type: object
+          required: [id, owner, status, createdAt, updatedAt, visibility, tags]
+          properties:
+            id:
+              type: string
+              format: uuid
+            owner:
+              type: string
+              description: Username of the creator. Immutable.
+            status:
+              $ref: '#/components/schemas/BookmarkStatus'
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+
+    BookmarkCursorPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bookmark'
+        nextCursor:
+          type: string
+          description: Opaque cursor for the next slice. Absent on the last page.
+
+    BookmarkStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/BookmarkStatus'
+        note:
+          type: string
+          maxLength: 1000
+
+    ReportReason:
+      type: string
+      enum: [spam, offensive, broken-link, other]
+
+    ReportStatus:
+      type: string
+      enum: [open, dismissed, actioned]
+
+    ReportInput:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          $ref: '#/components/schemas/ReportReason'
+        comment:
+          type: string
+          maxLength: 1000
+
+    Report:
+      allOf:
+        - $ref: '#/components/schemas/ReportInput'
+        - type: object
+          required: [id, bookmarkId, reporter, status, createdAt]
+          properties:
+            id:
+              type: string
+              format: uuid
+            bookmarkId:
+              type: string
+              format: uuid
+            reporter:
+              type: string
+            status:
+              $ref: '#/components/schemas/ReportStatus'
+            createdAt:
+              type: string
+              format: date-time
+            resolvedBy:
+              type: string
+            resolvedAt:
+              type: string
+              format: date-time
+            resolutionNote:
+              type: string
+
+    ReportPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Report'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    ReportResolutionInput:
+      type: object
+      required: [resolution]
+      properties:
+        resolution:
+          type: string
+          enum: [dismissed, actioned]
+        note:
+          type: string
+          maxLength: 1000
+
+    UserAccountStatus:
+      type: string
+      enum: [active, blocked]
+
+    UserAccount:
+      type: object
+      required: [username, firstSeen, lastSeen, status, bookmarkCount]
+      properties:
+        username:
+          type: string
+        firstSeen:
+          type: string
+          format: date-time
+        lastSeen:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/UserAccountStatus'
+        blockedReason:
+          type: string
+          description: Present while blocked.
+        bookmarkCount:
+          type: integer
+          format: int64
+
+    UserAccountPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserAccount'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    UserStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/UserAccountStatus'
+        reason:
+          type: string
+          maxLength: 1000
+          description: Required when blocking.
+
+    AuditEntry:
+      type: object
+      required: [id, actor, action, targetType, targetId, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        actor:
+          type: string
+        action:
+          type: string
+          description: Dot-separated verb, e.g. `report.resolved`, `user.blocked`.
+        targetType:
+          type: string
+        targetId:
+          type: string
+        detail:
+          type: object
+          additionalProperties: true
+          description: Snapshot of the change.
+        createdAt:
+          type: string
+          format: date-time
+
+    AuditPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntry'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    AdminStats:
+      type: object
+      required: [totals, daily, topTags]
+      properties:
+        totals:
+          type: object
+          required: [users, bookmarks, publicBookmarks, hiddenBookmarks, openReports]
+          properties:
+            users:
+              type: integer
+              format: int64
+            bookmarks:
+              type: integer
+              format: int64
+            publicBookmarks:
+              type: integer
+              format: int64
+            hiddenBookmarks:
+              type: integer
+              format: int64
+            openReports:
+              type: integer
+              format: int64
+        daily:
+          type: array
+          description: Last 30 days including today, zero-filled, oldest first.
+          items:
+            type: object
+            required: [date, bookmarksCreated, activeUsers]
+            properties:
+              date:
+                type: string
+                format: date
+              bookmarksCreated:
+                type: integer
+              activeUsers:
+                type: integer
+        topTags:
+          type: array
+          maxItems: 10
+          description: Top tags by usage across all users.
+          items:
+            $ref: '#/components/schemas/TagCount'
+
+    BookmarkPage:
+      type: object
+      required: [items, page, size, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Bookmark'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+
+    TagCount:
+      type: object
+      required: [tag, count]
+      properties:
+        tag:
+          $ref: '#/components/schemas/Tag'
+        count:
+          type: integer
+
+    User:
+      type: object
+      required: [username, roles]
+      properties:
+        username:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        roles:
+          type: array
+          items:
+            type: string
+          description: Application roles from `realm_access.roles`, e.g. `["admin"]`. Empty for regular users.
+
+    Problem:
+      type: object
+      description: RFC 9457 problem details. `errors` carries field-level validation failures.
+      properties:
+        type:
+          type: string
+          format: uri
+          default: 'about:blank'
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            required: [field, messageKey, message]
+            properties:
+              field:
+                type: string
+              messageKey:
+                $ref: '#/components/schemas/MessageKey'
+              message:
+                type: string
+                description: Localized per the language resolution rules (`lang` → `Accept-Language` → `en`).
+
+  responses:
+    BadRequest:
+      description: Validation failure.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing or invalid token (or, through the gateway, no session).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Authenticated, but missing the required role.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Resource does not exist — or is not visible to the caller.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotModified:
+      description: The representation matches `If-None-Match`; the body is empty.
+    Conflict:
+      description: A message with this `(key, language)` pair already exists.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

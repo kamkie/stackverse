@@ -1,0 +1,105 @@
+# Infrastructure runs with plain `docker compose up -d`.
+# App components (backend/gateway) are behind the `app` profile and pluggable:
+#
+#   BACKEND_IMAGE=stackverse/backend-spring-kotlin:local \
+#   GATEWAY_IMAGE=stackverse/gateway-yarp:local \
+#   docker compose --profile app up
+
+name: stackverse
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: stackverse
+      POSTGRES_USER: stackverse
+      POSTGRES_PASSWORD: stackverse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stackverse -d stackverse"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.2
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # issuer must look the same from the host and from inside the compose network
+      KC_HOSTNAME: http://localhost:8180
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    profiles: [app]
+    # default is a non-existent placeholder — set BACKEND_IMAGE (or .env) to a real image
+    image: ${BACKEND_IMAGE:-stackverse/backend:unset}
+    environment:
+      PORT: "8080"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: stackverse
+      DB_USER: stackverse
+      DB_PASSWORD: stackverse
+      OIDC_ISSUER_URI: http://localhost:8180/realms/stackverse
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      # lets the backend resolve the host-facing issuer URL to the keycloak container
+      - "localhost:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+
+  gateway:
+    profiles: [app]
+    # default is a non-existent placeholder — set GATEWAY_IMAGE (or .env) to a real image
+    image: ${GATEWAY_IMAGE:-stackverse/gateway:unset}
+    environment:
+      PORT: "8000"
+      BACKEND_URL: http://backend:8080
+      REDIS_URL: redis://redis:6379
+      OIDC_ISSUER_URI: http://localhost:8180/realms/stackverse
+      OIDC_CLIENT_ID: stackverse-gateway
+      OIDC_CLIENT_SECRET: stackverse-secret
+      PUBLIC_URL: http://localhost:8000
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      backend:
+        condition: service_started
+
+volumes:
+  postgres-data:

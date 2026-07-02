@@ -1,0 +1,21 @@
+# local env
+.env
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+
+# IDE (per-implementation ignores live in each implementation directory)
+.idea/
+.vscode/
+*.iml
+
+# common build outputs — implementations add their own specifics
+node_modules/
+target/
+build/
+bin/
+obj/
+dist/
+out/
