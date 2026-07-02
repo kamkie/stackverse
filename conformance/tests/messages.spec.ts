@@ -79,7 +79,20 @@ test("bundle language resolution: lang parameter beats Accept-Language beats en"
   });
   expect(byParameter.headers()["content-language"]).toBe("pl");
 
-  // unsupported values fall down the chain instead of erroring (rule 8)
+  // Accept-Language is quality-ordered: pl;q=0.8 beats en;q=0.5 regardless
+  // of listing order, and unsupported entries (zz) are skipped
+  const byQuality = await anon.get("/api/v1/messages/bundle", {
+    headers: { "Accept-Language": "en;q=0.5, zz, pl;q=0.8" },
+  });
+  expect(byQuality.headers()["content-language"]).toBe("pl");
+
+  // unsupported values fall down the chain instead of erroring (rule 8):
+  // lang=zz falls to Accept-Language first, and only then to en
+  const chained = await anon.get("/api/v1/messages/bundle?lang=zz", {
+    headers: { "Accept-Language": "pl" },
+  });
+  expect(chained.status()).toBe(200);
+  expect(chained.headers()["content-language"]).toBe("pl");
   const unsupported = await anon.get("/api/v1/messages/bundle?lang=zz");
   expect(unsupported.status()).toBe(200);
   expect(unsupported.headers()["content-language"]).toBe("en");
