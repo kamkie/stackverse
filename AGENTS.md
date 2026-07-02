@@ -32,3 +32,36 @@ implemented in many stacks. Read these before changing anything:
 - Update the implementation matrix in `README.md` when an implementation changes status.
 - `compose.yaml` at the root runs infra (`docker compose up -d`) and pluggable
   app combos (`--profile app` with `BACKEND_IMAGE`/`GATEWAY_IMAGE`).
+
+## Full dev mode (each module in a visible terminal)
+
+Infra in Docker, each module as a dev process in its own terminal tab:
+
+1. `docker compose up -d` from the repo root; wait for Keycloak to report healthy.
+2. Backend — in `backends/spring-kotlin`: `./gradlew bootRun` (defaults match the compose infra).
+3. Gateway — in `gateways/yarp`: `dotnet run --project src/StackverseGateway` with
+   `FRONTEND_URL=http://localhost:5173` so it proxies the frontend dev server.
+4. Frontend — in `frontends/react`: `yarn dev` with `VITE_API_MOCK=false` (mocks off,
+   Vite proxies `/api` and `/auth` to the gateway).
+
+Use the app at http://localhost:8000 (gateway). Stop with Ctrl+C per tab and
+`docker compose down`.
+
+### Windows Terminal pitfalls (launching tabs programmatically)
+
+Use `wt -w <window-name> new-tab --title <t> ...` — one invocation per tab; the named
+window is created on first use and reused by later calls, so no `;` chaining is needed.
+Two silent failure modes with inline commands:
+
+1. Windows Terminal splits its command line on unescaped `;` **even inside quoted
+   arguments** and treats the remainder as another wt subcommand (error 0x80070002,
+   "cannot find the file"). Escape as `\;` or avoid semicolons.
+2. Do not "fix" that with `&&`: PowerShell parses `$env:X='y' && cmd` as assigning the
+   *entire pipeline chain's output* to `$env:X`, so `cmd` runs with the variable
+   **unset** and no error is raised (the gateway silently serves its placeholder page,
+   the frontend silently keeps mocks on).
+
+Instead of inline commands, write a small launcher `.ps1` per module (set env vars,
+`Set-Location`, run the process) and start each tab with `pwsh -NoExit -File <script>`.
+When cleaning up mislaunched processes by matching `CommandLine`, exclude the current
+shell (`$_.ProcessId -ne $PID`) — the filter string appears in your own command line.
