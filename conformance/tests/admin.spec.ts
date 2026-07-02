@@ -99,40 +99,67 @@ test("blocking an unknown account is a 404", async ({ admin }) => {
   );
 });
 
-test("backoffice mutations land in the audit trail with filters, newest first", async ({ demo, moderator, admin }) => {
+test("every backoffice mutation flavor lands in the audit trail", async ({ demo, mentor, moderator, admin }) => {
   const runStart = new Date().toISOString();
+  const marker = uid();
 
-  // produce one audited mutation of each flavor
+  // bookmark.status-changed (SPEC rule 18 names the four audited capabilities)
   const bookmark = await createBookmark(demo, {
     url: "https://example.com/audited",
-    title: `audited ${uid()}`,
+    title: `audited ${marker}`,
     visibility: "public",
   });
   await moderator.put(`/api/v1/admin/bookmarks/${bookmark.id}/status`, { data: { status: "hidden" } });
   await moderator.put(`/api/v1/admin/bookmarks/${bookmark.id}/status`, { data: { status: "active" } });
 
+  // report.resolved
+  const reported = await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "other" },
+  });
+  expect(reported.status(), await reported.text()).toBe(201);
+  const report = (await reported.json()) as { id: string };
+  await moderator.put(`/api/v1/admin/reports/${report.id}`, { data: { resolution: "dismissed" } });
+
+  // message writes
+  const messaged = await admin.post("/api/v1/messages", {
+    data: { key: `conformance.audit.${marker}`, language: "en", text: "audited" },
+  });
+  expect(messaged.status(), await messaged.text()).toBe(201);
+  const message = (await messaged.json()) as { id: string };
+
+  // user blocking (immediately undone)
+  await admin.put("/api/v1/admin/users/mentor/status", {
+    data: { status: "blocked", reason: `audit ${marker}` },
+  });
+  await admin.put("/api/v1/admin/users/mentor/status", { data: { status: "active" } });
+
+  const expectAudited = async (action: string, targetId: string, actor: string) => {
+    const log = (await (
+      await admin.get(`/api/v1/admin/audit-log?action=${action}&targetId=${targetId}&from=${runStart}&size=100`)
+    ).json()) as { items: AuditEntry[] };
+    expect(log.items.length, `${action} on ${targetId} must be audited`).toBeGreaterThanOrEqual(1);
+    expect(log.items[0]?.actor).toBe(actor);
+    expect(log.items[0]?.targetId).toBe(targetId);
+  };
+  await expectAudited("bookmark.status-changed", bookmark.id, "moderator");
+  await expectAudited("report.resolved", report.id, "moderator");
+  await expectAudited("message.created", message.id, "admin");
+  await expectAudited("user.blocked", "mentor", "admin");
+
+  await admin.delete(`/api/v1/messages/${message.id}`);
+
+  // actor + time-range filters, newest first
   const log = (await (
-    await admin.get(`/api/v1/admin/audit-log?actor=moderator&targetId=${bookmark.id}&size=100`)
+    await admin.get(`/api/v1/admin/audit-log?actor=moderator&targetId=${bookmark.id}&from=${runStart}&size=100`)
   ).json()) as { items: AuditEntry[] };
   expect(log.items.length).toBeGreaterThanOrEqual(2);
   for (const entry of log.items) {
     expect(entry.actor).toBe("moderator");
-    expect(entry.targetId).toBe(bookmark.id);
     expect(entry.action).toMatch(/^[a-z-]+\.[a-z-]+$/);
-    expect(Date.parse(entry.createdAt)).not.toBeNaN();
+    expect(Date.parse(entry.createdAt)).toBeGreaterThanOrEqual(Date.parse(runStart) - 1000);
   }
   const stamps = log.items.map((entry) => Date.parse(entry.createdAt));
   expect([...stamps].sort((a, b) => b - a)).toEqual(stamps);
-
-  // action + time-range filters
-  const filtered = (await (
-    await admin.get(`/api/v1/admin/audit-log?action=bookmark.status-changed&from=${runStart}&size=100`)
-  ).json()) as { items: AuditEntry[] };
-  expect(filtered.items.some((entry) => entry.targetId === bookmark.id)).toBe(true);
-  for (const entry of filtered.items) {
-    expect(entry.action).toBe("bookmark.status-changed");
-    expect(Date.parse(entry.createdAt)).toBeGreaterThanOrEqual(Date.parse(runStart) - 1000);
-  }
 });
 
 test("the audit trail is append-only — no mutation routes exist", async ({ admin }) => {
