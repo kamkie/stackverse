@@ -36,6 +36,8 @@ test("dismissing an open report removes it from the open queue", async ({ page, 
   await page.goto("/admin/reports");
   const row = reportRow(page, marker);
   await expect(row).toHaveCount(1);
+  // the bookmark column resolves the reported bookmark's title for context
+  await expect(row).toContainText(`e2e reported ${marker}`);
   await row.getByRole("button", { name: "Dismiss" }).click();
   await expect(row).toHaveCount(0);
 

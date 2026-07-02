@@ -8,7 +8,13 @@ test("switching to Polish swaps the runtime bundle and persists", async ({ page 
 
   await page.getByRole("button", { name: "PL" }).click();
   await expect(page.locator(".sv-page-title")).toHaveText("Publiczne");
-  await expect(page.getByRole("link", { name: "Moje zakładki" })).toBeVisible();
+  // anonymous-visible chrome swaps too (My bookmarks is hidden while logged out)
+  await expect(
+    page.getByRole("navigation").getByRole("link", { name: "Publiczne" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("banner").getByRole("link", { name: "Zaloguj się" }),
+  ).toBeVisible();
 
   await page.reload(); // persisted choice applies on the next load
   await expect(page.locator(".sv-page-title")).toHaveText("Publiczne");

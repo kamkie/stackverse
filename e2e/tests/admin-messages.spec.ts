@@ -12,7 +12,7 @@ test("create, edit and delete a localized message", async ({ page }) => {
   await page.getByRole("button", { name: "Add" }).click();
   const dialog = page.locator(".sv-dialog");
   await dialog.getByLabel("Key").fill(key);
-  await dialog.getByLabel("Language").fill("en");
+  await dialog.getByLabel("Language").selectOption("en");
   await dialog.getByLabel("Text").fill("e2e message");
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
@@ -29,5 +29,8 @@ test("create, edit and delete a localized message", async ({ page }) => {
   await expect(row).toContainText("e2e message edited");
 
   await row.getByRole("button", { name: "Delete" }).click();
+  // deleting now asks for confirmation — the danger button lives in the dialog
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect(dialog).toBeHidden();
   await expect(row).toHaveCount(0);
 });

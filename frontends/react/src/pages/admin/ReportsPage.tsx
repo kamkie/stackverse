@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pagination } from "../../components/Pagination";
 import { ErrorState, Loading } from "../../components/states";
 import { useI18n } from "../../i18n/I18nProvider";
-import { useReports, useResolveReport, type ReportStatus } from "./queries";
+import { useBookmark, useReports, useResolveReport, type ReportStatus } from "./queries";
 
 const STATUSES: ReportStatus[] = ["open", "dismissed", "actioned"];
 
@@ -39,18 +39,20 @@ export function ReportsPage() {
         </select>
       </div>
       {items.length === 0 ? (
-        <div className="sv-empty">—</div>
+        <div className="sv-empty">{t("ui.reports.empty")}</div>
       ) : (
         <div className="sv-table-wrap">
           <table className="sv-table">
             <thead>
               <tr>
-                <th>{t("ui.field.created-at")}</th>
-                <th>{t("ui.field.bookmark")}</th>
-                <th>{t("ui.field.reporter")}</th>
-                <th>{t("ui.field.reason")}</th>
-                <th>{t("ui.field.comment")}</th>
-                <th />
+                <th scope="col">{t("ui.field.created-at")}</th>
+                <th scope="col">{t("ui.field.bookmark")}</th>
+                <th scope="col">{t("ui.field.reporter")}</th>
+                <th scope="col">{t("ui.field.reason")}</th>
+                <th scope="col">{t("ui.field.comment")}</th>
+                <th scope="col">
+                  <span className="sv-visually-hidden">{t("ui.field.actions")}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -61,7 +63,9 @@ export function ReportsPage() {
                       {new Date(report.createdAt).toLocaleString(resolvedLanguage)}
                     </time>
                   </td>
-                  <td className="sv-cell-mono">{report.bookmarkId.slice(0, 8)}</td>
+                  <td>
+                    <BookmarkCell bookmarkId={report.bookmarkId} />
+                  </td>
                   <td>{report.reporter}</td>
                   <td>
                     <span className="sv-badge">
@@ -108,6 +112,42 @@ export function ReportsPage() {
         </div>
       )}
       <Pagination page={page} totalPages={totalPages} onPage={setPage} />
+    </>
+  );
+}
+
+/**
+ * Context for a reported bookmark. The read endpoint is owner-or-public-only,
+ * so a `404` is an expected state (private, hidden, or already deleted —
+ * moderators get no special access); those rows keep the raw id plus a hint.
+ */
+function BookmarkCell({ bookmarkId }: { bookmarkId: string }) {
+  const { t } = useI18n();
+  const bookmark = useBookmark(bookmarkId);
+
+  if (bookmark.isSuccess) {
+    return (
+      <>
+        <strong>{bookmark.data.title}</strong>
+        <div>
+          <a
+            className="sv-bookmark-url"
+            href={bookmark.data.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {bookmark.data.url}
+          </a>
+        </div>
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="sv-cell-mono">{bookmarkId}</span>
+      {bookmark.isError && (
+        <div className="sv-field-hint">{t("ui.reports.bookmark-unavailable")}</div>
+      )}
     </>
   );
 }

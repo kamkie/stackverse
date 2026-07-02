@@ -5,6 +5,22 @@ import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { useI18n } from "../../i18n/I18nProvider";
 import { useAuditLog } from "./queries";
 
+/**
+ * Actions emitted by the reference backend, offered as <datalist> suggestions.
+ * The contract keeps `action` an open string, so the field stays free-text.
+ */
+const KNOWN_ACTIONS = [
+  "message.created",
+  "message.updated",
+  "message.deleted",
+  "report.resolved",
+  "bookmark.status-changed",
+  "user.blocked",
+  "user.unblocked",
+];
+
+const ACTION_DATALIST_ID = "audit-log-known-actions";
+
 /** Filterable, paginated browser over the append-only audit trail (admin). */
 export function AuditLogPage() {
   const { t, resolvedLanguage } = useI18n();
@@ -28,6 +44,14 @@ export function AuditLogPage() {
   );
   const audit = useAuditLog(query);
 
+  const clearFilters = () => {
+    setActorInput("");
+    setActionInput("");
+    setFrom("");
+    setTo("");
+    setPage(0);
+  };
+
   if (audit.isError) return <ErrorState error={audit.error} />;
 
   return (
@@ -45,33 +69,51 @@ export function AuditLogPage() {
         />
         <input
           className="sv-input"
-          placeholder={t("ui.field.action")}
+          placeholder={t("ui.audit.action.placeholder")}
+          aria-label={t("ui.audit.action.placeholder")}
+          list={ACTION_DATALIST_ID}
           value={actionInput}
           onChange={(e) => {
             setActionInput(e.target.value);
             setPage(0);
           }}
         />
-        <input
-          type="date"
-          className="sv-input"
-          aria-label={t("ui.field.from")}
-          value={from}
-          onChange={(e) => {
-            setFrom(e.target.value);
-            setPage(0);
-          }}
-        />
-        <input
-          type="date"
-          className="sv-input"
-          aria-label={t("ui.field.to")}
-          value={to}
-          onChange={(e) => {
-            setTo(e.target.value);
-            setPage(0);
-          }}
-        />
+        <datalist id={ACTION_DATALIST_ID}>
+          {KNOWN_ACTIONS.map((knownAction) => (
+            <option key={knownAction} value={knownAction} />
+          ))}
+        </datalist>
+        <label className="sv-toolbar-field">
+          <span className="sv-label">{t("ui.field.from")}</span>
+          <input
+            type="date"
+            className="sv-input"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(0);
+            }}
+          />
+        </label>
+        <label className="sv-toolbar-field">
+          <span className="sv-label">{t("ui.field.to")}</span>
+          <input
+            type="date"
+            className="sv-input"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(0);
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="sv-button sv-button--ghost"
+          onClick={clearFilters}
+        >
+          {t("ui.action.clear-filters")}
+        </button>
       </div>
       {audit.isPending ? (
         <Loading />
@@ -81,10 +123,10 @@ export function AuditLogPage() {
             <table className="sv-table">
               <thead>
                 <tr>
-                  <th>{t("ui.field.created-at")}</th>
-                  <th>{t("ui.field.actor")}</th>
-                  <th>{t("ui.field.action")}</th>
-                  <th>{t("ui.field.target")}</th>
+                  <th scope="col">{t("ui.field.created-at")}</th>
+                  <th scope="col">{t("ui.field.actor")}</th>
+                  <th scope="col">{t("ui.field.action")}</th>
+                  <th scope="col">{t("ui.field.target")}</th>
                 </tr>
               </thead>
               <tbody>

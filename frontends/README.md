@@ -16,7 +16,7 @@ a shared stylesheet, not a per-stack reinvention). The shared design lives in
   spacing, radii, shadows, layout dimensions.
 - [spec/design/stackverse.css](../spec/design/stackverse.css) — framework-agnostic,
   `sv-`prefixed component classes (buttons, forms, cards, tags, badges, tables,
-  dialog, dashboard stats/chart, states).
+  dialog, toasts, dashboard stats/chart, states).
 
 Rules:
 
@@ -59,14 +59,23 @@ passed as `?lang=` and persisted client-side (e.g. `localStorage`); with no stor
 choice, omit `lang` and let `Accept-Language` do its job. The seed keys in
 [spec/messages/en.json](../spec/messages/en.json) are guaranteed to exist.
 
+Pluralized text uses suffixed keys: resolve `<key>.<category>` where the category
+is the CLDR plural rule for the count in the served language (`one`/`few`/`many`/...,
+e.g. `ui.admin.stats.open-reports.one`), falling back to the bare key when the
+suffixed one is missing — the bundle stays a flat map, no message syntax.
+
 ## Required screens
 
 1. **My bookmarks** — cursor-paginated list ("load more"), filter by tag and text
    search, create/edit/delete; hidden bookmarks show a moderation flag.
 2. **Public feed** — anonymous view of public bookmarks (`?visibility=public`), with a
-   report action when authenticated.
+   report action when authenticated. A successful report is confirmed (e.g. a toast)
+   and the bookmark's report button flips to a disabled "reported" state for the
+   rest of the session — the API's `409` on duplicates stays the source of truth.
 3. **Tag sidebar/cloud** — from `GET /api/v1/tags`, click to filter.
 4. **Login/session UI** — login button when anonymous, username + logout when not.
+   Logging out lands on the public feed (the only screen an anonymous visitor can
+   use); the *My bookmarks* navigation entry shows only for authenticated sessions.
 5. **Language switcher** — at least `en`/`pl`, reloads the bundle without a page reload.
 
 ### Admin section (`/admin`, role-gated from `GET /api/v1/me`)
@@ -75,15 +84,24 @@ Navigation shows only what the caller's roles allow — `moderator` sees the das
 and reports; `admin` sees everything:
 
 6. **Dashboard** (`moderator`) — totals from `GET /api/v1/admin/stats` plus a chart of
-   the 30-day series.
+   the 30-day series; the open-reports card links to the reports queue.
 7. **Reports queue** (`moderator`) — open reports with dismiss/action buttons; actioned
-   reports hide the bookmark.
-8. **Users** (`admin`) — searchable directory with block/unblock (reason required to block).
-9. **Audit log** (`admin`) — filterable, paginated browser.
-10. **Messages** (`admin`) — list/create/edit/delete localized messages.
+   reports hide the bookmark. Rows show the reported bookmark's title and URL where
+   readable; when the read comes back `404` (private, hidden, or deleted — the API
+   grants moderators no special read access), fall back to the raw id plus a hint.
+8. **Users** (`admin`) — directory searchable by username, with block/unblock
+   (reason required to block).
+9. **Audit log** (`admin`) — filterable, paginated browser. Every filter says what
+   it matches (the action filter is an exact match; the date inputs carry visible
+   from/to labels), and one click clears them all.
+10. **Messages** (`admin`) — list/create/edit/delete localized messages. The language
+    field is a select over the supported languages, and the key filter is labeled as
+    an exact-key match (which is what the API does).
 
 Validation errors (RFC 9457 problem documents with an `errors` array) must be surfaced
-on the corresponding form fields, not as a generic toast.
+on the corresponding form fields, not as a generic toast. Toasts are for success
+confirmations only (report submitted, message saved, deletions); destructive actions
+(deleting a bookmark or message) ask for confirmation in a dialog first.
 
 ## Conventions
 

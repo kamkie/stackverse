@@ -50,7 +50,10 @@ export function BookmarkFormDialog({ bookmark, onClose }: BookmarkFormDialogProp
   }
 
   return (
-    <Dialog title={bookmark ? t("ui.action.edit") : t("ui.action.add")} onClose={onClose}>
+    <Dialog
+      title={t(bookmark ? "ui.bookmarks.dialog.edit" : "ui.bookmarks.dialog.add")}
+      onClose={onClose}
+    >
       <form className="sv-form" onSubmit={submit}>
         <Field label={t("ui.field.url")} error={fieldErrorFor(error, "url")}>
           <input
@@ -74,7 +77,11 @@ export function BookmarkFormDialog({ bookmark, onClose }: BookmarkFormDialogProp
             onChange={(e) => setNotes(e.target.value)}
           />
         </Field>
-        <Field label={t("ui.field.tags")} error={fieldErrorFor(error, "tags")}>
+        <Field
+          label={t("ui.field.tags")}
+          hint={t("ui.field.tags.hint")}
+          error={fieldErrorFor(error, "tags")}
+        >
           <input
             className="sv-input"
             value={tags}

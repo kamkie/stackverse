@@ -1,9 +1,11 @@
+import { Link } from "react-router";
 import { ErrorState, Loading } from "../../components/states";
 import { useI18n } from "../../i18n/I18nProvider";
 import { useAdminStats, type AdminStats } from "./queries";
 
 /** Grouped-bar SVG chart of the 30-day series, styled entirely by sv-chart classes. */
 function DailyChart({ daily }: { daily: AdminStats["daily"] }) {
+  const { t } = useI18n();
   const width = 620;
   const height = 160;
   const padding = { left: 24, bottom: 18, top: 6 };
@@ -17,7 +19,7 @@ function DailyChart({ daily }: { daily: AdminStats["daily"] }) {
       className="sv-chart"
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label="30d"
+      aria-label={t("ui.admin.chart.label")}
     >
       {daily.map((day, i) => {
         const x = padding.left + i * slot;
@@ -25,7 +27,9 @@ function DailyChart({ daily }: { daily: AdminStats["daily"] }) {
         const active = (day.activeUsers / max) * chartHeight;
         return (
           <g key={day.date}>
-            <title>{`${day.date}: ${day.bookmarksCreated} / ${day.activeUsers}`}</title>
+            <title>
+              {`${day.date}: ${day.bookmarksCreated} ${t("ui.admin.stats.bookmarks-created")}, ${day.activeUsers} ${t("ui.admin.stats.active-users")}`}
+            </title>
             <rect
               className="sv-chart-bar"
               x={x}
@@ -73,7 +77,7 @@ function DailyChart({ daily }: { daily: AdminStats["daily"] }) {
 }
 
 export function DashboardPage() {
-  const { t } = useI18n();
+  const { t, tCount } = useI18n();
   const stats = useAdminStats();
 
   if (stats.isPending) return <Loading />;
@@ -92,12 +96,20 @@ export function DashboardPage() {
     <>
       <h1 className="sv-page-title">{t("ui.admin.dashboard")}</h1>
       <div className="sv-stats-grid">
-        {totalEntries.map(([key, value]) => (
-          <div className="sv-stat" key={key}>
-            <span className="sv-stat-value">{value}</span>
-            <span className="sv-stat-label">{t(key)}</span>
-          </div>
-        ))}
+        {totalEntries.map(([key, value]) =>
+          // Open reports is the one stat with a queue behind it — link straight there.
+          key === "ui.admin.stats.open-reports" ? (
+            <Link to="/admin/reports" className="sv-stat sv-stat--link" key={key}>
+              <span className="sv-stat-value">{value}</span>
+              <span className="sv-stat-label">{tCount(key, value)}</span>
+            </Link>
+          ) : (
+            <div className="sv-stat" key={key}>
+              <span className="sv-stat-value">{value}</span>
+              <span className="sv-stat-label">{t(key)}</span>
+            </div>
+          ),
+        )}
       </div>
       <div className="sv-card">
         <div className="sv-legend">

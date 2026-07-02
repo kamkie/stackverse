@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { NavLink, Outlet, Link } from "react-router";
+import { NavLink, Outlet, Link, useNavigate } from "react-router";
 import { LOGIN_URL, useLogout, useSession } from "../auth/session";
 import { isModerator, useMe } from "../auth/useMe";
+import { SUPPORTED_LANGUAGES } from "../i18n/languages";
 import { useI18n } from "../i18n/I18nProvider";
-
-const SUPPORTED_LANGUAGES = ["en", "pl"] as const;
 
 const THEME_STORAGE_KEY = "stackverse.theme";
 const THEME_OPTIONS = ["auto", "light", "dark"] as const;
@@ -78,6 +77,7 @@ function SessionControls() {
   const { t } = useI18n();
   const session = useSession();
   const logout = useLogout();
+  const navigate = useNavigate();
 
   if (session.isPending) return null;
 
@@ -88,7 +88,8 @@ function SessionControls() {
         <button
           type="button"
           className="sv-button sv-button--ghost sv-button--sm"
-          onClick={() => logout.mutate()}
+          // Land on the public feed — the only page an anonymous visitor can use.
+          onClick={() => logout.mutate(undefined, { onSettled: () => navigate("/feed") })}
           disabled={logout.isPending}
         >
           {t("ui.action.logout")}
@@ -106,6 +107,7 @@ function SessionControls() {
 
 export function Layout() {
   const { t } = useI18n();
+  const session = useSession();
   const me = useMe();
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
     `sv-nav-link${isActive ? " is-active" : ""}`;
@@ -117,9 +119,15 @@ export function Layout() {
           {t("ui.app.title")}
         </Link>
         <nav className="sv-nav">
-          <NavLink to="/bookmarks" className={navLinkClass}>
-            {t("ui.nav.my-bookmarks")}
-          </NavLink>
+          {/* Gated on the session, not /api/v1/me: that call is disabled while
+              anonymous and returns 403 for blocked-but-authenticated users,
+              who must still see their navigation. Hidden while the session is
+              loading so anonymous visitors never see the link flash. */}
+          {session.data?.authenticated && (
+            <NavLink to="/bookmarks" className={navLinkClass}>
+              {t("ui.nav.my-bookmarks")}
+            </NavLink>
+          )}
           <NavLink to="/feed" className={navLinkClass}>
             {t("ui.nav.public-feed")}
           </NavLink>

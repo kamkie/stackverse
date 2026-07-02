@@ -20,10 +20,15 @@ export function Field({ label, error, hint, children }: FieldProps) {
   const { t } = useI18n();
   const id = useId();
   const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
 
+  const describedBy =
+    [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(" ") ||
+    undefined;
   const control = cloneElement(children, {
     id,
-    ...(error ? { "aria-invalid": true, "aria-describedby": errorId } : {}),
+    ...(error ? { "aria-invalid": true } : {}),
+    ...(describedBy ? { "aria-describedby": describedBy } : {}),
   });
 
   return (
@@ -32,7 +37,11 @@ export function Field({ label, error, hint, children }: FieldProps) {
         {label}
       </label>
       {control}
-      {hint && !error && <span className="sv-field-hint">{hint}</span>}
+      {hint && (
+        <span className="sv-field-hint" id={hintId}>
+          {hint}
+        </span>
+      )}
       {error && (
         <span className="sv-field-error" id={errorId}>
           {localizeFieldError(error, t)}

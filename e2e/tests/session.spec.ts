@@ -13,6 +13,8 @@ test("anonymous visitor is offered login", async ({ page }) => {
 test("Keycloak login shows the username; logout returns to anonymous", async ({ page }) => {
   await loginViaKeycloak(page, "demo");
   await page.getByRole("button", { name: "Log out" }).click();
+  // logout lands on the public feed — the only page an anonymous visitor can use
+  await expect(page).toHaveURL(/\/feed/);
   // header flips back to the login button (the main area may show one too)
   await expect(
     page.getByRole("banner").getByRole("link", { name: "Log in" }),

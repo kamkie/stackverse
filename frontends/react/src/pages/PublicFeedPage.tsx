@@ -15,6 +15,10 @@ export function PublicFeedPage() {
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search, 300);
   const [reporting, setReporting] = useState<Bookmark | null>(null);
+  // Session-only memory of what this visitor already reported: the button
+  // flips to a disabled "Reported" to discourage repeat reports. The API's
+  // 409 duplicate handling in ReportDialog remains the source of truth.
+  const [reportedIds, setReportedIds] = useState<ReadonlySet<string>>(new Set());
 
   const filters = useMemo(
     () => ({ tags: activeTags, q, visibility: "public" as const }),
@@ -44,6 +48,9 @@ export function PublicFeedPage() {
       </div>
       <BookmarkList
         query={bookmarks}
+        emptyMessage={
+          q !== "" || activeTags.length > 0 ? t("ui.bookmarks.no-matches") : undefined
+        }
         renderBookmark={(bookmark) => (
           <BookmarkCard
             key={bookmark.id}
@@ -52,20 +59,36 @@ export function PublicFeedPage() {
             onToggleTag={toggleTag}
             actions={
               authenticated ? (
-                <button
-                  type="button"
-                  className="sv-button sv-button--ghost sv-button--sm"
-                  onClick={() => setReporting(bookmark)}
-                >
-                  {t("ui.action.report")}
-                </button>
+                reportedIds.has(bookmark.id) ? (
+                  <button
+                    type="button"
+                    className="sv-button sv-button--ghost sv-button--sm"
+                    disabled
+                  >
+                    {t("ui.report.reported")}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="sv-button sv-button--ghost sv-button--sm"
+                    onClick={() => setReporting(bookmark)}
+                  >
+                    {t("ui.action.report")}
+                  </button>
+                )
               ) : undefined
             }
           />
         )}
       />
       {reporting && (
-        <ReportDialog bookmark={reporting} onClose={() => setReporting(null)} />
+        <ReportDialog
+          bookmark={reporting}
+          onClose={() => setReporting(null)}
+          onReported={(bookmarkId) =>
+            setReportedIds((prev) => new Set(prev).add(bookmarkId))
+          }
+        />
       )}
     </section>
   );

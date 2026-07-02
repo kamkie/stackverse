@@ -27,6 +27,15 @@ test.describe("authenticated", () => {
     await dialog.getByLabel("Comment").fill(`e2e report ${marker}`);
     await dialog.getByRole("button", { name: "Report" }).click();
     await expect(dialog).toBeHidden(); // 201 — the mutation succeeded
+
+    // success feedback: a toast in the status region…
+    await expect(
+      page.getByRole("status").filter({ hasText: "Report submitted" }),
+    ).toBeVisible();
+    // …and the card's action flips to a disabled "Reported"
+    const reported = card.getByRole("button", { name: "Reported" });
+    await expect(reported).toBeVisible();
+    await expect(reported).toBeDisabled();
   });
 });
 
