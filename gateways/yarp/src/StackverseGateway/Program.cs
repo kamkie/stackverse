@@ -146,6 +146,11 @@ builder.Services.AddAuthentication(options =>
                     .Event(LogLevel.Information, "oidc_callback_completed", "failure",
                         "Authorization code flow failed",
                         fields: [("error_code", context.Failure?.GetType().Name ?? "remote_failure")]);
+                // The user is mid top-level navigation (cancelled at Keycloak, or the
+                // correlation state is stale/replayed): land them back on the SPA,
+                // logged out, instead of rethrowing into a 500 (docs/ARCHITECTURE.md).
+                context.HandleResponse();
+                context.Response.Redirect("/");
                 return Task.CompletedTask;
             },
         };
@@ -255,9 +260,23 @@ app.UseWhen(
         var auth = await context.AuthenticateAsync();
         if (auth.Succeeded)
         {
-            var accessToken = await context.RequestServices
-                .GetRequiredService<AccessTokenManager>()
-                .GetAccessTokenAsync(auth, context.RequestAborted);
+            string? accessToken;
+            try
+            {
+                accessToken = await context.RequestServices
+                    .GetRequiredService<AccessTokenManager>()
+                    .GetAccessTokenAsync(auth, context.RequestAborted);
+            }
+            catch (IdpUnavailableException)
+            {
+                // Transient IdP outage (already logged as dependency_call_failed): the
+                // refresh token may still be valid, so the session stays. Failing the
+                // request explicitly beats relaying it anonymously — the user did not
+                // log out — and beats an unhandled 500 (docs/ARCHITECTURE.md).
+                await Problems.Write(context, StatusCodes.Status503ServiceUnavailable,
+                    "Service Unavailable", "Authentication is temporarily unavailable; please retry.");
+                return;
+            }
             if (accessToken is null)
             {
                 // The session can no longer produce a token: destroy it and degrade to

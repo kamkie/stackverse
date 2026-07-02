@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace StackverseGateway.Tests;
@@ -70,13 +69,33 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         Assert.Contains("redirect_uri=" + Uri.EscapeDataString("http://localhost:8000/auth/callback"), location);
     }
 
+    // A failed callback is expected client/IdP behavior (contract: redirect to /,
+    // never a 5xx — docs/ARCHITECTURE.md): the user pressed Cancel on the Keycloak
+    // form, or the correlation state is stale or replayed.
+    [Theory]
+    [InlineData("/auth/callback?error=access_denied&state=whatever")] // user cancelled at the IdP
+    [InlineData("/auth/callback?code=fake-code&state=not-a-real-state")] // stale/invalid correlation
+    public async Task Failed_callback_redirects_home_without_a_session(string callbackPath)
+    {
+        using var client = CreateClient();
+
+        var response = await client.GetAsync(callbackPath);
+
+        Assert.Equal(HttpStatusCode.Found, response.StatusCode);
+        Assert.Equal("/", response.Headers.Location!.ToString());
+        Assert.Null(AuthFlows.ExtractSetCookie(response, "stackverse_session"));
+
+        var session = await GetJsonAsync(client, "/auth/session");
+        Assert.False(session.GetProperty("authenticated").GetBoolean());
+    }
+
     [Fact]
     public async Task Full_journey_login_relay_csrf_logout()
     {
         using var client = CreateClient();
 
         // --- Log in: /auth/login → Keycloak form → callback → session cookie.
-        var xsrfToken = await LogInAsync(client, "demo", "demo");
+        var xsrfToken = await AuthFlows.LogInAsync(client, "demo", "demo");
 
         var session = await GetJsonAsync(client, "/auth/session");
         Assert.True(session.GetProperty("authenticated").GetBoolean());
@@ -126,73 +145,6 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         var apiAfterLogout = await client.GetAsync("/api/v1/bookmarks");
         Assert.Equal(HttpStatusCode.OK, apiAfterLogout.StatusCode);
         Assert.Equal("", fixture.Backend.LastAuthorization);
-    }
-
-    /// <summary>
-    /// Drives the real authorization code flow: follows the challenge to the Keycloak
-    /// container, submits the login form like a browser would, then replays the
-    /// callback against the gateway. Returns the XSRF-TOKEN issued along the way.
-    /// </summary>
-    private async Task<string> LogInAsync(HttpClient client, string username, string password)
-    {
-        var challenge = await client.GetAsync("/auth/login");
-        Assert.Equal(HttpStatusCode.Found, challenge.StatusCode);
-        var xsrfToken = ExtractSetCookie(challenge, "XSRF-TOKEN")
-            ?? throw new InvalidOperationException("gateway did not issue an XSRF-TOKEN cookie");
-
-        // Talk to Keycloak directly, as the browser would. Keycloak marks its cookies
-        // Secure even over http, which .NET's CookieContainer would then refuse to send
-        // back over http (browsers treat localhost as a secure context; CookieContainer
-        // does not) — so carry the cookies by hand.
-        using var keycloakHandler = new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false };
-        using var keycloak = new HttpClient(keycloakHandler);
-
-        var loginPage = await keycloak.GetAsync(challenge.Headers.Location);
-        Assert.Equal(HttpStatusCode.OK, loginPage.StatusCode);
-        var html = await loginPage.Content.ReadAsStringAsync();
-        var formAction = WebUtility.HtmlDecode(Regex.Match(html, "action=\"([^\"]+)\"").Groups[1].Value);
-        Assert.False(string.IsNullOrEmpty(formAction), "no login form found on the Keycloak page");
-        var keycloakCookies = string.Join("; ", loginPage.Headers
-            .GetValues("Set-Cookie")
-            .Select(c => c[..c.IndexOf(';')]));
-
-        using var credentialsRequest = new HttpRequestMessage(HttpMethod.Post, formAction)
-        {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["username"] = username,
-                ["password"] = password,
-            }),
-        };
-        credentialsRequest.Headers.Add("Cookie", keycloakCookies);
-        var credentials = await keycloak.SendAsync(credentialsRequest);
-        if (credentials.StatusCode != HttpStatusCode.Found)
-        {
-            var body = await credentials.Content.ReadAsStringAsync();
-            Assert.Fail($"Keycloak login POST returned {(int)credentials.StatusCode}: {body[..Math.Min(body.Length, 500)]}");
-        }
-        var callbackUrl = credentials.Headers.Location!;
-        Assert.StartsWith("http://localhost:8000/auth/callback", callbackUrl.ToString());
-
-        // Replay the callback against the gateway (the browser would hit localhost:8000).
-        var callback = await client.GetAsync(callbackUrl.PathAndQuery);
-        Assert.Equal(HttpStatusCode.Found, callback.StatusCode);
-        Assert.Equal("/", callback.Headers.Location!.ToString());
-        Assert.Contains("stackverse_session=", ExtractSetCookie(callback, "stackverse_session") is not null
-            ? "stackverse_session=present"
-            : throw new InvalidOperationException("callback did not set the session cookie"));
-
-        return xsrfToken;
-    }
-
-    private static string? ExtractSetCookie(HttpResponseMessage response, string cookieName)
-    {
-        if (!response.Headers.TryGetValues("Set-Cookie", out var cookies))
-        {
-            return null;
-        }
-        var match = cookies.FirstOrDefault(c => c.StartsWith(cookieName + "="));
-        return match?[(cookieName.Length + 1)..match.IndexOf(';')];
     }
 
     private static async Task<JsonElement> GetJsonAsync(HttpClient client, string path)

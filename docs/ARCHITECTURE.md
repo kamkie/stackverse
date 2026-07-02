@@ -53,7 +53,7 @@ Every gateway implementation exposes the same surface on port **8000**:
 | Route | Behavior |
 |---|---|
 | `GET /auth/login` | start OIDC authorization code flow (with PKCE) |
-| `GET /auth/callback` | code exchange, create session, redirect to `/` |
+| `GET /auth/callback` | code exchange, create session, redirect to `/`. A failed callback (user cancelled at the IdP, stale or invalid state) creates no session and *also* redirects to `/` — the user is mid top-level navigation, so never a 5xx or an error page |
 | `POST /auth/logout` | destroy session, RP-initiated logout at the IdP, `204` |
 | `GET /auth/session` | `200 {"authenticated":true,"username":...}` or `200 {"authenticated":false}` — for the SPA |
 | `/api/**` | proxy to backend — token relay when a session exists, anonymous relay without a token otherwise (the spec's public surface works logged-out); which endpoints require auth is the backend's decision |
@@ -62,7 +62,15 @@ Every gateway implementation exposes the same surface on port **8000**:
 Rules:
 
 - Cookie: `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev, name `stackverse_session`.
-- Token refresh is the gateway's job — transparent to both SPA and backend.
+- Token refresh is the gateway's job — transparent to both SPA and backend. Its two
+  failure modes are distinct and must not be conflated: when the IdP **rejects** the
+  refresh (an authoritative verdict on the grant — a `400`/`401` from the token
+  endpoint, i.e. token expired or revoked), the session is dead — destroy it and
+  degrade the request to anonymous. When the IdP is **unavailable** (unreachable,
+  or answering with its own failure such as a `5xx` or `429`), nothing is known
+  about the session — keep it (the refresh token may still be valid) and fail the
+  request with a `503` problem document. A transient IdP outage must not log
+  anyone out.
 - CSRF: `SameSite=Lax` on the session cookie is the baseline; on top of it every
   gateway implements the same double-submit check. The gateway issues a readable
   `XSRF-TOKEN` cookie (not `HttpOnly`; `SameSite=Lax`, `Secure` outside local dev)

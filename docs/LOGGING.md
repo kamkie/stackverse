@@ -134,7 +134,7 @@ keeps its own event log; the application side logs only what it can see.
 | `oidc_callback_completed` | `INFO` | code flow finished; outcome success/failure |
 | `session_created` | `INFO` | ticket stored, cookie issued |
 | `session_destroyed` | `INFO` | logout or refresh failure; include reason |
-| `token_refresh_failed` | `WARN` | session destroyed, request degraded to anonymous |
+| `token_refresh_failed` | `WARN` | the IdP *rejected* the refresh (`400`/`401`): session destroyed, request degraded to anonymous. An *unavailable* IdP (unreachable, `5xx`, `429`) is `dependency_call_failed` instead — the session is kept (docs/ARCHITECTURE.md) |
 | `idp_logout_failed` | `WARN` | backchannel revocation failed (best-effort by design) |
 | `jwt_validation_failed` | `INFO` | backend rejected a bearer token (expired/invalid) |
 | `blocked_user_rejected` | `WARN` | backend refused a blocked account |
@@ -244,9 +244,13 @@ no per-environment profiles.
 | `LOG_LEVEL` honored | ✅ | ✅ | n/a |
 | trace id on console lines when tracing on | ✅ | ✅ | n/a |
 | stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ❌ gap | n/a |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ❌ gap¹ | n/a |
 | JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | n/a |
 | dev-only console forwarding, sanitized | n/a | n/a | ✅ |
+
+¹ yarp emits `dependency_call_failed` for Keycloak token-refresh outages, but
+Redis and the backend upstream are still uncovered — partial coverage keeps
+the row a gap.
 
 Gaps are tracked here on purpose: a new implementation must satisfy every
 row, and any `❌` an implementation accrues is its agreed, visible backlog.
