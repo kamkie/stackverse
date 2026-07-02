@@ -78,6 +78,23 @@ Rules:
 - The gateway is version-agnostic: `/api/**` covers `/api/v1/**`, `/api/v2/**`,
   and anything after — API versioning is entirely the backend's concern.
 
+## Observability
+
+Telemetry follows the same shape in every implementation: standard `OTEL_*`
+environment variables, silent by default (`OTEL_SDK_DISABLED=true`), and an
+all-in-one dev-grade collector behind the `observability` compose profile
+(see [RUNNING.md](RUNNING.md); scope boundary in [INTENT.md](INTENT.md)).
+
+- One browser action is **one trace**: when telemetry is enabled, the gateway
+  propagates W3C `traceparent` on proxied `/api/**` requests, so the gateway
+  span and the backend span join under a single trace id.
+- Logs are part of the same pipeline — exported over OTLP next to traces and
+  metrics, correlated by trace id. What and how to log is pinned in
+  [LOGGING.md](LOGGING.md); it is a cross-implementation contract like the
+  routes above.
+- Service identity (`OTEL_SERVICE_NAME`) is per component
+  (`stackverse-gateway`, `stackverse-backend`), set by compose.
+
 ## Why this instead of JWT-in-the-SPA?
 
 The common demo-app pattern (RealWorld included) keeps a JWT in browser storage.
@@ -97,3 +114,6 @@ for the standards-track version of this argument.
 | Keycloak | 8180 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |
+| Frontend dev server (dev mode only; proxied by the gateway via `FRONTEND_URL`) | 5173 |
+| Grafana (`observability` profile) | 3000 |
+| OTLP collector (`observability` profile) | 4317 (gRPC) / 4318 (HTTP) |

@@ -67,6 +67,13 @@ the browser, any instance can serve any request.
   Kubernetes manifests, cloud IaC, and CI/CD pipelines per stack would multiply the
   maintenance surface without adding comparison value on the axes this repo cares
   about.
+- **Not an observability-operations showcase.** The `observability` compose profile
+  is deliberately dev-grade — one container, no persistence, no alerting.
+  Applications must *emit* production-quality logs and telemetry
+  ([LOGGING.md](LOGGING.md)), because that is part of what a production-shaped
+  service looks like; collecting, retaining, protecting, and alerting on it is an
+  operator concern, written down as requirements (LOGGING.md, Appendix A) but never
+  implemented here.
 - **Not demonstrating tokens-in-the-browser.** The SPA-holds-a-JWT pattern is
   explicitly what this repository argues against; no implementation will offer it,
   even as an option.

@@ -65,6 +65,7 @@ Every implementation must satisfy:
 
 - [docs/SPEC.md](docs/SPEC.md) — functional spec of the app (features, rules, acceptance criteria)
 - [spec/openapi.yaml](spec/openapi.yaml) — the API contract backends implement and frontends consume
+- [docs/LOGGING.md](docs/LOGGING.md) — logging requirements (what to emit, what never to log)
 - Component conventions: [backends/](backends/README.md) · [gateways/](gateways/README.md) · [frontends/](frontends/README.md)
 
 ## Implementation matrix
