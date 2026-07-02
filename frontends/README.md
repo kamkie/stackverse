@@ -42,6 +42,10 @@ Rules:
   (`{"authenticated":true,"username":...}` or `{"authenticated":false}`).
 - "Log in" is a plain navigation to `/auth/login` (full page redirect — it's an OIDC
   flow, not an XHR). "Log out" is a `POST /auth/logout` followed by a state reset.
+- State-changing `/api/*` calls (`POST`/`PUT`/`PATCH`/`DELETE`) must carry the CSRF
+  header: read the `XSRF-TOKEN` cookie (deliberately not `HttpOnly`) and echo its
+  value as `X-XSRF-TOKEN`. A `403` problem document means the header was missing or
+  didn't match — re-read the cookie and retry.
 - A `401` from `/api/*` means the session died; treat it as logged-out and offer login.
 
 ## Internationalization
