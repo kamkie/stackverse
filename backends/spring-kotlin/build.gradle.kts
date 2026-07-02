@@ -53,3 +53,8 @@ allOpen {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// only the boot jar is a deliverable; the plain jar would just confuse the Dockerfile's COPY
+tasks.jar {
+    enabled = false
+}
