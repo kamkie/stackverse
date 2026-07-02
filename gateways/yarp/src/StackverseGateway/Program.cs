@@ -141,6 +141,9 @@ builder.Services.AddReverseProxy()
         {
             // Validated at the gateway; not part of the API semantics.
             context.AddRequestHeaderRemove(Csrf.HeaderName);
+            // The gateway session is the only source of upstream identity — a
+            // client-supplied Authorization header must never reach the backend.
+            context.AddRequestHeaderRemove("Authorization");
             context.AddRequestTransform(transform =>
             {
                 // Placed by the /api guard middleware below.

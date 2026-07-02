@@ -30,8 +30,12 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         using var client = CreateClient();
 
         // The spec's public surface (public bookmark feeds, message reads) must work
-        // logged-out: the gateway relays and the backend decides per endpoint.
-        var response = await client.GetAsync("/api/v2/bookmarks?visibility=public");
+        // logged-out: the gateway relays and the backend decides per endpoint. A
+        // client-supplied Authorization header must be stripped, not relayed — the
+        // gateway session is the only source of upstream identity.
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v2/bookmarks?visibility=public");
+        request.Headers.TryAddWithoutValidation("Authorization", "Bearer forged-by-the-client");
+        var response = await client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("", fixture.Backend.LastAuthorization);
