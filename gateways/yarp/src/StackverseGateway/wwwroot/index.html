@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Placeholder page for manual gateway verification. Real frontends live in
+     frontends/ and replace this via SPA_ROOT (static build) or FRONTEND_URL (dev server). -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stackverse gateway</title>
+</head>
+<body>
+  <h1>Stackverse gateway (YARP)</h1>
+  <p>This is the gateway's placeholder page — no frontend is configured.</p>
+  <p id="status">Checking session…</p>
+  <p>
+    <a id="login" href="/auth/login" hidden>Log in</a>
+    <button id="logout" hidden>Log out</button>
+  </p>
+  <script>
+    const status = document.getElementById('status');
+    const login = document.getElementById('login');
+    const logout = document.getElementById('logout');
+
+    async function refresh() {
+      const session = await fetch('/auth/session', { credentials: 'include' }).then(r => r.json());
+      status.textContent = session.authenticated
+        ? `Logged in as ${session.username}`
+        : 'Not logged in';
+      login.hidden = session.authenticated;
+      logout.hidden = !session.authenticated;
+    }
+
+    logout.addEventListener('click', async () => {
+      await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+      await refresh();
+    });
+
+    refresh();
+  </script>
+</body>
+</html>
