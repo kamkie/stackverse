@@ -63,6 +63,13 @@ export function buildApp(): FastifyInstance {
     disableRequestLogging: true,
   }) as unknown as FastifyInstance;
 
+  // No request rate limiting / throttling is wired here on purpose: it is out of
+  // scope for Stackverse backends (docs/SPEC.md "Out of scope (on purpose)",
+  // docs/INTENT.md non-goals). In this architecture throttling belongs at the
+  // edge (gateway / operator), like the platform concerns in docs/LOGGING.md
+  // Appendix A — not duplicated into every stateless backend. This is why the
+  // CodeQL `js/missing-rate-limiting` alerts on the route handlers below are
+  // dismissed as won't-fix rather than "fixed" with an in-process limiter.
   registerAuth(app);
   registerBookmarkRoutes(app);
   registerMessageRoutes(app);
