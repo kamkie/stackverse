@@ -51,7 +51,7 @@ updates:
 
   - package-ecosystem: npm
     directories:
-      # - /backends/node-ts   # pre-seeded — uncomment when the directory lands
+      - /backends/node-ts
       - /conformance
       - /e2e
       - /frontends/angular
@@ -77,7 +77,7 @@ updates:
     directories:
       - /backends/dotnet
       - /backends/go
-      # - /backends/node-ts   # pre-seeded — uncomment when the directory lands
+      - /backends/node-ts
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
