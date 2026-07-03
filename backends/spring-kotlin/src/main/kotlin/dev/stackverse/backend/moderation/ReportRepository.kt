@@ -37,6 +37,14 @@ interface ReportRepository : JpaRepository<Report, UUID> {
 
     fun existsByBookmarkIdAndReporterAndStatus(bookmarkId: UUID, reporter: String, status: ReportStatus): Boolean
 
+    /** Guards re-opening: is there another report (≠ this one) already open for the pair? */
+    fun existsByBookmarkIdAndReporterAndStatusAndIdNot(
+        bookmarkId: UUID,
+        reporter: String,
+        status: ReportStatus,
+        id: UUID,
+    ): Boolean
+
     fun findByStatus(status: ReportStatus, pageable: Pageable): Page<Report>
 
     fun findByReporter(reporter: String, pageable: Pageable): Page<Report>

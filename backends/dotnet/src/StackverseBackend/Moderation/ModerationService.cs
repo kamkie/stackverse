@@ -176,8 +176,31 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
 
         if (resolution == ReportStatus.Open)
         {
+            // rules 13/14: at most one open report per (bookmark, reporter). Re-opening
+            // while another open report exists for the same pair violates
+            // uq_reports_one_open_per_reporter — a 409, not the unhandled 500 the raw
+            // integrity violation would produce. Pre-check then rely on the partial
+            // unique index for races (mirrors report creation).
+            if (await db.Reports.AnyAsync(r =>
+                r.BookmarkId == report.BookmarkId && r.Reporter == report.Reporter
+                && r.Status == ReportStatus.Open && r.Id != report.Id))
+            {
+                throw new ConflictProblem("The reporter already has another open report on this bookmark.");
+            }
             ReopenOne(report, actor);
-            await db.SaveChangesAsync();
+            try
+            {
+                await db.SaveChangesAsync();
+            }
+            catch (DbUpdateException e) when (e.InnerException is PostgresException
+            {
+                SqlState: PostgresErrorCodes.UniqueViolation,
+                ConstraintName: "uq_reports_one_open_per_reporter",
+            })
+            {
+                // lost the race against a concurrent open report by the same reporter
+                throw new ConflictProblem("The reporter already has another open report on this bookmark.");
+            }
             await transaction.CommitAsync();
             return report;
         }
@@ -211,7 +234,11 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
         validator.ThrowIfInvalid();
         var status = request.Status!.Value;
 
-        var bookmark = await db.Bookmarks.SingleOrDefaultAsync(b => b.Id == bookmarkId) ?? throw new NotFoundProblem();
+        // Lock the row so this hide/restore and a concurrent owner update serialize
+        // on the same bookmark (SPEC rule 15): the owner update takes the same
+        // FOR UPDATE lock for its hidden-publish check.
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var bookmark = await BookmarkForUpdateAsync(bookmarkId) ?? throw new NotFoundProblem();
         var previous = bookmark.Status;
         bookmark.Status = status;
         bookmark.UpdatedAt = Clock.UtcNow();
@@ -222,6 +249,7 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
             ["note"] = request.Note,
         });
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         logger.Event(LogLevel.Information, "bookmark_status_changed", "success", "Bookmark moderation status changed",
             fields:
             [
@@ -242,6 +270,13 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
     /// </summary>
     private Task<Report?> ForUpdateAsync(Guid reportId) =>
         db.Reports.FromSql($"select * from reports where id = {reportId} for update").SingleOrDefaultAsync();
+
+    /// <summary>
+    /// Locks a bookmark row for the status endpoint; the owner update takes the
+    /// same lock, so a hide/restore and a hidden-publish check (rule 15) serialize.
+    /// </summary>
+    private Task<Bookmark?> BookmarkForUpdateAsync(Guid bookmarkId) =>
+        db.Bookmarks.FromSql($"select * from bookmarks where id = {bookmarkId} for update").SingleOrDefaultAsync();
 
     /// <summary>Someone else's report is a 404 mask — existence is not disclosed.</summary>
     private async Task<Report> OwnReportAsync(string reporter, Guid reportId)

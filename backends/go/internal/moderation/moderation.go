@@ -454,22 +454,29 @@ func (a *API) SetBookmarkStatus(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, problem)
 		return
 	}
-	bookmark, err := a.bookmarks.ByID(r.Context(), bookmarkID)
-	if err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	previous := bookmark.Status
-	bookmark.Status = *body.Status
-	bookmark.UpdatedAt = store.NowUTC()
-	err = a.inTx(r.Context(), func(tx pgx.Tx) error {
-		_, err := tx.Exec(r.Context(), "update bookmarks set status = $2, updated_at = $3 where id = $1",
-			bookmark.ID, bookmark.Status, bookmark.UpdatedAt)
+	// Lock the bookmark row inside the transaction so this hide/restore and a
+	// concurrent owner update serialize on the same row (SPEC rule 15): the
+	// owner update takes the same lock for its hidden-publish check.
+	var bookmark bookmarks.Bookmark
+	var previous string
+	err := a.inTx(r.Context(), func(tx pgx.Tx) error {
+		locked, err := a.bookmarks.LockByID(r.Context(), tx, bookmarkID)
 		if err != nil {
 			return err
 		}
-		return a.audit.RecordTx(r.Context(), tx, actor, "bookmark.status-changed", "bookmark", bookmark.ID.String(),
-			map[string]any{"from": previous, "to": bookmark.Status, "note": body.Note})
+		previous = locked.Status
+		locked.Status = *body.Status
+		locked.UpdatedAt = store.NowUTC()
+		if _, err := tx.Exec(r.Context(), "update bookmarks set status = $2, updated_at = $3 where id = $1",
+			locked.ID, locked.Status, locked.UpdatedAt); err != nil {
+			return err
+		}
+		if err := a.audit.RecordTx(r.Context(), tx, actor, "bookmark.status-changed", "bookmark", locked.ID.String(),
+			map[string]any{"from": previous, "to": locked.Status, "note": body.Note}); err != nil {
+			return err
+		}
+		bookmark = locked
+		return nil
 	})
 	if err != nil {
 		a.fail(w, r, err)
@@ -487,12 +494,31 @@ func (a *API) SetBookmarkStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) reopenOne(r *http.Request, tx pgx.Tx, locked report, actor string, events *[]func()) (report, error) {
+	// rules 13/14: at most one open report per (bookmark, reporter). Re-opening
+	// this report while another open report exists for the same pair violates
+	// uq_reports_one_open_per_reporter — a 409, not an unhandled 500. Pre-check
+	// then rely on the partial unique index for races (mirrors report creation).
+	duplicate := web.Conflict("The reporter already has another open report on this bookmark.")
+	var exists bool
+	if err := tx.QueryRow(r.Context(),
+		"select exists (select 1 from reports where bookmark_id = $1 and reporter = $2 and status = 'open' and id <> $3)",
+		locked.BookmarkID, locked.Reporter, locked.ID).Scan(&exists); err != nil {
+		return report{}, err
+	}
+	if exists {
+		return report{}, duplicate
+	}
 	locked.Status = statusOpen
 	locked.ResolvedBy, locked.ResolvedAt, locked.ResolutionNote = nil, nil, nil
 	_, err := tx.Exec(r.Context(),
 		"update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null where id = $1",
 		locked.ID)
 	if err != nil {
+		// lost the race against a concurrent open report by the same reporter
+		var pgError *pgconn.PgError
+		if errors.As(err, &pgError) && pgError.Code == "23505" {
+			return report{}, duplicate
+		}
 		return report{}, err
 	}
 	err = a.audit.RecordTx(r.Context(), tx, actor, "report.reopened", "report", locked.ID.String(),

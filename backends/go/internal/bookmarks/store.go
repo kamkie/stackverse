@@ -52,6 +52,12 @@ func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{pool: pool}
 }
 
+// Querier runs read queries within either the pool or a transaction; both
+// *pgxpool.Pool and pgx.Tx satisfy it.
+type Querier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 const bookmarkColumns = "id, owner, url, title, notes, tags, visibility, status, created_at, updated_at"
 
 func scanBookmark(row pgx.Row) (Bookmark, error) {
@@ -70,6 +76,33 @@ func (s *Store) ByID(ctx context.Context, id uuid.UUID) (Bookmark, error) {
 	return bookmark, err
 }
 
+// LockByID reads a bookmark row under FOR UPDATE using q (a pool or a
+// transaction). The owner update and the moderator status endpoint both take
+// this lock, so a hidden-publish check (SPEC rule 15) and a concurrent hide
+// serialize on the row instead of racing.
+func (s *Store) LockByID(ctx context.Context, q Querier, id uuid.UUID) (Bookmark, error) {
+	bookmark, err := scanBookmark(q.QueryRow(ctx,
+		"select "+bookmarkColumns+" from bookmarks where id = $1 for update", id))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Bookmark{}, web.NotFound()
+	}
+	return bookmark, err
+}
+
+// WithTx runs fn inside a transaction, rolling back on error and committing on
+// success.
+func (s *Store) WithTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 func (s *Store) insert(ctx context.Context, b Bookmark) error {
 	_, err := s.pool.Exec(ctx,
 		"insert into bookmarks ("+bookmarkColumns+") values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
@@ -77,8 +110,10 @@ func (s *Store) insert(ctx context.Context, b Bookmark) error {
 	return err
 }
 
-func (s *Store) update(ctx context.Context, b Bookmark) error {
-	_, err := s.pool.Exec(ctx,
+// updateTx writes the mutable bookmark fields within tx; the owner update runs
+// it under the row lock taken by LockByID.
+func (s *Store) updateTx(ctx context.Context, tx pgx.Tx, b Bookmark) error {
+	_, err := tx.Exec(ctx,
 		"update bookmarks set url = $2, title = $3, notes = $4, tags = $5, visibility = $6, updated_at = $7 where id = $1",
 		b.ID, b.URL, b.Title, b.Notes, b.Tags, b.Visibility, b.UpdatedAt)
 	return err

@@ -48,7 +48,17 @@ public sealed partial class BookmarkService(AppDbContext db)
 
     public async Task<Bookmark> UpdateAsync(string caller, Guid id, BookmarkRequest request)
     {
-        var bookmark = await OwnedByCallerAsync(caller, id);
+        // Lock the row and do the read → hidden-publish check → write in one
+        // transaction: the moderator status endpoint takes the same FOR UPDATE
+        // lock, so a concurrent hide cannot slip between the check and the write
+        // (SPEC rule 15).
+        await using var transaction = await db.Database.BeginTransactionAsync();
+        var bookmark = await ForUpdateAsync(id) ?? throw new NotFoundProblem();
+        // rule 1: a non-owner never learns the bookmark exists — 404, not 403
+        if (bookmark.Owner != caller)
+        {
+            throw new NotFoundProblem();
+        }
         var input = Validate(request);
         // SPEC rule 15: a moderation-hidden bookmark cannot be (re)published by its owner
         if (bookmark.Status == BookmarkStatus.Hidden && input.Visibility == Visibility.Public)
@@ -64,6 +74,7 @@ public sealed partial class BookmarkService(AppDbContext db)
         bookmark.Visibility = input.Visibility;
         bookmark.UpdatedAt = Clock.UtcNow();
         await db.SaveChangesAsync();
+        await transaction.CommitAsync();
         return bookmark;
     }
 
@@ -125,6 +136,14 @@ public sealed partial class BookmarkService(AppDbContext db)
 
     private static bool IsVisibleTo(Bookmark bookmark, string? caller) =>
         bookmark.Owner == caller || (bookmark.Visibility == Visibility.Public && bookmark.Status == BookmarkStatus.Active);
+
+    /// <summary>
+    /// Reads a bookmark row under FOR UPDATE for the owner update; the moderator
+    /// status endpoint takes the same lock, so the hidden-publish check (rule 15)
+    /// and a concurrent hide serialize on the row instead of racing.
+    /// </summary>
+    private Task<Bookmark?> ForUpdateAsync(Guid id) =>
+        db.Bookmarks.FromSql($"select * from bookmarks where id = {id} for update").SingleOrDefaultAsync();
 
     /// <summary>Rule 1: a non-owner never learns the bookmark exists — 404, not 403.</summary>
     private async Task<Bookmark> OwnedByCallerAsync(string caller, Guid id)
