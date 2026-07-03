@@ -11,7 +11,7 @@ Vocabulary cheat sheets, NIST SP 800-92, the CNCF observability whitepaper
 Two boundaries up front:
 
 - **Logs are diagnostics, not the audit trail.** The append-only audit trail
-  (`docs/SPEC.md` rule 16) is a product feature in the database with its own
+  (`docs/SPEC.md` rule 18) is a product feature in the database with its own
   API and its own integrity guarantees. Moderation and admin actions MAY log
   a diagnostic line, but the audit entry is the authoritative record — do not
   build a second audit system in the log pipeline.
@@ -306,7 +306,7 @@ real deployment of any Stackverse combination.
   days · application 30–90 days · errors 90–180 days · security 180–400
   days — typically tiered hot (active incidents) / warm (trends, security) /
   cold (compliance evidence). The **audit trail retention is a
-  product/database concern** (SPEC rule 16), not a log-pipeline concern.
+  product/database concern** (SPEC rule 18), not a log-pipeline concern.
 - **Monitoring:** alerts on pipeline failure, missing logs, and abnormal
   volume; security events feed detection rules; hosts time-synchronized
   (NTP) so cross-service ordering holds.
