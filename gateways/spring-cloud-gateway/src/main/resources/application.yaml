@@ -1,0 +1,31 @@
+server:
+  port: ${PORT:8000}
+
+logging:
+  level:
+    # docs/LOGGING.md §8 — relaxed binding accepts the contract's lowercase values
+    root: ${LOG_LEVEL:info}
+
+spring:
+  application:
+    name: stackverse-gateway-spring-cloud
+  data:
+    redis:
+      # sessions — the only state the gateway keeps, and it keeps it off-process
+      url: ${REDIS_URL:redis://localhost:6379}
+  session:
+    # matches the yarp gateway's 8h sliding session lifetime
+    timeout: 8h
+
+# The OIDC client registration is built in SecurityConfig from these values —
+# not via spring.security.oauth2.* — so that the gateway's own IdP calls can be
+# re-based onto OIDC_INTERNAL_ISSUER_URI (see GatewayProperties.Oidc).
+stackverse:
+  backend-url: ${BACKEND_URL:http://localhost:8080}
+  frontend-url: ${FRONTEND_URL:}
+  public-url: ${PUBLIC_URL:http://localhost:8000}
+  oidc:
+    issuer-uri: ${OIDC_ISSUER_URI:http://localhost:8180/realms/stackverse}
+    internal-issuer-uri: ${OIDC_INTERNAL_ISSUER_URI:}
+    client-id: ${OIDC_CLIENT_ID:stackverse-gateway}
+    client-secret: ${OIDC_CLIENT_SECRET:stackverse-secret}

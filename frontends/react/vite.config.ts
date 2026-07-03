@@ -72,6 +72,11 @@ function clientLogForwarder(): Plugin {
 export default defineConfig({
   plugins: [react(), clientLogForwarder()],
   server: {
+    // Bind IPv4 explicitly: Node ≥17 resolves "localhost" in OS order, which on
+    // Windows means ::1 only — unreachable for gateways whose HTTP client picks
+    // the A record (FRONTEND_URL=http://localhost:5173). Browsers and .NET try
+    // both families; this makes the bind deterministic for everyone else.
+    host: "127.0.0.1",
     port: 5173,
     proxy: {
       "/api": "http://localhost:8000",

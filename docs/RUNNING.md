@@ -96,6 +96,7 @@ Manual image builds (what the script does):
 docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin/Dockerfile .
 # gateway images build with their own directory as context
 docker build -t stackverse/gateway-yarp:local gateways/yarp
+docker build -t stackverse/gateway-spring-cloud-gateway:local gateways/spring-cloud-gateway
 # frontend images build with the REPO ROOT as context (they bundle spec/design)
 docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .
 ```
@@ -141,12 +142,13 @@ persistent volume, so recreating re-imports the realm).
 ## Continuous integration
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push
-to `main` and every pull request, as five parallel jobs:
+to `main` and every pull request, as six parallel jobs:
 
 - **Per-implementation builds** — each done implementation builds and tests in
-  its own toolchain: `gradlew build` for `backends/spring-kotlin`,
-  `dotnet test` for `gateways/yarp` (both use Testcontainers for their
-  integration tests), and `yarn build` + `yarn test` for `frontends/react`.
+  its own toolchain: `gradlew build` for `backends/spring-kotlin` and
+  `gateways/spring-cloud-gateway`, `dotnet test` for `gateways/yarp` (all
+  three use Testcontainers for their integration tests), and `yarn build` +
+  `yarn test` for `frontends/react`.
 - **Conformance** — builds the backend image, starts the compose infra plus
   that backend, and runs the `conformance/` suite against it directly.
 - **E2E** — builds all three images (`scripts/build-images.sh`), starts the
@@ -159,8 +161,8 @@ artifacts when a suite fails.
 
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
-flag (JaCoCo XML for the backend, coverlet Cobertura for the gateway, vitest
-lcov for the frontend). `codecov.yml` also mirrors each implementation as a
+flag (JaCoCo XML for the Gradle projects, coverlet Cobertura for the yarp
+gateway, vitest lcov for the frontend). `codecov.yml` also mirrors each implementation as a
 [component](https://docs.codecov.com/docs/components) — same numbers sliced
 yml-side, so PR comments and the dashboard break coverage down per
 implementation without extra uploads. Coverage is informational only — see
@@ -169,8 +171,9 @@ e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
 
 Every job — including conformance and e2e — also submits its JUnit test
 results to Codecov test analytics under the same flags (Gradle's XML for the
-backend, `--logger junit` for the gateway, and a CI-only JUnit reporter wired
-into the vitest and Playwright configs), even when the tests fail. The README
+Gradle projects, `--logger junit` for the yarp gateway, and a CI-only JUnit
+reporter wired into the vitest and Playwright configs), even when the tests
+fail. The README
 implementation matrix shows a per-flag coverage badge for each done
 implementation.
 
@@ -207,6 +210,8 @@ Per-implementation wiring:
 
 - `backends/spring-kotlin` — OpenTelemetry Java agent baked into the image
   (auto-instruments Spring MVC, JDBC, logging).
+- `gateways/spring-cloud-gateway` — OpenTelemetry Java agent baked into the
+  image (auto-instruments WebFlux, the Netty proxy client, logging).
 - `gateways/yarp` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient
   instrumentation, OTLP for traces/metrics/logs).
 
