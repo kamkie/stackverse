@@ -82,13 +82,20 @@ implemented in many stacks. Read these before changing anything:
   triaged. Use `git worktree list` and `gh pr list` as needed; complete missing
   handoff steps immediately instead of only reporting that they are missing.
 - **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
-  authoring agent asks the other agent for review and triages the findings — fix
-  them or answer them on the PR:
+  authoring agent asks the other agent for review, makes sure the review result is
+  recorded on the PR, and triages the findings — fix them or answer them on the
+  PR. If the review command prints findings but does not post a GitHub comment,
+  the authoring agent posts a concise PR comment with the reviewer, findings, and
+  triage decision:
   - Claude-authored branch → Codex review: `/codex-cr`, or
     `codex -C <main-repo-root> "review branch <name> ..."` (Codex thread cwd is
     always the main repo root, never a `.claude/worktrees` path; reference the
     branch by name).
-  - Codex-authored branch → Claude review: `claude -p "/review <PR number>"`.
+  - Codex-authored branch → Claude review: run
+    `claude --model fable --permission-mode bypassPermissions -p "/review <PR number>"`
+    from the main repo root. If Fable is quota-blocked, rerun with
+    `claude --model opus --permission-mode bypassPermissions -p "/review <PR number>"`.
+    Do not use Sonnet or Haiku for Stackverse cross-reviews.
   - Commits that implement review findings credit the reviewing agent as
     co-author alongside the authoring agent's own trailer: add
     `Co-Authored-By: Codex <noreply@openai.com>` when fixing Codex findings,
