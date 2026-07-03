@@ -8,7 +8,8 @@
 # for the gateway to serve (SPA_ROOT) — see compose.yaml.
 
 FROM node:26-alpine AS build
-RUN corepack enable
+# node 25+ no longer bundles corepack — install it before enabling the yarn shim
+RUN npm install -g corepack && corepack enable
 WORKDIR /build/frontends/react
 # manifest + lockfile first so the dependency layer caches across source changes
 COPY frontends/react/package.json frontends/react/yarn.lock frontends/react/.yarnrc.yml ./
