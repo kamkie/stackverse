@@ -8,6 +8,7 @@ import dev.stackverse.backend.common.logEvent
 import dev.stackverse.backend.common.nowUtc
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -31,16 +32,20 @@ class MessageService(
             throw ConflictProblem("A message with key '${input.key}' and language '${input.language}' already exists.")
         }
         val now = nowUtc()
-        val message = repository.save(
-            Message(
-                key = input.key,
-                language = input.language,
-                text = input.text,
-                description = input.description,
-                createdAt = now,
-                updatedAt = now,
-            ),
-        )
+        val message = try {
+            repository.saveAndFlush(
+                Message(
+                    key = input.key,
+                    language = input.language,
+                    text = input.text,
+                    description = input.description,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+        } catch (e: DataIntegrityViolationException) {
+            throw duplicateConflict(input)
+        }
         auditService.record(actor, "message.created", "message", message.id.toString(), snapshot(message))
         logMessageEvent("message_created", "Message created", actor, message)
         return message
@@ -58,6 +63,11 @@ class MessageService(
         message.text = input.text
         message.description = input.description
         message.updatedAt = nowUtc()
+        try {
+            repository.flush()
+        } catch (e: DataIntegrityViolationException) {
+            throw duplicateConflict(input)
+        }
         auditService.record(actor, "message.updated", "message", message.id.toString(), snapshot(message))
         logMessageEvent("message_updated", "Message updated", actor, message)
         return message
@@ -105,6 +115,9 @@ class MessageService(
     )
 
     private data class ValidatedMessage(val key: String, val language: String, val text: String, val description: String?)
+
+    private fun duplicateConflict(input: ValidatedMessage): ConflictProblem =
+        ConflictProblem("A message with key '${input.key}' and language '${input.language}' already exists.")
 
     private fun validate(request: MessageRequest): ValidatedMessage {
         val validator = Validator()
