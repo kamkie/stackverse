@@ -52,6 +52,11 @@ A `postgres-data` volume created before the postgres 18 bump (2026-07-03) is
 17-format and unusable — if postgres exits at startup or comes up empty, wipe
 and recreate: `docker compose down -v && docker compose up -d`.
 
+The same wipe applies when switching which backend implementation runs against
+the volume: each backend owns its schema and applies its own migrations
+(backends/README.md), so a database initialized by one backend makes another
+backend's migrations fail at startup.
+
 ## 2b. Full stack (dev mode, one terminal tab per module)
 
 Infra in Docker, backend/gateway/frontend as live dev processes (hot reload)
@@ -101,6 +106,7 @@ Manual image builds (what the script does):
 ```sh
 # backend images build with the REPO ROOT as context (they bundle spec/messages)
 docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin/Dockerfile .
+docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
 # gateway images build with their own directory as context
 docker build -t stackverse/gateway-yarp:local gateways/yarp
 # frontend images build with the REPO ROOT as context (they bundle spec/design)
@@ -159,12 +165,13 @@ persistent volume, so recreating re-imports the realm).
 to `main` and every pull request, as parallel jobs:
 
 - **Per-implementation builds** — each done implementation builds and tests in
-  its own toolchain: `gradlew build` for `backends/spring-kotlin`,
-  `dotnet test` for `gateways/yarp` (both use Testcontainers for their
-  integration tests), and `yarn build` + `yarn test` for `frontends/react`
-  and `frontends/angular`.
-- **Conformance** — builds the backend image, starts the compose infra plus
-  that backend, and runs the `conformance/` suite against it directly.
+  its own toolchain: `gradlew build` for `backends/spring-kotlin` (Testcontainers
+  for its integration tests), `dotnet test` for `backends/dotnet`, `dotnet test`
+  for `gateways/yarp` (Testcontainers again), and `yarn build` + `yarn test`
+  for `frontends/react` and `frontends/angular`.
+- **Conformance** — one matrix leg per backend implementation: builds that
+  backend's image, starts the compose infra plus the backend, and runs the
+  `conformance/` suite against it directly.
 - **E2E** — builds a backend + gateway + frontend image set
   (`scripts/build-images.sh`), starts the full composed stack, and runs the
   `e2e/` Playwright suite through the gateway — once per frontend
@@ -177,8 +184,9 @@ artifacts when a suite fails.
 
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
-flag (JaCoCo XML for the backend, coverlet Cobertura for the gateway, vitest
-lcov for the frontend). `codecov.yml` also mirrors each implementation as a
+flag (JaCoCo XML for the Kotlin backend, coverlet Cobertura for the dotnet
+backend and the gateway, vitest lcov for the frontends). `codecov.yml` also
+mirrors each implementation as a
 [component](https://docs.codecov.com/docs/components) — same numbers sliced
 yml-side, so PR comments and the dashboard break coverage down per
 implementation without extra uploads. Coverage is informational only — see
@@ -187,7 +195,7 @@ e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
 
 Every job — including conformance and e2e — also submits its JUnit test
 results to Codecov test analytics under the same flags (Gradle's XML for the
-backend, `--logger junit` for the gateway, and a CI-only JUnit reporter wired
+Kotlin backend, `--logger junit` for the dotnet projects, and a CI-only JUnit reporter wired
 into the vitest and Playwright configs), even when the tests fail. The README
 implementation matrix shows a per-flag coverage badge for each done
 implementation.
@@ -225,6 +233,8 @@ Per-implementation wiring:
 
 - `backends/spring-kotlin` — OpenTelemetry Java agent baked into the image
   (auto-instruments Spring MVC, JDBC, logging).
+- `backends/dotnet` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient +
+  Npgsql instrumentation, OTLP for traces/metrics/logs).
 - `gateways/yarp` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient
   instrumentation, OTLP for traces/metrics/logs).
 
