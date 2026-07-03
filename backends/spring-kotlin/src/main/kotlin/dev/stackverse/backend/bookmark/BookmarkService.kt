@@ -27,6 +27,14 @@ data class BookmarkListQuery(
 
 data class BookmarkSlice(val items: List<Bookmark>, val nextCursor: BookmarkCursor?)
 
+fun validateQueryTags(tags: List<String>): List<String> {
+    val normalized = tags.map { it.trim().lowercase() }
+    val validator = Validator()
+    validator.check(normalized.all { it.matches(TAG_PATTERN) }, "tag", "validation.tag.invalid")
+    validator.throwIfInvalid()
+    return normalized
+}
+
 @Service
 @Transactional
 class BookmarkService(private val repository: BookmarkRepository) {

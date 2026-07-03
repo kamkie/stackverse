@@ -85,7 +85,11 @@ func (a *API) parseListQuery(r *http.Request) (listQuery, *web.Problem) {
 	if visibility != "" && visibility != VisibilityPublic && visibility != VisibilityPrivate {
 		return listQuery{}, web.BadRequest("visibility must be one of: private, public")
 	}
-	query := listQuery{visibility: visibility, tags: values["tag"], q: q}
+	tags, problem := validateQueryTags(values["tag"])
+	if problem != nil {
+		return listQuery{}, problem
+	}
+	query := listQuery{visibility: visibility, tags: tags, q: q}
 	if visibility != VisibilityPublic {
 		identity := auth.FromContext(r.Context())
 		if identity == nil {
@@ -291,6 +295,25 @@ type validated struct {
 	notes      *string
 	tags       []string
 	visibility string
+}
+
+func validateQueryTags(raw []string) ([]string, *web.Problem) {
+	tags := make([]string, len(raw))
+	for i, tag := range raw {
+		tags[i] = strings.ToLower(strings.TrimSpace(tag))
+	}
+
+	validator := &web.Validator{}
+	for _, tag := range tags {
+		if !tagPattern.MatchString(tag) {
+			validator.Reject("tag", "validation.tag.invalid")
+			break
+		}
+	}
+	if problem := validator.Problem(); problem != nil {
+		return nil, problem
+	}
+	return tags, nil
 }
 
 func validate(body request) (validated, *web.Problem) {

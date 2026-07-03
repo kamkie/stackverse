@@ -173,6 +173,18 @@ public sealed partial class BookmarkService(AppDbContext db)
 
     internal sealed record ValidatedBookmark(string Url, string Title, string? Notes, List<string> Tags, Visibility Visibility);
 
+    internal static List<string> ValidateQueryTags(IEnumerable<string>? tags)
+    {
+        var normalized = (tags ?? Enumerable.Empty<string>())
+            .Select(tag => tag.Trim().ToLowerInvariant())
+            .ToList();
+
+        var validator = new Validator();
+        validator.Check(normalized.All(tag => TagPattern().IsMatch(tag)), "tag", "validation.tag.invalid");
+        validator.ThrowIfInvalid();
+        return normalized;
+    }
+
     internal static ValidatedBookmark Validate(BookmarkRequest request)
     {
         var validator = new Validator();

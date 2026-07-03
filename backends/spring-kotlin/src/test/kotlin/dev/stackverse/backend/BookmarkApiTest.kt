@@ -126,6 +126,25 @@ class BookmarkApiTest : IntegrationTest() {
     }
 
     @Test
+    fun `listing tag filters are normalized and validated`() {
+        createBookmark("alice", """{"url":"https://example.com/1","title":"kotlin post","tags":["kotlin"]}""")
+
+        mockMvc.perform(get("/api/v1/bookmarks").param("tag", " Kotlin ").with(user("alice")))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items", hasSize<Any>(1)))
+
+        mockMvc.perform(get("/api/v1/bookmarks").param("tag", "valid").param("tag", "no spaces!").with(user("alice")))
+            .andExpect(status().isBadRequest)
+            .andExpect(header().string("Content-Type", containsString("application/problem+json")))
+            .andExpect(jsonPath("$.errors[?(@.field=='tag')].messageKey").value("validation.tag.invalid"))
+
+        mockMvc.perform(get("/api/v2/bookmarks").param("tag", "valid").param("tag", "no spaces!").with(user("alice")))
+            .andExpect(status().isBadRequest)
+            .andExpect(header().string("Content-Type", containsString("application/problem+json")))
+            .andExpect(jsonPath("$.errors[?(@.field=='tag')].messageKey").value("validation.tag.invalid"))
+    }
+
+    @Test
     fun `public feed spans owners, requires no auth, and hides nothing private`() {
         createBookmark("alice", """{"url":"https://example.com/1","title":"alice pub","visibility":"public"}""")
         createBookmark("bob", """{"url":"https://example.com/2","title":"bob priv"}""")

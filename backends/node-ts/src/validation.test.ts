@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateBookmarkInput } from "./routes/bookmarks.js";
+import { validateBookmarkInput, validateQueryTags } from "./routes/bookmarks.js";
 import { ValidationProblem } from "./problems.js";
 
 const violations = (body: unknown): { field: string; messageKey: string }[] => {
@@ -60,5 +60,20 @@ describe("bookmark validation (SPEC rules 5 + 11)", () => {
       field: "tags",
       messageKey: "validation.tag.invalid",
     });
+  });
+
+  it("normalizes and validates query tags", () => {
+    expect(validateQueryTags([" Node ", "web"])).toEqual(["node", "web"]);
+
+    expect(() => validateQueryTags(["valid", "no spaces!"])).toThrow(ValidationProblem);
+    try {
+      validateQueryTags(["valid", "no spaces!"]);
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationProblem);
+      expect((error as ValidationProblem).violations).toContainEqual({
+        field: "tag",
+        messageKey: "validation.tag.invalid",
+      });
+    }
   });
 });
