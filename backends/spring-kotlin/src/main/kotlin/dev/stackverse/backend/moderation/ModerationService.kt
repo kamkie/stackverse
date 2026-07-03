@@ -197,10 +197,26 @@ class ModerationService(
     }
 
     private fun reopenOne(report: Report, actor: String) {
+        // rules 13/14: at most one open report per (bookmark, reporter). Re-opening
+        // this report while the reporter has another open report on the same
+        // bookmark would violate uq_reports_one_open_per_reporter — a 409, not a 500.
+        if (reportRepository.existsByBookmarkIdAndReporterAndStatusAndIdNot(
+                report.bookmarkId, report.reporter, ReportStatus.OPEN, report.id,
+            )
+        ) {
+            throw ConflictProblem("The reporter already has another open report on this bookmark.")
+        }
         report.status = ReportStatus.OPEN
         report.resolvedBy = null
         report.resolvedAt = null
         report.resolutionNote = null
+        try {
+            // force the constraint check now so a lost race maps to 409, not a
+            // commit-time 500 the handler can no longer translate
+            reportRepository.flush()
+        } catch (e: DataIntegrityViolationException) {
+            throw ConflictProblem("The reporter already has another open report on this bookmark.")
+        }
         auditService.record(
             actor,
             "report.reopened",
@@ -225,7 +241,10 @@ class ModerationService(
         validator.throwIfInvalid()
         val status = requireNotNull(request.status)
 
-        val bookmark = bookmarkRepository.findById(bookmarkId).orElseThrow { NotFoundProblem() }
+        // Lock the row so this hide/restore and a concurrent owner update serialize
+        // on the same bookmark (SPEC rule 15): the owner update takes the same
+        // PESSIMISTIC_WRITE lock for its hidden-publish check.
+        val bookmark = bookmarkRepository.findForUpdateById(bookmarkId) ?: throw NotFoundProblem()
         val previous = bookmark.status
         bookmark.status = status
         bookmark.updatedAt = nowUtc()

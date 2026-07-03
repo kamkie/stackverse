@@ -335,6 +335,32 @@ class ModerationApiTest : IntegrationTest() {
             .andExpect(jsonPath("$.items[0].targetId").value(id))
     }
 
+    /**
+     * Regression: report A dismissed → report B filed (open) → re-opening A would
+     * leave two open reports for the same (bookmark, reporter), violating
+     * uq_reports_one_open_per_reporter. That must be a graceful 409, not the
+     * unhandled integrity violation that surfaced as a 500.
+     */
+    @Test
+    fun `re-opening a report is a 409 when another open report already exists for the pair`() {
+        val bookmarkId = createBookmark("alice")
+        val first = reportId("bob", bookmarkId)
+        resolve(first, "dismissed")
+        // now that A is resolved the reporter may file B; B becomes the open one
+        val second = reportId("bob", bookmarkId)
+
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", first).with(moderator())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"open"}"""),
+        ).andExpect(status().isConflict)
+
+        // no partial state: A stays dismissed, B stays the single open report
+        assertThat(reportRepository.findById(UUID.fromString(first)).orElseThrow().status)
+            .isEqualTo(ReportStatus.DISMISSED)
+        assertThat(reportRepository.findById(UUID.fromString(second)).orElseThrow().status)
+            .isEqualTo(ReportStatus.OPEN)
+    }
+
     @Test
     fun `invalid resolution yields a localized field error`() {
         val bookmarkId = createBookmark("alice")

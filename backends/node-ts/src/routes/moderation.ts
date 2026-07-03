@@ -315,12 +315,32 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       if (!report) throw new NotFoundProblem();
 
       if (target === "open") {
-        // any `note` sent with `open` is ignored — re-opening clears the resolution fields
-        const reopened = await client.query(
-          `update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null
-           where id = $1 returning *`,
-          [id],
+        // rules 13/14: at most one open report per (bookmark, reporter). Re-opening
+        // while another open report exists for the same pair violates
+        // uq_reports_one_open_per_reporter — a 409, not an uncaught 500. Pre-check
+        // then rely on the partial unique index for races (mirrors report creation).
+        const conflict = await client.query(
+          "select 1 from reports where bookmark_id = $1 and reporter = $2 and status = 'open' and id <> $3",
+          [report.bookmark_id, report.reporter, id],
         );
+        if (conflict.rowCount) {
+          throw new ConflictProblem("The reporter already has another open report on this bookmark.");
+        }
+        // any `note` sent with `open` is ignored — re-opening clears the resolution fields
+        let reopened;
+        try {
+          reopened = await client.query(
+            `update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null
+             where id = $1 returning *`,
+            [id],
+          );
+        } catch (error) {
+          // lost the race against a concurrent open report by the same reporter
+          if ((error as { code?: string }).code === "23505") {
+            throw new ConflictProblem("The reporter already has another open report on this bookmark.");
+          }
+          throw error;
+        }
         await recordAudit(client, caller.username, "report.reopened", "report", id, {
           bookmarkId: report.bookmark_id,
         });

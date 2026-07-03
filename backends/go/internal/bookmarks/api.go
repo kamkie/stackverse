@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/kamkie/stackverse/backends/go/internal/auth"
 	"github.com/kamkie/stackverse/backends/go/internal/store"
@@ -214,34 +215,45 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, problem)
 		return
 	}
-	bookmark, err := a.ownedByCaller(r, caller, id)
+	// Lock the row and do the read → hidden-publish check → write in one
+	// transaction: the moderator status endpoint takes the same lock, so a
+	// concurrent hide cannot slip between the check and the write (SPEC rule 15).
+	var updated Bookmark
+	err := a.store.WithTx(r.Context(), func(tx pgx.Tx) error {
+		bookmark, err := a.store.LockByID(r.Context(), tx, id)
+		if err != nil {
+			return err
+		}
+		// rule 1: a non-owner never learns the bookmark exists — 404, not 403
+		if bookmark.Owner != caller {
+			return web.NotFound()
+		}
+		var body request
+		if problem := web.DecodeJSON(r, &body); problem != nil {
+			return problem
+		}
+		input, problem := validate(body)
+		if problem != nil {
+			return problem
+		}
+		// rule 15: a moderation-hidden bookmark cannot be (re)published by its owner
+		if bookmark.Status == StatusHidden && input.visibility == VisibilityPublic {
+			return web.ConflictKey("error.bookmark.hidden-publish")
+		}
+		bookmark.URL, bookmark.Title, bookmark.Notes = input.url, input.title, input.notes
+		bookmark.Tags, bookmark.Visibility = input.tags, input.visibility
+		bookmark.UpdatedAt = store.NowUTC()
+		if err := a.store.updateTx(r.Context(), tx, bookmark); err != nil {
+			return err
+		}
+		updated = bookmark
+		return nil
+	})
 	if err != nil {
 		a.fail(w, r, err)
 		return
 	}
-	var body request
-	if problem := web.DecodeJSON(r, &body); problem != nil {
-		a.fail(w, r, problem)
-		return
-	}
-	input, problem := validate(body)
-	if problem != nil {
-		a.fail(w, r, problem)
-		return
-	}
-	// SPEC rule 15: a moderation-hidden bookmark cannot be (re)published by its owner
-	if bookmark.Status == StatusHidden && input.visibility == VisibilityPublic {
-		a.fail(w, r, web.ConflictKey("error.bookmark.hidden-publish"))
-		return
-	}
-	bookmark.URL, bookmark.Title, bookmark.Notes = input.url, input.title, input.notes
-	bookmark.Tags, bookmark.Visibility = input.tags, input.visibility
-	bookmark.UpdatedAt = store.NowUTC()
-	if err := a.store.update(r.Context(), bookmark); err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	web.WriteJSON(w, http.StatusOK, ToResponse(bookmark))
+	web.WriteJSON(w, http.StatusOK, ToResponse(updated))
 }
 
 func (a *API) Delete(w http.ResponseWriter, r *http.Request) {

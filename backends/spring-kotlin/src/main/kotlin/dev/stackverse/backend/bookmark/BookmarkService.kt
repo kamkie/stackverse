@@ -67,7 +67,14 @@ class BookmarkService(private val repository: BookmarkRepository) {
     }
 
     fun update(caller: String, id: UUID, request: BookmarkRequest): Bookmark {
-        val bookmark = ownedByCaller(caller, id)
+        // Row lock: the moderator status endpoint takes the same PESSIMISTIC_WRITE
+        // lock, so a concurrent hide cannot slip between the hidden-publish check
+        // and the write (SPEC rule 15). Re-checking status under the lock is the point.
+        val bookmark = repository.findForUpdateById(id) ?: throw NotFoundProblem()
+        // rule 1: a non-owner never learns the bookmark exists — 404, not 403
+        if (bookmark.owner != caller) {
+            throw NotFoundProblem()
+        }
         val input = validate(request)
         // SPEC rule 15: a moderation-hidden bookmark cannot be (re)published by its owner
         if (bookmark.status == BookmarkStatus.HIDDEN && input.visibility == Visibility.PUBLIC) {
