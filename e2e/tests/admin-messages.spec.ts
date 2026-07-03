@@ -1,4 +1,4 @@
-// Messages (frontends/README.md #10): runtime-managed localized messages —
+// Messages (frontends/README.md #11): runtime-managed localized messages —
 // search, list, create, edit, delete (admin).
 import { expect, test } from "@playwright/test";
 import { authFile, uid } from "./helpers";

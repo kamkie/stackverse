@@ -1,4 +1,4 @@
-// Reports queue (frontends/README.md #7): demo reports a public bookmark, the
+// Reports queue (frontends/README.md #8): demo reports a public bookmark, the
 // moderator dismisses or actions it; actioned reports hide the bookmark from
 // the public feed (docs/SPEC.md rule 15).
 import { expect, test, type Browser, type Page } from "@playwright/test";

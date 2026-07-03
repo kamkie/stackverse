@@ -124,9 +124,14 @@ export function Layout() {
               who must still see their navigation. Hidden while the session is
               loading so anonymous visitors never see the link flash. */}
           {session.data?.authenticated && (
-            <NavLink to="/bookmarks" className={navLinkClass}>
-              {t("ui.nav.my-bookmarks")}
-            </NavLink>
+            <>
+              <NavLink to="/bookmarks" className={navLinkClass}>
+                {t("ui.nav.my-bookmarks")}
+              </NavLink>
+              <NavLink to="/reports" className={navLinkClass}>
+                {t("ui.nav.my-reports")}
+              </NavLink>
+            </>
           )}
           <NavLink to="/feed" className={navLinkClass}>
             {t("ui.nav.public-feed")}

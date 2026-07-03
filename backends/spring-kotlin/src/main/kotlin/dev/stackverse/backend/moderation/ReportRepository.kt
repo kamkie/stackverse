@@ -11,6 +11,10 @@ interface ReportRepository : JpaRepository<Report, UUID> {
 
     fun findByStatus(status: ReportStatus, pageable: Pageable): Page<Report>
 
+    fun findByReporter(reporter: String, pageable: Pageable): Page<Report>
+
+    fun findByReporterAndStatus(reporter: String, status: ReportStatus, pageable: Pageable): Page<Report>
+
     fun findByBookmarkIdAndStatus(bookmarkId: UUID, status: ReportStatus): List<Report>
 
     fun countByStatus(status: ReportStatus): Long

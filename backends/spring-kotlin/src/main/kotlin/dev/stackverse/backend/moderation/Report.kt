@@ -34,8 +34,8 @@ class Report(
     val bookmarkId: UUID,
     val reporter: String,
     @Enumerated(EnumType.STRING)
-    val reason: ReportReason,
-    val comment: String?,
+    var reason: ReportReason,
+    var comment: String?,
     @Enumerated(EnumType.STRING)
     var status: ReportStatus,
     var resolvedBy: String?,

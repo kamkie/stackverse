@@ -1,4 +1,4 @@
-// Login/session UI (frontends/README.md #4): login button when anonymous,
+// Login/session UI (frontends/README.md #5): login button when anonymous,
 // username + logout when authenticated — over the real OIDC code flow.
 import { expect, test } from "@playwright/test";
 import { loginViaKeycloak } from "./helpers";

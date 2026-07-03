@@ -148,9 +148,12 @@ keeps its own event log; the application side logs only what it can see.
 | `input_validation_failed` | RFC 9457 validation problem returned |
 
 **Moderation and admin — backend, `INFO`, diagnostic only (audit trail is
-the authority):** `report_created`, `report_resolved`, `user_blocked`,
-`user_unblocked`, `bookmark_status_changed`, `message_created`,
-`message_updated`, `message_deleted`.
+the authority):** `report_created`, `report_updated`, `report_withdrawn`,
+`report_resolved`, `user_blocked`, `user_unblocked`,
+`bookmark_status_changed`, `message_created`, `message_updated`,
+`message_deleted`. (`report_updated` and `report_withdrawn` are reporter
+self-service actions — they log but write no audit entry; SPEC rule 18
+covers moderator/admin capabilities only.)
 
 **Deliberately absent: business-event logging.** Generic policies expect
 `order_created`-style domain events in logs; here, ordinary domain CRUD

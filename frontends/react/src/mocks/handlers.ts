@@ -408,6 +408,70 @@ const reportBookmark = http.post(
   },
 );
 
+const listMyReports = http.get("/api/v1/reports", ({ query, response }) => {
+  const user = getCurrentUser();
+  if (!user) return response(401).json(unauthorized());
+
+  let items = db.reports
+    .filter((r) => r.reporter === user.username)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const status = query.get("status");
+  if (status) items = items.filter((r) => r.status === status);
+  return response(200).json(paginate(items, query.get("page"), query.get("size")));
+});
+
+const updateMyReport = http.put(
+  "/api/v1/reports/{id}",
+  async ({ params, request, response }) => {
+    const user = getCurrentUser();
+    if (!user) return response(401).json(unauthorized());
+
+    // Someone else's report is a 404 mask — existence is not disclosed.
+    const report = db.reports.find((r) => r.id === params.id);
+    if (!report || report.reporter !== user.username) {
+      return response(404).json(notFound());
+    }
+
+    const input = await request.json();
+    const lang = requestLanguage(request);
+    const errors: FieldError[] = [];
+    if (!["spam", "offensive", "broken-link", "other"].includes(input.reason)) {
+      errors.push(fieldError("reason", "validation.report.reason.invalid", lang));
+    }
+    if (input.comment && input.comment.length > 1000) {
+      errors.push(fieldError("comment", "validation.report.comment.too-long", lang));
+    }
+    if (errors.length > 0) return response(400).json(validationProblem(errors));
+
+    if (report.status !== "open") {
+      return response(409).json(problem(409, "Conflict", "The report is not open."));
+    }
+    report.reason = input.reason;
+    if (input.comment) report.comment = input.comment;
+    else delete report.comment;
+    return response(200).json(report);
+  },
+);
+
+const withdrawReport = http.delete(
+  "/api/v1/reports/{id}",
+  ({ params, response }) => {
+    const user = getCurrentUser();
+    if (!user) return response(401).json(unauthorized());
+
+    const report = db.reports.find((r) => r.id === params.id);
+    if (!report || report.reporter !== user.username) {
+      return response(404).json(notFound());
+    }
+    if (report.status !== "open") {
+      return response(409).json(problem(409, "Conflict", "The report is not open."));
+    }
+    db.reports.splice(db.reports.indexOf(report), 1);
+    touchStats();
+    return response(204).empty();
+  },
+);
+
 const listReports = http.get("/api/v1/admin/reports", ({ query, response }) => {
   if (!getCurrentUser()) return response(401).json(unauthorized());
   if (!hasRole("moderator")) return response(403).json(forbidden());
@@ -858,6 +922,9 @@ export const handlers = [
   listTags,
   getMe,
   reportBookmark,
+  listMyReports,
+  updateMyReport,
+  withdrawReport,
   listReports,
   resolveReport,
   setBookmarkStatus,

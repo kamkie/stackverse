@@ -142,7 +142,14 @@ representation, not a different feature. All other operations exist in v1 only.
 13. **Reporting.** Any authenticated user can report a bookmark that is visible to
     them and public. Reporting a private or hidden bookmark → `404` (rule 1 masking
     applies). A second `open` report by the same user on the same bookmark → `409`;
-    a new report is allowed once the previous one is resolved.
+    a new report is allowed once the previous one is resolved or withdrawn.
+    Reporters keep sight of their filings: `GET /api/v1/reports` lists the caller's
+    own reports (newest first, optional `status` filter, standard pagination),
+    including the resolution fields once moderation acts. While a report is `open`
+    its reporter may revise `reason`/`comment` (`PUT /api/v1/reports/{id}`) or
+    withdraw it (`DELETE` → `204`; the report is removed and no longer blocks a new
+    one on the same bookmark). Both act only on the caller's own reports: another
+    user's report → `404` (existence is not disclosed), a non-`open` report → `409`.
 14. **Resolution.** Moderators resolve `open` reports as `dismissed` (no effect) or
     `actioned` (the bookmark becomes `hidden`). Resolving an `actioned` report
     auto-resolves every other `open` report on the same bookmark as `actioned`, with
@@ -180,7 +187,8 @@ An implementation is **done** when:
 - [ ] Role checks are enforced from `realm_access.roles` (`moderator` vs `admin`); `403` without the required role
 - [ ] Message reads and stats support ETag / `If-None-Match` / `304` revalidation
 - [ ] Validation messages are served in `en` and `pl` per the language resolution rules
-- [ ] Report workflow works end to end, including sibling auto-resolution (rule 14)
+- [ ] Report workflow works end to end, including the reporter's own
+      list/edit/withdraw surface (rule 13) and sibling auto-resolution (rule 14)
 - [ ] Hidden bookmarks disappear from the public surface and cannot be re-published by the owner
 - [ ] User accounts are lazily provisioned; blocked users get `403` on authenticated calls
 - [ ] Every backoffice mutation produces an immutable audit entry
