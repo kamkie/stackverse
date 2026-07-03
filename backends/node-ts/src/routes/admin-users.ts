@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { pool } from "../db.js";
+import { pool, withTransaction } from "../db.js";
 import { requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
@@ -106,36 +106,40 @@ export function registerAdminUserRoutes(app: FastifyInstance): void {
     if (status !== "active" && status !== "blocked") throw new BadRequestProblem("status is required");
     const reason = typeof body["reason"] === "string" ? body["reason"].trim() : undefined;
 
-    const existing = await pool.query("select username from user_accounts where username = $1", [username]);
-    if (!existing.rowCount) throw new NotFoundProblem();
-
     if (status === "blocked") {
       const validator = new Validator();
       validator.check(reason !== undefined && reason !== "", "reason", "validation.block.reason.required");
       validator.check((reason?.length ?? 0) <= 1000, "reason", "validation.block.reason.too-long");
       validator.throwIfInvalid();
       if (username === caller.username) throw new ConflictProblem("Admins cannot block themselves.");
-      await pool.query("update user_accounts set status = 'blocked', blocked_reason = $2 where username = $1", [
-        username,
-        reason,
-      ]);
-      await recordAudit(pool, caller.username, "user.blocked", "user", username, { reason });
-      logEvent("info", "user_blocked", "success", "User account blocked", {
-        actor: caller.username,
-        resource_type: "user",
-        resource_id: username,
-      });
-    } else {
-      await pool.query("update user_accounts set status = 'active', blocked_reason = null where username = $1", [
-        username,
-      ]);
-      await recordAudit(pool, caller.username, "user.unblocked", "user", username);
-      logEvent("info", "user_unblocked", "success", "User account unblocked", {
-        actor: caller.username,
-        resource_type: "user",
-        resource_id: username,
-      });
     }
+
+    // mutation + audit commit together (SPEC rule 18: every backoffice mutation is audited)
+    await withTransaction(async (client) => {
+      const existing = await client.query("select username from user_accounts where username = $1 for update", [
+        username,
+      ]);
+      if (!existing.rowCount) throw new NotFoundProblem();
+      if (status === "blocked") {
+        await client.query("update user_accounts set status = 'blocked', blocked_reason = $2 where username = $1", [
+          username,
+          reason,
+        ]);
+        await recordAudit(client, caller.username, "user.blocked", "user", username, { reason });
+      } else {
+        await client.query("update user_accounts set status = 'active', blocked_reason = null where username = $1", [
+          username,
+        ]);
+        await recordAudit(client, caller.username, "user.unblocked", "user", username);
+      }
+    });
+    logEvent(
+      "info",
+      status === "blocked" ? "user_blocked" : "user_unblocked",
+      "success",
+      status === "blocked" ? "User account blocked" : "User account unblocked",
+      { actor: caller.username, resource_type: "user", resource_id: username },
+    );
     const account = await findWithBookmarkCount(username);
     if (!account) throw new NotFoundProblem();
     return toUserAccountResponse(account);
