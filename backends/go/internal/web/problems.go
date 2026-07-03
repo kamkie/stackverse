@@ -7,6 +7,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 
 	"github.com/kamkie/stackverse/backends/go/internal/logx"
@@ -160,10 +161,13 @@ func Error(w http.ResponseWriter, r *http.Request, localizer Localizer, logger *
 		// the client went away mid-request; nothing to report and nobody listening
 		return
 	} else {
+		// 5xx logs at ERROR with a stack trace (docs/LOGGING.md §3); Go errors
+		// carry no stack of their own, so capture the reporting site's
 		logger.ErrorContext(r.Context(), "Unhandled error serving request",
 			slog.String("error", err.Error()),
 			slog.String("method", r.Method),
 			slog.String("path", r.URL.Path),
+			slog.String("stack", string(debug.Stack())),
 		)
 		problem = &Problem{Status: http.StatusInternalServerError, Title: "Internal Server Error"}
 	}
