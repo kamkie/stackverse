@@ -70,7 +70,9 @@ What the script runs (also the manual recipe):
 3. Gateway — in `gateways/yarp`: `dotnet run --project src/StackverseGateway` with
    `FRONTEND_URL=http://localhost:5173` so it proxies the frontend dev server.
 4. Frontend — in `frontends/react`: `yarn dev` with `VITE_API_MOCK=false` (mocks off,
-   Vite proxies `/api` and `/auth` to the gateway).
+   Vite proxies `/api` and `/auth` to the gateway). To develop against the Angular
+   variant instead, run `yarn dev` in `frontends/angular` — same port 5173, same
+   proxying, no mock toggle (that app has no in-browser mocks).
 
 Use the app at http://localhost:8000 (gateway). Stop with Ctrl+C per tab and
 `docker compose down`.

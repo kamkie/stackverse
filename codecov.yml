@@ -28,6 +28,10 @@ flags:
     paths:
       - frontends/react/
     carryforward: true
+  frontend-angular:
+    paths:
+      - frontends/angular/
+    carryforward: true
 
 # Components are yml-defined virtual filters over the same uploads — one per
 # implementation, mirroring the flags. They add per-component numbers to the
@@ -53,6 +57,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-angular
+      name: "frontend · angular"
+      paths:
+        - frontends/angular/**
 
 comment:
   layout: "condensed_header, diff, flags, components"

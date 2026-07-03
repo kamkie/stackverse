@@ -496,7 +496,7 @@ export interface components {
             /** @description Normalized server-side — trimmed, lowercased, deduplicated. */
             tags?: components["schemas"]["Tag"][];
             /** @default private */
-            visibility: components["schemas"]["Visibility"];
+            visibility?: components["schemas"]["Visibility"];
         };
         /**
          * @description Server-managed; changes only through moderation.
@@ -657,7 +657,7 @@ export interface components {
              * Format: uri
              * @default about:blank
              */
-            type: string;
+            type?: string;
             title?: string;
             status?: number;
             detail?: string;

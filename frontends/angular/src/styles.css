@@ -1,0 +1,5 @@
+/* The shared design is part of the contract — bundled verbatim from
+   spec/design, never copied or overridden (see frontends/README.md).
+   This app has no styles of its own. */
+@import '../../../spec/design/tokens.css';
+@import '../../../spec/design/stackverse.css';

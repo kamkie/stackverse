@@ -6,7 +6,9 @@ repo root unless noted.
 ## 1. Frontend only (mocked API) — fastest way to see the UI
 
 No Docker, no backend — the API and the OIDC dance are mocked in the browser
-(MSW). Good for UI work and demos.
+(MSW). Good for UI work and demos. React only: the Angular frontend has no
+mock mode (see [frontends/angular/README.md](../frontends/angular/README.md))
+and needs a running gateway (mode 2b).
 
 ```sh
 cd frontends/react
@@ -68,6 +70,11 @@ in their own Windows Terminal tabs, each tee'ing its output to
 App on http://localhost:8000 (gateway proxies the Vite dev server). Stop with
 Ctrl+C per tab and `docker compose down`.
 
+The script starts the React frontend. To develop against the Angular one,
+run `yarn dev` in `frontends/angular` in the frontend tab instead — same
+port (5173), same gateway wiring, no mock toggle (the Angular app always
+talks to the gateway).
+
 ## 3. Full stack (containers)
 
 Build images and run any backend + gateway + frontend combination:
@@ -104,6 +111,14 @@ docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
 docker build -t stackverse/gateway-yarp:local gateways/yarp
 # frontend images build with the REPO ROOT as context (they bundle spec/design)
 docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .
+docker build -t stackverse/frontend-angular:local -f frontends/angular/Dockerfile .
+```
+
+Non-default combinations pass the implementation names positionally, e.g. the
+Angular frontend:
+
+```sh
+BUILD=1 ./scripts/run-stack.sh spring-kotlin yarp angular
 ```
 
 The frontend image is a file carrier, not a server: on `up` it copies its
@@ -153,13 +168,15 @@ to `main` and every pull request, as parallel jobs:
   its own toolchain: `gradlew build` for `backends/spring-kotlin` (Testcontainers
   for its integration tests), `dotnet test` for `backends/dotnet`, `dotnet test`
   for `gateways/yarp` (Testcontainers again), and `yarn build` + `yarn test`
-  for `frontends/react`.
+  for `frontends/react` and `frontends/angular`.
 - **Conformance** — one matrix leg per backend implementation: builds that
   backend's image, starts the compose infra plus the backend, and runs the
   `conformance/` suite against it directly.
-- **E2E** — builds all three images (`scripts/build-images.sh`), starts the
-  full composed stack, and runs the `e2e/` Playwright suite through the
-  gateway.
+- **E2E** — builds a backend + gateway + frontend image set
+  (`scripts/build-images.sh`), starts the full composed stack, and runs the
+  `e2e/` Playwright suite through the gateway — once per frontend
+  implementation (react and angular), since frontends have no conformance
+  suite of their own and e2e is their acceptance gate.
 
 All jobs run on every change (no path filters): the contract couples every
 implementation to `spec/` and `docs/`. Playwright reports upload as workflow
@@ -168,7 +185,7 @@ artifacts when a suite fails.
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
 flag (JaCoCo XML for the Kotlin backend, coverlet Cobertura for the dotnet
-backend and the gateway, vitest lcov for the frontend). `codecov.yml` also
+backend and the gateway, vitest lcov for the frontends). `codecov.yml` also
 mirrors each implementation as a
 [component](https://docs.codecov.com/docs/components) — same numbers sliced
 yml-side, so PR comments and the dashboard break coverage down per
