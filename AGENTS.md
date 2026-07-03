@@ -67,7 +67,8 @@ implemented in many stacks. Read these before changing anything:
   implement the change, run the component's relevant build/tests from its own
   directory, create or rename to an agent-owned `<agent>/<short-task-slug>` branch,
   commit, push, open a PR, run the required cross-review below, triage every
-  finding, and report the PR link. Do not spawn agents with prompts that stop at
+  finding, remove draft status after cross-review is recorded and all findings are
+  triaged, and report the PR link. Do not spawn agents with prompts that stop at
   "implement and test."
 - **A branch task is done only when its PR is up.** Committing locally is not the
   end of the job. Before ending the session or reporting the task complete: rename
@@ -84,9 +85,11 @@ implemented in many stacks. Read these before changing anything:
 - **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
   authoring agent asks the other agent for review, makes sure the review result is
   recorded on the PR, and triages the findings — fix them or answer them on the
-  PR. If the review command prints findings but does not post a GitHub comment,
-  the authoring agent posts a concise PR comment with the reviewer, findings, and
-  triage decision:
+  PR. Once the cross-review result is recorded and all findings are triaged, the
+  authoring agent removes draft status before handing the PR to a human. If the
+  review command prints findings but does not post a GitHub comment, the authoring
+  agent posts a concise PR comment with the reviewer, findings, and triage
+  decision:
   - Claude-authored branch → Codex review: `/codex-cr`, or
     `codex -C <main-repo-root> "review branch <name> ..."` (Codex thread cwd is
     always the main repo root, never a `.claude/worktrees` path; reference the
