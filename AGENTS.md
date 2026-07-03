@@ -40,6 +40,10 @@ implemented in many stacks. Read these before changing anything:
   `.github/dependabot.yml` pre-seed planned variants. A new variant adds files; the
   only shared edits it should need are its README matrix row and uncommenting its
   pre-seeded config entries.
+- **Multi-variant PRs use separated commits.** If one PR changes multiple
+  application variants, split the history into one commit per affected app variant
+  and separate commit(s) for shared repo parts such as root docs, scripts, specs,
+  CI, compose, or cross-cutting configuration.
 - **Repo scripts ship in both flavors.** Anything in `scripts/` exists as a `.ps1`
   *and* a `.sh` doing the same thing — add or change them together. Test the shell
   flavor through Git Bash or WSL, not by reading it.
