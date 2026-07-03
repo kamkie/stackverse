@@ -29,7 +29,7 @@
     "vitest": "^4.0.8"
   },
   "resolutions": {
-    "vite": "7.3.6",
-    "@babel/core": "7.29.7"
+    "@angular/build/vite": "7.3.6",
+    "@angular/build/@babel/core": "7.29.7"
   }
 }
