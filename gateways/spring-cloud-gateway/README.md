@@ -14,7 +14,7 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 | `POST /auth/logout` | controller: server-to-server RP-initiated logout at Keycloak, session invalidated, `204` |
 | `GET /auth/session` | controller reading the session principal (`preferred_username`) |
 | `/api/**` | gateway route to `BACKEND_URL` with a hand-rolled token-relay filter |
-| `/**` | gateway route to `FRONTEND_URL` when set; otherwise static resources + an `index.html` fallback filter |
+| `/**` | gateway route to the `FRONTEND_URL` SPA upstream when set; otherwise static resources + an `index.html` fallback filter |
 
 ## Design notes
 
@@ -111,8 +111,9 @@ the row a gap.
 
 ## Configuration
 
-All shared variables from [gateways/README.md](../README.md). `SPA_ROOT` defaults
-to the bundled `classpath:/static` placeholder page when unset. The OIDC issuer
+All shared variables from [gateways/README.md](../README.md). `FRONTEND_URL`
+is the normal path in compose and dev mode. If it is unset, `SPA_ROOT`
+defaults to the bundled `classpath:/static` placeholder page. The OIDC issuer
 metadata is resolved at startup, so Keycloak must be reachable when the gateway
 boots (compose orders this with a healthcheck; `scripts/dev-stack.*` waits too).
 

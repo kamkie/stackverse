@@ -10,11 +10,12 @@ import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
 
 /**
- * SPA deep links when the gateway serves static files (no `FRONTEND_URL`): a GET for
- * a client-side route like `/bookmarks/123` — anything that is not `/api`, not
- * `/auth`, and not a file — rewrites to `/index.html`, so the router in the SPA
- * takes over. The equivalent of yarp's `MapFallbackToFile`. Inert when a frontend
- * dev server is proxied instead — the catch-all route owns page delivery then.
+ * SPA deep links when the gateway serves fallback static files (no `FRONTEND_URL`):
+ * a GET for a client-side route like `/bookmarks/123` — anything that is not
+ * `/api`, not `/auth`, and not a file — rewrites to `/index.html`, so the router
+ * in the SPA takes over. The equivalent of yarp's `MapFallbackToFile`. Inert when
+ * a frontend static server or dev server is proxied instead — the catch-all route
+ * owns page delivery then.
  */
 @Component
 class SpaFallbackWebFilter(gateway: GatewayProperties) : WebFilter, Ordered {

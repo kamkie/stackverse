@@ -16,8 +16,8 @@ import org.springframework.core.env.MapPropertySource
  * - In text mode with telemetry enabled, the trace/span ids that the OTel Java
  *   agent puts into the MDC are appended to the console pattern via Boot's
  *   correlation slot, so every line links to its trace.
- * - `SPA_ROOT` points the static-resource location at a frontend production build
- *   (compose mounts the frontend image's build there); unset, the bundled
+ * - `SPA_ROOT` points the fallback static-resource location at a frontend
+ *   production build when `FRONTEND_URL` is not used; unset, the bundled
  *   placeholder page in `classpath:/static/` is served instead.
  *
  * (`LOG_LEVEL` needs no code: `application.yaml` binds it to `logging.level.root`.)

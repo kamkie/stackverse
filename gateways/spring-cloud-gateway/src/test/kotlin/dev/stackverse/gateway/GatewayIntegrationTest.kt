@@ -34,6 +34,7 @@ class GatewayIntegrationTest {
         private val keycloak = keycloakContainer()
         private val redis = redisContainer()
         private val backend = StubBackend()
+        private val frontend = StubFrontend()
 
         init {
             // the gateway resolves the issuer metadata at startup, so the IdP must be
@@ -50,11 +51,13 @@ class GatewayIntegrationTest {
                 "http://localhost:${keycloak.getMappedPort(8080)}/realms/stackverse"
             }
             registry.add("stackverse.backend-url") { backend.url }
+            registry.add("stackverse.frontend-url") { frontend.url }
         }
 
         @JvmStatic
         @AfterAll
         fun tearDown() {
+            frontend.close()
             backend.close()
         }
     }
@@ -90,6 +93,19 @@ class GatewayIntegrationTest {
         assertEquals(200, response.statusCode())
         assertEquals("", backend.lastAuthorization)
         assertEquals("", backend.lastCookie)
+    }
+
+    @Test
+    fun `frontend catch-all proxies spa routes without leaking gateway cookies`() {
+        val client = browserClient()
+
+        get(client, "$base/auth/session") // issue gateway-owned cookies
+        val response = get(client, "$base/admin/users")
+
+        assertEquals(200, response.statusCode())
+        assertTrue(response.body().contains("Stackverse frontend stub"))
+        assertEquals("/admin/users", frontend.lastPath)
+        assertEquals("", frontend.lastCookie)
     }
 
     @Test
