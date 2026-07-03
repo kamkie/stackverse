@@ -84,7 +84,7 @@ pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 |---|---|---|---|---|
 | Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-spring-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-dotnet)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
-| Backend | Go (stdlib + chi) | `backends/go` | planned | — |
+| Backend | Go (stdlib + chi) | `backends/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (TypeScript) | `backends/node-ts` | planned | — |
 | Gateway | Spring Cloud Gateway (Kotlin) | `gateways/spring-cloud-gateway` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-spring-cloud-gateway)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |

@@ -1,7 +1,7 @@
-# CodeQL static analysis over every language in the repo. Kotlin still needs a
-# real compile (build-mode none analyzes Java but skips Kotlin sources), so the
-# java-kotlin matrix leg builds every Kotlin project manually; the rest scan
-# buildless.
+# CodeQL static analysis over every language in the repo. Kotlin and Go both
+# need a real compile — build-mode none analyzes Java but skips Kotlin sources,
+# and Go has no buildless mode at all — so those matrix legs build manually;
+# the rest scan buildless.
 name: CodeQL
 
 on:
@@ -31,6 +31,8 @@ jobs:
             build-mode: none
           - language: csharp
             build-mode: none
+          - language: go
+            build-mode: manual
           - language: java-kotlin
             build-mode: manual
           - language: javascript-typescript
@@ -46,6 +48,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         if: matrix.language == 'java-kotlin'
 
+      - uses: actions/setup-go@v6
+        if: matrix.language == 'go'
+        with:
+          go-version-file: backends/go/go.mod
+          cache-dependency-path: backends/go/go.sum
+
       - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
@@ -60,6 +68,11 @@ jobs:
         if: matrix.language == 'java-kotlin'
         working-directory: gateways/spring-cloud-gateway
         run: ./gradlew assemble
+
+      - name: Build the Go backend
+        if: matrix.language == 'go'
+        working-directory: backends/go
+        run: go build ./...
 
       - uses: github/codeql-action/analyze@v4
         with:
