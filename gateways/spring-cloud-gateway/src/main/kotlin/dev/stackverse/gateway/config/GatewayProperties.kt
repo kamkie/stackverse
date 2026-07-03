@@ -6,7 +6,7 @@ import java.net.URI
 /**
  * Environment-driven configuration — one property per variable in gateways/README.md
  * (`application.yaml` binds the env vars; `SPA_ROOT` is consumed by
- * [GatewayEnvironmentPostProcessor] as the static-resource location).
+ * [GatewayEnvironmentPostProcessor] as the fallback static-resource location).
  */
 @ConfigurationProperties("stackverse")
 class GatewayProperties(

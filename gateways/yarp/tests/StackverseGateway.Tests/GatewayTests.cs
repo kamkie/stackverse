@@ -43,6 +43,20 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
     }
 
     [Fact]
+    public async Task Frontend_catch_all_proxies_spa_routes_without_leaking_gateway_cookies()
+    {
+        using var client = CreateClient();
+
+        await client.GetAsync("/auth/session"); // issue gateway-owned cookies
+        var response = await client.GetAsync("/admin/users");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Stackverse frontend stub", await response.Content.ReadAsStringAsync());
+        Assert.Equal("/admin/users", fixture.Frontend.LastPath);
+        Assert.Equal("", fixture.Frontend.LastCookie);
+    }
+
+    [Fact]
     public async Task Anonymous_state_changing_requests_still_require_the_csrf_header()
     {
         using var client = CreateClient();

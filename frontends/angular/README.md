@@ -88,16 +88,17 @@ makes for zero codegen tooling.)
 
 ## Production
 
-`yarn build` emits plain static files (`dist/browser`) servable by any
-gateway; there is no server-side rendering and no runtime configuration — all
+`yarn build` emits plain static files (`dist/browser`) for the frontend static
+server; there is no server-side rendering and no runtime configuration — all
 API calls are relative (`/api/...`, `/auth/...`) and carry the session cookie.
 Production disables Angular's critical-CSS inlining so the generated document
 honors the gateway CSP without `unsafe-inline`.
 
-The `Dockerfile` builds the same bundle into a carrier image
-(`stackverse/frontend-angular:local`) that `compose.yaml` plugs in via
-`FRONTEND_IMAGE` — build it with the **repo root** as context (it bundles
-`spec/design`; see [docs/RUNNING.md](../../docs/RUNNING.md)):
+The `Dockerfile` builds the same bundle into a long-running nginx image
+(`stackverse/frontend-angular:local`) that serves the SPA on internal port
+8080. `compose.yaml` plugs it in via `FRONTEND_IMAGE` and keeps it behind the
+gateway. Build it with the **repo root** as context (it bundles `spec/design`;
+see [docs/RUNNING.md](../../docs/RUNNING.md)):
 
 ```sh
 docker build -t stackverse/frontend-angular:local -f frontends/angular/Dockerfile .

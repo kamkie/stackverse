@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpHeaders
 
 // The proxy half of the gateway contract (docs/ARCHITECTURE.md): /api/** to the
-// backend with token relay, /** to the frontend dev server when FRONTEND_URL is
-// set. Without it, requests fall through to static resources (SPA_ROOT or the
-// bundled placeholder) with an index.html fallback — see SpaFallbackWebFilter.
+// backend with token relay, /** to the frontend SPA upstream when FRONTEND_URL
+// is set. Without it, requests fall through to static resources (SPA_ROOT or
+// the bundled placeholder) with an index.html fallback — see SpaFallbackWebFilter.
 // The literal /auth endpoints outrank both: Spring Security's filters handle
 // login and callback before any routing, and annotated controllers are mapped
 // ahead of gateway routes.

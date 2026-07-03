@@ -144,8 +144,8 @@ jobs:
       - name: Install Playwright browsers
         working-directory: e2e
         run: yarn playwright install --with-deps chromium
-      # the gateway serves the SPA only after the frontend one-shot has
-      # published it and keycloak/backend are up — poll both layers
+      # the gateway serves the SPA only after the internal frontend static
+      # server and keycloak/backend are up — poll both layers
       - name: Wait for the stack to be ready
         run: |
           for _ in $(seq 1 90); do

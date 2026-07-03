@@ -127,8 +127,10 @@ confirmations only (report submitted, message saved, deletions); destructive act
   that channel — element labels only, never field values. Rows, cards, and
   dialogs tag the entity they act on with `data-ctx="<type>:<id>"` so
   per-row actions name their row in the log.
-- Production build must be servable as static files by any gateway (`GATEWAY` serves
-  the bundle); dev mode runs its own server which gateways can proxy via `FRONTEND_URL`.
+- Production build must be servable as static files by the frontend image's
+  static server; browsers still reach it only through the gateway. Dev mode
+  runs its own server, and gateways proxy it through the same `FRONTEND_URL`
+  mechanism used for the container static server.
 - Production HTML must satisfy the gateway CSP
   (`default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'`):
   no inline `<script>`, inline `<style>`, inline event handlers, or `style=`
@@ -136,7 +138,6 @@ confirmations only (report submitted, message saved, deletions); destructive act
   script must be same-origin static files.
 - Ship a `Dockerfile`; the image plugs into `compose.yaml` via `FRONTEND_IMAGE`.
   It builds with the **repo root** as context (the build bundles `spec/design`),
-  and the final image is a file carrier, not a server: the static build lives at
-  `/dist` and the default command publishes it into the volume mounted at `/spa`,
-  which the gateway serves via `SPA_ROOT`.
+  and the final image is a long-running static-file server on internal port
+  `8080` with an HTTP healthcheck and SPA fallback to `index.html`.
 - Per-implementation README covers stack-specific tooling only.

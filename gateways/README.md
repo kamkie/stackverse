@@ -23,7 +23,8 @@ to. The full route contract and login flow live in
   [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) on SPA/auth responses, plus
   global `X-Content-Type-Options: nosniff` and HTTPS-only HSTS without rewriting
   proxied API cache or ETag headers.
-- **Frontend delivery** — serve the SPA build (or proxy a dev server) on `/**`.
+- **Frontend delivery** — proxy the SPA upstream on `/**`; standalone gateway
+  runs may optionally serve a local static build as a fallback.
 
 The gateway makes no business decisions. If a request has a valid session it is
 relayed; authorization is the backend's job.
@@ -41,8 +42,8 @@ dependency failure: `ERROR`, session kept, request answered `503` (see
 |---|---|---|
 | `PORT` | `8000` | HTTP listen port |
 | `BACKEND_URL` | `http://localhost:8080` | upstream API |
-| `FRONTEND_URL` | *(unset)* | SPA dev server to proxy; if unset, serve static files |
-| `SPA_ROOT` | *(unset)* | directory of the SPA production build to serve when `FRONTEND_URL` is unset; if also unset, serve an implementation-bundled placeholder page (`compose.yaml` mounts the frontend image's build here) |
+| `FRONTEND_URL` | *(unset)* | SPA upstream to proxy: the frontend static server in container mode, or a dev server in dev mode; if unset, serve the gateway's static-file fallback |
+| `SPA_ROOT` | *(unset)* | optional directory of a SPA production build to serve only when `FRONTEND_URL` is unset; if also unset, serve an implementation-bundled placeholder page |
 | `REDIS_URL` | `redis://localhost:6379` | session store |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/stackverse` | IdP realm |
 | `OIDC_INTERNAL_ISSUER_URI` | *(unset)* | optional base URL for the gateway's own IdP calls (discovery, token, JWKS, logout) when the public issuer host is not dialable from the gateway's network; issuer validation and the browser-facing authorization redirect keep `OIDC_ISSUER_URI`. compose sets it to the keycloak service; gateways whose HTTP client retries every resolved address (yarp) may ignore it |

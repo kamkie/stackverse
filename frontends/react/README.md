@@ -97,14 +97,15 @@ localStorage.setItem("stackverse.mock.login-as", "admin");     // full backoffic
 
 ## Production
 
-`yarn build` emits plain static files (`dist/`) servable by any gateway;
-there is no server-side rendering and no runtime configuration — all API
-calls are relative (`/api/...`, `/auth/...`) and carry the session cookie.
+`yarn build` emits plain static files (`dist/`) for the frontend static
+server; there is no server-side rendering and no runtime configuration — all
+API calls are relative (`/api/...`, `/auth/...`) and carry the session cookie.
 
-The `Dockerfile` builds the same bundle into a carrier image
-(`stackverse/frontend-react:local`) that `compose.yaml` plugs in via
-`FRONTEND_IMAGE` — build it with the **repo root** as context (it bundles
-`spec/design`; see [docs/RUNNING.md](../../docs/RUNNING.md)):
+The `Dockerfile` builds the same bundle into a long-running nginx image
+(`stackverse/frontend-react:local`) that serves the SPA on internal port 8080.
+`compose.yaml` plugs it in via `FRONTEND_IMAGE` and keeps it behind the
+gateway. Build it with the **repo root** as context (it bundles `spec/design`;
+see [docs/RUNNING.md](../../docs/RUNNING.md)):
 
 ```sh
 docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .

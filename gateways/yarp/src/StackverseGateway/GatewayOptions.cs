@@ -4,7 +4,7 @@ namespace StackverseGateway;
 
 /// <summary>
 /// Environment-driven configuration — one property per variable in gateways/README.md.
-/// SPA_ROOT is consumed directly as WebRootPath in Program.cs.
+/// SPA_ROOT is consumed directly as the fallback WebRootPath in Program.cs.
 /// </summary>
 public sealed record GatewayOptions
 {
@@ -24,7 +24,9 @@ public sealed record GatewayOptions
     {
         Port = int.Parse(config["PORT"] ?? "8000"),
         BackendUrl = new Uri(config["BACKEND_URL"] ?? "http://localhost:8080"),
-        FrontendUrl = config["FRONTEND_URL"] is { Length: > 0 } frontend ? new Uri(frontend) : null,
+        FrontendUrl = config["FRONTEND_URL"] is { } frontend && !string.IsNullOrWhiteSpace(frontend)
+            ? new Uri(frontend)
+            : null,
         RedisConfiguration = ParseRedisUrl(config["REDIS_URL"] ?? "redis://localhost:6379"),
         OidcIssuerUri = (config["OIDC_ISSUER_URI"] ?? "http://localhost:8180/realms/stackverse").TrimEnd('/'),
         OidcClientId = config["OIDC_CLIENT_ID"] ?? "stackverse-gateway",
