@@ -39,7 +39,7 @@ async function fetchBundle(lang: string | null): Promise<CachedBundle> {
 
   const url = new URL('/api/v1/messages/bundle', location.origin);
   if (lang !== null) url.searchParams.set('lang', lang);
-  const response = await fetch(url, { headers, credentials: 'include' });
+  const response = await fetch(url, { headers });
 
   if (response.status === 304 && cached) return cached;
   if (!response.ok) throw new Error(`Failed to load message bundle: ${response.status}`);

@@ -32,12 +32,13 @@ async function csrfFetch(request: Request): Promise<Response> {
   return globalThis.fetch(request);
 }
 
-// All calls are same-origin (through the gateway) and carry the session
-// cookie; the SPA never sees a token (docs/ARCHITECTURE.md). The explicit
-// origin only makes the URLs absolute — required by fetch in the jsdom tests.
+// All calls are same-origin (through the gateway): `baseUrl` is `location.origin`,
+// so fetch's default `same-origin` credentials mode already carries the session
+// cookie — no explicit credential mode needed, and none that would read as
+// cross-origin. The SPA never sees a token (docs/ARCHITECTURE.md); the explicit
+// origin also makes the URLs absolute, required by fetch in the jsdom tests.
 export const api = createClient<paths>({
   baseUrl: location.origin,
-  credentials: "include",
   // Resolve fetch per call, not at client creation — MSW patches the global
   // after this module is imported in tests.
   fetch: csrfFetch,

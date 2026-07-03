@@ -36,7 +36,8 @@ Rules:
 
 ## Contract with the gateway
 
-- All API calls go to relative `/api/v{n}/...` paths with `credentials: 'include'`.
+- All API calls go to relative same-origin `/api/v{n}/...` paths; the browser attaches
+  the session (and `XSRF-TOKEN`) cookies — no explicit cross-origin credential mode is needed.
   Where an operation exists in two versions, use the newest: bookmark lists come from
   the cursor-paginated `GET /api/v2/bookmarks` ("load more" UX via `nextCursor`),
   everything else from v1.

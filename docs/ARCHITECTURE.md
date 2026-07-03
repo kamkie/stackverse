@@ -8,7 +8,7 @@ pattern, and every gateway implementation demonstrates it in its own stack.
 
 | Component | Role | State |
 |---|---|---|
-| Frontend (SPA) | UI; calls `/api/*` with `credentials: include` | none — not even a token |
+| Frontend (SPA) | UI; makes same-origin `/api/*` calls that carry the session cookie | none — not even a token |
 | Gateway (BFF) | OIDC client, session owner, reverse proxy, token relay | session data in Redis |
 | Backend (API) | business logic, JWT validation, persistence | none — DB only |
 | Keycloak | identity provider (OIDC) | users, clients |

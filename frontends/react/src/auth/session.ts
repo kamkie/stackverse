@@ -6,9 +6,7 @@ export type Session =
   | { authenticated: false };
 
 async function fetchSession(): Promise<Session> {
-  const response = await fetch(new URL("/auth/session", location.origin), {
-    credentials: "include",
-  });
+  const response = await fetch(new URL("/auth/session", location.origin));
   if (!response.ok) return { authenticated: false };
   return (await response.json()) as Session;
 }
@@ -24,7 +22,6 @@ export function useLogout() {
     mutationFn: async () => {
       await fetch(new URL("/auth/logout", location.origin), {
         method: "POST",
-        credentials: "include",
       });
     },
     onSettled: () => queryClient.resetQueries(),
