@@ -96,8 +96,8 @@ export interface paths {
          * Report a public bookmark
          * @description Any authenticated user may report a bookmark that is public and visible to
          *     them. At most one `open` report per user per bookmark (`409`); a new report
-         *     is allowed once the previous one is resolved. Private or hidden bookmarks
-         *     yield `404` — existence is not disclosed.
+         *     is allowed once the previous one is resolved or withdrawn. Private or
+         *     hidden bookmarks yield `404` — existence is not disclosed.
          */
         post: operations["reportBookmark"];
         delete?: never;
