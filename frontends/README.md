@@ -117,6 +117,12 @@ on the corresponding form fields, not as a generic toast. Toasts are for success
 confirmations only (report submitted, message saved, deletions); destructive actions
 (deleting a bookmark or message) ask for confirmation in a dialog first.
 
+For local demos against a real backend, use the root
+`./scripts/seed-test-data.sh` / `.ps1` helper to populate public and private
+bookmarks, an open report, a hidden bookmark, stats, tags, and audit data.
+The helper seeds through the backend API, so no frontend implementation needs
+its own demo-data path.
+
 ## Conventions
 
 - Generate or hand-write API types from the OpenAPI spec — but the spec is the truth.
