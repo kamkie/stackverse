@@ -2,9 +2,10 @@
 #
 #   docker build -t stackverse/backend-node-ts:local -f backends/node-ts/Dockerfile .
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
-RUN corepack enable
+# node:26 no longer bundles Corepack, so install it before enabling the Yarn shim
+RUN npm install -g corepack@latest && corepack enable
 # manifest + lockfile first so the dependency layer caches across source changes
 COPY backends/node-ts/package.json backends/node-ts/yarn.lock backends/node-ts/.yarnrc.yml ./
 RUN yarn install --immutable
@@ -14,7 +15,7 @@ RUN yarn build
 # strip devDependencies from the PnP cache for the runtime stage
 RUN yarn workspaces focus --production
 
-FROM node:24-alpine
+FROM node:26-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 ENV NODE_ENV=production
