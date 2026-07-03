@@ -3,6 +3,9 @@ package dev.stackverse.gateway
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
 import org.springframework.security.oauth2.core.OAuth2AccessToken
 import org.springframework.security.oauth2.core.OAuth2RefreshToken
+import com.github.dockerjava.api.model.ExposedPort
+import com.github.dockerjava.api.model.PortBinding
+import com.github.dockerjava.api.model.Ports
 import org.springframework.session.ReactiveSessionRepository
 import org.springframework.session.Session
 import org.testcontainers.containers.GenericContainer
@@ -10,6 +13,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
 import java.net.CookieManager
 import java.net.CookiePolicy
+import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -33,16 +37,35 @@ fun findRealmFile(): Path {
     error("infra/keycloak/stackverse-realm.json not found in any parent directory")
 }
 
-/** Keycloak with the shared stackverse realm imported, ready when the realm answers. */
-fun keycloakContainer(): GenericContainer<*> =
-    GenericContainer("quay.io/keycloak/keycloak:26.6")
-        .withCopyFileToContainer(
+/**
+ * Keycloak with the shared stackverse realm imported, ready when the realm answers.
+ * [fixedHostPort] + [hostname] pin the announced issuer to a host-side URL known
+ * before startup — needed to exercise the OIDC_INTERNAL_ISSUER_URI rebase, where
+ * the issuer the IdP announces and the URL the gateway dials must differ.
+ */
+fun keycloakContainer(fixedHostPort: Int? = null, hostname: String? = null): GenericContainer<*> =
+    GenericContainer("quay.io/keycloak/keycloak:26.6").apply {
+        withCopyFileToContainer(
             MountableFile.forHostPath(findRealmFile()),
             "/opt/keycloak/data/import/stackverse-realm.json",
         )
-        .withCommand("start-dev", "--import-realm")
-        .withExposedPorts(8080)
-        .waitingFor(Wait.forHttp("/realms/stackverse").forPort(8080).withStartupTimeout(Duration.ofMinutes(3)))
+        withCommand("start-dev", "--import-realm")
+        withExposedPorts(8080)
+        waitingFor(Wait.forHttp("/realms/stackverse").forPort(8080).withStartupTimeout(Duration.ofMinutes(3)))
+        if (hostname != null) {
+            withEnv("KC_HOSTNAME", hostname)
+        }
+        if (fixedHostPort != null) {
+            withCreateContainerCmdModifier { cmd ->
+                cmd.hostConfig!!.withPortBindings(
+                    PortBinding(Ports.Binding.bindPort(fixedHostPort), ExposedPort(8080)),
+                )
+            }
+        }
+    }
+
+/** A host port that is free right now — claimed by the container immediately after. */
+fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
 fun redisContainer(): GenericContainer<*> =
     GenericContainer("redis:8-alpine").withExposedPorts(6379)
@@ -68,10 +91,11 @@ fun post(client: HttpClient, url: String, body: String, vararg headers: Pair<Str
     return client.send(request.build(), HttpResponse.BodyHandlers.ofString())
 }
 
+fun rawSetCookie(response: HttpResponse<String>, cookieName: String): String? =
+    response.headers().allValues("set-cookie").firstOrNull { it.startsWith("$cookieName=") }
+
 fun setCookieValue(response: HttpResponse<String>, cookieName: String): String? =
-    response.headers().allValues("set-cookie")
-        .firstOrNull { it.startsWith("$cookieName=") }
-        ?.let { it.substring(cookieName.length + 1, it.indexOf(';')) }
+    rawSetCookie(response, cookieName)?.let { it.substring(cookieName.length + 1, it.indexOf(';')) }
 
 fun decodeJwtPayload(jwt: String): String {
     val payload = jwt.split(".")[1]

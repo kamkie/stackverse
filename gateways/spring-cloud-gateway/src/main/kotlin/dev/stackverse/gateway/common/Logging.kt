@@ -9,7 +9,14 @@ import org.slf4j.event.Level
  * console output and of OTLP-exported records — while the message stays prose.
  * Null-valued fields are dropped so "when applicable" fields can be passed as-is.
  */
-fun Logger.logEvent(level: Level, event: String, outcome: String, message: String, vararg fields: Pair<String, Any?>) {
+fun Logger.logEvent(
+    level: Level,
+    event: String,
+    outcome: String,
+    message: String,
+    vararg fields: Pair<String, Any?>,
+    cause: Throwable? = null,
+) {
     var builder = atLevel(level)
         .addKeyValue("event", event)
         .addKeyValue("outcome", outcome)
@@ -17,6 +24,10 @@ fun Logger.logEvent(level: Level, event: String, outcome: String, message: Strin
         if (value != null) {
             builder = builder.addKeyValue(key, value)
         }
+    }
+    if (cause != null) {
+        // ERROR always carries the stack trace (docs/LOGGING.md §3)
+        builder = builder.setCause(cause)
     }
     builder.log(message)
 }

@@ -103,6 +103,7 @@ class AccessTokenManager(
                             "dependency" to "keycloak",
                             "duration_ms" to elapsedMs(),
                             "error_code" to e.javaClass.simpleName,
+                            cause = e,
                         )
                         Mono.error(IdpUnavailableException("The IdP could not be reached to refresh the access token", e))
                     }
@@ -132,7 +133,7 @@ class AccessTokenManager(
         when {
             status in 200..299 ->
                 response.bodyToMono(object : ParameterizedTypeReference<Map<String, Any>>() {})
-                    .map { body ->
+                    .map<RefreshOutcome> { body ->
                         RefreshOutcome.Refreshed(
                             accessToken = body["access_token"] as? String
                                 ?: error("token response carries no access_token"),
@@ -140,6 +141,10 @@ class AccessTokenManager(
                             expiresInSeconds = (body["expires_in"] as? Number)?.toLong() ?: 300L,
                         )
                     }
+                    // a bodyless 2xx is garbage, not a verdict on the grant — without
+                    // this it would complete empty and the relay would silently
+                    // degrade to anonymous while the session lives on
+                    .switchIfEmpty(Mono.error { IllegalStateException("the IdP answered $status with an empty body") })
 
             // Only an authoritative rejection of the grant proves the session is dead —
             // RFC 6749 §5.2: a 400 (invalid_grant, expired/revoked refresh token) or a

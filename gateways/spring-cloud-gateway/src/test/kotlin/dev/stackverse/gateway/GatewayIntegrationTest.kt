@@ -4,6 +4,7 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.beans.factory.annotation.Autowired
@@ -111,6 +112,31 @@ class GatewayIntegrationTest {
         // the ':' and '/' of the value are legal raw in a query string — compare decoded
         val redirectUri = location.substringAfter("redirect_uri=").substringBefore("&")
         assertEquals("http://localhost:8000/auth/callback", java.net.URLDecoder.decode(redirectUri, Charsets.UTF_8))
+    }
+
+    // Cookie rules pinned in docs/ARCHITECTURE.md: the session cookie is HttpOnly,
+    // SameSite=Lax; the CSRF cookie is deliberately readable (the SPA must echo it);
+    // both are Secure only outside local dev — i.e. not here, over http.
+    @Test
+    fun `contract cookies carry the contract attributes`() {
+        // /auth/login creates the pre-login session (authorization request) and
+        // issues the CSRF token, so both Set-Cookie headers ride one response
+        val response = get(browserClient(), "$base/auth/login")
+
+        // attribute names are case-insensitive per RFC 6265 (Netty writes "HTTPOnly")
+        val session = rawSetCookie(response, "stackverse_session")?.lowercase()
+            ?: fail("no stackverse_session Set-Cookie on the login challenge")
+        assertTrue(session.contains("httponly"), session)
+        assertTrue(session.contains("samesite=lax"), session)
+        assertTrue(session.contains("path=/"), session)
+        assertTrue(!session.contains("secure"), session)
+
+        val xsrf = rawSetCookie(response, "XSRF-TOKEN")?.lowercase()
+            ?: fail("no XSRF-TOKEN Set-Cookie on the login challenge")
+        assertTrue(!xsrf.contains("httponly"), xsrf)
+        assertTrue(xsrf.contains("samesite=lax"), xsrf)
+        assertTrue(xsrf.contains("path=/"), xsrf)
+        assertTrue(!xsrf.contains("secure"), xsrf)
     }
 
     // A failed callback is expected client/IdP behavior (contract: redirect to /,

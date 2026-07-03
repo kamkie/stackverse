@@ -61,7 +61,7 @@ class RpInitiatedLogout(
                     Level.WARN, "idp_logout_failed", "failure",
                     "IdP logout failed; local session destroyed anyway",
                     "error_code" to "idp_unreachable",
-                    "error_type" to e.javaClass.simpleName,
+                    cause = e,
                 )
                 Mono.empty()
             }

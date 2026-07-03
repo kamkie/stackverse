@@ -18,12 +18,23 @@ import java.net.CookiePolicy
  * outage must fail the request with a 503 problem document while the session —
  * whose refresh token may still be perfectly valid — survives. Gets its own
  * containers (and Spring context) because it kills the Keycloak container.
+ *
+ * This fixture also runs the gateway through `OIDC_INTERNAL_ISSUER_URI`: Keycloak
+ * announces the issuer as `localhost` while the gateway's own IdP calls are
+ * re-based onto `127.0.0.1` — the compose-critical endpoint-rebase path
+ * (docs: gateways/README.md). The login below fails outright if rebasing or the
+ * startup issuer check regress.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class TokenRefreshOutageTest {
 
     companion object {
-        private val keycloak = keycloakContainer()
+        // the announced issuer must be known before startup, so the host port is fixed
+        private val keycloakPort = freePort()
+        private val keycloak = keycloakContainer(
+            fixedHostPort = keycloakPort,
+            hostname = "http://localhost:$keycloakPort",
+        )
         private val redis = redisContainer()
         private val backend = StubBackend()
 
@@ -36,9 +47,8 @@ class TokenRefreshOutageTest {
         @DynamicPropertySource
         fun properties(registry: DynamicPropertyRegistry) {
             registry.add("spring.data.redis.url") { "redis://localhost:${redis.getMappedPort(6379)}" }
-            registry.add("stackverse.oidc.issuer-uri") {
-                "http://localhost:${keycloak.getMappedPort(8080)}/realms/stackverse"
-            }
+            registry.add("stackverse.oidc.issuer-uri") { "http://localhost:$keycloakPort/realms/stackverse" }
+            registry.add("stackverse.oidc.internal-issuer-uri") { "http://127.0.0.1:$keycloakPort/realms/stackverse" }
             registry.add("stackverse.backend-url") { backend.url }
         }
 
