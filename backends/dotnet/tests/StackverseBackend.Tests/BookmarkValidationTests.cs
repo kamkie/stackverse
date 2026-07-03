@@ -71,4 +71,15 @@ public class BookmarkValidationTests
             Tags: Enumerable.Repeat("same", 11).ToList()));
         Assert.Equal(["same"], validated.Tags);
     }
+
+    [Fact]
+    public void QueryTagsAreNormalizedAndValidated()
+    {
+        Assert.Equal(["kotlin", "web"], BookmarkService.ValidateQueryTags([" Kotlin ", "web"]));
+
+        var problem = Assert.Throws<ValidationProblem>(() => BookmarkService.ValidateQueryTags(["valid", "no spaces!"]));
+        var violation = Assert.Single(problem.Violations);
+        Assert.Equal("tag", violation.Field);
+        Assert.Equal("validation.tag.invalid", violation.MessageKey);
+    }
 }

@@ -118,6 +118,18 @@ interface ListFilters {
   visibility?: Visibility;
 }
 
+export function validateQueryTags(rawTags: string[]): string[] {
+  const tags = rawTags.map((tag) => tag.trim().toLowerCase());
+  const validator = new Validator();
+  validator.check(
+    tags.every((tag) => TAG_PATTERN.test(tag)),
+    "tag",
+    "validation.tag.invalid",
+  );
+  validator.throwIfInvalid();
+  return tags;
+}
+
 function parseListFilters(query: Record<string, unknown>): ListFilters {
   const q = singleParam(query["q"], "q");
   requireMaxLength(q, 200, "q");
@@ -126,7 +138,7 @@ function parseListFilters(query: Record<string, unknown>): ListFilters {
     throw new BadRequestProblem(`unknown visibility: ${visibility}`);
   }
   return {
-    tags: multiParam(query["tag"]),
+    tags: validateQueryTags(multiParam(query["tag"])),
     ...(q !== undefined && { q }),
     ...(visibility !== undefined && { visibility: visibility as Visibility }),
   };

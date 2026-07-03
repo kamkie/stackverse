@@ -79,3 +79,22 @@ func TestValidateBookmarkDeduplicatesBeforeCounting(t *testing.T) {
 		t.Fatalf("expected one tag after deduplication, got %v", input.tags)
 	}
 }
+
+func TestValidateQueryTags(t *testing.T) {
+	tags, problem := validateQueryTags([]string{" Go ", "web"})
+	if problem != nil {
+		t.Fatalf("valid query tags rejected: %+v", problem.Fields)
+	}
+	if len(tags) != 2 || tags[0] != "go" || tags[1] != "web" {
+		t.Fatalf("query tags must be trimmed and lowercased in order; got %v", tags)
+	}
+
+	_, problem = validateQueryTags([]string{"valid", "no spaces!"})
+	if problem == nil {
+		t.Fatal("expected invalid query tag to be rejected")
+	}
+	if len(problem.Fields) != 1 || problem.Fields[0].Field != "tag" ||
+		problem.Fields[0].MessageKey != "validation.tag.invalid" {
+		t.Fatalf("expected a tag validation problem, got %+v", problem.Fields)
+	}
+}

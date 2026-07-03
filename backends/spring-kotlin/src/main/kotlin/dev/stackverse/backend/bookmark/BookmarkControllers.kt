@@ -39,7 +39,7 @@ class BookmarkV1Controller(private val service: BookmarkService) {
     ): PageResponse<BookmarkResponse> {
         requireValidPaging(page, size)
         requireMaxLength(q, 200, "q")
-        val result = service.listOffset(authentication?.name, BookmarkListQuery(tag.orEmpty(), q, visibility), page, size)
+        val result = service.listOffset(authentication?.name, BookmarkListQuery(validateQueryTags(tag.orEmpty()), q, visibility), page, size)
         return PageResponse.of(result) { BookmarkResponse.of(it) }
     }
 
@@ -84,7 +84,7 @@ class BookmarkV2Controller(private val service: BookmarkService) {
         requireMaxLength(q, 200, "q")
         val slice = service.listKeyset(
             authentication?.name,
-            BookmarkListQuery(tag.orEmpty(), q, visibility),
+            BookmarkListQuery(validateQueryTags(tag.orEmpty()), q, visibility),
             cursor?.let { BookmarkCursor.decode(it) },
             size,
         )

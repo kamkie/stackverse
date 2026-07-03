@@ -25,7 +25,10 @@ public static class BookmarkEndpoints
         {
             Paging.RequireValidPaging(page, size);
             Paging.RequireMaxLength(q, 200, "q");
-            var query = new BookmarkListQuery(tag, q, Wire.ParseQuery<Visibility>(visibility, "visibility"));
+            var query = new BookmarkListQuery(
+                BookmarkService.ValidateQueryTags(tag),
+                q,
+                Wire.ParseQuery<Visibility>(visibility, "visibility"));
             var (items, total) = await service.ListOffsetAsync(Caller(user), query, page, size);
             return PageResponse<BookmarkResponse>.Of(items.Select(BookmarkResponse.Of).ToList(), page, size, total);
         }).AllowAnonymous();
@@ -59,7 +62,10 @@ public static class BookmarkEndpoints
         {
             Paging.RequireValidPaging(page: 0, size);
             Paging.RequireMaxLength(q, 200, "q");
-            var query = new BookmarkListQuery(tag, q, Wire.ParseQuery<Visibility>(visibility, "visibility"));
+            var query = new BookmarkListQuery(
+                BookmarkService.ValidateQueryTags(tag),
+                q,
+                Wire.ParseQuery<Visibility>(visibility, "visibility"));
             var slice = await service.ListKeysetAsync(
                 Caller(user), query, cursor is null ? null : BookmarkCursor.Decode(cursor), size);
             return new BookmarkCursorPageResponse(

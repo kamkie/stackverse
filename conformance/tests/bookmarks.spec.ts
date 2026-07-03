@@ -142,6 +142,20 @@ test("repeated tag filters combine with AND", async ({ demo }) => {
   expect(page.items.map((item) => item.id)).toEqual([both.id]);
 });
 
+test("bookmark listings reject invalid repeated tag query values", async ({ demo }) => {
+  for (const path of ["/api/v1/bookmarks", "/api/v2/bookmarks"]) {
+    const problem = await expectProblem(
+      await demo.get(`${path}?tag=valid-tag&tag=${encodeURIComponent("no spaces!")}`),
+      400,
+    );
+    expect(problem.errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: "tag", messageKey: "validation.tag.invalid" }),
+      ]),
+    );
+  }
+});
+
 test("invalid input yields a 400 problem with field errors from the validation namespace", async ({ demo }) => {
   const problem = await expectProblem(await demo.post("/api/v1/bookmarks", { data: {} }), 400);
   const fields = (problem.errors ?? []).map((error) => error.field);
