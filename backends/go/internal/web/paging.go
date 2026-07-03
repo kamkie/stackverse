@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"strconv"
+	"unicode/utf8"
 )
 
 // Page is the offset-paginated envelope shared by every v1 listing.
@@ -29,17 +30,27 @@ func Paging(r *http.Request) (page, size int, problem *Problem) {
 	if problem != nil {
 		return 0, 0, problem
 	}
-	size, problem = intParam(r, "size", 20)
+	size, problem = PageSize(r)
 	if problem != nil {
 		return 0, 0, problem
 	}
 	if page < 0 {
 		return 0, 0, BadRequest("page must not be negative")
 	}
-	if size < 1 || size > 100 {
-		return 0, 0, BadRequest("size must be between 1 and 100")
-	}
 	return page, size, nil
+}
+
+// PageSize parses and bounds only `size` — the cursor-paginated v2 listing has
+// no `page` parameter, so an unknown `page` value must be ignored, not 400ed.
+func PageSize(r *http.Request) (int, *Problem) {
+	size, problem := intParam(r, "size", 20)
+	if problem != nil {
+		return 0, problem
+	}
+	if size < 1 || size > 100 {
+		return 0, BadRequest("size must be between 1 and 100")
+	}
+	return size, nil
 }
 
 func intParam(r *http.Request, name string, fallback int) (int, *Problem) {
@@ -54,9 +65,10 @@ func intParam(r *http.Request, name string, fallback int) (int, *Problem) {
 	return value, nil
 }
 
-// MaxLength bounds free-text query parameters (`q`) per the OpenAPI contract.
+// MaxLength bounds free-text query parameters (`q`) per the OpenAPI contract —
+// in characters, not bytes.
 func MaxLength(value string, max int, name string) *Problem {
-	if len(value) > max {
+	if utf8.RuneCountInString(value) > max {
 		return BadRequest(name + " must be at most " + strconv.Itoa(max) + " characters")
 	}
 	return nil

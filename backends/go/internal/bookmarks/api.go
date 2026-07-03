@@ -120,7 +120,7 @@ func (a *API) ListV1(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) ListV2(w http.ResponseWriter, r *http.Request) {
-	_, size, problem := web.Paging(r)
+	size, problem := web.PageSize(r)
 	if problem != nil {
 		a.fail(w, r, problem)
 		return
