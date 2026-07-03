@@ -101,7 +101,7 @@ and reports; `admin` sees everything:
     from/to labels), and one click clears them all.
 11. **Messages** (`admin`) — list/create/edit/delete localized messages, searchable
     via `q` (case-insensitive substring over key and text). The language field is a
-    select over the supported languages.
+    select over the supported languages, and one click clears both filters.
 
 Validation errors (RFC 9457 problem documents with an `errors` array) must be surfaced
 on the corresponding form fields, not as a generic toast. Toasts are for success

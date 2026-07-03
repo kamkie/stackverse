@@ -109,5 +109,10 @@ describe("admin messages page", () => {
       }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+
+    // one click clears both filters and the table comes back
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(await screen.findByRole("table")).toBeInTheDocument();
+    expect(filter).toHaveValue("");
   });
 });

@@ -154,6 +154,12 @@ export function MessagesPage() {
   const messages = useMessages(query);
   const deleteMessage = useDeleteMessage();
 
+  const clearFilters = () => {
+    setQInput("");
+    setLanguage("");
+    setPage(0);
+  };
+
   if (messages.isError) return <ErrorState error={messages.error} />;
 
   return (
@@ -186,6 +192,13 @@ export function MessagesPage() {
             </option>
           ))}
         </select>
+        <button
+          type="button"
+          className="sv-button sv-button--ghost"
+          onClick={clearFilters}
+        >
+          {t("ui.action.clear-filters")}
+        </button>
         <button
           type="button"
           className="sv-button sv-button--primary"
