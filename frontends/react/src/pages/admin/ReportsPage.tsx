@@ -98,11 +98,48 @@ export function ReportsPage() {
                         </button>
                       </>
                     ) : (
-                      <span
-                        className={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}
-                      >
-                        {t(`ui.report.status.${report.status}`)}
-                      </span>
+                      // decisions are revisable (SPEC rule 14): flip the
+                      // disposition or send the report back to the open queue
+                      <>
+                        <span
+                          className={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}
+                        >
+                          {t(`ui.report.status.${report.status}`)}
+                        </span>{" "}
+                        {report.status === "actioned" ? (
+                          <button
+                            type="button"
+                            className="sv-button sv-button--ghost sv-button--sm"
+                            disabled={resolve.isPending}
+                            onClick={() =>
+                              resolve.mutate({ id: report.id, resolution: "dismissed" })
+                            }
+                          >
+                            {t("ui.action.dismiss")}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="sv-button sv-button--ghost sv-button--sm"
+                            disabled={resolve.isPending}
+                            onClick={() =>
+                              resolve.mutate({ id: report.id, resolution: "actioned" })
+                            }
+                          >
+                            {t("ui.action.action")}
+                          </button>
+                        )}{" "}
+                        <button
+                          type="button"
+                          className="sv-button sv-button--ghost sv-button--sm"
+                          disabled={resolve.isPending}
+                          onClick={() =>
+                            resolve.mutate({ id: report.id, resolution: "open" })
+                          }
+                        >
+                          {t("ui.action.reopen")}
+                        </button>
+                      </>
                     )}
                   </td>
                 </tr>

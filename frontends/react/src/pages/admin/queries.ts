@@ -39,7 +39,7 @@ export function useResolveReport() {
       note,
     }: {
       id: string;
-      resolution: "dismissed" | "actioned";
+      resolution: "open" | "dismissed" | "actioned";
       note?: string;
     }) =>
       unwrap(

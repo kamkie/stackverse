@@ -143,10 +143,17 @@ class ModerationService(
         return reason!!
     }
 
-    /** SPEC rule 14: `actioned` hides the bookmark and drags every sibling open report along. */
+    /**
+     * SPEC rule 14: `actioned` hides the bookmark and drags every sibling open
+     * report along. Decisions are revisable — any target status is accepted;
+     * `open` re-opens the report and clears the resolution fields. Moving away
+     * from `actioned` never restores the bookmark (rule 15 keeps hide/restore
+     * explicit).
+     */
     fun resolve(actor: String, reportId: UUID, request: ReportResolutionRequest): Report {
         val validator = Validator()
         val resolution = when (request.resolution) {
+            "open" -> ReportStatus.OPEN
             "dismissed" -> ReportStatus.DISMISSED
             "actioned" -> ReportStatus.ACTIONED
             else -> {
@@ -158,8 +165,10 @@ class ModerationService(
         validator.throwIfInvalid()
 
         val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
-        if (report.status != ReportStatus.OPEN) {
-            throw ConflictProblem("The report has already been resolved.")
+
+        if (resolution == ReportStatus.OPEN) {
+            reopenOne(report, actor)
+            return report
         }
 
         resolveOne(report, resolution!!, actor, request.note, autoResolved = false)
@@ -171,6 +180,27 @@ class ModerationService(
                 .forEach { resolveOne(it, ReportStatus.ACTIONED, actor, request.note, autoResolved = true) }
         }
         return report
+    }
+
+    private fun reopenOne(report: Report, actor: String) {
+        report.status = ReportStatus.OPEN
+        report.resolvedBy = null
+        report.resolvedAt = null
+        report.resolutionNote = null
+        auditService.record(
+            actor,
+            "report.reopened",
+            "report",
+            report.id.toString(),
+            mapOf("bookmarkId" to report.bookmarkId.toString()),
+        )
+        log.logEvent(
+            Level.INFO, "report_reopened", "success", "Report re-opened",
+            "actor" to actor,
+            "resource_type" to "report",
+            "resource_id" to report.id.toString(),
+            "bookmark_id" to report.bookmarkId.toString(),
+        )
     }
 
     /** SPEC rule 15: hide/restore switches `status` only; `visibility` is never touched. */

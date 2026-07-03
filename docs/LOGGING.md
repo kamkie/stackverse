@@ -149,7 +149,7 @@ keeps its own event log; the application side logs only what it can see.
 
 **Moderation and admin — backend, `INFO`, diagnostic only (audit trail is
 the authority):** `report_created`, `report_updated`, `report_withdrawn`,
-`report_resolved`, `user_blocked`, `user_unblocked`,
+`report_resolved`, `report_reopened`, `user_blocked`, `user_unblocked`,
 `bookmark_status_changed`, `message_created`, `message_updated`,
 `message_deleted`. (`report_updated` and `report_withdrawn` are reporter
 self-service actions — they log but write no audit entry; SPEC rule 18

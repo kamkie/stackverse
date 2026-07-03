@@ -460,11 +460,16 @@ paths:
     put:
       operationId: resolveReport
       tags: [moderation]
-      summary: Resolve an open report (moderator)
+      summary: Resolve or revise a report (moderator)
       description: |
         `dismissed` leaves the bookmark alone; `actioned` hides it and auto-resolves
         every other open report on the same bookmark as `actioned` with the same
-        resolver and note. Resolving a non-open report yields `409`.
+        resolver and note. Decisions are revisable: any target status is accepted —
+        `dismissed` ↔ `actioned` changes the disposition (`actioned` applies its
+        side effects as usual), and `open` re-opens the report, clearing the
+        resolution fields (any `note` sent with `open` is ignored). Moving away
+        from `actioned` never restores the bookmark; use the bookmark status
+        endpoint for that.
       parameters:
         - name: id
           in: path
@@ -493,12 +498,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          description: The report is not open.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
 
   /api/v1/admin/bookmarks/{id}/status:
     put:
@@ -1250,7 +1249,7 @@ components:
       properties:
         resolution:
           type: string
-          enum: [dismissed, actioned]
+          enum: [open, dismissed, actioned]
         note:
           type: string
           maxLength: 1000

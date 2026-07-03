@@ -183,10 +183,15 @@ export interface paths {
         };
         get?: never;
         /**
-         * Resolve an open report (moderator)
+         * Resolve or revise a report (moderator)
          * @description `dismissed` leaves the bookmark alone; `actioned` hides it and auto-resolves
          *     every other open report on the same bookmark as `actioned` with the same
-         *     resolver and note. Resolving a non-open report yields `409`.
+         *     resolver and note. Decisions are revisable: any target status is accepted —
+         *     `dismissed` ↔ `actioned` changes the disposition (`actioned` applies its
+         *     side effects as usual), and `open` re-opens the report, clearing the
+         *     resolution fields (any `note` sent with `open` is ignored). Moving away
+         *     from `actioned` never restores the bookmark; use the bookmark status
+         *     endpoint for that.
          */
         put: operations["resolveReport"];
         post?: never;
@@ -550,7 +555,7 @@ export interface components {
         };
         ReportResolutionInput: {
             /** @enum {string} */
-            resolution: "dismissed" | "actioned";
+            resolution: "open" | "dismissed" | "actioned";
             note?: string;
         };
         /** @enum {string} */
@@ -1107,15 +1112,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The report is not open. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
         };
     };
     setBookmarkStatus: {

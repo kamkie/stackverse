@@ -492,11 +492,20 @@ const resolveReport = http.put(
 
     const report = db.reports.find((r) => r.id === params.id);
     if (!report) return response(404).json(notFound());
-    if (report.status !== "open") {
-      return response(409).json(problem(409, "Conflict", "The report is not open."));
-    }
 
     const input = await request.json();
+
+    // Decisions are revisable (SPEC rule 14): `open` re-opens the report and
+    // clears the resolution fields; any other target sets the disposition.
+    if (input.resolution === "open") {
+      report.status = "open";
+      delete report.resolvedBy;
+      delete report.resolvedAt;
+      delete report.resolutionNote;
+      writeAudit("report.reopened", "report", report.id, {});
+      return response(200).json(report);
+    }
+
     const now = new Date().toISOString();
     const resolve = (target: typeof report) => {
       target.status = input.resolution;

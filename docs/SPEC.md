@@ -151,9 +151,15 @@ representation, not a different feature. All other operations exist in v1 only.
     one on the same bookmark). Both act only on the caller's own reports: another
     user's report → `404` (existence is not disclosed), a non-`open` report → `409`.
 14. **Resolution.** Moderators resolve `open` reports as `dismissed` (no effect) or
-    `actioned` (the bookmark becomes `hidden`). Resolving an `actioned` report
+    `actioned` (the bookmark becomes `hidden`). Resolving as `actioned`
     auto-resolves every other `open` report on the same bookmark as `actioned`, with
-    the same resolver and note. Resolving a non-`open` report → `409`.
+    the same resolver and note. Decisions are revisable: the same endpoint accepts
+    any target status — `dismissed` ↔ `actioned` changes the disposition (resolving
+    as `actioned` applies its side effects as usual), and `open` re-opens the
+    report, clearing the resolution fields (any `note` sent with `open` is
+    ignored). Moving away from `actioned` never restores the bookmark — hide and
+    restore stay explicit moderator actions (rule 15). Every call writes an audit
+    entry (`report.resolved`, or `report.reopened` for `open`).
 15. **Hidden bookmarks.** Excluded from the public feed and from non-owner reads
     (`404`). The owner still sees them in their own list (with `status: hidden`),
     may edit fields, but any update while hidden that sets `visibility: public` →
@@ -188,7 +194,8 @@ An implementation is **done** when:
 - [ ] Message reads and stats support ETag / `If-None-Match` / `304` revalidation
 - [ ] Validation messages are served in `en` and `pl` per the language resolution rules
 - [ ] Report workflow works end to end, including the reporter's own
-      list/edit/withdraw surface (rule 13) and sibling auto-resolution (rule 14)
+      list/edit/withdraw surface (rule 13), sibling auto-resolution, and
+      resolution revision / re-opening (rule 14)
 - [ ] Hidden bookmarks disappear from the public surface and cannot be re-published by the owner
 - [ ] User accounts are lazily provisioned; blocked users get `403` on authenticated calls
 - [ ] Every backoffice mutation produces an immutable audit entry

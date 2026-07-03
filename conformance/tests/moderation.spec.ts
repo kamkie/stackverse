@@ -147,11 +147,13 @@ test("actioning hides the bookmark and auto-resolves sibling reports", async ({ 
   expect(autoResolved?.resolvedBy).toBe("moderator");
   expect(autoResolved?.resolutionNote).toBe(note);
 
-  // the state machine only resolves open reports
-  await expectProblem(
-    await moderator.put(`/api/v1/admin/reports/${first.id}`, { data: { resolution: "dismissed" } }),
-    409,
-  );
+  // decisions are revisable (rule 14): actioned → dismissed succeeds and the
+  // bookmark stays hidden — restore below is the explicit action
+  const revised = await moderator.put(`/api/v1/admin/reports/${first.id}`, {
+    data: { resolution: "dismissed" },
+  });
+  expect(revised.status(), await revised.text()).toBe(200);
+  expect(((await revised.json()) as Report).status).toBe("dismissed");
 
   // restore: status back to active, visibility untouched
   const restored = await moderator.put(`/api/v1/admin/bookmarks/${bookmark.id}/status`, {
@@ -306,6 +308,47 @@ test("withdrawing an open report removes it and frees the one-open-report slot",
   const againId = ((await again.json()) as Report).id;
   await moderator.put(`/api/v1/admin/reports/${againId}`, { data: { resolution: "dismissed" } });
   await expectProblem(await mentor.delete(`/api/v1/reports/${againId}`), 409);
+});
+
+test("a decision can be revised or re-opened (rule 14)", async ({ demo, mentor, moderator }) => {
+  const bookmark = await createBookmark(demo, {
+    url: "https://example.com/revise-decision",
+    title: `revise decision ${uid()}`,
+    visibility: "public",
+  });
+  const report = (await (await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+
+  await moderator.put(`/api/v1/admin/reports/${report.id}`, { data: { resolution: "dismissed" } });
+
+  // dismissed → actioned applies the actioning side effects: bookmark hidden
+  const actioned = await moderator.put(`/api/v1/admin/reports/${report.id}`, {
+    data: { resolution: "actioned", note: "on review" },
+  });
+  expect(actioned.status(), await actioned.text()).toBe(200);
+  expect(((await actioned.json()) as Report).resolutionNote).toBe("on review");
+  await expectProblem(await moderator.get(`/api/v1/bookmarks/${bookmark.id}`), 404);
+
+  // open re-opens and clears the resolution fields; the reporter may edit again
+  const reopened = await moderator.put(`/api/v1/admin/reports/${report.id}`, {
+    data: { resolution: "open" },
+  });
+  expect(reopened.status(), await reopened.text()).toBe(200);
+  const body = (await reopened.json()) as Report;
+  expect(body.status).toBe("open");
+  expect(body.resolvedBy).toBeUndefined();
+  expect(body.resolutionNote).toBeUndefined();
+  const revisable = await mentor.put(`/api/v1/reports/${report.id}`, {
+    data: { reason: "other" },
+  });
+  expect(revisable.status(), await revisable.text()).toBe(200);
+
+  // cleanup: withdraw the re-opened report and restore the hidden bookmark
+  await mentor.delete(`/api/v1/reports/${report.id}`);
+  await moderator.put(`/api/v1/admin/bookmarks/${bookmark.id}/status`, {
+    data: { status: "active" },
+  });
 });
 
 test("hiding and restoring via the status endpoint is moderator-only and validated", async ({ demo, moderator }) => {

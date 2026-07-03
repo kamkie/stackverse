@@ -91,7 +91,9 @@ and reports; `admin` sees everything:
 7. **Dashboard** (`moderator`) — totals from `GET /api/v1/admin/stats` plus a chart of
    the 30-day series; the open-reports card links to the reports queue.
 8. **Reports queue** (`moderator`) — open reports with dismiss/action buttons; actioned
-   reports hide the bookmark. Rows show the reported bookmark's title and URL where
+   reports hide the bookmark. Decisions are revisable (SPEC rule 14): resolved rows
+   offer the opposite disposition and a re-open action; moving away from `actioned`
+   never unhides the bookmark. Rows show the reported bookmark's title and URL where
    readable; when the read comes back `404` (private, hidden, or deleted — the API
    grants moderators no special read access), fall back to the raw id plus a hint.
 9. **Users** (`admin`) — directory searchable by username, with block/unblock

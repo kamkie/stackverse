@@ -62,6 +62,15 @@ test("dismissing an open report removes it from the open queue", async ({ page, 
     await expect(pageIndicator).not.toHaveText(before);
   }
   await expect(dismissedRow).toHaveCount(1);
+
+  // decisions are revisable (SPEC rule 14): re-open sends it back to the queue
+  await dismissedRow.getByRole("button", { name: "Re-open" }).click();
+  await expect(dismissedRow).toHaveCount(0);
+  await page.locator(".sv-toolbar .sv-select").selectOption("open");
+  await expect(reportRow(page, marker)).toHaveCount(1);
+  // leave the queue clean for the next run
+  await reportRow(page, marker).getByRole("button", { name: "Dismiss" }).click();
+  await expect(reportRow(page, marker)).toHaveCount(0);
 });
 
 test("actioning a report hides the bookmark from the public feed", async ({ page, browser }) => {

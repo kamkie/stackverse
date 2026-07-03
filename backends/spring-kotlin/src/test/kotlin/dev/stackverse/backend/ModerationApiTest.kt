@@ -238,11 +238,55 @@ class ModerationApiTest : IntegrationTest() {
         mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
             .andExpect(jsonPath("$.status").value("hidden"))
 
-        // resolving a non-open report → 409
+        // decisions are revisable (rule 14): actioned → dismissed succeeds,
+        // and the bookmark stays hidden — restore is an explicit action
         mockMvc.perform(
             put("/api/v1/admin/reports/{id}", first).with(moderator())
                 .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"dismissed"}"""),
-        ).andExpect(status().isConflict)
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("dismissed"))
+        mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
+            .andExpect(jsonPath("$.status").value("hidden"))
+    }
+
+    @Test
+    fun `decisions can be revised and re-opened`() {
+        val bookmarkId = createBookmark("alice")
+        val id = reportId("bob", bookmarkId)
+
+        resolve(id, "dismissed")
+
+        // dismissed → actioned applies the actioning side effects
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", id).with(moderator())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"actioned","note":"on review"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("actioned"))
+            .andExpect(jsonPath("$.resolutionNote").value("on review"))
+        mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
+            .andExpect(jsonPath("$.status").value("hidden"))
+
+        // re-opening clears the resolution fields and the report is editable again
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", id).with(moderator())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"open"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("open"))
+            .andExpect(jsonPath("$.resolvedBy").doesNotExist())
+            .andExpect(jsonPath("$.resolvedAt").doesNotExist())
+            .andExpect(jsonPath("$.resolutionNote").doesNotExist())
+        mockMvc.perform(
+            put("/api/v1/reports/{id}", id).with(user("bob"))
+                .contentType(MediaType.APPLICATION_JSON).content("""{"reason":"other"}"""),
+        ).andExpect(status().isOk)
+
+        // re-opening lands in the audit trail under its own action
+        mockMvc.perform(get("/api/v1/admin/audit-log").param("action", "report.reopened").with(admin()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].targetId").value(id))
     }
 
     @Test
@@ -257,7 +301,7 @@ class ModerationApiTest : IntegrationTest() {
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errors[0].messageKey").value("validation.resolution.invalid"))
-            .andExpect(jsonPath("$.errors[0].message").value("Resolution must be one of: dismissed, actioned."))
+            .andExpect(jsonPath("$.errors[0].message").value("Resolution must be one of: open, dismissed, actioned."))
 
         mockMvc.perform(
             put("/api/v1/admin/reports/{id}", reportId).with(moderator())
@@ -265,7 +309,7 @@ class ModerationApiTest : IntegrationTest() {
                 .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"ignore"}"""),
         )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.errors[0].message").value("Rozstrzygnięcie musi być jednym z: dismissed, actioned."))
+            .andExpect(jsonPath("$.errors[0].message").value("Rozstrzygnięcie musi być jednym z: open, dismissed, actioned."))
     }
 
     @Test
