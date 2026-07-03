@@ -71,7 +71,11 @@ suffixed one is missing — the bundle stays a flat map, no message syntax.
 2. **Public feed** — anonymous view of public bookmarks (`?visibility=public`), with a
    report action when authenticated. A successful report is confirmed (e.g. a toast)
    and the bookmark's report button flips to a disabled "reported" state for the
-   rest of the session — the API's `409` on duplicates stays the source of truth.
+   rest of the session. A `409` on submit (SPEC rule 13 — the caller already has an
+   open report on that bookmark) is positive proof of the same state, so it confirms
+   rather than errors: the button flips identically, the dialog closes, and a brief
+   confirmation (e.g. a toast) says the report already exists. Withdrawing a report
+   frees the slot (SPEC rule 13), so it re-enables the button.
 3. **My reports** — the caller's own reports (SPEC rule 13) with the reported
    bookmark's context, filterable by status; moderation's disposition (status and
    note) is visible, and `open` reports can be edited or withdrawn (withdrawal

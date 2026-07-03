@@ -1,8 +1,8 @@
 /**
  * Browser-session memory of what this visitor already reported: the feed's
- * report button flips to a disabled "Reported" for these ids. The API's 409
- * duplicate handling stays the source of truth; withdrawing a report frees
- * the slot again (SPEC rule 13), so it must remove the id here too.
+ * report button flips to a disabled "Reported" for these ids. Ids arrive on
+ * either proof of the state — a 201 create or a 409 duplicate (SPEC rule 13);
+ * withdrawing a report frees the slot again, so it must remove the id here.
  */
 const REPORTED_STORAGE_KEY = 'stackverse.reported';
 
