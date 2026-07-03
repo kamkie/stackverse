@@ -1,0 +1,59 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-frontend-angular
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-angular:
+    name: Frontend · Angular
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/angular
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-angular-${{ hashFiles('frontends/angular/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-angular-
+      - name: Install dependencies
+        run: yarn install --immutable
+      # `ng build` type-checks (AOT + strict templates) as part of the build
+      - name: Typecheck and build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test --coverage --reporters junit --output-file test-results/junit.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: frontends/angular/coverage/frontend-angular/lcov.info
+          flags: frontend-angular
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: frontends/angular/test-results/junit.xml
+          flags: frontend-angular
+          token: ${{ secrets.CODECOV_TOKEN }}

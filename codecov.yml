@@ -11,30 +11,40 @@ coverage:
 
 # One flag per implementation, matching the CI job that uploads it. carryforward
 # keeps a flag's last value when a commit doesn't re-run that implementation.
+# Planned variants are pre-seeded (alphabetized) so a variant PR never edits
+# this shared file — a flag with no uploads is inert.
 flags:
-  backend-spring-kotlin:
-    paths:
-      - backends/spring-kotlin/
-    carryforward: true
   backend-dotnet:
     paths:
       - backends/dotnet/
     carryforward: true
-  gateway-yarp:
+  backend-go:
     paths:
-      - gateways/yarp/
+      - backends/go/
     carryforward: true
-  gateway-spring-cloud-gateway:
+  backend-node-ts:
     paths:
-      - gateways/spring-cloud-gateway/
+      - backends/node-ts/
+    carryforward: true
+  backend-spring-kotlin:
+    paths:
+      - backends/spring-kotlin/
+    carryforward: true
+  frontend-angular:
+    paths:
+      - frontends/angular/
     carryforward: true
   frontend-react:
     paths:
       - frontends/react/
     carryforward: true
-  frontend-angular:
+  gateway-spring-cloud-gateway:
     paths:
-      - frontends/angular/
+      - gateways/spring-cloud-gateway/
+    carryforward: true
+  gateway-yarp:
+    paths:
+      - gateways/yarp/
     carryforward: true
 
 # Components are yml-defined virtual filters over the same uploads — one per
@@ -45,30 +55,38 @@ flags:
 # stays informational (see above).
 component_management:
   individual_components:
-    - component_id: backend-spring-kotlin
-      name: "backend · spring-kotlin"
-      paths:
-        - backends/spring-kotlin/**
     - component_id: backend-dotnet
       name: "backend · dotnet"
       paths:
         - backends/dotnet/**
-    - component_id: gateway-yarp
-      name: "gateway · yarp"
+    - component_id: backend-go
+      name: "backend · go"
       paths:
-        - gateways/yarp/**
-    - component_id: gateway-spring-cloud-gateway
-      name: "gateway · spring-cloud-gateway"
+        - backends/go/**
+    - component_id: backend-node-ts
+      name: "backend · node-ts"
       paths:
-        - gateways/spring-cloud-gateway/**
-    - component_id: frontend-react
-      name: "frontend · react"
+        - backends/node-ts/**
+    - component_id: backend-spring-kotlin
+      name: "backend · spring-kotlin"
       paths:
-        - frontends/react/**
+        - backends/spring-kotlin/**
     - component_id: frontend-angular
       name: "frontend · angular"
       paths:
         - frontends/angular/**
+    - component_id: frontend-react
+      name: "frontend · react"
+      paths:
+        - frontends/react/**
+    - component_id: gateway-spring-cloud-gateway
+      name: "gateway · spring-cloud-gateway"
+      paths:
+        - gateways/spring-cloud-gateway/**
+    - component_id: gateway-yarp
+      name: "gateway · yarp"
+      paths:
+        - gateways/yarp/**
 
 comment:
   layout: "condensed_header, diff, flags, components"
