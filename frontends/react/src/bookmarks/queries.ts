@@ -7,10 +7,25 @@ import {
 import { api, unwrap } from "../api/client";
 import type { components } from "../api/schema";
 
-export type Bookmark = components["schemas"]["Bookmark"];
+/**
+ * The contract requires `visibility` and `tags` on every Bookmark *response*
+ * (the allOf sibling's `required` in spec/openapi.yaml) even though both are
+ * optional on BookmarkInput. openapi-typescript drops `required` entries that
+ * point at inherited properties, so restore them on the app-facing type.
+ */
+export type Bookmark = components["schemas"]["Bookmark"] &
+  Required<Pick<components["schemas"]["Bookmark"], "visibility" | "tags">>;
 export type BookmarkInput = components["schemas"]["BookmarkInput"];
 export type Visibility = components["schemas"]["Visibility"];
 export type ReportInput = components["schemas"]["ReportInput"];
+
+/** The generated cursor page with the response-required Bookmark fields restored. */
+export type BookmarkCursorPage = Omit<
+  components["schemas"]["BookmarkCursorPage"],
+  "items"
+> & {
+  items: Bookmark[];
+};
 
 export interface BookmarkFilters {
   tags: string[];
@@ -42,7 +57,7 @@ export function useBookmarks(
             },
           },
         }),
-      ),
+      ) as BookmarkCursorPage,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
