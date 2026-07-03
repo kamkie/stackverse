@@ -40,6 +40,13 @@ implemented in many stacks. Read these before changing anything:
   conformance table), `docs/INTENT.md` for scope shifts, the component READMEs, and
   this file. Also verify cross-references: a document cited for a claim must
   actually make that claim. Waiting to be asked is a defect.
+- **A branch task is done only when its PR is up.** Committing locally is not the
+  end of the job. Before ending the session or reporting the task complete: rename
+  an auto-generated worktree branch to `claude/<short-task-slug>`, push it, open
+  the PR, and run the cross-review below with its findings triaged. Work stranded
+  unpushed in a local worktree is an unfinished task — any agent that discovers
+  such a branch finishes the handoff (push, PR, cross-review) instead of waiting
+  to be asked.
 - **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
   authoring agent asks the other agent for review and triages the findings — fix
   them or answer them on the PR:
