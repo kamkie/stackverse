@@ -15,7 +15,8 @@ export const routes: RouteObject[] = [
     path: "/",
     element: <Layout />,
     children: [
-      { index: true, element: <Navigate to="/bookmarks" replace /> },
+      // Land on the public feed — the only screen an anonymous visitor can use.
+      { index: true, element: <Navigate to="/feed" replace /> },
       { path: "bookmarks", element: <MyBookmarksPage /> },
       { path: "reports", element: <MyReportsPage /> },
       { path: "feed", element: <PublicFeedPage /> },

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "generate:api": "openapi-typescript ../../spec/openapi.yaml -o src/api/schema.ts"
+    "generate:api": "openapi-typescript ../../spec/openapi.yaml -o src/api/schema.ts --default-non-nullable false",
+    "generate:api:check": "yarn generate:api --check"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",

@@ -103,6 +103,9 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-frontend-react-
       - name: Install dependencies
         run: yarn install --immutable
+      # the committed src/api/schema.ts must match spec/openapi.yaml
+      - name: Check generated API types are current
+        run: yarn generate:api:check
       # `yarn build` runs the typecheck (tsc --noEmit) before vite build
       - name: Typecheck and build
         run: yarn build
