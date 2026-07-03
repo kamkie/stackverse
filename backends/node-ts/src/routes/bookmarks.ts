@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import { pool, type Queryable } from "../db.js";
+import { pool, withTransaction, type Queryable } from "../db.js";
 import { encodeCursor, decodeCursor, type BookmarkCursor } from "../cursor.js";
 import { requireCaller } from "../auth.js";
 import {
@@ -268,21 +268,28 @@ export function registerBookmarkRoutes(app: FastifyInstance): void {
   app.put("/api/v1/bookmarks/:id", async (request) => {
     const caller = requireCaller(request);
     const id = parseUuid((request.params as { id: string }).id);
-    const bookmark = await ownedByCaller(caller.username, id);
     const input = validateBookmarkInput(request.body);
-    // SPEC rule 15: a moderation-hidden bookmark cannot be (re)published by its owner
-    if (bookmark.status === "hidden" && input.visibility === "public") {
-      throw new ConflictProblem(
-        "This bookmark was hidden by moderation and cannot be made public.",
-        "error.bookmark.hidden-publish",
+    // lock the row so a concurrent moderation hide cannot slip between the
+    // hidden-publish check and the write (SPEC rule 15) — moderation takes the
+    // same `for update` lock, so the two serialize
+    const updated = await withTransaction(async (client) => {
+      const found = await client.query("select * from bookmarks where id = $1 for update", [id]);
+      const bookmark = found.rows[0] as BookmarkRow | undefined;
+      if (!bookmark || bookmark.owner !== caller.username) throw new NotFoundProblem();
+      if (bookmark.status === "hidden" && input.visibility === "public") {
+        throw new ConflictProblem(
+          "This bookmark was hidden by moderation and cannot be made public.",
+          "error.bookmark.hidden-publish",
+        );
+      }
+      const result = await client.query(
+        `update bookmarks set url = $2, title = $3, notes = $4, tags = $5::text[], visibility = $6, updated_at = $7
+         where id = $1 returning *`,
+        [id, input.url, input.title, input.notes, input.tags, input.visibility, new Date()],
       );
-    }
-    const result = await pool.query(
-      `update bookmarks set url = $2, title = $3, notes = $4, tags = $5::text[], visibility = $6, updated_at = $7
-       where id = $1 returning *`,
-      [id, input.url, input.title, input.notes, input.tags, input.visibility, new Date()],
-    );
-    return toBookmarkResponse(result.rows[0] as BookmarkRow);
+      return result.rows[0] as BookmarkRow;
+    });
+    return toBookmarkResponse(updated);
   });
 
   app.delete("/api/v1/bookmarks/:id", async (request, reply) => {
