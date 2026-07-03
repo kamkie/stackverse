@@ -639,10 +639,12 @@ const listAuditEntries = http.get("/api/v1/admin/audit-log", ({ query, response 
   if (targetType) items = items.filter((e) => e.targetType === targetType);
   const targetId = query.get("targetId");
   if (targetId) items = items.filter((e) => e.targetId === targetId);
+  // Compare as instants, not strings — the bounds may carry more fractional
+  // digits than the stored millisecond timestamps.
   const from = query.get("from");
-  if (from) items = items.filter((e) => e.createdAt >= from);
+  if (from) items = items.filter((e) => Date.parse(e.createdAt) >= Date.parse(from));
   const to = query.get("to");
-  if (to) items = items.filter((e) => e.createdAt <= to);
+  if (to) items = items.filter((e) => Date.parse(e.createdAt) <= Date.parse(to));
   return response(200).json(paginate(items, query.get("page"), query.get("size")));
 });
 

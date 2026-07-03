@@ -64,9 +64,10 @@ describe('AuditLogPage', () => {
 
     await setDate('to', '2026-06-01');
     const toRequest = controller.expectOne(isAuditRequest);
-    // To covers the whole selected day, not just its first instant.
+    // To covers the whole selected day, not just its first instant — down to
+    // the backend's microsecond timestamp precision.
     expect(toRequest.request.params.get('to')).toBe(
-      new Date('2026-06-01T23:59:59.999').toISOString(),
+      new Date('2026-06-01T23:59:59.999').toISOString().replace('.999Z', '.999999Z'),
     );
     expect(toRequest.request.params.get('from')).toBe(
       new Date('2026-06-01T00:00:00').toISOString(),
