@@ -10,11 +10,17 @@ const mockEnabled = process.env["VITE_API_MOCK"] !== "false";
 // src/dev/forwardConsoleToDevServer.ts) and prints it to the dev server's
 // stdout, so browser logs land in the terminal and dev-server.log.
 const FORWARDED_LEVELS = new Set(["log", "info", "warn", "error", "debug"]);
+// The browser-side forwarder already truncates at 4000 chars; this server-side
+// cap only matters for crafted POSTs that bypass it (docs/LOGGING.md §6:
+// client-controlled input gets its length capped where it is logged).
+const MAX_FIELD_CHARS = 4096;
 
-// Everything in the batch is client-controlled: strip control characters and
-// encode newlines so a console.log (or crafted POST) can't forge log lines.
+// Everything in the batch is client-controlled: strip control characters,
+// encode newlines, and cap length so a console.log (or crafted POST) can't
+// forge or flood log lines (docs/LOGGING.md §6).
 function sanitizeLogField(value: unknown): string {
   return String(value)
+    .slice(0, MAX_FIELD_CHARS)
     .replace(/\r?\n/g, "\\n")
     // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
