@@ -1,0 +1,55 @@
+# One update config per ecosystem per implementation directory — implementations
+# are siblings with independent toolchains, so their updates stay independent too.
+# Minor + patch bumps are grouped into a single PR per ecosystem; majors stay
+# separate so a breaking upgrade is reviewed on its own.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: gradle
+    directory: /backends/spring-kotlin
+    schedule:
+      interval: weekly
+    groups:
+      gradle-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: nuget
+    directory: /gateways/yarp
+    schedule:
+      interval: weekly
+    groups:
+      nuget-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directories:
+      - /frontends/react
+      - /conformance
+      - /e2e
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  # Dockerfile base images
+  - package-ecosystem: docker
+    directories:
+      - /backends/spring-kotlin
+      - /gateways/yarp
+      - /frontends/react
+    schedule:
+      interval: weekly
+
+  # infra images in compose.yaml (postgres, redis, keycloak, otel-lgtm)
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly

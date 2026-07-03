@@ -1,6 +1,8 @@
 # Stackverse
 
 [![CI](https://github.com/kamkie/stackverse/actions/workflows/ci.yml/badge.svg)](https://github.com/kamkie/stackverse/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/kamkie/stackverse/actions/workflows/codeql.yml/badge.svg)](https://github.com/kamkie/stackverse/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg)](https://codecov.io/gh/kamkie/stackverse)
 
 **One app, every stack.**
 
@@ -78,16 +80,16 @@ pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
 ## Implementation matrix
 
-| Component | Stack | Directory | Status |
-|---|---|---|---|
-| Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | ✅ done |
-| Backend | ASP.NET Core (C#) | `backends/dotnet` | planned |
-| Backend | Go (stdlib + chi) | `backends/go` | planned |
-| Backend | Node.js (TypeScript) | `backends/node-ts` | planned |
-| Gateway | Spring Cloud Gateway | `gateways/spring-cloud-gateway` | planned |
-| Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done |
-| Frontend | React | `frontends/react` | ✅ done |
-| Frontend | Angular | `frontends/angular` | planned |
+| Component | Stack | Directory | Status | Coverage |
+|---|---|---|---|---|
+| Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-spring-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | ASP.NET Core (C#) | `backends/dotnet` | planned | — |
+| Backend | Go (stdlib + chi) | `backends/go` | planned | — |
+| Backend | Node.js (TypeScript) | `backends/node-ts` | planned | — |
+| Gateway | Spring Cloud Gateway | `gateways/spring-cloud-gateway` | planned | — |
+| Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | Angular | `frontends/angular` | planned | — |
 
 ## Quickstart
 
@@ -143,7 +145,7 @@ e2e/           black-box Playwright suite for any composed stack
 infra/         shared infrastructure config (Keycloak realm, ...)
 scripts/       build/run/test helpers, each as a .ps1 + .sh pair
 compose.yaml   infra + pluggable app combination
-.github/       CI workflow (per-implementation builds + conformance + e2e)
+.github/       CI + CodeQL workflows, Dependabot config
 ```
 
 ## License

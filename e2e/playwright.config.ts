@@ -11,7 +11,10 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env["CI"],
-  reporter: [["list"], ["html", { open: "never" }]],
+  // CI also emits JUnit XML for Codecov test analytics
+  reporter: process.env["CI"]
+    ? [["list"], ["html", { open: "never" }], ["junit", { outputFile: "test-results/junit.xml" }]]
+    : [["list"], ["html", { open: "never" }]],
   timeout: 30_000,
   use: {
     baseURL,

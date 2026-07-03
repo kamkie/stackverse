@@ -26,3 +26,7 @@ bin/
 obj/
 dist/
 out/
+
+# test coverage output (JaCoCo lands under build/, these two don't)
+coverage/
+TestResults/

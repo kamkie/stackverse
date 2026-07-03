@@ -153,6 +153,30 @@ All jobs run on every change (no path filters): the contract couples every
 implementation to `spec/` and `docs/`. Playwright reports upload as workflow
 artifacts when a suite fails.
 
+Each per-implementation build also uploads unit/integration coverage to
+[Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
+flag (JaCoCo XML for the backend, coverlet Cobertura for the gateway, vitest
+lcov for the frontend). Coverage is informational only — see `codecov.yml` at
+the repo root; the acceptance gate stays the conformance and e2e suites. The
+upload needs a `CODECOV_TOKEN` repository secret.
+
+Every job — including conformance and e2e — also submits its JUnit test
+results to Codecov test analytics under the same flags (Gradle's XML for the
+backend, `--logger junit` for the gateway, and a CI-only JUnit reporter wired
+into the vitest and Playwright configs), even when the tests fail. The README
+implementation matrix shows a per-flag coverage badge for each done
+implementation.
+
+Two more automations live in `.github/`:
+
+- [`workflows/codeql.yml`](../.github/workflows/codeql.yml) — CodeQL static
+  analysis over Kotlin/Java, C#, JS/TS, and the workflow files themselves, on
+  every push/PR and weekly. Kotlin needs a real compile, so that matrix leg
+  builds the backend; the rest scan buildless.
+- [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
+  every ecosystem (Gradle, NuGet, npm, GitHub Actions, Dockerfiles, and the
+  compose infra images), with minor/patch bumps grouped per ecosystem.
+
 ## Observability
 
 An all-in-one [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm)
