@@ -35,12 +35,14 @@ if (-not (Get-Command $nodeBin -ErrorAction SilentlyContinue)) {
     throw 'Node.js 18+ is required to run the seed helper.'
 }
 
-$nodeVersion = (& $nodeBin --version).Trim()
-if ($LASTEXITCODE -ne 0) {
+$nodeVersionOutput = & $nodeBin --version 2>$null
+if ($LASTEXITCODE -ne 0 -or $null -eq $nodeVersionOutput) {
     throw 'Node.js 18+ is required to run the seed helper.'
 }
-$nodeMajor = [int]($nodeVersion.TrimStart('v').Split('.')[0])
-if ($nodeMajor -lt 18) {
+$nodeVersion = ($nodeVersionOutput | Select-Object -First 1).ToString().Trim()
+$nodeMajorText = $nodeVersion.TrimStart('v').Split('.')[0]
+$nodeMajor = 0
+if (-not [int]::TryParse($nodeMajorText, [ref]$nodeMajor) -or $nodeMajor -lt 18) {
     throw "Node.js 18+ is required to run the seed helper; found $nodeVersion."
 }
 
