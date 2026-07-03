@@ -16,6 +16,10 @@ flags:
     paths:
       - backends/spring-kotlin/
     carryforward: true
+  backend-dotnet:
+    paths:
+      - backends/dotnet/
+    carryforward: true
   gateway-yarp:
     paths:
       - gateways/yarp/
@@ -37,6 +41,10 @@ component_management:
       name: "backend · spring-kotlin"
       paths:
         - backends/spring-kotlin/**
+    - component_id: backend-dotnet
+      name: "backend · dotnet"
+      paths:
+        - backends/dotnet/**
     - component_id: gateway-yarp
       name: "gateway · yarp"
       paths:

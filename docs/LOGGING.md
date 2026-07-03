@@ -252,24 +252,29 @@ no per-environment profiles.
 
 ## 10. Conformance
 
-| Requirement | spring-kotlin | yarp | react |
-|---|---|---|---|
-| stdout-only logging | ✅ | ✅ | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) | ✅ (.NET SDK) | n/a |
-| lifecycle events at `INFO` | ✅ | ✅ | n/a |
-| expected 4xx not logged as errors | ✅ | ✅ | n/a |
-| secrets kept out of logs | ✅ | ✅ | ✅ |
-| `LOG_LEVEL` honored | ✅ | ✅ | n/a |
-| trace id on console lines when tracing on | ✅ | ✅ | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ❌ gap¹ | n/a |
-| JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | n/a |
-| dev-only console forwarding, sanitized | n/a | n/a | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a | n/a | ✅ |
+| Requirement | spring-kotlin | dotnet | yarp | react |
+|---|---|---|---|---|
+| stdout-only logging | ✅ | ✅ | ✅ | n/a |
+| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) | ✅ (.NET SDK) | ✅ (.NET SDK) | n/a |
+| lifecycle events at `INFO` | ✅ | ✅ | ✅ | n/a |
+| expected 4xx not logged as errors | ✅ | ✅ | ✅ | n/a |
+| secrets kept out of logs | ✅ | ✅ | ✅ | ✅ |
+| `LOG_LEVEL` honored | ✅ | ✅ | ✅ | n/a |
+| trace id on console lines when tracing on | ✅ | ✅ | ✅ | n/a |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | ✅ | n/a |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ✅² | ❌ gap¹ | n/a |
+| JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | ✅ | n/a |
+| dev-only console forwarding, sanitized | n/a | n/a | n/a | ✅ |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a | n/a | n/a | ✅ |
 
 ¹ yarp emits `dependency_call_failed` for Keycloak token-refresh outages, but
 Redis and the backend upstream are still uncovered — partial coverage keeps
 the row a gap.
+
+² dotnet emits `dependency_call_failed` for both of its dependencies:
+PostgreSQL (request-path failures and the readiness probe) and the Keycloak
+JWKS fetch. It has no retry loops, so `retry_exhausted` has no occurrence to
+log.
 
 Gaps are tracked here on purpose: a new implementation must satisfy every
 row, and any `❌` an implementation accrues is its agreed, visible backlog.

@@ -1,6 +1,6 @@
 # CI for every push/PR: each implementation builds and tests in isolation,
 # then the two black-box suites prove the contract — conformance directly
-# against the spring-kotlin backend, e2e through the full composed stack.
+# against every backend, e2e through the full composed stack.
 #
 # All jobs run unconditionally (no path filters): the contract couples
 # everything to spec/ and docs/, and with one implementation per layer the
@@ -50,6 +50,35 @@ jobs:
           report_type: test_results
           directory: backends/spring-kotlin/build/test-results/test
           flags: backend-spring-kotlin
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  backend-dotnet:
+    name: Backend · ASP.NET Core (C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/dotnet
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build and test
+        run: dotnet test --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          directory: backends/dotnet/TestResults
+          flags: backend-dotnet
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/dotnet/TestResults/TestResults.xml
+          flags: backend-dotnet
           token: ${{ secrets.CODECOV_TOKEN }}
 
   gateway-yarp:
@@ -124,15 +153,19 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   conformance:
-    name: Conformance · spring-kotlin backend
+    name: Conformance · ${{ matrix.backend }} backend
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [spring-kotlin, dotnet]
     env:
-      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      BACKEND_IMAGE: stackverse/backend-${{ matrix.backend }}:local
     steps:
       - uses: actions/checkout@v7
       - name: Build backend image
-        run: docker build -t "$BACKEND_IMAGE" -f backends/spring-kotlin/Dockerfile .
+        run: docker build -t "$BACKEND_IMAGE" -f "backends/${{ matrix.backend }}/Dockerfile" .
       # starts postgres + keycloak (waits on their healthchecks), then the backend
       - name: Start infra + backend
         run: docker compose --profile app up -d backend
@@ -175,7 +208,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: conformance-report
+          name: conformance-report-${{ matrix.backend }}
           path: conformance/playwright-report/
           retention-days: 7
 
