@@ -4,6 +4,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { db } from "../mocks/db";
 import { MOCK_USERS, setCurrentUser } from "../mocks/state";
 import { renderApp } from "./utils";
 
@@ -47,6 +48,10 @@ describe("my reports page", () => {
   it("withdraws an open report only after confirmation", async () => {
     setCurrentUser(MOCK_USERS.demo);
     const user = userEvent.setup();
+    // the feed remembers reported bookmarks for the session — withdrawal
+    // frees the slot, so the marker must go too
+    const reportedBookmarkId = db.reports[0]?.bookmarkId as string;
+    sessionStorage.setItem("stackverse.reported", JSON.stringify([reportedBookmarkId]));
     renderApp("/reports");
 
     const title = await screen.findByText(REPORTED_TITLE);
@@ -70,5 +75,8 @@ describe("my reports page", () => {
         "No reports yet — anything you report shows up here.",
       ),
     ).toBeInTheDocument();
+    expect(
+      JSON.parse(sessionStorage.getItem("stackverse.reported") ?? "[]"),
+    ).not.toContain(reportedBookmarkId);
   });
 });

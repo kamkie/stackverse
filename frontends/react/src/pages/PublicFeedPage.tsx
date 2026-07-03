@@ -3,20 +3,10 @@ import { BookmarkCard } from "../bookmarks/BookmarkCard";
 import { BookmarkList } from "../bookmarks/BookmarkList";
 import { ReportDialog } from "../bookmarks/ReportDialog";
 import { useBookmarks, type Bookmark } from "../bookmarks/queries";
+import { addReportedId, readReportedIds } from "../bookmarks/reportedStore";
 import { useSession } from "../auth/session";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { useI18n } from "../i18n/I18nProvider";
-
-const REPORTED_STORAGE_KEY = "stackverse.reported";
-
-function readReportedIds(): ReadonlySet<string> {
-  try {
-    const raw = sessionStorage.getItem(REPORTED_STORAGE_KEY);
-    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
-  } catch {
-    return new Set();
-  }
-}
 
 /** Anonymous view of public bookmarks, with a report action when authenticated. */
 export function PublicFeedPage() {
@@ -26,10 +16,10 @@ export function PublicFeedPage() {
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search, 300);
   const [reporting, setReporting] = useState<Bookmark | null>(null);
-  // Browser-session memory of what this visitor already reported: the button
-  // flips to a disabled "Reported" to discourage repeat reports, and survives
-  // navigating away via sessionStorage. The API's 409 duplicate handling in
-  // ReportDialog remains the source of truth.
+  // Browser-session memory of what this visitor already reported (see
+  // reportedStore): the button flips to a disabled "Reported" to discourage
+  // repeat reports. The API's 409 duplicate handling in ReportDialog remains
+  // the source of truth.
   const [reportedIds, setReportedIds] = useState<ReadonlySet<string>>(readReportedIds);
 
   const filters = useMemo(
@@ -97,20 +87,7 @@ export function PublicFeedPage() {
         <ReportDialog
           bookmark={reporting}
           onClose={() => setReporting(null)}
-          onReported={(bookmarkId) =>
-            setReportedIds((prev) => {
-              const next = new Set(prev).add(bookmarkId);
-              try {
-                sessionStorage.setItem(
-                  REPORTED_STORAGE_KEY,
-                  JSON.stringify([...next]),
-                );
-              } catch {
-                // storage unavailable — the state just won't survive navigation
-              }
-              return next;
-            })
-          }
+          onReported={(bookmarkId) => setReportedIds(addReportedId(bookmarkId))}
         />
       )}
     </section>

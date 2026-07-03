@@ -15,6 +15,7 @@ import {
   type ReportInput,
   type ReportStatus,
 } from "../bookmarks/queries";
+import { removeReportedId } from "../bookmarks/reportedStore";
 import { useBookmark } from "./admin/queries";
 
 const REASONS: ReportInput["reason"][] = ["spam", "offensive", "broken-link", "other"];
@@ -218,6 +219,9 @@ export function MyReportsPage() {
           onConfirm={() =>
             withdraw.mutate(withdrawing.id, {
               onSuccess: () => {
+                // withdrawal frees the slot (SPEC rule 13) — the feed's
+                // session-local "Reported" marker must not outlive the report
+                removeReportedId(withdrawing.bookmarkId);
                 setWithdrawing(null);
                 toast.push(t("ui.toast.report-withdrawn"));
               },
