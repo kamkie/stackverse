@@ -96,11 +96,62 @@ export interface paths {
          * Report a public bookmark
          * @description Any authenticated user may report a bookmark that is public and visible to
          *     them. At most one `open` report per user per bookmark (`409`); a new report
-         *     is allowed once the previous one is resolved. Private or hidden bookmarks
-         *     yield `404` — existence is not disclosed.
+         *     is allowed once the previous one is resolved or withdrawn. Private or
+         *     hidden bookmarks yield `404` — existence is not disclosed.
          */
         post: operations["reportBookmark"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's own reports
+         * @description Every report the caller has filed, newest first — the reporter's
+         *     feedback loop. `status` shows what moderation decided; the resolution
+         *     fields (`resolvedBy`, `resolvedAt`, `resolutionNote`) carry the
+         *     disposition once a moderator acts.
+         */
+        get: operations["listMyReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update the caller's own open report
+         * @description The reporter may revise `reason` and `comment` while the report is
+         *     `open`. Another user's report yields `404` — existence is not
+         *     disclosed. A resolved report yields `409`.
+         */
+        put: operations["updateMyReport"];
+        post?: never;
+        /**
+         * Withdraw the caller's own open report
+         * @description Removes the report entirely; a withdrawn report no longer blocks filing
+         *     a new one on the same bookmark. Another user's report yields `404` —
+         *     existence is not disclosed. A resolved report yields `409`.
+         */
+        delete: operations["withdrawReport"];
         options?: never;
         head?: never;
         patch?: never;
@@ -132,10 +183,15 @@ export interface paths {
         };
         get?: never;
         /**
-         * Resolve an open report (moderator)
+         * Resolve or revise a report (moderator)
          * @description `dismissed` leaves the bookmark alone; `actioned` hides it and auto-resolves
          *     every other open report on the same bookmark as `actioned` with the same
-         *     resolver and note. Resolving a non-open report yields `409`.
+         *     resolver and note. Decisions are revisable: any target status is accepted —
+         *     `dismissed` ↔ `actioned` changes the disposition (`actioned` applies its
+         *     side effects as usual), and `open` re-opens the report, clearing the
+         *     resolution fields (any `note` sent with `open` is ignored). Moving away
+         *     from `actioned` never restores the bookmark; use the bookmark status
+         *     endpoint for that.
          */
         put: operations["resolveReport"];
         post?: never;
@@ -499,7 +555,7 @@ export interface components {
         };
         ReportResolutionInput: {
             /** @enum {string} */
-            resolution: "dismissed" | "actioned";
+            resolution: "open" | "dismissed" | "actioned";
             note?: string;
         };
         /** @enum {string} */
@@ -908,6 +964,100 @@ export interface operations {
             };
         };
     };
+    listMyReports: {
+        parameters: {
+            query?: {
+                status?: components["schemas"]["ReportStatus"];
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A page of the caller's reports, newest first. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportPage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateMyReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportInput"];
+            };
+        };
+        responses: {
+            /** @description The updated report. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Report"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description The report is not open. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    withdrawReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report withdrawn. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description The report is not open. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     listReports: {
         parameters: {
             query?: {
@@ -962,15 +1112,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            /** @description The report is not open. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["Problem"];
-                };
-            };
         };
     };
     setBookmarkStatus: {
@@ -1161,6 +1302,8 @@ export interface operations {
             query?: {
                 /** @description Exact message key. */
                 key?: components["schemas"]["MessageKey"];
+                /** @description Case-insensitive substring match over key and text. */
+                q?: string;
                 language?: components["schemas"]["LanguageCode"];
                 page?: number;
                 size?: number;

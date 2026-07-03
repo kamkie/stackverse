@@ -1,4 +1,4 @@
-// Tag sidebar (frontends/README.md #3): tags from GET /api/v1/tags, click to
+// Tag sidebar (frontends/README.md #4): tags from GET /api/v1/tags, click to
 // filter the bookmark list.
 import { expect, test } from "@playwright/test";
 import { authFile, createBookmark, uid } from "./helpers";

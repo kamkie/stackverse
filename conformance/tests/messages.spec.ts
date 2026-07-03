@@ -50,6 +50,31 @@ test("the listing filters by exact key and language", async ({ anon, admin }) =>
   expect(page.items[0]?.key).toBe(key);
 });
 
+test("q filters by case-insensitive substring over key and text", async ({ anon, admin }) => {
+  const marker = uid();
+  const key = `conformance.q.${marker}`;
+  await createMessage(admin, { key, language: "en", text: `q text ${marker} target` });
+
+  const listing = async (q: string) => {
+    const response = await anon.get(`/api/v1/messages?q=${encodeURIComponent(q)}`);
+    expect(response.status()).toBe(200);
+    return (await response.json()) as { items: Message[]; totalItems: number };
+  };
+
+  // substring of the key, matched case-insensitively
+  const byKey = await listing(`E.Q.${marker.toUpperCase()}`);
+  expect(byKey.totalItems).toBe(1);
+  expect(byKey.items[0]?.key).toBe(key);
+
+  // substring of the text
+  const byText = await listing(`text ${marker} tar`);
+  expect(byText.totalItems).toBe(1);
+  expect(byText.items[0]?.key).toBe(key);
+
+  // LIKE wildcards in the query are literals, not patterns
+  expect((await listing(`%${marker}%`)).totalItems).toBe(0);
+});
+
 test("a single message is publicly readable with ETag / 304 and 404s when unknown", async ({ anon, admin }) => {
   const created = await createMessage(admin, {
     key: `conformance.single.${uid()}`,

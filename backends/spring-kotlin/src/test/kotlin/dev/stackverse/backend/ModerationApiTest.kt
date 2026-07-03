@@ -7,6 +7,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.MediaType
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
@@ -77,6 +78,100 @@ class ModerationApiTest : IntegrationTest() {
         ).andExpect(status().isUnauthorized)
     }
 
+    private fun reportId(reporter: String, bookmarkId: String, reason: String = "spam"): String =
+        objectMapper.readTree(report(reporter, bookmarkId, reason).andReturn().response.contentAsString)
+            .get("id").asString()
+
+    private fun resolve(reportId: String, resolution: String = "dismissed") {
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", reportId).with(moderator())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"$resolution"}"""),
+        ).andExpect(status().isOk)
+    }
+
+    @Test
+    fun `reporters list only their own reports, newest first, with a status filter`() {
+        val first = createBookmark("alice")
+        val second = createBookmark("alice")
+        val bobFirst = reportId("bob", first)
+        report("bob", second).andExpect(status().isCreated)
+        report("carol", first).andExpect(status().isCreated)
+
+        mockMvc.perform(get("/api/v1/reports")).andExpect(status().isUnauthorized)
+
+        mockMvc.perform(get("/api/v1/reports").with(user("bob")))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items", hasSize<Any>(2)))
+            .andExpect(jsonPath("$.items[0].bookmarkId").value(second))
+            .andExpect(jsonPath("$.items[1].bookmarkId").value(first))
+
+        resolve(bobFirst, "dismissed")
+        mockMvc.perform(get("/api/v1/reports").param("status", "open").with(user("bob")))
+            .andExpect(jsonPath("$.items", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.items[0].bookmarkId").value(second))
+        mockMvc.perform(get("/api/v1/reports").param("status", "dismissed").with(user("bob")))
+            .andExpect(jsonPath("$.items", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.items[0].resolvedBy").value("moderator"))
+    }
+
+    @Test
+    fun `a reporter may revise their own open report only`() {
+        val bookmarkId = createBookmark("alice")
+        val id = reportId("bob", bookmarkId, reason = "spam")
+
+        mockMvc.perform(
+            put("/api/v1/reports/{id}", id).with(user("bob"))
+                .contentType(MediaType.APPLICATION_JSON).content("""{"reason":"other","comment":"on second thought"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.reason").value("other"))
+            .andExpect(jsonPath("$.comment").value("on second thought"))
+            .andExpect(jsonPath("$.status").value("open"))
+
+        // someone else's report is a 404 mask
+        mockMvc.perform(
+            put("/api/v1/reports/{id}", id).with(user("carol"))
+                .contentType(MediaType.APPLICATION_JSON).content("""{"reason":"spam"}"""),
+        ).andExpect(status().isNotFound)
+
+        // invalid reason → localized field error
+        mockMvc.perform(
+            put("/api/v1/reports/{id}", id).with(user("bob"))
+                .contentType(MediaType.APPLICATION_JSON).content("""{"reason":"dislike"}"""),
+        )
+            .andExpect(status().isBadRequest)
+            .andExpect(jsonPath("$.errors[0].messageKey").value("validation.report.reason.invalid"))
+
+        // resolved reports are frozen
+        resolve(id)
+        mockMvc.perform(
+            put("/api/v1/reports/{id}", id).with(user("bob"))
+                .contentType(MediaType.APPLICATION_JSON).content("""{"reason":"spam"}"""),
+        ).andExpect(status().isConflict)
+    }
+
+    @Test
+    fun `withdrawing removes the report and frees the open slot`() {
+        val bookmarkId = createBookmark("alice")
+        val id = reportId("bob", bookmarkId)
+
+        // someone else's report is a 404 mask
+        mockMvc.perform(delete("/api/v1/reports/{id}", id).with(user("carol"))).andExpect(status().isNotFound)
+
+        mockMvc.perform(delete("/api/v1/reports/{id}", id).with(user("bob"))).andExpect(status().isNoContent)
+        mockMvc.perform(get("/api/v1/reports").with(user("bob")))
+            .andExpect(jsonPath("$.items", hasSize<Any>(0)))
+        mockMvc.perform(get("/api/v1/admin/reports").with(moderator()))
+            .andExpect(jsonPath("$.items", hasSize<Any>(0)))
+
+        // a withdrawn report no longer blocks a new one
+        val again = reportId("bob", bookmarkId)
+
+        // resolved reports cannot be withdrawn
+        resolve(again)
+        mockMvc.perform(delete("/api/v1/reports/{id}", again).with(user("bob"))).andExpect(status().isConflict)
+    }
+
     @Test
     fun `queue is moderator-only, oldest first, defaulting to open`() {
         val id = createBookmark("alice")
@@ -143,11 +238,55 @@ class ModerationApiTest : IntegrationTest() {
         mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
             .andExpect(jsonPath("$.status").value("hidden"))
 
-        // resolving a non-open report → 409
+        // decisions are revisable (rule 14): actioned → dismissed succeeds,
+        // and the bookmark stays hidden — restore is an explicit action
         mockMvc.perform(
             put("/api/v1/admin/reports/{id}", first).with(moderator())
                 .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"dismissed"}"""),
-        ).andExpect(status().isConflict)
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("dismissed"))
+        mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
+            .andExpect(jsonPath("$.status").value("hidden"))
+    }
+
+    @Test
+    fun `decisions can be revised and re-opened`() {
+        val bookmarkId = createBookmark("alice")
+        val id = reportId("bob", bookmarkId)
+
+        resolve(id, "dismissed")
+
+        // dismissed → actioned applies the actioning side effects
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", id).with(moderator())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"actioned","note":"on review"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("actioned"))
+            .andExpect(jsonPath("$.resolutionNote").value("on review"))
+        mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
+            .andExpect(jsonPath("$.status").value("hidden"))
+
+        // re-opening clears the resolution fields and the report is editable again
+        mockMvc.perform(
+            put("/api/v1/admin/reports/{id}", id).with(moderator())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"open"}"""),
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.status").value("open"))
+            .andExpect(jsonPath("$.resolvedBy").doesNotExist())
+            .andExpect(jsonPath("$.resolvedAt").doesNotExist())
+            .andExpect(jsonPath("$.resolutionNote").doesNotExist())
+        mockMvc.perform(
+            put("/api/v1/reports/{id}", id).with(user("bob"))
+                .contentType(MediaType.APPLICATION_JSON).content("""{"reason":"other"}"""),
+        ).andExpect(status().isOk)
+
+        // re-opening lands in the audit trail under its own action
+        mockMvc.perform(get("/api/v1/admin/audit-log").param("action", "report.reopened").with(admin()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].targetId").value(id))
     }
 
     @Test
@@ -162,7 +301,7 @@ class ModerationApiTest : IntegrationTest() {
         )
             .andExpect(status().isBadRequest)
             .andExpect(jsonPath("$.errors[0].messageKey").value("validation.resolution.invalid"))
-            .andExpect(jsonPath("$.errors[0].message").value("Resolution must be one of: dismissed, actioned."))
+            .andExpect(jsonPath("$.errors[0].message").value("Resolution must be one of: open, dismissed, actioned."))
 
         mockMvc.perform(
             put("/api/v1/admin/reports/{id}", reportId).with(moderator())
@@ -170,7 +309,7 @@ class ModerationApiTest : IntegrationTest() {
                 .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"ignore"}"""),
         )
             .andExpect(status().isBadRequest)
-            .andExpect(jsonPath("$.errors[0].message").value("Rozstrzygnięcie musi być jednym z: dismissed, actioned."))
+            .andExpect(jsonPath("$.errors[0].message").value("Rozstrzygnięcie musi być jednym z: open, dismissed, actioned."))
     }
 
     @Test

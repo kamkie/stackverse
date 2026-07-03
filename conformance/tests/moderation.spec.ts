@@ -147,11 +147,13 @@ test("actioning hides the bookmark and auto-resolves sibling reports", async ({ 
   expect(autoResolved?.resolvedBy).toBe("moderator");
   expect(autoResolved?.resolutionNote).toBe(note);
 
-  // the state machine only resolves open reports
-  await expectProblem(
-    await moderator.put(`/api/v1/admin/reports/${first.id}`, { data: { resolution: "dismissed" } }),
-    409,
-  );
+  // decisions are revisable (rule 14): actioned → dismissed succeeds and the
+  // bookmark stays hidden — restore below is the explicit action
+  const revised = await moderator.put(`/api/v1/admin/reports/${first.id}`, {
+    data: { resolution: "dismissed" },
+  });
+  expect(revised.status(), await revised.text()).toBe(200);
+  expect(((await revised.json()) as Report).status).toBe("dismissed");
 
   // restore: status back to active, visibility untouched
   const restored = await moderator.put(`/api/v1/admin/bookmarks/${bookmark.id}/status`, {
@@ -183,6 +185,170 @@ test("the moderation queue defaults to open reports, oldest first", async ({ dem
   expect([...created].sort((a, b) => a - b)).toEqual(created);
 
   await moderator.put(`/api/v1/admin/reports/${mine.id}`, { data: { resolution: "dismissed" } });
+});
+
+test("reporters see their own reports, newest first, with a status filter", async ({ demo, mentor, moderator }) => {
+  const first = await createBookmark(demo, {
+    url: "https://example.com/my-reports-1",
+    title: `my reports first ${uid()}`,
+    visibility: "public",
+  });
+  const second = await createBookmark(demo, {
+    url: "https://example.com/my-reports-2",
+    title: `my reports second ${uid()}`,
+    visibility: "public",
+  });
+  const ra = (await (await mentor.post(`/api/v1/bookmarks/${first.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+  const rb = (await (await mentor.post(`/api/v1/bookmarks/${second.id}/reports`, {
+    data: { reason: "other" },
+  })).json()) as Report;
+  const foreign = (await (await moderator.post(`/api/v1/bookmarks/${first.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+
+  const mine = async (query = "") => {
+    const response = await mentor.get(`/api/v1/reports?size=100${query}`);
+    expect(response.status(), await response.text()).toBe(200);
+    return ((await response.json()) as { items: Report[] }).items;
+  };
+
+  // only the caller's reports, newest first
+  const items = await mine();
+  expect(items.every((r) => r.reporter === "mentor")).toBe(true);
+  const ids = items.map((r) => r.id);
+  expect(ids).toContain(ra.id);
+  expect(ids).toContain(rb.id);
+  expect(ids).not.toContain(foreign.id);
+  expect(ids.indexOf(rb.id)).toBeLessThan(ids.indexOf(ra.id));
+
+  // the status filter reflects moderation's disposition — the feedback loop
+  await moderator.put(`/api/v1/admin/reports/${ra.id}`, {
+    data: { resolution: "dismissed", note: "conformance feedback" },
+  });
+  const open = await mine("&status=open");
+  expect(open.map((r) => r.id)).toContain(rb.id);
+  expect(open.map((r) => r.id)).not.toContain(ra.id);
+  const dismissed = (await mine("&status=dismissed")).find((r) => r.id === ra.id);
+  expect(dismissed?.resolvedBy).toBe("moderator");
+  expect(dismissed?.resolutionNote).toBe("conformance feedback");
+
+  // cleanup: don't leave open reports behind for other tests or reruns
+  await mentor.delete(`/api/v1/reports/${rb.id}`);
+  await moderator.put(`/api/v1/admin/reports/${foreign.id}`, { data: { resolution: "dismissed" } });
+});
+
+test("a reporter may revise their own open report; everyone else gets a 404 mask", async ({ demo, mentor, moderator, anon }) => {
+  const bookmark = await createBookmark(demo, {
+    url: "https://example.com/revise",
+    title: `revise ${uid()}`,
+    visibility: "public",
+  });
+  const report = (await (await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+
+  const revised = await mentor.put(`/api/v1/reports/${report.id}`, {
+    data: { reason: "other", comment: "changed my mind" },
+  });
+  expect(revised.status(), await revised.text()).toBe(200);
+  const body = (await revised.json()) as Report;
+  expect(body.reason).toBe("other");
+  expect(body.comment).toBe("changed my mind");
+  expect(body.status).toBe("open");
+
+  // not the reporter → 404 (even with the moderator role); anonymous → 401
+  await expectProblem(
+    await moderator.put(`/api/v1/reports/${report.id}`, { data: { reason: "spam" } }),
+    404,
+  );
+  await expectProblem(
+    await anon.put(`/api/v1/reports/${report.id}`, { data: { reason: "spam" } }),
+    401,
+  );
+  // invalid reason → validation problem
+  await expectProblem(
+    await mentor.put(`/api/v1/reports/${report.id}`, { data: { reason: "dunno" } }),
+    400,
+  );
+
+  // resolved reports are frozen
+  await moderator.put(`/api/v1/admin/reports/${report.id}`, { data: { resolution: "dismissed" } });
+  await expectProblem(
+    await mentor.put(`/api/v1/reports/${report.id}`, { data: { reason: "spam" } }),
+    409,
+  );
+});
+
+test("withdrawing an open report removes it and frees the one-open-report slot", async ({ demo, mentor, moderator }) => {
+  const bookmark = await createBookmark(demo, {
+    url: "https://example.com/withdraw",
+    title: `withdraw ${uid()}`,
+    visibility: "public",
+  });
+  const report = (await (await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+
+  // not the reporter → 404 mask
+  await expectProblem(await moderator.delete(`/api/v1/reports/${report.id}`), 404);
+
+  expect((await mentor.delete(`/api/v1/reports/${report.id}`)).status()).toBe(204);
+
+  // gone from the reporter's list and from the moderation queue
+  const mine = ((await (await mentor.get("/api/v1/reports?size=100")).json()) as { items: Report[] }).items;
+  expect(mine.map((r) => r.id)).not.toContain(report.id);
+  const queue = ((await (await moderator.get("/api/v1/admin/reports?size=100")).json()) as { items: Report[] }).items;
+  expect(queue.map((r) => r.id)).not.toContain(report.id);
+
+  // the slot is free again; a resolved report cannot be withdrawn
+  const again = await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, { data: { reason: "other" } });
+  expect(again.status(), await again.text()).toBe(201);
+  const againId = ((await again.json()) as Report).id;
+  await moderator.put(`/api/v1/admin/reports/${againId}`, { data: { resolution: "dismissed" } });
+  await expectProblem(await mentor.delete(`/api/v1/reports/${againId}`), 409);
+});
+
+test("a decision can be revised or re-opened (rule 14)", async ({ demo, mentor, moderator }) => {
+  const bookmark = await createBookmark(demo, {
+    url: "https://example.com/revise-decision",
+    title: `revise decision ${uid()}`,
+    visibility: "public",
+  });
+  const report = (await (await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+
+  await moderator.put(`/api/v1/admin/reports/${report.id}`, { data: { resolution: "dismissed" } });
+
+  // dismissed → actioned applies the actioning side effects: bookmark hidden
+  const actioned = await moderator.put(`/api/v1/admin/reports/${report.id}`, {
+    data: { resolution: "actioned", note: "on review" },
+  });
+  expect(actioned.status(), await actioned.text()).toBe(200);
+  expect(((await actioned.json()) as Report).resolutionNote).toBe("on review");
+  await expectProblem(await moderator.get(`/api/v1/bookmarks/${bookmark.id}`), 404);
+
+  // open re-opens and clears the resolution fields; the reporter may edit again
+  const reopened = await moderator.put(`/api/v1/admin/reports/${report.id}`, {
+    data: { resolution: "open" },
+  });
+  expect(reopened.status(), await reopened.text()).toBe(200);
+  const body = (await reopened.json()) as Report;
+  expect(body.status).toBe("open");
+  expect(body.resolvedBy).toBeUndefined();
+  expect(body.resolutionNote).toBeUndefined();
+  const revisable = await mentor.put(`/api/v1/reports/${report.id}`, {
+    data: { reason: "other" },
+  });
+  expect(revisable.status(), await revisable.text()).toBe(200);
+
+  // cleanup: withdraw the re-opened report and restore the hidden bookmark
+  await mentor.delete(`/api/v1/reports/${report.id}`);
+  await moderator.put(`/api/v1/admin/bookmarks/${bookmark.id}/status`, {
+    data: { status: "active" },
+  });
 });
 
 test("hiding and restoring via the status endpoint is moderator-only and validated", async ({ demo, moderator }) => {

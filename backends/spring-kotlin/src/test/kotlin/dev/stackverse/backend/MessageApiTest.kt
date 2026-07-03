@@ -90,6 +90,30 @@ class MessageApiTest : IntegrationTest() {
     }
 
     @Test
+    fun `q filters by case-insensitive substring over key and text`() {
+        val key = uniqueKey()
+        val marker = UUID.randomUUID().toString().replace("-", "")
+        createMessage(key, "en", "text with $marker inside")
+
+        // substring of the key, matched case-insensitively
+        mockMvc.perform(get("/api/v1/messages").param("q", key.drop(5).take(12).uppercase()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.totalItems").value(1))
+            .andExpect(jsonPath("$.items[0].key").value(key))
+
+        // substring of the text
+        mockMvc.perform(get("/api/v1/messages").param("q", marker.take(16).uppercase()))
+            .andExpect(jsonPath("$.totalItems").value(1))
+
+        // LIKE wildcards in the query are literals, not patterns
+        mockMvc.perform(get("/api/v1/messages").param("q", "%$marker%"))
+            .andExpect(jsonPath("$.totalItems").value(0))
+
+        mockMvc.perform(get("/api/v1/messages").param("q", "x".repeat(201)))
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
     fun `single message read supports etag and 404`() {
         val id = createMessage(uniqueKey(), "en", "one")
         val etag = mockMvc.perform(get("/api/v1/messages/{id}", id))

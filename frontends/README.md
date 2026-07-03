@@ -72,31 +72,38 @@ suffixed one is missing — the bundle stays a flat map, no message syntax.
    report action when authenticated. A successful report is confirmed (e.g. a toast)
    and the bookmark's report button flips to a disabled "reported" state for the
    rest of the session — the API's `409` on duplicates stays the source of truth.
-3. **Tag sidebar/cloud** — from `GET /api/v1/tags`, click to filter.
-4. **Login/session UI** — login button when anonymous, username + logout when not.
+3. **My reports** — the caller's own reports (SPEC rule 13) with the reported
+   bookmark's context, filterable by status; moderation's disposition (status and
+   note) is visible, and `open` reports can be edited or withdrawn (withdrawal
+   confirms first).
+4. **Tag sidebar/cloud** — from `GET /api/v1/tags`, click to filter.
+5. **Login/session UI** — login button when anonymous, username + logout when not.
    Logging out lands on the public feed (the only screen an anonymous visitor can
-   use); the *My bookmarks* navigation entry shows only for authenticated sessions.
-5. **Language switcher** — at least `en`/`pl`, reloads the bundle without a page reload.
+   use); the *My bookmarks* and *My reports* navigation entries show only for
+   authenticated sessions.
+6. **Language switcher** — at least `en`/`pl`, reloads the bundle without a page reload.
 
 ### Admin section (`/admin`, role-gated from `GET /api/v1/me`)
 
 Navigation shows only what the caller's roles allow — `moderator` sees the dashboard
 and reports; `admin` sees everything:
 
-6. **Dashboard** (`moderator`) — totals from `GET /api/v1/admin/stats` plus a chart of
+7. **Dashboard** (`moderator`) — totals from `GET /api/v1/admin/stats` plus a chart of
    the 30-day series; the open-reports card links to the reports queue.
-7. **Reports queue** (`moderator`) — open reports with dismiss/action buttons; actioned
-   reports hide the bookmark. Rows show the reported bookmark's title and URL where
+8. **Reports queue** (`moderator`) — open reports with dismiss/action buttons; actioned
+   reports hide the bookmark. Decisions are revisable (SPEC rule 14): resolved rows
+   offer the opposite disposition and a re-open action; moving away from `actioned`
+   never unhides the bookmark. Rows show the reported bookmark's title and URL where
    readable; when the read comes back `404` (private, hidden, or deleted — the API
    grants moderators no special read access), fall back to the raw id plus a hint.
-8. **Users** (`admin`) — directory searchable by username, with block/unblock
+9. **Users** (`admin`) — directory searchable by username, with block/unblock
    (reason required to block).
-9. **Audit log** (`admin`) — filterable, paginated browser. Every filter says what
-   it matches (the action filter is an exact match; the date inputs carry visible
-   from/to labels), and one click clears them all.
-10. **Messages** (`admin`) — list/create/edit/delete localized messages. The language
-    field is a select over the supported languages, and the key filter is labeled as
-    an exact-key match (which is what the API does).
+10. **Audit log** (`admin`) — filterable, paginated browser. Every filter says what
+    it matches (the action filter is an exact match; the date inputs carry visible
+    from/to labels), and one click clears them all.
+11. **Messages** (`admin`) — list/create/edit/delete localized messages, searchable
+    via `q` (case-insensitive substring over key and text). The language field is a
+    select over the supported languages, and one click clears both filters.
 
 Validation errors (RFC 9457 problem documents with an `errors` array) must be surfaced
 on the corresponding form fields, not as a generic toast. Toasts are for success

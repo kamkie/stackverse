@@ -1,5 +1,5 @@
-// Messages (frontends/README.md #10): runtime-managed localized messages —
-// list, create, edit, delete (admin).
+// Messages (frontends/README.md #11): runtime-managed localized messages —
+// search, list, create, edit, delete (admin).
 import { expect, test } from "@playwright/test";
 import { authFile, uid } from "./helpers";
 
@@ -17,7 +17,8 @@ test("create, edit and delete a localized message", async ({ page }) => {
   await dialog.getByRole("button", { name: "Save" }).click();
   await expect(dialog).toBeHidden();
 
-  await page.getByPlaceholder("Key").fill(key);
+  // the toolbar searches by substring over key and text (SPEC rule 7)
+  await page.getByPlaceholder("Search key and text...").fill(key.slice(4));
   const row = page.getByRole("row").filter({ hasText: key });
   await expect(row).toHaveCount(1);
   await expect(row).toContainText("e2e message");

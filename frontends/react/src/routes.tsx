@@ -1,6 +1,7 @@
 import { Navigate, type RouteObject } from "react-router";
 import { Layout } from "./components/Layout";
 import { MyBookmarksPage } from "./pages/MyBookmarksPage";
+import { MyReportsPage } from "./pages/MyReportsPage";
 import { PublicFeedPage } from "./pages/PublicFeedPage";
 import { AdminLayout } from "./pages/admin/AdminLayout";
 import { AuditLogPage } from "./pages/admin/AuditLogPage";
@@ -16,6 +17,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <Navigate to="/bookmarks" replace /> },
       { path: "bookmarks", element: <MyBookmarksPage /> },
+      { path: "reports", element: <MyReportsPage /> },
       { path: "feed", element: <PublicFeedPage /> },
       {
         path: "admin",

@@ -1,4 +1,4 @@
-// Users directory (frontends/README.md #8): search, block (reason required),
+// Users directory (frontends/README.md #9): search, block (reason required),
 // unblock — admin only.
 import { expect, test } from "@playwright/test";
 import { apiMutate, authFile } from "./helpers";

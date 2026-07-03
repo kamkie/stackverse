@@ -1,4 +1,4 @@
-// Audit log (frontends/README.md #9): every moderation action writes an
+// Audit log (frontends/README.md #10): every moderation action writes an
 // append-only entry (docs/SPEC.md rule 16); the browser is filterable.
 import { expect, test } from "@playwright/test";
 import { apiMutate, authFile } from "./helpers";

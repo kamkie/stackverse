@@ -98,6 +98,7 @@ export function useDeleteBookmark() {
 }
 
 export function useReportBookmark() {
+  const invalidate = useInvalidateMyReports();
   return useMutation({
     mutationFn: async ({ id, body }: { id: string; body: ReportInput }) =>
       unwrap(
@@ -106,5 +107,49 @@ export function useReportBookmark() {
           body,
         }),
       ),
+    onSuccess: invalidate,
+  });
+}
+
+export type Report = components["schemas"]["Report"];
+export type ReportStatus = components["schemas"]["ReportStatus"];
+
+/** The caller's own reports (SPEC rule 13) — the reporter's feedback loop. */
+export function useMyReports(status: ReportStatus | "", page: number) {
+  return useQuery({
+    queryKey: ["my-reports", status, page],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/api/v1/reports", {
+          params: { query: { ...(status ? { status } : {}), page } },
+        }),
+      ),
+  });
+}
+
+function useInvalidateMyReports() {
+  const queryClient = useQueryClient();
+  return () => void queryClient.invalidateQueries({ queryKey: ["my-reports"] });
+}
+
+export function useUpdateMyReport() {
+  const invalidate = useInvalidateMyReports();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: ReportInput }) =>
+      unwrap(
+        await api.PUT("/api/v1/reports/{id}", { params: { path: { id } }, body }),
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+export function useWithdrawReport() {
+  const invalidate = useInvalidateMyReports();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      unwrap(
+        await api.DELETE("/api/v1/reports/{id}", { params: { path: { id } } }),
+      ),
+    onSuccess: invalidate,
   });
 }

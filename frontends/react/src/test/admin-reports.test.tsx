@@ -69,4 +69,29 @@ describe("reports queue", () => {
       await screen.findByText("No reports to review — the queue is clear."),
     ).toBeInTheDocument();
   });
+
+  it("lets a moderator revise a decision: dismiss, then re-open (rule 14)", async () => {
+    const user = userEvent.setup();
+    setCurrentUser(MOCK_USERS.moderator);
+    renderApp("/admin/reports");
+    await screen.findAllByText("Suspicious crypto site");
+
+    // dismiss the first open report; it leaves the open queue
+    await user.click(screen.getAllByRole("button", { name: "Dismiss" })[0] as HTMLElement);
+    expect(await screen.findAllByText("Suspicious crypto site")).toHaveLength(1);
+
+    // the dismissed view offers the revision actions
+    await user.selectOptions(screen.getByRole("combobox"), "dismissed");
+    expect(
+      await screen.findByText("Dismissed", { selector: ".sv-badge" }),
+    ).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Re-open" }));
+
+    // re-opened: gone from dismissed, back in the open queue
+    expect(
+      await screen.findByText("No reports to review — the queue is clear."),
+    ).toBeInTheDocument();
+    await user.selectOptions(screen.getByRole("combobox"), "open");
+    expect(await screen.findAllByText("Suspicious crypto site")).toHaveLength(2);
+  });
 });

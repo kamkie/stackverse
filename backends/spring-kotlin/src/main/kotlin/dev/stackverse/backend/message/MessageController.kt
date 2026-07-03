@@ -1,6 +1,7 @@
 package dev.stackverse.backend.message
 
 import dev.stackverse.backend.common.PageResponse
+import dev.stackverse.backend.common.requireMaxLength
 import dev.stackverse.backend.common.requireValidPaging
 import org.springframework.http.CacheControl
 import org.springframework.http.HttpHeaders
@@ -41,12 +42,15 @@ class MessageController(
     @GetMapping
     fun list(
         @RequestParam key: String?,
+        @RequestParam q: String?,
         @RequestParam language: String?,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "20") size: Int,
     ): ResponseEntity<PageResponse<MessageResponse>> {
         requireValidPaging(page, size)
-        val result = repository.search(key, language, Pageable.ofSize(size).withPage(page))
+        requireMaxLength(q, 200, "q")
+        val qLike = q?.takeIf { it.isNotBlank() }?.let { "%${escapeLike(it.lowercase())}%" }
+        val result = repository.search(key, qLike, language, Pageable.ofSize(size).withPage(page))
         return withNoCache(PageResponse.of(result) { MessageResponse.of(it) })
     }
 
@@ -93,4 +97,7 @@ class MessageController(
 
     private fun <T : Any> withNoCache(body: T): ResponseEntity<T> =
         ResponseEntity.ok().cacheControl(CacheControl.noCache()).body(body)
+
+    private fun escapeLike(value: String): String =
+        value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 }

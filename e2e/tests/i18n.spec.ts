@@ -1,4 +1,4 @@
-// Language switcher (frontends/README.md #5): en/pl, bundle reloads without a
+// Language switcher (frontends/README.md #6): en/pl, bundle reloads without a
 // page reload, choice persists client-side.
 import { expect, test } from "@playwright/test";
 

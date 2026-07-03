@@ -38,13 +38,7 @@ class ModerationService(
             throw NotFoundProblem()
         }
 
-        val validator = Validator()
-        val reason = ReportReason.fromWire(request.reason)
-        if (reason == null) {
-            validator.reject("reason", "validation.report.reason.invalid")
-        }
-        validator.check((request.comment?.length ?: 0) <= 1000, "comment", "validation.report.comment.too-long")
-        validator.throwIfInvalid()
+        val reason = validatedReason(request)
 
         if (reportRepository.existsByBookmarkIdAndReporterAndStatus(bookmarkId, reporter, ReportStatus.OPEN)) {
             throw ConflictProblem("You already have an open report on this bookmark.")
@@ -54,7 +48,7 @@ class ModerationService(
                 Report(
                     bookmarkId = bookmarkId,
                     reporter = reporter,
-                    reason = reason!!,
+                    reason = reason,
                     comment = request.comment,
                     status = ReportStatus.OPEN,
                     resolvedBy = null,
@@ -82,10 +76,84 @@ class ModerationService(
     fun listReports(status: ReportStatus, page: Int, size: Int): Page<Report> =
         reportRepository.findByStatus(status, PageRequest.of(page, size, Sort.by("createdAt", "id")))
 
-    /** SPEC rule 14: `actioned` hides the bookmark and drags every sibling open report along. */
+    /** SPEC rule 13: the reporter's own feedback loop — their reports, newest first. */
+    @Transactional(readOnly = true)
+    fun listMyReports(reporter: String, status: ReportStatus?, page: Int, size: Int): Page<Report> {
+        val pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt", "id"))
+        return if (status == null) {
+            reportRepository.findByReporter(reporter, pageable)
+        } else {
+            reportRepository.findByReporterAndStatus(reporter, status, pageable)
+        }
+    }
+
+    /** SPEC rule 13: the reporter may revise reason/comment while the report is open. */
+    fun updateMyReport(reporter: String, reportId: UUID, request: ReportRequest): Report {
+        val report = ownReport(reporter, reportId)
+        val reason = validatedReason(request)
+        requireOpen(report)
+        report.reason = reason
+        report.comment = request.comment
+        log.logEvent(
+            Level.INFO, "report_updated", "success", "Report updated by its reporter",
+            "actor" to reporter,
+            "resource_type" to "report",
+            "resource_id" to report.id.toString(),
+            "bookmark_id" to report.bookmarkId.toString(),
+            "reason" to report.reason.wire,
+        )
+        return report
+    }
+
+    /** SPEC rule 13: withdrawing removes the report and frees the one-open-report slot. */
+    fun withdraw(reporter: String, reportId: UUID) {
+        val report = ownReport(reporter, reportId)
+        requireOpen(report)
+        reportRepository.delete(report)
+        log.logEvent(
+            Level.INFO, "report_withdrawn", "success", "Report withdrawn by its reporter",
+            "actor" to reporter,
+            "resource_type" to "report",
+            "resource_id" to report.id.toString(),
+            "bookmark_id" to report.bookmarkId.toString(),
+        )
+    }
+
+    /** Someone else's report is a 404 mask — existence is not disclosed. */
+    private fun ownReport(reporter: String, reportId: UUID): Report {
+        val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
+        if (report.reporter != reporter) throw NotFoundProblem()
+        return report
+    }
+
+    private fun requireOpen(report: Report) {
+        if (report.status != ReportStatus.OPEN) {
+            throw ConflictProblem("The report has already been resolved.")
+        }
+    }
+
+    private fun validatedReason(request: ReportRequest): ReportReason {
+        val validator = Validator()
+        val reason = ReportReason.fromWire(request.reason)
+        if (reason == null) {
+            validator.reject("reason", "validation.report.reason.invalid")
+        }
+        validator.check((request.comment?.length ?: 0) <= 1000, "comment", "validation.report.comment.too-long")
+        validator.throwIfInvalid()
+        return reason!!
+    }
+
+    /**
+     * SPEC rule 14: `actioned` hides the bookmark and drags every sibling open
+     * report along. Decisions are revisable — any target status is accepted;
+     * `open` re-opens the report and clears the resolution fields. Moving away
+     * from `actioned` never restores the bookmark (rule 15 keeps hide/restore
+     * explicit).
+     */
     fun resolve(actor: String, reportId: UUID, request: ReportResolutionRequest): Report {
         val validator = Validator()
         val resolution = when (request.resolution) {
+            "open" -> ReportStatus.OPEN
             "dismissed" -> ReportStatus.DISMISSED
             "actioned" -> ReportStatus.ACTIONED
             else -> {
@@ -96,9 +164,11 @@ class ModerationService(
         validator.check((request.note?.length ?: 0) <= 1000, "note", "validation.resolution.note.too-long")
         validator.throwIfInvalid()
 
-        val report = reportRepository.findById(reportId).orElseThrow { NotFoundProblem() }
-        if (report.status != ReportStatus.OPEN) {
-            throw ConflictProblem("The report has already been resolved.")
+        val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
+
+        if (resolution == ReportStatus.OPEN) {
+            reopenOne(report, actor)
+            return report
         }
 
         resolveOne(report, resolution!!, actor, request.note, autoResolved = false)
@@ -110,6 +180,27 @@ class ModerationService(
                 .forEach { resolveOne(it, ReportStatus.ACTIONED, actor, request.note, autoResolved = true) }
         }
         return report
+    }
+
+    private fun reopenOne(report: Report, actor: String) {
+        report.status = ReportStatus.OPEN
+        report.resolvedBy = null
+        report.resolvedAt = null
+        report.resolutionNote = null
+        auditService.record(
+            actor,
+            "report.reopened",
+            "report",
+            report.id.toString(),
+            mapOf("bookmarkId" to report.bookmarkId.toString()),
+        )
+        log.logEvent(
+            Level.INFO, "report_reopened", "success", "Report re-opened",
+            "actor" to actor,
+            "resource_type" to "report",
+            "resource_id" to report.id.toString(),
+            "bookmark_id" to report.bookmarkId.toString(),
+        )
     }
 
     /** SPEC rule 15: hide/restore switches `status` only; `visibility` is never touched. */

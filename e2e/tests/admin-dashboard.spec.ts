@@ -1,4 +1,4 @@
-// Dashboard (frontends/README.md #6): totals from GET /api/v1/admin/stats and
+// Dashboard (frontends/README.md #7): totals from GET /api/v1/admin/stats and
 // the 30-day chart, visible to moderators.
 import { expect, test } from "@playwright/test";
 import { authFile } from "./helpers";

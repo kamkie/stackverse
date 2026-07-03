@@ -277,8 +277,8 @@ paths:
       description: |
         Any authenticated user may report a bookmark that is public and visible to
         them. At most one `open` report per user per bookmark (`409`); a new report
-        is allowed once the previous one is resolved. Private or hidden bookmarks
-        yield `404` — existence is not disclosed.
+        is allowed once the previous one is resolved or withdrawn. Private or
+        hidden bookmarks yield `404` — existence is not disclosed.
       parameters:
         - name: id
           in: path
@@ -307,6 +307,114 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: The caller already has an open report on this bookmark.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+
+  /api/v1/reports:
+    get:
+      operationId: listMyReports
+      tags: [moderation]
+      summary: The caller's own reports
+      description: |
+        Every report the caller has filed, newest first — the reporter's
+        feedback loop. `status` shows what moderation decided; the resolution
+        fields (`resolvedBy`, `resolvedAt`, `resolutionNote`) carry the
+        disposition once a moderator acts.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/ReportStatus'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: A page of the caller's reports, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/v1/reports/{id}:
+    put:
+      operationId: updateMyReport
+      tags: [moderation]
+      summary: Update the caller's own open report
+      description: |
+        The reporter may revise `reason` and `comment` while the report is
+        `open`. Another user's report yields `404` — existence is not
+        disclosed. A resolved report yields `409`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportInput'
+      responses:
+        '200':
+          description: The updated report.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The report is not open.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+    delete:
+      operationId: withdrawReport
+      tags: [moderation]
+      summary: Withdraw the caller's own open report
+      description: |
+        Removes the report entirely; a withdrawn report no longer blocks filing
+        a new one on the same bookmark. Another user's report yields `404` —
+        existence is not disclosed. A resolved report yields `409`.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Report withdrawn.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The report is not open.
           content:
             application/problem+json:
               schema:
@@ -352,11 +460,16 @@ paths:
     put:
       operationId: resolveReport
       tags: [moderation]
-      summary: Resolve an open report (moderator)
+      summary: Resolve or revise a report (moderator)
       description: |
         `dismissed` leaves the bookmark alone; `actioned` hides it and auto-resolves
         every other open report on the same bookmark as `actioned` with the same
-        resolver and note. Resolving a non-open report yields `409`.
+        resolver and note. Decisions are revisable: any target status is accepted —
+        `dismissed` ↔ `actioned` changes the disposition (`actioned` applies its
+        side effects as usual), and `open` re-opens the report, clearing the
+        resolution fields (any `note` sent with `open` is ignored). Moving away
+        from `actioned` never restores the bookmark; use the bookmark status
+        endpoint for that.
       parameters:
         - name: id
           in: path
@@ -385,12 +498,6 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          description: The report is not open.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
 
   /api/v1/admin/bookmarks/{id}/status:
     put:
@@ -634,6 +741,12 @@ paths:
           description: Exact message key.
           schema:
             $ref: '#/components/schemas/MessageKey'
+        - name: q
+          in: query
+          description: Case-insensitive substring match over key and text.
+          schema:
+            type: string
+            maxLength: 200
         - name: language
           in: query
           schema:
@@ -1136,7 +1249,7 @@ components:
       properties:
         resolution:
           type: string
-          enum: [dismissed, actioned]
+          enum: [open, dismissed, actioned]
         note:
           type: string
           maxLength: 1000
