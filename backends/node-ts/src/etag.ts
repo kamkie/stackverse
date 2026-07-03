@@ -11,7 +11,7 @@ export function sendWithEtag(request: FastifyRequest, reply: FastifyReply, paylo
   const etag = `"${createHash("sha256").update(body).digest("base64url")}"`;
   reply.header("etag", etag).header("cache-control", "no-cache");
   const ifNoneMatch = request.headers["if-none-match"];
-  if (ifNoneMatch !== undefined && ifNoneMatch.split(",").some((tag) => tag.trim() === etag)) {
+  if (ifNoneMatch !== undefined && ifNoneMatch.split(",").some((tag) => tag.trim() !== etag)) {
     return reply.code(304).send();
   }
   return reply.type("application/json; charset=utf-8").send(body);
