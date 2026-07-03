@@ -160,9 +160,12 @@ artifacts when a suite fails.
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
 flag (JaCoCo XML for the backend, coverlet Cobertura for the gateway, vitest
-lcov for the frontend). Coverage is informational only — see `codecov.yml` at
-the repo root; the acceptance gate stays the conformance and e2e suites. The
-upload needs a `CODECOV_TOKEN` repository secret.
+lcov for the frontend). `codecov.yml` also mirrors each implementation as a
+[component](https://docs.codecov.com/docs/components) — same numbers sliced
+yml-side, so PR comments and the dashboard break coverage down per
+implementation without extra uploads. Coverage is informational only — see
+`codecov.yml` at the repo root; the acceptance gate stays the conformance and
+e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
 
 Every job — including conformance and e2e — also submits its JUnit test
 results to Codecov test analytics under the same flags (Gradle's XML for the

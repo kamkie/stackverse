@@ -25,5 +25,26 @@ flags:
       - frontends/react/
     carryforward: true
 
+# Components are yml-defined virtual filters over the same uploads — one per
+# implementation, mirroring the flags. They add per-component numbers to the
+# PR comment and a Components view in the dashboard; when sibling variants
+# land (more backends/gateways/frontends), category roll-up components can
+# aggregate across them, which flags can't. No statuses on purpose: coverage
+# stays informational (see above).
+component_management:
+  individual_components:
+    - component_id: backend-spring-kotlin
+      name: "backend · spring-kotlin"
+      paths:
+        - backends/spring-kotlin/**
+    - component_id: gateway-yarp
+      name: "gateway · yarp"
+      paths:
+        - gateways/yarp/**
+    - component_id: frontend-react
+      name: "frontend · react"
+      paths:
+        - frontends/react/**
+
 comment:
-  layout: "condensed_header, diff, flags"
+  layout: "condensed_header, diff, flags, components"
