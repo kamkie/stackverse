@@ -177,8 +177,11 @@ categories:
 - **`ci-ok`** ([`ci.yml`](../.github/workflows/ci.yml)) — the single merge
   gate: it fails if any of the jobs above (its own workflow's via `needs`,
   the per-implementation build workflows via the Checks API) failed or was
-  cancelled. Branch protection requires `ci-ok` plus CodeQL — required
-  checks never change as variants land.
+  cancelled, if an implementation directory has no `build-<layer>-<name>.yml`,
+  or if a `build-*.yml` never produced a run for the commit (a missing or
+  broken workflow creates no checks and must not pass silently). Branch
+  protection requires `ci-ok` plus CodeQL — required checks never change as
+  variants land.
 
 All jobs run on every change (no path filters): the contract couples every
 implementation to `spec/` and `docs/`. Playwright reports upload as workflow

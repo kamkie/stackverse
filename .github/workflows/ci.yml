@@ -183,8 +183,12 @@ jobs:
   # naming every job, so required checks never change when a variant lands.
   # `needs` covers this workflow's jobs; the per-implementation build workflows
   # are separate files (GitHub Actions `needs` cannot cross workflows), so the
-  # second step waits for every other GitHub-Actions check on the same commit —
-  # which automatically includes any future build-*.yml.
+  # last step waits for every other GitHub-Actions check on the same commit —
+  # which automatically includes any future build-*.yml. Waiting on observed
+  # checks alone would pass silently when a build workflow is missing or never
+  # ran (broken YAML produces no check runs at all), so the gate also asserts
+  # that every implementation directory has its build workflow and that every
+  # build-*.yml produced a successful workflow run for this commit.
   ci-ok:
     name: ci-ok
     runs-on: ubuntu-latest
@@ -192,6 +196,7 @@ jobs:
     needs: [discover, conformance, e2e]
     if: always()
     permissions:
+      actions: read
       checks: read
       contents: read
     steps:
@@ -200,15 +205,55 @@ jobs:
         run: |
           echo "a needed job did not succeed: discover=${{ needs.discover.result }} conformance=${{ needs.conformance.result }} e2e=${{ needs.e2e.result }}" >&2
           exit 1
+      - uses: actions/checkout@v7
+      - name: Every implementation must have a build workflow
+        run: |
+          set -eu
+          missing=0
+          for dir in backends gateways frontends; do
+            layer="${dir%s}"
+            for dockerfile in "$dir"/*/Dockerfile; do
+              [ -e "$dockerfile" ] || continue
+              name=$(basename "$(dirname "$dockerfile")")
+              wf=".github/workflows/build-${layer}-${name}.yml"
+              if [ ! -f "$wf" ]; then
+                echo "::error::$dir/$name has no $wf — every implementation ships its own build workflow"
+                missing=1
+              fi
+            done
+          done
+          exit "$missing"
       - name: Wait for every other check on this commit
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -eu
-          echo "gating on all github-actions check runs for $SHA"
+          expected=$(ls .github/workflows/build-*.yml)
+          echo "gating on all github-actions check runs for $SHA and on runs of:"
+          echo "$expected"
           for attempt in $(seq 1 90); do
-            # gh cannot combine --slurp with --jq, so filter with external jq
+            waiting=""
+
+            # 1) every build-*.yml must have a successful workflow run for this
+            #    commit — a workflow that never ran creates no check runs and
+            #    would be invisible to the check-run scan below
+            runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" \
+              | jq '[.workflow_runs[] | {path, status, conclusion}]')
+            for wf in $expected; do
+              bad=$(echo "$runs" | jq --arg p "$wf" '[.[] | select(.path == $p
+                    and .status == "completed" and .conclusion != "success")] | length')
+              if [ "$bad" -gt 0 ]; then
+                echo "workflow $wf did not succeed for $SHA" >&2
+                exit 1
+              fi
+              ok=$(echo "$runs" | jq --arg p "$wf" '[.[] | select(.path == $p
+                   and .status == "completed" and .conclusion == "success")] | length')
+              [ "$ok" -gt 0 ] || waiting="$waiting $wf"
+            done
+
+            # 2) every other github-actions check run must complete successfully
+            #    (gh cannot combine --slurp with --jq, so filter with external jq)
             checks=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100" \
               --paginate --slurp \
               | jq '[.[].check_runs[]
@@ -223,11 +268,12 @@ jobs:
               exit 1
             fi
             pending=$(echo "$checks" | jq '[.[] | select(.status != "completed")]')
-            if [ "$(echo "$pending" | jq length)" -eq 0 ]; then
-              echo "all $(echo "$checks" | jq length) other checks green"
+            if [ -z "$waiting" ] && [ "$(echo "$pending" | jq length)" -eq 0 ]; then
+              echo "all $(echo "$checks" | jq length) other checks green; every build workflow ran"
               exit 0
             fi
-            echo "attempt $attempt: still running:"
+            echo "attempt $attempt: still waiting"
+            [ -n "$waiting" ] && echo "  no successful run yet for:$waiting"
             echo "$pending" | jq -r '.[] | "  \(.name): \(.status)"'
             sleep 20
           done

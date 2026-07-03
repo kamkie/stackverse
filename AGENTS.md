@@ -33,7 +33,8 @@ implemented in many stacks. Read these before changing anything:
 - **Shared files stay O(1) in the number of implementations** — that is what lets
   parallel variant PRs merge without conflicting. Per-implementation content lives
   in that implementation's directory or its own file: its build/test CI in
-  `.github/workflows/build-<layer>-<name>.yml`, its logging-conformance table,
+  `.github/workflows/build-<layer>-<name>.yml` (the `ci-ok` gate fails when an
+  implementation directory lacks its build workflow), its logging-conformance table,
   observability wiring, and image-build command in its README. The shared `ci.yml`
   discovers implementations from the filesystem, and `codecov.yml` /
   `.github/dependabot.yml` pre-seed planned variants. A new variant adds files; the
