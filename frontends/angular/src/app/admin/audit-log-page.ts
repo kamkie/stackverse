@@ -132,8 +132,11 @@ export class AuditLogPage {
     computed<AuditQuery>(() => ({
       ...(this.actor() ? { actor: this.actor() } : {}),
       ...(this.action() ? { action: this.action() } : {}),
-      ...(this.from() ? { from: new Date(this.from()).toISOString() } : {}),
-      ...(this.to() ? { to: new Date(this.to()).toISOString() } : {}),
+      // The date inputs select whole local calendar days; the API takes instants
+      // and the backend compares both bounds inclusively, so "from" becomes the
+      // first millisecond of the selected day and "to" the last.
+      ...(this.from() ? { from: new Date(`${this.from()}T00:00:00`).toISOString() } : {}),
+      ...(this.to() ? { to: new Date(`${this.to()}T23:59:59.999`).toISOString() } : {}),
       page: this.pageIndex(),
     })),
     (query: AuditQuery) => this.api.listAuditEntries(query),

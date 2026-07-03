@@ -100,7 +100,9 @@ and reports; `admin` sees everything:
    (reason required to block).
 10. **Audit log** (`admin`) — filterable, paginated browser. Every filter says what
     it matches (the action filter is an exact match; the date inputs carry visible
-    from/to labels), and one click clears them all.
+    from/to labels and select whole local calendar days — "To" maps to the last
+    instant of the selected day, so that day's entries are included), and one click
+    clears them all.
 11. **Messages** (`admin`) — list/create/edit/delete localized messages, searchable
     via `q` (case-insensitive substring over key and text). The language field is a
     select over the supported languages, and one click clears both filters.

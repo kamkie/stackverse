@@ -1,13 +1,19 @@
 // Audit log toolbar: the date-range inputs carry visible From/To labels,
 // the action filter offers known-action suggestions but stays free-text,
 // and "Clear filters" resets every filter and restores the unfiltered list.
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { MOCK_USERS, setCurrentUser } from "../mocks/state";
 import { renderApp } from "./utils";
 
 const ACTION_PLACEHOLDER = "Exact action, e.g. report.resolved";
+
+/** The YYYY-MM-DD value a date input shows for an instant, in local time. */
+function localDateValue(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
 
 describe("audit log filters", () => {
   it("renders labeled date fields and known-action suggestions", async () => {
@@ -34,6 +40,40 @@ describe("audit log filters", () => {
     );
     expect(options).toContain("report.resolved");
     expect(options).toHaveLength(7);
+  });
+
+  it("treats From/To as whole local days — To includes the selected day itself", async () => {
+    setCurrentUser(MOCK_USERS.admin);
+    renderApp("/admin/audit");
+
+    expect(await screen.findByText("user.blocked")).toBeInTheDocument();
+
+    // The seeded entry was written at 12:00 UTC nine days ago (mocks/db.ts).
+    const seededAt = new Date();
+    seededAt.setUTCDate(seededAt.getUTCDate() - 9);
+    seededAt.setUTCHours(12, 0, 0, 0);
+    const entryDay = localDateValue(seededAt);
+    const dayBefore = localDateValue(
+      new Date(seededAt.getTime() - 24 * 60 * 60 * 1000),
+    );
+
+    // A To day before the entry's local day filters it out...
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: dayBefore },
+    });
+    await waitFor(() =>
+      expect(screen.queryByText("user.blocked")).not.toBeInTheDocument(),
+    );
+
+    // ...and a From/To range of exactly the entry's local day includes it —
+    // To covers the whole selected day, not just its first instant.
+    fireEvent.change(screen.getByLabelText("From"), {
+      target: { value: entryDay },
+    });
+    fireEvent.change(screen.getByLabelText("To"), {
+      target: { value: entryDay },
+    });
+    expect(await screen.findByText("user.blocked")).toBeInTheDocument();
   });
 
   it("clears every filter and restores the unfiltered list", async () => {

@@ -36,8 +36,11 @@ export function AuditLogPage() {
     () => ({
       ...(actor ? { actor } : {}),
       ...(action ? { action } : {}),
-      ...(from ? { from: new Date(from).toISOString() } : {}),
-      ...(to ? { to: new Date(to).toISOString() } : {}),
+      // The date inputs select whole local calendar days; the API takes instants
+      // and the backend compares both bounds inclusively, so "from" becomes the
+      // first millisecond of the selected day and "to" the last.
+      ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}),
+      ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
       page,
     }),
     [actor, action, from, to, page],
