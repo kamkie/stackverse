@@ -1,0 +1,187 @@
+# CI for every push/PR: each implementation builds and tests in isolation,
+# then the two black-box suites prove the contract — conformance directly
+# against the spring-kotlin backend, e2e through the full composed stack.
+#
+# All jobs run unconditionally (no path filters): the contract couples
+# everything to spec/ and docs/, and with one implementation per layer the
+# whole matrix is cheap. Revisit when more stacks land.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-spring-kotlin:
+    name: Backend · Spring Boot (Kotlin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/spring-kotlin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      # integration tests bring up PostgreSQL via Testcontainers
+      - name: Build and test
+        run: ./gradlew build
+
+  gateway-yarp:
+    name: Gateway · YARP (ASP.NET Core)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: gateways/yarp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      # integration tests bring up Keycloak and Redis via Testcontainers
+      - name: Build and test
+        run: dotnet test
+
+  frontend-react:
+    name: Frontend · React
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/react
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v4
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-react-${{ hashFiles('frontends/react/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-react-
+      - name: Install dependencies
+        run: yarn install --immutable
+      # `yarn build` runs the typecheck (tsc --noEmit) before vite build
+      - name: Typecheck and build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test
+
+  conformance:
+    name: Conformance · spring-kotlin backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t "$BACKEND_IMAGE" -f backends/spring-kotlin/Dockerfile .
+      # starts postgres + keycloak (waits on their healthchecks), then the backend
+      - name: Start infra + backend
+        run: docker compose --profile app up -d backend
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v4
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-conformance-${{ hashFiles('conformance/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-conformance-
+      - name: Install dependencies
+        working-directory: conformance
+        run: yarn install --immutable
+      - name: Wait for the backend to be ready
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "backend never became ready" >&2
+          exit 1
+      - name: Run conformance suite
+        working-directory: conformance
+        run: yarn playwright test
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-report
+          path: conformance/playwright-report/
+          retention-days: 7
+
+  e2e:
+    name: E2E · spring-kotlin + yarp + react
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      GATEWAY_IMAGE: stackverse/gateway-yarp:local
+      FRONTEND_IMAGE: stackverse/frontend-react:local
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images
+        run: ./scripts/build-images.sh
+      - name: Start the full stack
+        run: docker compose --profile app up -d
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v4
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-e2e-${{ hashFiles('e2e/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-e2e-
+      - name: Install dependencies
+        working-directory: e2e
+        run: yarn install --immutable
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: yarn playwright install --with-deps chromium
+      # the gateway serves the SPA only after the frontend one-shot has
+      # published it and keycloak/backend are up — poll both layers
+      - name: Wait for the stack to be ready
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 \
+               && curl -fsS http://localhost:8000/ >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "stack never became ready" >&2
+          exit 1
+      - name: Run e2e suite
+        working-directory: e2e
+        run: yarn playwright test
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7

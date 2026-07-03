@@ -134,6 +134,25 @@ realm import — infra created before the client existed needs a one-time
 `docker compose up -d --force-recreate keycloak` (dev Keycloak has no
 persistent volume, so recreating re-imports the realm).
 
+## Continuous integration
+
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push
+to `main` and every pull request, as five parallel jobs:
+
+- **Per-implementation builds** — each done implementation builds and tests in
+  its own toolchain: `gradlew build` for `backends/spring-kotlin`,
+  `dotnet test` for `gateways/yarp` (both use Testcontainers for their
+  integration tests), and `yarn build` + `yarn test` for `frontends/react`.
+- **Conformance** — builds the backend image, starts the compose infra plus
+  that backend, and runs the `conformance/` suite against it directly.
+- **E2E** — builds all three images (`scripts/build-images.sh`), starts the
+  full composed stack, and runs the `e2e/` Playwright suite through the
+  gateway.
+
+All jobs run on every change (no path filters): the contract couples every
+implementation to `spec/` and `docs/`. Playwright reports upload as workflow
+artifacts when a suite fails.
+
 ## Observability
 
 An all-in-one [grafana/otel-lgtm](https://github.com/grafana/docker-otel-lgtm)

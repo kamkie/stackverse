@@ -1,5 +1,7 @@
 # Stackverse
 
+[![CI](https://github.com/kamkie/stackverse/actions/workflows/ci.yml/badge.svg)](https://github.com/kamkie/stackverse/actions/workflows/ci.yml)
+
 **One app, every stack.**
 
 Stackverse is a single, deliberately non-trivial product — a bookmark manager — implemented
@@ -70,7 +72,9 @@ Every implementation must satisfy:
 
 The contract is executable: the black-box suite in [conformance/](conformance)
 runs any backend through the API rules above (`./scripts/conformance.sh`),
-and the [e2e/](e2e) suite drives any composed stack through the UI.
+and the [e2e/](e2e) suite drives any composed stack through the UI. CI runs
+both suites plus every implementation's own build and tests on each push and
+pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
 ## Implementation matrix
 
@@ -139,6 +143,7 @@ e2e/           black-box Playwright suite for any composed stack
 infra/         shared infrastructure config (Keycloak realm, ...)
 scripts/       build/run/test helpers, each as a .ps1 + .sh pair
 compose.yaml   infra + pluggable app combination
+.github/       CI workflow (per-implementation builds + conformance + e2e)
 ```
 
 ## License
