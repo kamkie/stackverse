@@ -237,19 +237,28 @@ jobs:
 
             # 1) every build-*.yml must have a successful workflow run for this
             #    commit — a workflow that never ran creates no check runs and
-            #    would be invisible to the check-run scan below
+            #    would be invisible to the check-run scan below. Only the latest
+            #    run per workflow counts: a closed/reopened PR keeps its head
+            #    SHA, so a concurrency-cancelled older run must not veto the
+            #    successful current one.
             runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" \
-              | jq '[.workflow_runs[] | {path, status, conclusion}]')
+              --paginate --slurp \
+              | jq '[.[].workflow_runs[] | {path, status, conclusion, run_number}]')
             for wf in $expected; do
-              bad=$(echo "$runs" | jq --arg p "$wf" '[.[] | select(.path == $p
-                    and .status == "completed" and .conclusion != "success")] | length')
-              if [ "$bad" -gt 0 ]; then
-                echo "workflow $wf did not succeed for $SHA" >&2
-                exit 1
-              fi
-              ok=$(echo "$runs" | jq --arg p "$wf" '[.[] | select(.path == $p
-                   and .status == "completed" and .conclusion == "success")] | length')
-              [ "$ok" -gt 0 ] || waiting="$waiting $wf"
+              state=$(echo "$runs" | jq -r --arg p "$wf" '[.[] | select(.path == $p)]
+                      | sort_by(.run_number) | last
+                      | if . == null then "missing"
+                        elif .status != "completed" then "running"
+                        elif .conclusion == "success" then "success"
+                        else "failed:" + .conclusion end')
+              case "$state" in
+                success) ;;
+                failed:*)
+                  echo "latest run of $wf concluded ${state#failed:} for $SHA" >&2
+                  exit 1
+                  ;;
+                *) waiting="$waiting $wf" ;;
+              esac
             done
 
             # 2) every other github-actions check run must complete successfully
