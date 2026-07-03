@@ -36,6 +36,28 @@ func NowUTC() time.Time {
 	return time.Now().UTC().Truncate(time.Microsecond)
 }
 
+// Querier is the query surface shared by *pgxpool.Pool and pgx.Tx, so a store
+// method can run standalone or inside a caller's transaction.
+type Querier interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// InTx runs fn in a transaction, committing on nil and rolling back on error —
+// how a backoffice mutation and its audit entry stay atomic (SPEC rule 18).
+func InTx(ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
 // Open connects the pool and applies pending migrations.
 func Open(ctx context.Context, dsn string, logger *slog.Logger) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(dsn)

@@ -104,11 +104,17 @@ func (s *Store) search(ctx context.Context, q, status string, page, size int) ([
 	return items, total, err
 }
 
-func (s *Store) setStatus(ctx context.Context, username, status string, reason *string) error {
-	_, err := s.pool.Exec(ctx,
+// setStatus runs on a caller-supplied Querier so the audit entry can share
+// its transaction (SPEC rule 18).
+func setStatus(ctx context.Context, db store.Querier, username, status string, reason *string) error {
+	_, err := db.Exec(ctx,
 		"update user_accounts set status = $2, blocked_reason = $3 where username = $1",
 		username, status, reason)
 	return err
+}
+
+func (s *Store) inTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	return store.InTx(ctx, s.pool, fn)
 }
 
 // Middleware runs right after JWT authentication: it upserts the caller's
@@ -256,11 +262,12 @@ func (a *API) SetStatus(w http.ResponseWriter, r *http.Request) {
 			a.fail(w, r, web.Conflict("Admins cannot block themselves."))
 			return
 		}
-		if err := a.store.setStatus(r.Context(), username, StatusBlocked, reason); err != nil {
-			a.fail(w, r, err)
-			return
-		}
-		err := a.audit.Record(r.Context(), actor, "user.blocked", "user", username, map[string]any{"reason": reason})
+		err := a.store.inTx(r.Context(), func(tx pgx.Tx) error {
+			if err := setStatus(r.Context(), tx, username, StatusBlocked, reason); err != nil {
+				return err
+			}
+			return a.audit.RecordTx(r.Context(), tx, actor, "user.blocked", "user", username, map[string]any{"reason": reason})
+		})
 		if err != nil {
 			a.fail(w, r, err)
 			return
@@ -271,11 +278,13 @@ func (a *API) SetStatus(w http.ResponseWriter, r *http.Request) {
 			slog.String("resource_id", username),
 		)
 	} else {
-		if err := a.store.setStatus(r.Context(), username, StatusActive, nil); err != nil {
-			a.fail(w, r, err)
-			return
-		}
-		if err := a.audit.Record(r.Context(), actor, "user.unblocked", "user", username, nil); err != nil {
+		err := a.store.inTx(r.Context(), func(tx pgx.Tx) error {
+			if err := setStatus(r.Context(), tx, username, StatusActive, nil); err != nil {
+				return err
+			}
+			return a.audit.RecordTx(r.Context(), tx, actor, "user.unblocked", "user", username, nil)
+		})
+		if err != nil {
 			a.fail(w, r, err)
 			return
 		}

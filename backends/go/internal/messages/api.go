@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/kamkie/stackverse/backends/go/internal/audit"
 	"github.com/kamkie/stackverse/backends/go/internal/auth"
@@ -145,14 +146,17 @@ func (a *API) Create(w http.ResponseWriter, r *http.Request) {
 		ID: uuid.New(), Key: input.Key, Language: input.Language, Text: input.Text,
 		Description: input.Description, CreatedAt: now, UpdatedAt: now,
 	}
-	if err := a.store.insert(r.Context(), message); err != nil {
+	err = a.store.InTx(r.Context(), func(tx pgx.Tx) error {
+		if err := insert(r.Context(), tx, message); err != nil {
+			return err
+		}
+		return a.auditTx(r, tx, "message.created", actor, message)
+	})
+	if err != nil {
 		a.fail(w, r, err)
 		return
 	}
-	if err := a.recordAndLog(r, "message.created", "message_created", "Message created", actor, message); err != nil {
-		a.fail(w, r, err)
-		return
-	}
+	a.logEvent(r, "message_created", "Message created", actor, message)
 	w.Header().Set("Location", "/api/v1/messages/"+message.ID.String())
 	web.WriteJSON(w, http.StatusCreated, toResponse(message))
 }
@@ -190,14 +194,17 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 	}
 	message.Key, message.Language, message.Text, message.Description = input.Key, input.Language, input.Text, input.Description
 	message.UpdatedAt = store.NowUTC()
-	if err := a.store.update(r.Context(), message); err != nil {
+	err = a.store.InTx(r.Context(), func(tx pgx.Tx) error {
+		if err := update(r.Context(), tx, message); err != nil {
+			return err
+		}
+		return a.auditTx(r, tx, "message.updated", actor, message)
+	})
+	if err != nil {
 		a.fail(w, r, err)
 		return
 	}
-	if err := a.recordAndLog(r, "message.updated", "message_updated", "Message updated", actor, message); err != nil {
-		a.fail(w, r, err)
-		return
-	}
+	a.logEvent(r, "message_updated", "Message updated", actor, message)
 	web.WriteJSON(w, http.StatusOK, toResponse(message))
 }
 
@@ -213,30 +220,35 @@ func (a *API) Delete(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, err)
 		return
 	}
-	if err := a.store.delete(r.Context(), message.ID); err != nil {
+	err = a.store.InTx(r.Context(), func(tx pgx.Tx) error {
+		if err := remove(r.Context(), tx, message.ID); err != nil {
+			return err
+		}
+		return a.auditTx(r, tx, "message.deleted", actor, message)
+	})
+	if err != nil {
 		a.fail(w, r, err)
 		return
 	}
-	if err := a.recordAndLog(r, "message.deleted", "message_deleted", "Message deleted", actor, message); err != nil {
-		a.fail(w, r, err)
-		return
-	}
+	a.logEvent(r, "message_deleted", "Message deleted", actor, message)
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// recordAndLog writes the audit entry (the authoritative record) and the
-// diagnostic log event (docs/LOGGING.md §5). The message key is safe to log:
-// validated against keyPattern, so no free-form client text.
-func (a *API) recordAndLog(r *http.Request, action, event, description, actor string, message Message) error {
-	err := a.audit.Record(r.Context(), actor, action, "message", message.ID.String(), map[string]any{
+// auditTx writes the authoritative audit entry inside the mutation's
+// transaction (SPEC rule 18).
+func (a *API) auditTx(r *http.Request, tx pgx.Tx, action, actor string, message Message) error {
+	return a.audit.RecordTx(r.Context(), tx, actor, action, "message", message.ID.String(), map[string]any{
 		"key":         message.Key,
 		"language":    message.Language,
 		"text":        message.Text,
 		"description": message.Description,
 	})
-	if err != nil {
-		return err
-	}
+}
+
+// logEvent emits the diagnostic log event after commit (docs/LOGGING.md §5).
+// The message key is safe to log: validated against keyPattern, so no
+// free-form client text.
+func (a *API) logEvent(r *http.Request, event, description, actor string, message Message) {
 	logx.Event(r.Context(), a.logger, slog.LevelInfo, event, "success", description,
 		slog.String("actor", actor),
 		slog.String("resource_type", "message"),
@@ -244,7 +256,6 @@ func (a *API) recordAndLog(r *http.Request, action, event, description, actor st
 		slog.String("message_key", message.Key),
 		slog.String("language", message.Language),
 	)
-	return nil
 }
 
 type validated struct {

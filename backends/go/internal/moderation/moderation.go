@@ -462,14 +462,15 @@ func (a *API) SetBookmarkStatus(w http.ResponseWriter, r *http.Request) {
 	previous := bookmark.Status
 	bookmark.Status = *body.Status
 	bookmark.UpdatedAt = store.NowUTC()
-	_, err = a.pool.Exec(r.Context(), "update bookmarks set status = $2, updated_at = $3 where id = $1",
-		bookmark.ID, bookmark.Status, bookmark.UpdatedAt)
-	if err != nil {
-		a.fail(w, r, err)
-		return
-	}
-	err = a.audit.Record(r.Context(), actor, "bookmark.status-changed", "bookmark", bookmark.ID.String(),
-		map[string]any{"from": previous, "to": bookmark.Status, "note": body.Note})
+	err = a.inTx(r.Context(), func(tx pgx.Tx) error {
+		_, err := tx.Exec(r.Context(), "update bookmarks set status = $2, updated_at = $3 where id = $1",
+			bookmark.ID, bookmark.Status, bookmark.UpdatedAt)
+		if err != nil {
+			return err
+		}
+		return a.audit.RecordTx(r.Context(), tx, actor, "bookmark.status-changed", "bookmark", bookmark.ID.String(),
+			map[string]any{"from": previous, "to": bookmark.Status, "note": body.Note})
+	})
 	if err != nil {
 		a.fail(w, r, err)
 		return

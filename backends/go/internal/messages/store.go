@@ -13,8 +13,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/kamkie/stackverse/backends/go/internal/store"
 	"github.com/kamkie/stackverse/backends/go/internal/web"
 )
 
@@ -137,22 +139,42 @@ func (s *Store) existsConflicting(ctx context.Context, key, language string, exc
 	return exists, err
 }
 
-func (s *Store) insert(ctx context.Context, m Message) error {
-	_, err := s.pool.Exec(ctx,
+// The write statements run on a caller-supplied Querier so the audit entry
+// can share their transaction (SPEC rule 18: the mutation and its audit
+// record commit or roll back together).
+
+func insert(ctx context.Context, db store.Querier, m Message) error {
+	_, err := db.Exec(ctx,
 		"insert into messages ("+messageColumns+") values ($1, $2, $3, $4, $5, $6, $7)",
 		m.ID, m.Key, m.Language, m.Text, m.Description, m.CreatedAt, m.UpdatedAt)
-	return err
+	return mapUniqueViolation(err, m)
 }
 
-func (s *Store) update(ctx context.Context, m Message) error {
-	_, err := s.pool.Exec(ctx,
+func update(ctx context.Context, db store.Querier, m Message) error {
+	_, err := db.Exec(ctx,
 		"update messages set key = $2, language = $3, text = $4, description = $5, updated_at = $6 where id = $1",
 		m.ID, m.Key, m.Language, m.Text, m.Description, m.UpdatedAt)
+	return mapUniqueViolation(err, m)
+}
+
+func remove(ctx context.Context, db store.Querier, id uuid.UUID) error {
+	_, err := db.Exec(ctx, "delete from messages where id = $1", id)
 	return err
 }
 
-func (s *Store) delete(ctx context.Context, id uuid.UUID) error {
-	_, err := s.pool.Exec(ctx, "delete from messages where id = $1", id)
+// InTx exposes the pool to the API layer for mutation+audit transactions.
+func (s *Store) InTx(ctx context.Context, fn func(tx pgx.Tx) error) error {
+	return store.InTx(ctx, s.pool, fn)
+}
+
+// mapUniqueViolation turns a lost race on uq_messages_key_language into the
+// same 409 the pre-check produces — two concurrent creates of one
+// (key, language) must not surface as a 500.
+func mapUniqueViolation(err error, m Message) error {
+	var pgError *pgconn.PgError
+	if errors.As(err, &pgError) && pgError.Code == "23505" {
+		return conflictProblem(m.Key, m.Language)
+	}
 	return err
 }
 
