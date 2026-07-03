@@ -49,6 +49,9 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   require front-channel logout, which the `204` contract deliberately trades away;
   if the residual SSO window ever matters, that is a contract-level decision for
   all gateways, not a local one.
+- **Observability** (docs/RUNNING.md) — the OpenTelemetry .NET SDK, wired in
+  code (ASP.NET Core + HttpClient instrumentation, OTLP for
+  traces/metrics/logs), active only when `OTEL_SDK_DISABLED=false`.
 - **Logging** (docs/LOGGING.md) uses the built-in console formatters:
   `AddJsonConsole` by default (UTC RFC 3339 timestamps; activity tracking puts
   `TraceId`/`SpanId` into the logged scopes), `AddSimpleConsole` for
@@ -79,6 +82,30 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   both land in `OnRemoteFailure`: log `oidc_callback_completed` outcome=failure
   at INFO — the failure *type* only, since the message can echo client-controlled
   query text — then short-circuit the handler and redirect to `/` logged out.
+
+## Logging conformance
+
+Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
+`❌` rows are this implementation's agreed, visible backlog.
+
+| Requirement | Status |
+|---|---|
+| stdout-only logging | ✅ |
+| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (.NET SDK) |
+| lifecycle events at `INFO` | ✅ |
+| expected 4xx not logged as errors | ✅ |
+| secrets kept out of logs | ✅ |
+| `LOG_LEVEL` honored | ✅ |
+| trace id on console lines when tracing on | ✅ |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap¹ |
+| JSON console by default (`LOG_FORMAT`) | ✅ |
+| dev-only console forwarding, sanitized | n/a |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |
+
+¹ `dependency_call_failed` is emitted for Keycloak token-refresh outages, but
+Redis and the backend upstream are still uncovered — partial coverage keeps
+the row a gap.
 
 ## Configuration
 

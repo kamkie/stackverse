@@ -253,34 +253,35 @@ no per-environment profiles.
 
 ## 10. Conformance
 
-| Requirement | spring-kotlin | dotnet | yarp | spring-cloud-gateway | react | angular |
-|---|---|---|---|---|---|---|
-| stdout-only logging | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) | ✅ (.NET SDK) | ✅ (.NET SDK) | ✅ (Java agent) | n/a | n/a |
-| lifecycle events at `INFO` | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| expected 4xx not logged as errors | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| secrets kept out of logs | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `LOG_LEVEL` honored | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| trace id on console lines when tracing on | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ✅² | ❌ gap¹ | ❌ gap¹ | n/a | n/a |
-| JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
-| dev-only console forwarding, sanitized | n/a | n/a | n/a | n/a | ✅ | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a | n/a | n/a | n/a | ✅ | ✅ |
+Conformance status lives with each implementation, not here: every
+implementation README carries a **"Logging conformance"** section with the
+table below filled in. Gaps are tracked there on purpose — a new
+implementation must satisfy every applicable row, and any `❌` an
+implementation accrues is its agreed, visible backlog, with a note saying
+exactly what is missing. (Keeping the statuses out of this document also
+keeps it conflict-free across parallel variant PRs; only the requirement
+rows below are shared.)
 
-¹ both gateways emit `dependency_call_failed` for Keycloak token-refresh
-outages, but Redis and the backend upstream are still uncovered — partial
-coverage keeps the row a gap.
+Copy this table into the implementation README and fill the **Status**
+column with `✅`, `❌ gap` (plus what exactly is missing), or `n/a`. The two
+`dev-only …` rows apply to frontends only; every other row applies to
+backends and gateways only — except `secrets kept out of logs`, which
+applies to everything.
 
-² dotnet emits `dependency_call_failed` — with `duration_ms` measured at the
-failing call — for both of its dependencies: PostgreSQL (EF Core command,
-connection, and transaction interceptors, which also cover the readiness
-probe) and the Keycloak metadata/JWKS fetch (an instrumented document
-retriever). It has no retry loops, so `retry_exhausted` has no occurrence to
-log.
-
-Gaps are tracked here on purpose: a new implementation must satisfy every
-row, and any `❌` an implementation accrues is its agreed, visible backlog.
+| Requirement | Status |
+|---|---|
+| stdout-only logging | |
+| OTLP log export behind `OTEL_SDK_DISABLED` | |
+| lifecycle events at `INFO` | |
+| expected 4xx not logged as errors | |
+| secrets kept out of logs | |
+| `LOG_LEVEL` honored | |
+| trace id on console lines when tracing on | |
+| stable `event` names (§5: lifecycle, session, security, moderation) | |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | |
+| JSON console by default (`LOG_FORMAT`) | |
+| dev-only console forwarding, sanitized | |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | |
 
 Pre-release checklist (per implementation):
 

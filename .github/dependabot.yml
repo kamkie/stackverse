@@ -2,6 +2,11 @@
 # are siblings with independent toolchains, so their updates stay independent too.
 # Minor + patch bumps are grouped into a single PR per ecosystem; majors stay
 # separate so a breaking upgrade is reviewed on its own.
+#
+# Planned-but-unstarted variants are pre-seeded as commented entries (Dependabot
+# errors on directories that do not exist yet): a variant PR uncomments its line
+# instead of inventing a new hunk, so parallel variant PRs stay conflict-free.
+# Directory lists stay alphabetized.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -11,6 +16,15 @@ updates:
     groups:
       actions-minor:
         update-types: [minor, patch]
+
+  # pre-seeded for backends/go — uncomment when the directory lands
+  # - package-ecosystem: gomod
+  #   directory: /backends/go
+  #   schedule:
+  #     interval: weekly
+  #   groups:
+  #     gomod-minor:
+  #       update-types: [minor, patch]
 
   - package-ecosystem: gradle
     directories:
@@ -36,6 +50,19 @@ updates:
       - dependency-name: "plugin.jpa"
         versions: ["[2.4,)"]
 
+  - package-ecosystem: npm
+    directories:
+      # - /backends/node-ts   # pre-seeded — uncomment when the directory lands
+      - /conformance
+      - /e2e
+      - /frontends/angular
+      - /frontends/react
+    schedule:
+      interval: weekly
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: nuget
     directories:
       - /backends/dotnet
@@ -46,27 +73,17 @@ updates:
       nuget-minor:
         update-types: [minor, patch]
 
-  - package-ecosystem: npm
-    directories:
-      - /frontends/react
-      - /frontends/angular
-      - /conformance
-      - /e2e
-    schedule:
-      interval: weekly
-    groups:
-      npm-minor:
-        update-types: [minor, patch]
-
   # Dockerfile base images
   - package-ecosystem: docker
     directories:
       - /backends/dotnet
+      # - /backends/go        # pre-seeded — uncomment when the directory lands
+      # - /backends/node-ts   # pre-seeded — uncomment when the directory lands
       - /backends/spring-kotlin
+      - /frontends/angular
+      - /frontends/react
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
-      - /frontends/react
-      - /frontends/angular
     schedule:
       interval: weekly
 

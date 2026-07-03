@@ -68,6 +68,10 @@ Java 25. Route contract, cookie rules, and the login sequence live in
   disabled: the gateway adds nothing to the API semantics, and the default
   `Cache-Control: no-store` stamp would break the backend's ETag caching exhibit on
   proxied responses.
+- **Observability** (docs/RUNNING.md) — the OpenTelemetry Java agent baked
+  into the container image (auto-instruments WebFlux, the Netty proxy client,
+  logging) — no SDK code in the application; active only when
+  `OTEL_SDK_DISABLED=false`.
 - **Logging** (docs/LOGGING.md) uses Spring Boot's built-in structured console
   logging (ECS flavor, UTC timestamps; the OTel agent's MDC puts trace/span ids on
   every line when telemetry is on) by default, the human-readable pattern for
@@ -77,6 +81,30 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 - **PKCE is forced.** Spring auto-enables PKCE only for public clients; the
   authorization-request customizer adds it for this confidential client too, so all
   gateway stacks exhibit identical wire behavior (the realm requires S256).
+
+## Logging conformance
+
+Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
+`❌` rows are this implementation's agreed, visible backlog.
+
+| Requirement | Status |
+|---|---|
+| stdout-only logging | ✅ |
+| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) |
+| lifecycle events at `INFO` | ✅ |
+| expected 4xx not logged as errors | ✅ |
+| secrets kept out of logs | ✅ |
+| `LOG_LEVEL` honored | ✅ |
+| trace id on console lines when tracing on | ✅ |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap¹ |
+| JSON console by default (`LOG_FORMAT`) | ✅ |
+| dev-only console forwarding, sanitized | n/a |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |
+
+¹ `dependency_call_failed` is emitted for Keycloak token-refresh outages, but
+Redis and the backend upstream are still uncovered — partial coverage keeps
+the row a gap.
 
 ## Configuration
 

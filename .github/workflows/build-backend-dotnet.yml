@@ -1,0 +1,47 @@
+# Build and unit/integration tests for one implementation. Each implementation
+# has its own build workflow file so parallel variant PRs never edit a shared
+# workflow — adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-dotnet
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-dotnet:
+    name: Backend · ASP.NET Core (C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/dotnet
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build and test
+        run: dotnet test --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          directory: backends/dotnet/TestResults
+          flags: backend-dotnet
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/dotnet/TestResults/TestResults.xml
+          flags: backend-dotnet
+          token: ${{ secrets.CODECOV_TOKEN }}

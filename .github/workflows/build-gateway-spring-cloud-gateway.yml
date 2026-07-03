@@ -1,0 +1,50 @@
+# Build and unit/integration tests for one implementation. Each implementation
+# has its own build workflow file so parallel variant PRs never edit a shared
+# workflow — adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-gateway-spring-cloud-gateway
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gateway-spring-cloud-gateway:
+    name: Gateway · Spring Cloud Gateway (Kotlin)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: gateways/spring-cloud-gateway
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      # integration tests bring up Keycloak and Redis via Testcontainers
+      - name: Build and test
+        run: ./gradlew build
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: gateways/spring-cloud-gateway/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: gateway-spring-cloud-gateway
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          directory: gateways/spring-cloud-gateway/build/test-results/test
+          flags: gateway-spring-cloud-gateway
+          token: ${{ secrets.CODECOV_TOKEN }}

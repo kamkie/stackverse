@@ -69,6 +69,9 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
   Actuator's health groups provide.
 - The audit `detail` column is `jsonb` mapped as a JSON string; the API renders it
   back as an object.
+- Observability (docs/RUNNING.md): the OpenTelemetry Java agent is baked into
+  the container image and auto-instruments Spring MVC, JDBC, and logging —
+  no SDK code in the application; active only when `OTEL_SDK_DISABLED=false`.
 - Logging (docs/LOGGING.md) uses Spring Boot's built-in structured console
   logging in its **ECS flavor** — UTC timestamps, and both the MDC (where the
   OTel Java agent puts `trace_id`/`span_id`) and SLF4J key-value pairs (how the
@@ -80,3 +83,23 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
   cursor whose boundary row was deleted between pages — and that one must keep
   working. Only cursors that fail to decode into a `(createdAt, id)` position are
   rejected.
+
+## Logging conformance
+
+Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
+`❌` rows are this implementation's agreed, visible backlog.
+
+| Requirement | Status |
+|---|---|
+| stdout-only logging | ✅ |
+| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) |
+| lifecycle events at `INFO` | ✅ |
+| expected 4xx not logged as errors | ✅ |
+| secrets kept out of logs | ✅ |
+| `LOG_LEVEL` honored | ✅ |
+| trace id on console lines when tracing on | ✅ |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap — not emitted yet |
+| JSON console by default (`LOG_FORMAT`) | ✅ |
+| dev-only console forwarding, sanitized | n/a |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |

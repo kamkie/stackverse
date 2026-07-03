@@ -34,6 +34,13 @@ Conformance (the acceptance gate), with the backend running:
 ../../scripts/conformance.ps1        # or conformance.sh
 ```
 
+Container image (repo root as context — the image ships the message seed),
+from the repo root:
+
+```sh
+docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
+```
+
 ## What this implementation demonstrates
 
 - **Minimal APIs over controllers** — endpoint groups per feature
@@ -59,6 +66,9 @@ Conformance (the acceptance gate), with the backend running:
 - **Body-hash ETags in middleware** — `EtagMiddleware` buffers message/stats
   responses and derives the ETag from the bytes, the same stateless
   revalidation scheme as the reference backend's `ShallowEtagHeaderFilter`.
+- **Observability** (docs/RUNNING.md) — the OpenTelemetry .NET SDK, wired in
+  code (ASP.NET Core + HttpClient + Npgsql instrumentation, OTLP for
+  traces/metrics/logs), active only when `OTEL_SDK_DISABLED=false`.
 
 ## Deliberate deviations worth comparing
 
@@ -74,3 +84,30 @@ Conformance (the acceptance gate), with the backend running:
   the contract wants all field errors collected in one RFC 9457 problem with
   localized messages, which is simpler to do directly than to bend the
   framework validators.
+
+## Logging conformance
+
+Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
+`❌` rows are this implementation's agreed, visible backlog.
+
+| Requirement | Status |
+|---|---|
+| stdout-only logging | ✅ |
+| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (.NET SDK) |
+| lifecycle events at `INFO` | ✅ |
+| expected 4xx not logged as errors | ✅ |
+| secrets kept out of logs | ✅ |
+| `LOG_LEVEL` honored | ✅ |
+| trace id on console lines when tracing on | ✅ |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ✅¹ |
+| JSON console by default (`LOG_FORMAT`) | ✅ |
+| dev-only console forwarding, sanitized | n/a |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |
+
+¹ `dependency_call_failed` is emitted — with `duration_ms` measured at the
+failing call — for both of this backend's dependencies: PostgreSQL (EF Core
+command, connection, and transaction interceptors, which also cover the
+readiness probe) and the Keycloak metadata/JWKS fetch (an instrumented
+document retriever). There are no retry loops, so `retry_exhausted` has no
+occurrence to log.

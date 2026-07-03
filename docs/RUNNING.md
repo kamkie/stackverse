@@ -5,23 +5,16 @@ repo root unless noted.
 
 ## 1. Frontend only (mocked API) — fastest way to see the UI
 
-No Docker, no backend — the API and the OIDC dance are mocked in the browser
-(MSW). Good for UI work and demos. React only: the Angular frontend has no
-mock mode (see [frontends/angular/README.md](../frontends/angular/README.md))
-and needs a running gateway (mode 2b).
+No Docker, no backend — the API and the OIDC dance are mocked in the browser.
+Good for UI work and demos. Whether a frontend ships an in-browser mock mode
+(and how to pick the mocked identity) is a per-implementation convenience
+documented in that frontend's README — the React frontend has one (MSW);
+frontends without one need a running gateway (mode 2b).
 
 ```sh
-cd frontends/react
+cd frontends/react     # or any frontend whose README documents a mock mode
 yarn install
-yarn dev          # http://localhost:5173
-```
-
-Pick who you are before clicking *Log in* (browser devtools console):
-
-```js
-localStorage.setItem("stackverse.mock.login-as", "demo");      // regular user
-localStorage.setItem("stackverse.mock.login-as", "moderator"); // + reports, dashboard
-localStorage.setItem("stackverse.mock.login-as", "admin");     // full backoffice
+yarn dev               # http://localhost:5173
 ```
 
 **Logs:** the dev server prints to the terminal, and the browser's console
@@ -70,10 +63,10 @@ in their own Windows Terminal tabs, each tee'ing its output to
 App on http://localhost:8000 (gateway proxies the Vite dev server). Stop with
 Ctrl+C per tab and `docker compose down`.
 
-The script starts the React frontend. To develop against the Angular one,
-run `yarn dev` in `frontends/angular` in the frontend tab instead — same
-port (5173), same gateway wiring, no mock toggle (the Angular app always
-talks to the gateway).
+The script starts the reference frontend (React). To develop against another
+frontend implementation, run `yarn dev` in its directory in the frontend tab
+instead — same port (5173), same gateway wiring; whether it has a mock toggle
+is documented in its README.
 
 ## 3. Full stack (containers)
 
@@ -101,18 +94,17 @@ Then open http://localhost:8000 and log in as `demo` / `demo`,
 The stack runs attached; Ctrl+C stops it. **Logs:** `docker compose logs -f
 [service]`, or Docker Desktop.
 
-Manual image builds (what the script does):
+Manual image builds (what `scripts/build-images.sh` / `.ps1` does, one
+`docker build` per layer). The only trap is the build context: **backend and
+frontend images build with the repo root as context** (they bundle
+`spec/messages` / `spec/design`), **gateway images with their own
+directory**. One example per layer — every implementation's exact command is
+in its own README:
 
 ```sh
-# backend images build with the REPO ROOT as context (they bundle spec/messages)
 docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin/Dockerfile .
-docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
-# gateway images build with their own directory as context
 docker build -t stackverse/gateway-yarp:local gateways/yarp
-docker build -t stackverse/gateway-spring-cloud-gateway:local gateways/spring-cloud-gateway
-# frontend images build with the REPO ROOT as context (they bundle spec/design)
 docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .
-docker build -t stackverse/frontend-angular:local -f frontends/angular/Dockerfile .
 ```
 
 Non-default combinations pass the implementation names positionally, e.g. the
@@ -162,23 +154,31 @@ persistent volume, so recreating re-imports the realm).
 
 ## Continuous integration
 
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs on every push
-to `main` and every pull request, as parallel jobs:
+CI runs on every push to `main` and every pull request, split so that shared
+workflow files stay O(1) in the number of implementations — a new variant
+adds its own workflow file and is otherwise picked up automatically. Four job
+categories:
 
-- **Per-implementation builds** — each done implementation builds and tests in
-  its own toolchain: `gradlew build` for `backends/spring-kotlin` and
-  `gateways/spring-cloud-gateway` (Testcontainers for their integration
-  tests), `dotnet test` for `backends/dotnet`, `dotnet test` for
-  `gateways/yarp` (Testcontainers again), and `yarn build` + `yarn test`
-  for `frontends/react` and `frontends/angular`.
-- **Conformance** — one matrix leg per backend implementation: builds that
-  backend's image, starts the compose infra plus the backend, and runs the
-  `conformance/` suite against it directly.
-- **E2E** — builds a backend + gateway + frontend image set
-  (`scripts/build-images.sh`), starts the full composed stack, and runs the
-  `e2e/` Playwright suite through the gateway — once per frontend
-  implementation (react and angular), since frontends have no conformance
-  suite of their own and e2e is their acceptance gate.
+- **Per-implementation builds** — each implementation has its own workflow
+  file, `.github/workflows/build-<layer>-<name>.yml`, running that stack's
+  build and tests in its own toolchain (see the workflow file and the
+  implementation README for specifics).
+- **Conformance** ([`ci.yml`](../.github/workflows/ci.yml)) — a `discover`
+  job lists `backends/*/Dockerfile` from the filesystem, and one matrix leg
+  per discovered backend builds that backend's image, starts the compose
+  infra plus the backend, and runs the `conformance/` suite against it
+  directly.
+- **E2E** ([`ci.yml`](../.github/workflows/ci.yml)) — the same discovery over
+  `frontends/*/Dockerfile`: one composed-stack run per frontend (backend and
+  gateway pinned to the reference implementations, spring-kotlin + yarp),
+  building the images with `scripts/build-images.sh` and driving the `e2e/`
+  Playwright suite through the gateway — frontends have no conformance suite
+  of their own, so e2e is their acceptance gate.
+- **`ci-ok`** ([`ci.yml`](../.github/workflows/ci.yml)) — the single merge
+  gate: it fails if any of the jobs above (its own workflow's via `needs`,
+  the per-implementation build workflows via the Checks API) failed or was
+  cancelled. Branch protection requires `ci-ok` plus CodeQL — required
+  checks never change as variants land.
 
 All jobs run on every change (no path filters): the contract couples every
 implementation to `spec/` and `docs/`. Playwright reports upload as workflow
@@ -186,9 +186,8 @@ artifacts when a suite fails.
 
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
-flag (JaCoCo XML for the Gradle projects, coverlet Cobertura for the dotnet
-projects, vitest lcov for the frontends). `codecov.yml` also mirrors each
-implementation as a
+flag, in whatever report format that toolchain emits (see its build
+workflow). `codecov.yml` also mirrors each implementation as a
 [component](https://docs.codecov.com/docs/components) — same numbers sliced
 yml-side, so PR comments and the dashboard break coverage down per
 implementation without extra uploads. Coverage is informational only — see
@@ -196,12 +195,9 @@ implementation without extra uploads. Coverage is informational only — see
 e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
 
 Every job — including conformance and e2e — also submits its JUnit test
-results to Codecov test analytics under the same flags (Gradle's XML for the
-Gradle projects, `--logger junit` for the dotnet projects, and a CI-only JUnit
-reporter wired into the vitest and Playwright configs), even when the tests
-fail. The README
-implementation matrix shows a per-flag coverage badge for each done
-implementation.
+results to Codecov test analytics under the same flags, even when the tests
+fail. The README implementation matrix shows a per-flag coverage badge for
+each done implementation.
 
 Two more automations live in `.github/`:
 
@@ -232,16 +228,9 @@ OBSERVABILITY=1 ./scripts/run-stack.sh
 Grafana: http://localhost:3000 (`admin` / `admin`) — traces in Tempo, metrics
 in Prometheus, logs in Loki, all pre-provisioned as data sources.
 
-Per-implementation wiring:
-
-- `backends/spring-kotlin` — OpenTelemetry Java agent baked into the image
-  (auto-instruments Spring MVC, JDBC, logging).
-- `backends/dotnet` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient +
-  Npgsql instrumentation, OTLP for traces/metrics/logs).
-- `gateways/spring-cloud-gateway` — OpenTelemetry Java agent baked into the
-  image (auto-instruments WebFlux, the Netty proxy client, logging).
-- `gateways/yarp` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient
-  instrumentation, OTLP for traces/metrics/logs).
+How each backend and gateway wires OpenTelemetry (agent vs SDK, which
+instrumentations) is a per-implementation choice documented in that
+implementation's README.
 
 The observability stack is dev-grade by design: one container, no
 persistence, no auth hardening. Production wiring is out of scope (see

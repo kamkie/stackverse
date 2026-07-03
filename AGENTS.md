@@ -30,16 +30,28 @@ implemented in many stacks. Read these before changing anything:
 
 - Work inside one implementation directory at a time; each has its own build and
   toolchain. Run builds/tests from that directory, not the repo root.
+- **Shared files stay O(1) in the number of implementations** — that is what lets
+  parallel variant PRs merge without conflicting. Per-implementation content lives
+  in that implementation's directory or its own file: its build/test CI in
+  `.github/workflows/build-<layer>-<name>.yml`, its logging-conformance table,
+  observability wiring, and image-build command in its README. The shared `ci.yml`
+  discovers implementations from the filesystem, and `codecov.yml` /
+  `.github/dependabot.yml` pre-seed planned variants. A new variant adds files; the
+  only shared edits it should need are its README matrix row and uncommenting its
+  pre-seeded config entries.
 - **Repo scripts ship in both flavors.** Anything in `scripts/` exists as a `.ps1`
   *and* a `.sh` doing the same thing — add or change them together. Test the shell
   flavor through Git Bash or WSL, not by reading it.
 - **Docs follow the change, unprompted.** Any change that touches behavior, scripts,
   env vars, ports, run modes, or contract surface updates every affected document in
   the same change set — README (quickstart, layout, matrix, contract list),
-  `docs/RUNNING.md`, `docs/ARCHITECTURE.md`, `docs/LOGGING.md` (incl. its
-  conformance table), `docs/INTENT.md` for scope shifts, the component READMEs, and
-  this file. Also verify cross-references: a document cited for a claim must
-  actually make that claim. Waiting to be asked is a defect.
+  `docs/RUNNING.md`, `docs/ARCHITECTURE.md`, `docs/LOGGING.md`, `docs/INTENT.md`
+  for scope shifts, the component READMEs, and this file. Per-implementation
+  surfaces live with the implementation, not in the shared docs: its
+  logging-conformance table is in its README (`docs/LOGGING.md` §10 holds only the
+  requirement template), its CI in its own `build-*.yml` workflow. Also verify
+  cross-references: a document cited for a claim must actually make that claim.
+  Waiting to be asked is a defect.
 - **A branch task is done only when its PR is up.** Committing locally is not the
   end of the job. Before ending the session or reporting the task complete: rename
   an auto-generated worktree branch to `claude/<short-task-slug>`, push it, open
@@ -77,9 +89,9 @@ What the script runs (also the manual recipe):
 3. Gateway — in `gateways/yarp`: `dotnet run --project src/StackverseGateway` with
    `FRONTEND_URL=http://localhost:5173` so it proxies the frontend dev server.
 4. Frontend — in `frontends/react`: `yarn dev` with `VITE_API_MOCK=false` (mocks off,
-   Vite proxies `/api` and `/auth` to the gateway). To develop against the Angular
-   variant instead, run `yarn dev` in `frontends/angular` — same port 5173, same
-   proxying, no mock toggle (that app has no in-browser mocks).
+   Vite proxies `/api` and `/auth` to the gateway). To develop against another
+   frontend variant instead, run `yarn dev` in its directory — same port 5173, same
+   proxying; whether it has a mock toggle is documented in its README.
 
 Use the app at http://localhost:8000 (gateway). Stop with Ctrl+C per tab and
 `docker compose down`.
