@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin/Dockerfile .
 
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /build
 # wrapper + build scripts first so the dependency layer caches across source changes
 COPY backends/spring-kotlin/gradlew ./
@@ -12,7 +12,7 @@ RUN sh gradlew dependencies --no-daemon --quiet
 COPY backends/spring-kotlin/src src
 RUN sh gradlew bootJar --no-daemon
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=build /build/build/libs/*.jar app.jar
