@@ -224,6 +224,7 @@ builder.Services.AddReverseProxy()
     });
 
 var app = builder.Build();
+var expectedPublicOrigin = EdgeSecurity.CanonicalPublicOrigin(gateway.PublicUrl);
 
 app.UseAuthentication();
 
@@ -252,7 +253,7 @@ app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api"),
     api => api.Use(async (context, next) =>
     {
-        if (!EdgeSecurity.IsSameOriginStateChange(context.Request, gateway.PublicUrl))
+        if (!EdgeSecurity.IsSameOriginStateChange(context.Request, expectedPublicOrigin))
         {
             // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
             app.Logger.Event(LogLevel.Information, "csrf_validation_failed", "denied",

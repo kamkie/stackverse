@@ -29,7 +29,9 @@ public static class EdgeSecurity
         headers["Cross-Origin-Resource-Policy"] = "same-origin";
     }
 
-    public static bool IsSameOriginStateChange(HttpRequest request, Uri publicUrl)
+    public static string CanonicalPublicOrigin(Uri publicUrl) => CanonicalOrigin(publicUrl);
+
+    public static bool IsSameOriginStateChange(HttpRequest request, string expectedOrigin)
     {
         if (!IsStateChangingApiRequest(request))
         {
@@ -37,7 +39,7 @@ public static class EdgeSecurity
         }
 
         var origin = request.Headers.Origin.ToString();
-        if (!string.IsNullOrEmpty(origin) && CanonicalOriginOrNull(origin) != CanonicalOrigin(publicUrl))
+        if (!string.IsNullOrEmpty(origin) && CanonicalOriginOrNull(origin) != expectedOrigin)
         {
             return false;
         }
