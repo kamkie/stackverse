@@ -204,16 +204,18 @@ a:hover {
   line-height: var(--sv-leading-tight);
 }
 
+/* Controls align at their bottom edge so labeled groups (.sv-toolbar-field)
+   stack their label on top without pushing the sibling controls off-line. */
 .sv-toolbar {
   display: flex;
-  align-items: center;
+  align-items: end;
   gap: var(--sv-space-3);
   flex-wrap: wrap;
 }
 
 .sv-toolbar .sv-input {
   flex: 1;
-  min-width: 12rem;
+  min-width: 9rem;
 }
 
 /* Small labeled control group inside a toolbar (e.g. date inputs with a
@@ -222,6 +224,14 @@ a:hover {
   display: flex;
   flex-direction: column;
   gap: var(--sv-space-1);
+}
+
+/* Inputs inside a labeled group keep their natural width — the flex/min-width
+   stretching above targets bare toolbar inputs, and a stretched date input
+   forces the row to wrap. */
+.sv-toolbar-field > .sv-input {
+  flex: none;
+  min-width: 0;
 }
 
 .sv-toolbar-field > .sv-label {
