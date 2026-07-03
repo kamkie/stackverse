@@ -146,32 +146,38 @@ export function registerModerationRoutes(app: FastifyInstance): void {
   app.post("/api/v1/bookmarks/:id/reports", async (request, reply) => {
     const caller = requireCaller(request);
     const bookmarkId = parseUuid((request.params as { id: string }).id);
-    const found = await pool.query("select visibility, status from bookmarks where id = $1", [bookmarkId]);
-    const bookmark = found.rows[0] as { visibility: string; status: string } | undefined;
-    if (!bookmark || bookmark.visibility !== "public" || bookmark.status !== "active") {
-      throw new NotFoundProblem();
-    }
     const input = validateReportInput(request.body);
-    const open = await pool.query(
-      "select 1 from reports where bookmark_id = $1 and reporter = $2 and status = 'open'",
-      [bookmarkId, caller.username],
-    );
-    if (open.rowCount) throw new ConflictProblem("You already have an open report on this bookmark.");
-    let created;
-    try {
-      created = await pool.query(
-        `insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)
-         values ($1, $2, $3, $4, $5, 'open', $6) returning *`,
-        [randomUUID(), bookmarkId, caller.username, input.reason, input.comment, new Date()],
-      );
-    } catch (error) {
-      // lost the race against a concurrent report by the same user — same outcome as the pre-check
-      if ((error as { code?: string }).code === "23505") {
-        throw new ConflictProblem("You already have an open report on this bookmark.");
+    // lock the bookmark and recheck visibility inside the transaction: a
+    // concurrent hide (which takes the same lock) must not let an open report
+    // land on a now-hidden bookmark
+    const report = await withTransaction(async (client) => {
+      const found = await client.query("select visibility, status from bookmarks where id = $1 for update", [
+        bookmarkId,
+      ]);
+      const bookmark = found.rows[0] as { visibility: string; status: string } | undefined;
+      if (!bookmark || bookmark.visibility !== "public" || bookmark.status !== "active") {
+        throw new NotFoundProblem();
       }
-      throw error;
-    }
-    const report = created.rows[0] as ReportRow;
+      const open = await client.query(
+        "select 1 from reports where bookmark_id = $1 and reporter = $2 and status = 'open'",
+        [bookmarkId, caller.username],
+      );
+      if (open.rowCount) throw new ConflictProblem("You already have an open report on this bookmark.");
+      try {
+        const created = await client.query(
+          `insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)
+           values ($1, $2, $3, $4, $5, 'open', $6) returning *`,
+          [randomUUID(), bookmarkId, caller.username, input.reason, input.comment, new Date()],
+        );
+        return created.rows[0] as ReportRow;
+      } catch (error) {
+        // lost the race against a concurrent report by the same user — same outcome as the pre-check
+        if ((error as { code?: string }).code === "23505") {
+          throw new ConflictProblem("You already have an open report on this bookmark.");
+        }
+        throw error;
+      }
+    });
     logEvent("info", "report_created", "success", "Report created on a public bookmark", {
       actor: caller.username,
       resource_type: "report",
