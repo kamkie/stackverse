@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -27,6 +28,8 @@ func (i *Identity) HasRole(role string) bool {
 }
 
 type contextKey struct{}
+
+var errInvalidPreferredUsername = errors.New("missing or invalid preferred_username claim")
 
 // FromContext returns the authenticated caller, or nil for anonymous requests.
 func FromContext(ctx context.Context) *Identity {
@@ -125,14 +128,18 @@ func (m *Middleware) validate(ctx context.Context, raw string) (*Identity, error
 	if err != nil {
 		return nil, err
 	}
-	return IdentityFromClaims(claims), nil
+	return IdentityFromClaims(claims)
 }
 
 // IdentityFromClaims maps the token claims onto the caller: identity =
 // `preferred_username`, roles = `realm_access.roles` (SPEC rule 6).
-func IdentityFromClaims(claims map[string]any) *Identity {
+func IdentityFromClaims(claims map[string]any) (*Identity, error) {
+	username, ok := claims["preferred_username"].(string)
+	if !ok || username == "" {
+		return nil, errInvalidPreferredUsername
+	}
 	identity := &Identity{
-		Username: stringClaim(claims, "preferred_username"),
+		Username: username,
 		Name:     stringClaim(claims, "name"),
 		Email:    stringClaim(claims, "email"),
 	}
@@ -145,7 +152,7 @@ func IdentityFromClaims(claims map[string]any) *Identity {
 			}
 		}
 	}
-	return identity
+	return identity, nil
 }
 
 func stringClaim(claims map[string]any, name string) string {
