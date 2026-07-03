@@ -2,6 +2,8 @@ package dev.stackverse.backend
 
 import dev.stackverse.backend.bookmark.BookmarkRepository
 import dev.stackverse.backend.moderation.ReportRepository
+import dev.stackverse.backend.moderation.ReportStatus
+import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -14,6 +16,10 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import tools.jackson.databind.ObjectMapper
+import java.util.UUID
+import java.util.concurrent.Callable
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
 
 class ModerationApiTest : IntegrationTest() {
 
@@ -248,6 +254,46 @@ class ModerationApiTest : IntegrationTest() {
             .andExpect(jsonPath("$.status").value("dismissed"))
         mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
             .andExpect(jsonPath("$.status").value("hidden"))
+    }
+
+    /**
+     * Regression: `actioned` writes the bookmark row and every sibling open
+     * report, so two moderators resolving different reports of the same
+     * bookmark used to acquire report→bookmark locks in opposite orders and
+     * deadlock (PostgreSQL aborts one transaction → 500). The fix locks the
+     * bookmark row before any report row; both requests must succeed.
+     */
+    @Test
+    fun `concurrent actioned resolutions of sibling reports do not deadlock`() {
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            repeat(8) {
+                val bookmarkId = createBookmark("alice")
+                val reports = listOf(reportId("bob", bookmarkId), reportId("carol", bookmarkId))
+                val barrier = CyclicBarrier(2)
+                val statuses = reports.map { id ->
+                    executor.submit(
+                        Callable {
+                            barrier.await()
+                            mockMvc.perform(
+                                put("/api/v1/admin/reports/{id}", id).with(moderator())
+                                    .contentType(MediaType.APPLICATION_JSON).content("""{"resolution":"actioned"}"""),
+                            ).andReturn().response.status
+                        },
+                    )
+                }.map { it.get() }
+
+                assertThat(statuses).containsExactly(200, 200)
+                reports.forEach { id ->
+                    val report = reportRepository.findById(UUID.fromString(id)).orElseThrow()
+                    assertThat(report.status).isEqualTo(ReportStatus.ACTIONED)
+                }
+                mockMvc.perform(get("/api/v1/bookmarks/{id}", bookmarkId).with(user("alice")))
+                    .andExpect(jsonPath("$.status").value("hidden"))
+            }
+        } finally {
+            executor.shutdownNow()
+        }
     }
 
     @Test

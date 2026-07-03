@@ -149,6 +149,14 @@ class ModerationService(
      * `open` re-opens the report and clears the resolution fields. Moving away
      * from `actioned` never restores the bookmark (rule 15 keeps hide/restore
      * explicit).
+     *
+     * Lock order: bookmark row first, then report rows. `actioned` writes the
+     * bookmark *and* every sibling open report, so two moderators resolving
+     * different reports of the same bookmark used to lock report→bookmark in
+     * opposite orders and deadlock. Taking the bookmark lock up front
+     * serializes `actioned` resolutions per bookmark; every other path
+     * (dismiss, re-open, reporter edit/withdraw) touches a single report and
+     * keeps its single report lock.
      */
     fun resolve(actor: String, reportId: UUID, request: ReportResolutionRequest): Report {
         val validator = Validator()
@@ -164,6 +172,12 @@ class ModerationService(
         validator.check((request.note?.length ?: 0) <= 1000, "note", "validation.resolution.note.too-long")
         validator.throwIfInvalid()
 
+        if (resolution == ReportStatus.ACTIONED) {
+            // bookmarkId is immutable, so an unlocked scalar read is a safe lock target;
+            // a vanished bookmark cascades its reports away and the locked re-read 404s
+            val bookmarkId = reportRepository.findBookmarkIdById(reportId) ?: throw NotFoundProblem()
+            bookmarkRepository.findForUpdateById(bookmarkId)
+        }
         val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
 
         if (resolution == ReportStatus.OPEN) {
@@ -175,7 +189,7 @@ class ModerationService(
 
         if (resolution == ReportStatus.ACTIONED) {
             hideBookmark(actor, report.bookmarkId, request.note)
-            reportRepository.findByBookmarkIdAndStatus(report.bookmarkId, ReportStatus.OPEN)
+            reportRepository.findForUpdateByBookmarkIdAndStatusOrderByIdAsc(report.bookmarkId, ReportStatus.OPEN)
                 .filter { it.id != report.id }
                 .forEach { resolveOne(it, ReportStatus.ACTIONED, actor, request.note, autoResolved = true) }
         }
