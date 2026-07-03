@@ -38,6 +38,7 @@
   "ui.toast.message-updated": "Komunikat został zaktualizowany.",
   "ui.toast.message-deleted": "Komunikat został usunięty.",
   "ui.toast.report-submitted": "Zgłoszenie zostało wysłane — dziękujemy.",
+  "ui.toast.report-duplicate": "Już zgłoszono — wcześniejsze zgłoszenie jest nadal otwarte.",
   "ui.field.url": "Adres URL",
   "ui.field.title": "Tytuł",
   "ui.field.notes": "Notatki",

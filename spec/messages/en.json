@@ -38,6 +38,7 @@
   "ui.toast.message-updated": "Message updated.",
   "ui.toast.message-deleted": "Message deleted.",
   "ui.toast.report-submitted": "Report submitted — thank you.",
+  "ui.toast.report-duplicate": "Already reported — your earlier report is still open.",
   "ui.field.url": "URL",
   "ui.field.title": "Title",
   "ui.field.notes": "Notes",

@@ -15,7 +15,11 @@ export function ReportDialog({
 }: {
   bookmark: Bookmark;
   onClose: () => void;
-  /** Fires after a successful submit so the caller can mark the card as reported. */
+  /**
+   * Fires when a submit confirms the reported state — a 201 create or a 409
+   * duplicate (SPEC rule 13: proof an open report already exists) — so the
+   * caller can mark the card as reported.
+   */
   onReported?: ((bookmarkId: string) => void) | undefined;
 }) {
   const { t } = useI18n();
@@ -37,12 +41,21 @@ export function ReportDialog({
           onReported?.(bookmark.id);
           onClose();
         },
+        onError: (error) => {
+          // A 409 means this user already has an open report on the bookmark
+          // (SPEC rule 13) — positive proof of the reported state, so confirm
+          // instead of surfacing an error.
+          if (error instanceof ApiError && error.status === 409) {
+            toast.push(t("ui.toast.report-duplicate"), "success");
+            onReported?.(bookmark.id);
+            onClose();
+          }
+        },
       },
     );
   }
 
   const error = report.error;
-  const conflict = error instanceof ApiError && error.status === 409;
 
   return (
     <Dialog
@@ -71,11 +84,6 @@ export function ReportDialog({
             onChange={(e) => setComment(e.target.value)}
           />
         </Field>
-        {conflict && (
-          <div className="sv-alert sv-alert--warning" role="alert">
-            {error.message}
-          </div>
-        )}
         <div className="sv-form-actions">
           <button type="button" className="sv-button" onClick={onClose}>
             {t("ui.action.cancel")}

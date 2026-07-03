@@ -89,8 +89,8 @@ export class PublicFeedPage {
   protected readonly reporting = signal<Bookmark | null>(null);
   // Browser-session memory of what this visitor already reported (see
   // reported-store): the button flips to a disabled "Reported" to discourage
-  // repeat reports. The API's 409 duplicate handling in ReportDialog remains
-  // the source of truth.
+  // repeat reports. Both submit outcomes that prove the state feed it — a 201
+  // create and a 409 duplicate (ReportDialog confirms both).
   protected readonly reportedIds = signal<ReadonlySet<string>>(readReportedIds());
 
   protected readonly filtered = computed(

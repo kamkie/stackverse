@@ -1,6 +1,6 @@
 import { Component, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { fieldErrorFor, isConflict, messageOf } from '../api/problem';
+import { fieldErrorFor, isConflict } from '../api/problem';
 import type { Bookmark, FieldError, ReportReason } from '../api/types';
 import { ToastStore } from '../core/toast';
 import { I18n } from '../i18n/i18n';
@@ -40,9 +40,6 @@ export const REPORT_REASONS: ReportReason[] = ['spam', 'offensive', 'broken-link
             [attr.aria-invalid]="fieldError('comment') ? true : null"
           ></textarea>
         </sv-field>
-        @if (conflict()) {
-          <div class="sv-alert sv-alert--warning" role="alert">{{ conflictMessage() }}</div>
-        }
         <div class="sv-form-actions">
           <button type="button" class="sv-button" (click)="closed.emit()">
             {{ t('ui.action.cancel') }}
@@ -62,7 +59,11 @@ export class ReportDialog {
 
   readonly bookmark = input.required<Bookmark>();
   readonly closed = output<void>();
-  /** Fires after a successful submit so the caller can mark the card as reported. */
+  /**
+   * Fires when a submit confirms the reported state — a 201 create or a 409
+   * duplicate (SPEC rule 13: proof an open report already exists) — so the
+   * caller can mark the card as reported.
+   */
   readonly reported = output<string>();
 
   protected readonly reasons = REPORT_REASONS;
@@ -74,14 +75,6 @@ export class ReportDialog {
 
   protected fieldError(field: string): FieldError | undefined {
     return fieldErrorFor(this.error(), field);
-  }
-
-  protected conflict(): boolean {
-    return isConflict(this.error());
-  }
-
-  protected conflictMessage(): string {
-    return messageOf(this.error());
   }
 
   protected async submit(): Promise<void> {
@@ -97,7 +90,16 @@ export class ReportDialog {
       this.reported.emit(bookmark.id);
       this.closed.emit();
     } catch (error) {
-      this.error.set(error);
+      // A 409 means this user already has an open report on the bookmark
+      // (SPEC rule 13) — positive proof of the reported state, so confirm
+      // instead of surfacing an error.
+      if (isConflict(error)) {
+        this.toast.push(this.t('ui.toast.report-duplicate'), 'success');
+        this.reported.emit(this.bookmark().id);
+        this.closed.emit();
+      } else {
+        this.error.set(error);
+      }
     } finally {
       this.pending.set(false);
     }
