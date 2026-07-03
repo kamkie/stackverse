@@ -22,7 +22,16 @@ updates:
     ignore:
       # CodeQL's Kotlin extractor rejects 2.4+ (github/codeql#21938) — drop
       # this once a CodeQL release supports it, then bump build.gradle.kts.
+      # Dependabot names plugins from the plugins-DSL shorthand, so the
+      # kotlin("jvm") family shows up as bare "jvm"/"plugin.*", not
+      # "org.jetbrains.kotlin.*" — both spellings stay ignored.
       - dependency-name: "org.jetbrains.kotlin*"
+        versions: ["[2.4,)"]
+      - dependency-name: "jvm"
+        versions: ["[2.4,)"]
+      - dependency-name: "plugin.spring"
+        versions: ["[2.4,)"]
+      - dependency-name: "plugin.jpa"
         versions: ["[2.4,)"]
 
   - package-ecosystem: nuget
