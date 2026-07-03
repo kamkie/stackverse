@@ -59,7 +59,8 @@ flowchart LR
 - The **backend** is fully stateless: it validates the bearer JWT against the IdP and
   serves the API. Any instance can serve any request.
 - The **frontend** is a SPA served through the gateway. It knows nothing about tokens —
-  it calls `/api/*` with `credentials: include` and asks `/auth/session` who is logged in.
+  it makes same-origin `/api/*` calls (the browser attaches the session cookie) and asks
+  `/auth/session` who is logged in.
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
