@@ -53,13 +53,34 @@ implemented in many stacks. Read these before changing anything:
   requirement template), its CI in its own `build-*.yml` workflow. Also verify
   cross-references: a document cited for a claim must actually make that claim.
   Waiting to be asked is a defect.
+- **Durable repo knowledge belongs in checked-in files.** If an agent discovers a
+  reusable Stackverse rule, pitfall, environment requirement, CI/handoff gotcha, or
+  tool behavior, record it in this file or the checked-in doc that owns the topic
+  as part of the same change set. Do not leave durable repo knowledge only in
+  agent-local memory, chat history, transcripts, or machine-local notes; those are
+  only for personal preferences, machine-local facts, or pointers back to the
+  checked-in instructions.
+- **Delegated tasks carry the full delivery flow.** When spawning a background
+  task, task chip, Codex session, Claude session, or other agent for Stackverse
+  work, include the whole handoff in the prompt: fetch and update `origin/main`
+  first, name a fallback base branch if the required code is not on main yet,
+  implement the change, run the component's relevant build/tests from its own
+  directory, create or rename to an agent-owned `<agent>/<short-task-slug>` branch,
+  commit, push, open a PR, run the required cross-review below, triage every
+  finding, and report the PR link. Do not spawn agents with prompts that stop at
+  "implement and test."
 - **A branch task is done only when its PR is up.** Committing locally is not the
   end of the job. Before ending the session or reporting the task complete: rename
-  an auto-generated worktree branch to `claude/<short-task-slug>`, push it, open
-  the PR, and run the cross-review below with its findings triaged. Work stranded
-  unpushed in a local worktree is an unfinished task — any agent that discovers
-  such a branch finishes the handoff (push, PR, cross-review) instead of waiting
-  to be asked.
+  an auto-generated worktree branch to an agent-owned `<agent>/<short-task-slug>`
+  branch, push it, open the PR, and run the cross-review below with its findings
+  triaged. Work stranded unpushed in a local worktree is an unfinished task — any
+  agent that discovers such a branch finishes the handoff (push, PR, cross-review)
+  instead of waiting to be asked.
+- **Verify spawned-session handoffs.** When a spawned/background agent reports
+  completion or a task-ended notification arrives, verify the branch is pushed, a
+  PR exists, and the required cross-review comment is present with findings
+  triaged. Use `git worktree list` and `gh pr list` as needed; complete missing
+  handoff steps immediately instead of only reporting that they are missing.
 - **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
   authoring agent asks the other agent for review and triages the findings — fix
   them or answer them on the PR:
