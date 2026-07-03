@@ -46,6 +46,10 @@ docker compose up -d
 docker compose logs -f          # or: docker compose logs -f keycloak
 ```
 
+A `postgres-data` volume created before the postgres 18 bump (2026-07-03) is
+17-format and unusable — if postgres exits at startup or comes up empty, wipe
+and recreate: `docker compose down -v && docker compose up -d`.
+
 ## 2b. Full stack (dev mode, one terminal tab per module)
 
 Infra in Docker, backend/gateway/frontend as live dev processes (hot reload)
