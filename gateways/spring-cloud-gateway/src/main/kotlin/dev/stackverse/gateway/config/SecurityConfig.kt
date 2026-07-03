@@ -121,9 +121,14 @@ class SecurityConfig {
         authorizedClients: ServerOAuth2AuthorizedClientRepository,
     ): SecurityWebFilterChain = http
         .authorizeExchange { it.anyExchange().permitAll() }
-        // CSRF is the contract's hand-rolled double-submit check in CsrfWebFilter,
-        // identical across gateway stacks; logout is the plain POST /auth/logout
-        // controller (the contract wants a 204, not a redirect dance).
+        // Not unprotected (CodeQL java/spring-disabled-csrf-protection fires here and
+        // is dismissed as intended): CSRF is enforced by CsrfWebFilter, the contract's
+        // hand-rolled double-submit check — docs/ARCHITECTURE.md pins its cookie name,
+        // header name, protected methods, and 403 problem document identically across
+        // gateway stacks, a wire shape Spring's own CSRF machinery would need more
+        // custom code than the filter itself to reproduce. Covered by the CSRF
+        // integration tests and the e2e suite. Logout stays the plain POST
+        // /auth/logout controller (the contract wants a 204, not a redirect dance).
         .csrf { it.disable() }
         .logout { it.disable() }
         // The gateway adds nothing to the API semantics: no security response headers
