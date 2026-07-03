@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { config } from "./config.js";
 import { pool } from "./db.js";
 import { logEvent } from "./logging.js";
-import { ForbiddenProblem, UnauthorizedProblem, sendProblem } from "./problems.js";
+import { ForbiddenProblem, UnauthorizedProblem, firstParam, sendProblem } from "./problems.js";
 import { localize, resolveLanguage } from "./i18n.js";
 
 /** The two application roles; everything else in `realm_access.roles` is Keycloak plumbing. */
@@ -122,7 +122,7 @@ export function registerAuth(app: FastifyInstance): void {
         actor: caller.username,
       });
       const language = await resolveLanguage(
-        (request.query as Record<string, unknown>)["lang"] as string | undefined,
+        firstParam((request.query as Record<string, unknown>)["lang"]),
         request.headers["accept-language"],
       );
       return sendProblem(reply, 403, "Forbidden", await localize("error.account.blocked", language));

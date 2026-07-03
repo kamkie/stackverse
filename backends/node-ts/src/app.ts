@@ -9,7 +9,7 @@ import { registerAuditRoutes } from "./routes/audit-log.js";
 import { registerStatsRoutes } from "./routes/stats.js";
 import { registerMetaRoutes } from "./routes/meta.js";
 import { localize, resolveLanguage } from "./i18n.js";
-import { ApiProblem, ValidationProblem, sendProblem, singleParam } from "./problems.js";
+import { ApiProblem, ValidationProblem, firstParam, sendProblem } from "./problems.js";
 
 /** SPEC rules 5 + 11: field errors with a `validation.*` key and a localized message. */
 async function sendValidationProblem(
@@ -35,13 +35,10 @@ async function sendValidationProblem(
 }
 
 async function requestLanguage(request: FastifyRequest): Promise<string> {
-  let lang: string | undefined;
-  try {
-    lang = singleParam((request.query as Record<string, unknown>)["lang"], "lang");
-  } catch {
-    lang = undefined;
-  }
-  return resolveLanguage(lang, request.headers["accept-language"]);
+  return resolveLanguage(
+    firstParam((request.query as Record<string, unknown>)["lang"]),
+    request.headers["accept-language"],
+  );
 }
 
 export function buildApp(): FastifyInstance {

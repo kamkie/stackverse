@@ -11,6 +11,7 @@ import {
   NotFoundProblem,
   Validator,
   escapeLike,
+  firstParam,
   omitNulls,
   parseUuid,
   requireMaxLength,
@@ -83,7 +84,7 @@ function logMessageEvent(event: string, description: string, actor: string, mess
 
 async function requestLanguage(request: FastifyRequest): Promise<string> {
   return resolveLanguage(
-    singleParam((request.query as Record<string, unknown>)["lang"], "lang"),
+    firstParam((request.query as Record<string, unknown>)["lang"]),
     request.headers["accept-language"],
   );
 }

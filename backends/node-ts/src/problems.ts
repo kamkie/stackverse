@@ -106,6 +106,14 @@ export const singleParam = (value: unknown, name: string): string | undefined =>
   throw new BadRequestProblem(`${name} must not be repeated`);
 };
 
+/** Tolerant single value: a repeated parameter takes the first occurrence instead of erroring.
+ *  Used for `lang`, where SPEC rule 8 says resolution falls back and never errors. */
+export const firstParam = (value: unknown): string | undefined => {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+  return undefined;
+};
+
 export const multiParam = (value: unknown): string[] => {
   if (value === undefined) return [];
   if (typeof value === "string") return [value];
