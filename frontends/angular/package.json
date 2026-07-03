@@ -27,5 +27,9 @@
     "jsdom": "^29.1.1",
     "typescript": "~6.0.2",
     "vitest": "^4.0.8"
+  },
+  "resolutions": {
+    "vite": "7.3.6",
+    "@babel/core": "7.29.7"
   }
 }
