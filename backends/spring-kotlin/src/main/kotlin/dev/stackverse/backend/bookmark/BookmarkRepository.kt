@@ -1,7 +1,9 @@
 package dev.stackverse.backend.bookmark
 
+import jakarta.persistence.LockModeType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Query
 import java.util.UUID
 
@@ -11,6 +13,14 @@ interface TagCountRow {
 }
 
 interface BookmarkRepository : JpaRepository<Bookmark, UUID>, JpaSpecificationExecutor<Bookmark> {
+
+    /**
+     * Row lock taken by report resolution before any report locks — the
+     * bookmark is the coarse lock that serializes `actioned` resolutions on
+     * the same bookmark (see the lock-order note on `ModerationService.resolve`).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    fun findForUpdateById(id: UUID): Bookmark?
 
     fun countByVisibility(visibility: Visibility): Long
 

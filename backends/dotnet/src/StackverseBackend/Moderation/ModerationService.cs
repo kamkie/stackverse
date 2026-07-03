@@ -142,6 +142,14 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
     /// `open` re-opens the report and clears the resolution fields. Moving away
     /// from `actioned` never restores the bookmark (rule 15 keeps hide/restore
     /// explicit).
+    ///
+    /// Lock order: bookmark row first, then report rows. `actioned` writes the
+    /// bookmark *and* every sibling open report, so two moderators resolving
+    /// different reports of the same bookmark used to lock report→bookmark in
+    /// opposite orders and deadlock. Taking the bookmark lock up front
+    /// serializes `actioned` resolutions per bookmark; every other path
+    /// (dismiss, re-open, reporter edit/withdraw) touches a single report and
+    /// keeps its single report lock.
     /// </summary>
     public async Task<Report> ResolveAsync(string actor, Guid reportId, ReportResolutionRequest request)
     {
@@ -155,6 +163,15 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
         validator.ThrowIfInvalid();
 
         await using var transaction = await db.Database.BeginTransactionAsync();
+        if (resolution == ReportStatus.Actioned)
+        {
+            // BookmarkId is immutable, so an unlocked scalar read is a safe lock target;
+            // a vanished bookmark cascades its reports away and the locked re-read 404s
+            var bookmarkId = await db.Reports.Where(r => r.Id == reportId)
+                .Select(r => (Guid?)r.BookmarkId).SingleOrDefaultAsync() ?? throw new NotFoundProblem();
+            await db.Bookmarks.FromSql($"select * from bookmarks where id = {bookmarkId} for update")
+                .SingleOrDefaultAsync();
+        }
         var report = await ForUpdateAsync(reportId) ?? throw new NotFoundProblem();
 
         if (resolution == ReportStatus.Open)
@@ -170,8 +187,10 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
         if (resolution == ReportStatus.Actioned)
         {
             await HideBookmarkAsync(actor, report.BookmarkId, request.Note);
-            var siblings = await db.Reports
-                .Where(r => r.BookmarkId == report.BookmarkId && r.Status == ReportStatus.Open && r.Id != report.Id)
+            // FOR UPDATE re-checks the status after the lock is granted, so a report
+            // resolved by a concurrent transaction drops out instead of being overwritten
+            var siblings = await db.Reports.FromSql(
+                    $"select * from reports where bookmark_id = {report.BookmarkId} and status = 'open' and id <> {report.Id} order by id for update")
                 .ToListAsync();
             foreach (var sibling in siblings)
             {
