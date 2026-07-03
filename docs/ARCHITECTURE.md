@@ -114,6 +114,10 @@ Rules:
 - The gateway is version-agnostic: `/api/**` covers `/api/v1/**`, `/api/v2/**`,
   and anything after — API versioning is entirely the backend's concern.
 
+Ready-to-use gateway products were considered against this contract. The evaluation
+is recorded in the gateway layer README:
+[considered alternatives](../gateways/README.md#considered-alternatives-off-the-shelf-gateways).
+
 ## Observability
 
 Telemetry follows the same shape in every implementation: standard `OTEL_*`
