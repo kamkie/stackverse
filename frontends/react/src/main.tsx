@@ -9,12 +9,16 @@ import { App } from "./App";
 
 async function bootstrap() {
   // In dev, mirror console output and uncaught errors to the dev server so
-  // browser logs show up in the terminal and dev-server.log.
+  // browser logs show up in the terminal and dev-server.log, and log user
+  // actions (clicks, submits, navigation, API outcomes) through the same
+  // channel so "clicked X" is traceable to what it caused.
   if (import.meta.env.DEV) {
     const { forwardConsoleToDevServer } = await import(
       "./dev/forwardConsoleToDevServer"
     );
     forwardConsoleToDevServer();
+    const { logUserActions } = await import("./dev/logUserActions");
+    logUserActions();
   }
 
   // Mock the API in dev unless explicitly disabled (VITE_API_MOCK=false lets

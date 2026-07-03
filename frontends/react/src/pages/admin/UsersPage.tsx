@@ -26,7 +26,11 @@ function BlockDialog({ user, onClose }: { user: UserAccount; onClose: () => void
   const conflict = error instanceof ApiError && error.status === 409;
 
   return (
-    <Dialog title={`${t("ui.action.block")} — ${user.username}`} onClose={onClose}>
+    <Dialog
+      title={`${t("ui.action.block")} — ${user.username}`}
+      onClose={onClose}
+      ctx={`user:${user.username}`}
+    >
       <form className="sv-form" onSubmit={submit}>
         <Field
           label={t("ui.field.reason")}
@@ -110,7 +114,7 @@ export function UsersPage() {
               </thead>
               <tbody>
                 {users.data.items.map((user) => (
-                  <tr key={user.username}>
+                  <tr key={user.username} data-ctx={`user:${user.username}`}>
                     <td>{user.username}</td>
                     <td>
                       <time dateTime={user.lastSeen}>

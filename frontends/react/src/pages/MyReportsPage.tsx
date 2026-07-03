@@ -51,7 +51,11 @@ function EditReportDialog({
   const conflict = error instanceof ApiError && error.status === 409;
 
   return (
-    <Dialog title={t("ui.my-reports.dialog.edit")} onClose={onClose}>
+    <Dialog
+      title={t("ui.my-reports.dialog.edit")}
+      onClose={onClose}
+      ctx={`report:${report.id}`}
+    >
       <form className="sv-form" onSubmit={submit}>
         <Field label={t("ui.field.reason")} error={fieldErrorFor(error, "reason")}>
           <select
@@ -154,7 +158,7 @@ export function MyReportsPage() {
             </thead>
             <tbody>
               {items.map((report) => (
-                <tr key={report.id}>
+                <tr key={report.id} data-ctx={`report:${report.id}`}>
                   <td>
                     <time dateTime={report.createdAt}>
                       {new Date(report.createdAt).toLocaleString(resolvedLanguage)}
@@ -213,6 +217,7 @@ export function MyReportsPage() {
         <ConfirmDialog
           title={t("ui.action.withdraw")}
           body={t("ui.confirm.withdraw-report")}
+          ctx={`report:${withdrawing.id}`}
           confirmLabel={t("ui.action.withdraw")}
           cancelLabel={t("ui.action.cancel")}
           pending={withdraw.isPending}

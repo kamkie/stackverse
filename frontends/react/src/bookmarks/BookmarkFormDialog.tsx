@@ -53,6 +53,7 @@ export function BookmarkFormDialog({ bookmark, onClose }: BookmarkFormDialogProp
     <Dialog
       title={t(bookmark ? "ui.bookmarks.dialog.edit" : "ui.bookmarks.dialog.add")}
       onClose={onClose}
+      ctx={bookmark ? `bookmark:${bookmark.id}` : undefined}
     >
       <form className="sv-form" onSubmit={submit}>
         <Field label={t("ui.field.url")} error={fieldErrorFor(error, "url")}>

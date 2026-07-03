@@ -45,7 +45,11 @@ export function ReportDialog({
   const conflict = error instanceof ApiError && error.status === 409;
 
   return (
-    <Dialog title={`${t("ui.action.report")} — ${bookmark.title}`} onClose={onClose}>
+    <Dialog
+      title={`${t("ui.action.report")} — ${bookmark.title}`}
+      onClose={onClose}
+      ctx={`bookmark:${bookmark.id}`}
+    >
       <form className="sv-form" onSubmit={submit}>
         <Field label={t("ui.field.reason")} error={fieldErrorFor(error, "reason")}>
           <select

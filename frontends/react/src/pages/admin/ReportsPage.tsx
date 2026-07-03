@@ -57,7 +57,7 @@ export function ReportsPage() {
             </thead>
             <tbody>
               {items.map((report) => (
-                <tr key={report.id}>
+                <tr key={report.id} data-ctx={`report:${report.id}`}>
                   <td>
                     <time dateTime={report.createdAt}>
                       {new Date(report.createdAt).toLocaleString(resolvedLanguage)}

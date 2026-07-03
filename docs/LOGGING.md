@@ -234,6 +234,21 @@ no per-environment profiles.
 - Dev mode mirrors the browser console to the dev server (`[browser]` lines,
   `.logs/frontend.log`); that forwarding MUST stay dev-only, sanitize its
   input, and never re-log into the app.
+- Dev mode SHOULD additionally log user actions through that same channel at
+  `DEBUG`, so a click is traceable to what it caused without a debugger:
+  clicks and form submits (`[action]`, including dead clicks on nothing
+  interactive), route changes (`[nav]`), and same-origin `/api`/`/auth`
+  request outcomes with method, path, status, and duration (`[api]`). Action
+  lines carry element labels and URLs only — never field values (§6 applies
+  in full; reading `.value` would put user input and passwords in the log).
+  Like the forwarding itself, this MUST be dev-only and absent from
+  production bundles.
+- A label alone is ambiguous for controls repeated per row ("Dismiss" exists
+  once per report): containers that own an entity — table rows, cards,
+  dialogs — SHOULD tag it as `data-ctx="<type>:<id>"` (e.g. `report:123`),
+  and the action logger appends the ancestor chain to the line
+  (`click button "Dismiss" in report:123 @ /admin/reports`). Ids, not
+  payload text — the same preference §6 states for server logs.
 
 ## 10. Conformance
 
@@ -250,6 +265,7 @@ no per-environment profiles.
 | dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ❌ gap¹ | n/a |
 | JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | n/a |
 | dev-only console forwarding, sanitized | n/a | n/a | ✅ |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a | n/a | ✅ |
 
 ¹ yarp emits `dependency_call_failed` for Keycloak token-refresh outages, but
 Redis and the backend upstream are still uncovered — partial coverage keeps

@@ -63,6 +63,7 @@ function MessageFormDialog({
     <Dialog
       title={t(message ? "ui.messages.dialog.edit" : "ui.messages.dialog.add")}
       onClose={onClose}
+      ctx={message ? `message:${message.id}` : undefined}
     >
       <form className="sv-form" onSubmit={submit}>
         <Field label={t("ui.field.key")} error={fieldErrorFor(error, "key")}>
@@ -229,7 +230,7 @@ export function MessagesPage() {
               </thead>
               <tbody>
                 {messages.data.items.map((message) => (
-                  <tr key={message.id}>
+                  <tr key={message.id} data-ctx={`message:${message.id}`}>
                     <td className="sv-cell-mono">{message.key}</td>
                     <td>
                       <span className="sv-badge">{message.language}</span>
@@ -273,6 +274,7 @@ export function MessagesPage() {
         <ConfirmDialog
           title={`${t("ui.action.delete")} — ${deleting.key}`}
           body={t("ui.confirm.delete-message")}
+          ctx={`message:${deleting.id}`}
           confirmLabel={t("ui.action.delete")}
           cancelLabel={t("ui.action.cancel")}
           pending={deleteMessage.isPending}

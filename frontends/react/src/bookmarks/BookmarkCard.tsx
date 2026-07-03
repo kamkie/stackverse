@@ -19,7 +19,7 @@ export function BookmarkCard({
   const { t, resolvedLanguage } = useI18n();
 
   return (
-    <li className="sv-card sv-bookmark">
+    <li className="sv-card sv-bookmark" data-ctx={`bookmark:${bookmark.id}`}>
       <div className="sv-bookmark-head">
         <h3 className="sv-bookmark-title">
           <a href={bookmark.url} target="_blank" rel="noopener noreferrer">

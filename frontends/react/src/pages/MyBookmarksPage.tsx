@@ -126,6 +126,7 @@ export function MyBookmarksPage() {
           <ConfirmDialog
             title={`${t("ui.action.delete")} — ${deleting.title}`}
             body={t("ui.confirm.delete-bookmark")}
+            ctx={`bookmark:${deleting.id}`}
             confirmLabel={t("ui.action.delete")}
             cancelLabel={t("ui.action.cancel")}
             pending={deleteBookmark.isPending}

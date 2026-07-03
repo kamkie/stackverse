@@ -113,9 +113,13 @@ confirmations only (report submitted, message saved, deletions); destructive act
 ## Conventions
 
 - Generate or hand-write API types from the OpenAPI spec — but the spec is the truth.
-- Logging: see [docs/LOGGING.md](../docs/LOGGING.md) §8 — production bundles
+- Logging: see [docs/LOGGING.md](../docs/LOGGING.md) §9 — production bundles
   keep the browser console clean; dev-server console forwarding stays dev-only
-  and sanitizes its input.
+  and sanitizes its input. Dev mode should also log user actions (`[action]`
+  clicks/submits, `[nav]` route changes, `[api]` request outcomes) through
+  that channel — element labels only, never field values. Rows, cards, and
+  dialogs tag the entity they act on with `data-ctx="<type>:<id>"` so
+  per-row actions name their row in the log.
 - Production build must be servable as static files by any gateway (`GATEWAY` serves
   the bundle); dev mode runs its own server which gateways can proxy via `FRONTEND_URL`.
 - Ship a `Dockerfile`; the image plugs into `compose.yaml` via `FRONTEND_IMAGE`.

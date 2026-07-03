@@ -8,6 +8,8 @@ interface ConfirmDialogProps {
   pending?: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  /** Entity being confirmed, as `<type>:<id>` — see Dialog's ctx prop. */
+  ctx?: string | undefined;
 }
 
 /**
@@ -22,9 +24,10 @@ export function ConfirmDialog({
   pending,
   onConfirm,
   onClose,
+  ctx,
 }: ConfirmDialogProps) {
   return (
-    <Dialog title={title} onClose={onClose}>
+    <Dialog title={title} onClose={onClose} ctx={ctx}>
       <p>{body}</p>
       <div className="sv-form-actions">
         <button type="button" className="sv-button" onClick={onClose}>
