@@ -45,6 +45,7 @@ updates:
   - package-ecosystem: npm
     directories:
       - /frontends/react
+      - /frontends/angular
       - /conformance
       - /e2e
     schedule:
@@ -59,6 +60,7 @@ updates:
       - /backends/spring-kotlin
       - /gateways/yarp
       - /frontends/react
+      - /frontends/angular
     schedule:
       interval: weekly
 
