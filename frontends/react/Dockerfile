@@ -7,7 +7,7 @@
 # /dist, and its default command publishes it into the volume mounted at /spa
 # for the gateway to serve (SPA_ROOT) — see compose.yaml.
 
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 RUN corepack enable
 WORKDIR /build/frontends/react
 # manifest + lockfile first so the dependency layer caches across source changes
