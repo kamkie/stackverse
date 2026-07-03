@@ -78,6 +78,34 @@ Rules:
   must echo its value in an `X-XSRF-TOKEN` header. Missing or mismatched header →
   `403` with an `application/problem+json` body. All gateways implement exactly this
   mechanism — cookie name, header name, protected methods, and status code included.
+- Cross-origin browser API access is unsupported. Gateways do not configure CORS,
+  do not honor cross-origin preflights, and must not emit `Access-Control-Allow-*`
+  headers. On top of the double-submit check, state-changing `/api/**` requests
+  (`POST`/`PUT`/`PATCH`/`DELETE`) are accepted only when both browser same-origin
+  signals pass: if `Origin` is present, it must exactly equal the origin of
+  `PUBLIC_URL` (scheme, host, and non-default port — never the request `Host`);
+  if `Sec-Fetch-Site` is present, it must be `same-origin` or `none`.
+  `Sec-Fetch-Site: same-site`, `cross-site`, or any other present value is denied
+  because the contract is same-origin, not same-site. Missing `Origin` and missing
+  `Sec-Fetch-Site` remain allowed for non-browser clients and older browsers; the
+  CSRF token check still applies. If both headers are present, either failing
+  signal is enough to reject. Denials use the same `403 application/problem+json`
+  shape as CSRF failures and log the gateway `csrf_validation_failed` security event.
+- Browser security response headers are a gateway contract and are identical across
+  implementations:
+
+  | Header | Value | Scope |
+  |---|---|---|
+  | `X-Content-Type-Options` | `nosniff` | all gateway responses, including proxied `/api/**` |
+  | `Referrer-Policy` | `same-origin` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Content-Security-Policy` | `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `X-Frame-Options` | `DENY` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Cross-Origin-Opener-Policy` | `same-origin` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Cross-Origin-Resource-Policy` | `same-origin` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | all gateway responses only when `PUBLIC_URL` is `https` (the same condition that makes cookies `Secure`) |
+
+  Proxied API responses keep backend API semantics: no gateway rewrite of
+  `Cache-Control`, `ETag`, `Content-Language`, status `304`, or response bodies.
 - The gateway adds nothing to the API semantics: no rewriting of bodies, no auth
   decisions — it attaches a token when it has one and the backend authorizes per
   endpoint. A `401` the SPA sees on `/api/*` is the backend's problem document

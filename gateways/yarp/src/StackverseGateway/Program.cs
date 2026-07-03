@@ -227,6 +227,16 @@ var app = builder.Build();
 
 app.UseAuthentication();
 
+app.Use((context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        EdgeSecurity.ApplyResponseHeaders(context, gateway.CookiesSecure);
+        return Task.CompletedTask;
+    });
+    return next(context);
+});
+
 // Every browser gets the readable CSRF token cookie (see docs/ARCHITECTURE.md).
 app.Use((context, next) =>
 {
@@ -242,6 +252,21 @@ app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api"),
     api => api.Use(async (context, next) =>
     {
+        if (!EdgeSecurity.IsSameOriginStateChange(context.Request, gateway.PublicUrl))
+        {
+            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+            app.Logger.Event(LogLevel.Information, "csrf_validation_failed", "denied",
+                "Rejected a cross-origin state-changing /api request",
+                fields:
+                [
+                    ("method", EventLog.Sanitize(context.Request.Method)),
+                    // the decoded path is client-controlled input (§6)
+                    ("path", EventLog.Sanitize(context.Request.Path.Value)),
+                ]);
+            await Problems.Write(context, StatusCodes.Status403Forbidden,
+                "Forbidden", "Cross-origin state-changing requests are not supported.");
+            return;
+        }
         if (!Csrf.IsValid(context.Request))
         {
             // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)

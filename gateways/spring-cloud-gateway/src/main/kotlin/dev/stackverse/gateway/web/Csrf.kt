@@ -16,9 +16,11 @@ import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
+import java.net.URI
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.HexFormat
+import java.util.Locale
 
 /** Cookie and header names of the contract's CSRF mechanism (docs/ARCHITECTURE.md). */
 object Csrf {
@@ -37,6 +39,7 @@ class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val random = SecureRandom()
+    private val expectedOrigin = canonicalOrigin(gateway.publicUrl)
 
     /**
      * In front of Spring Security's WebFilterChainProxy (order -100): its filters
@@ -47,7 +50,21 @@ class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         issueToken(exchange)
-        if (!isValid(exchange.request)) {
+        if (!isSameOrigin(exchange.request)) {
+            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+            log.logEvent(
+                Level.INFO, "csrf_validation_failed", "denied",
+                "Rejected a cross-origin state-changing /api request",
+                "method" to sanitizeForLog(exchange.request.method.name()),
+                // the decoded path is client-controlled input (§6)
+                "path" to sanitizeForLog(exchange.request.path.value()),
+            )
+            return Problems.write(
+                exchange, HttpStatus.FORBIDDEN,
+                "Forbidden", "Cross-origin state-changing requests are not supported.",
+            )
+        }
+        if (!hasValidCsrfToken(exchange.request)) {
             // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
             log.logEvent(
                 Level.INFO, "csrf_validation_failed", "denied",
@@ -80,13 +97,26 @@ class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered
         )
     }
 
-    /** Safe methods and non-API paths pass; everything else must echo the cookie in the header. */
-    private fun isValid(request: ServerHttpRequest): Boolean {
-        val path = request.path.value()
-        if (path != "/api" && !path.startsWith("/api/")) {
+    /**
+     * State-changing browser API calls must be same-origin. Missing browser-only
+     * headers stay compatible with older browsers and non-browser clients; present
+     * negative signals are denied independently of the double-submit token.
+     */
+    private fun isSameOrigin(request: ServerHttpRequest): Boolean {
+        if (!isStateChangingApiRequest(request)) {
             return true
         }
-        if (request.method in setOf(HttpMethod.GET, HttpMethod.HEAD, HttpMethod.OPTIONS)) {
+        val origin = request.headers.getFirst("Origin")
+        if (origin != null && canonicalOriginOrNull(origin) != expectedOrigin) {
+            return false
+        }
+        val fetchSite = request.headers.getFirst("Sec-Fetch-Site")?.lowercase(Locale.ROOT)
+        return fetchSite == null || fetchSite == "same-origin" || fetchSite == "none"
+    }
+
+    /** Safe methods and non-API paths pass; everything else must echo the cookie in the header. */
+    private fun hasValidCsrfToken(request: ServerHttpRequest): Boolean {
+        if (!isStateChangingApiRequest(request)) {
             return true
         }
         val cookie = request.cookies.getFirst(Csrf.COOKIE_NAME)?.value
@@ -94,5 +124,35 @@ class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered
         return !cookie.isNullOrEmpty() &&
             !header.isNullOrEmpty() &&
             MessageDigest.isEqual(cookie.toByteArray(), header.toByteArray())
+    }
+
+    private fun isStateChangingApiRequest(request: ServerHttpRequest): Boolean {
+        val path = request.path.value()
+        if (path != "/api" && !path.startsWith("/api/")) {
+            return false
+        }
+        return request.method in setOf(HttpMethod.POST, HttpMethod.PUT, HttpMethod.PATCH, HttpMethod.DELETE)
+    }
+
+    private fun canonicalOriginOrNull(value: String): String? =
+        runCatching {
+            val uri = URI(value)
+            if (uri.rawPath?.isNotEmpty() == true || uri.rawQuery != null || uri.rawFragment != null) {
+                return@runCatching null
+            }
+            canonicalOrigin(uri).takeIf { it == value }
+        }.getOrNull()
+
+    private fun canonicalOrigin(uri: URI): String {
+        val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: error("PUBLIC_URL must include a scheme")
+        val host = uri.host?.lowercase(Locale.ROOT) ?: error("PUBLIC_URL must include a host")
+        val port = uri.port
+        val authorityHost = if (host.contains(':')) "[$host]" else host
+        val portPart = if (port >= 0 && !(scheme == "http" && port == 80) && !(scheme == "https" && port == 443)) {
+            ":$port"
+        } else {
+            ""
+        }
+        return "$scheme://$authorityHost$portPart"
     }
 }

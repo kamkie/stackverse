@@ -91,6 +91,8 @@ makes for zero codegen tooling.)
 `yarn build` emits plain static files (`dist/browser`) servable by any
 gateway; there is no server-side rendering and no runtime configuration — all
 API calls are relative (`/api/...`, `/auth/...`) and carry the session cookie.
+Production disables Angular's critical-CSS inlining so the generated document
+honors the gateway CSP without `unsafe-inline`.
 
 The `Dockerfile` builds the same bundle into a carrier image
 (`stackverse/frontend-angular:local`) that `compose.yaml` plugs in via

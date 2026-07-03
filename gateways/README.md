@@ -16,6 +16,13 @@ to. The full route contract and login flow live in
   token as `Authorization: Bearer ...`; refresh expired tokens transparently.
 - **CSRF protection** for state-changing `/api/*` requests — mechanism is
   stack-specific, document it in the implementation README.
+- **Same-origin browser boundary** — no CORS support, no `Access-Control-Allow-*`
+  headers, and affirmative `Origin` / `Sec-Fetch-Site` validation for
+  state-changing `/api/**` requests against the `PUBLIC_URL` origin.
+- **Browser hardening headers** — the shared header set from
+  [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) on SPA/auth responses, plus
+  global `X-Content-Type-Options: nosniff` and HTTPS-only HSTS without rewriting
+  proxied API cache or ETag headers.
 - **Frontend delivery** — serve the SPA build (or proxy a dev server) on `/**`.
 
 The gateway makes no business decisions. If a request has a valid session it is
@@ -41,7 +48,7 @@ dependency failure: `ERROR`, session kept, request answered `503` (see
 | `OIDC_INTERNAL_ISSUER_URI` | *(unset)* | optional base URL for the gateway's own IdP calls (discovery, token, JWKS, logout) when the public issuer host is not dialable from the gateway's network; issuer validation and the browser-facing authorization redirect keep `OIDC_ISSUER_URI`. compose sets it to the keycloak service; gateways whose HTTP client retries every resolved address (yarp) may ignore it |
 | `OIDC_CLIENT_ID` | `stackverse-gateway` | OIDC client id |
 | `OIDC_CLIENT_SECRET` | `stackverse-secret` | OIDC client secret (dev value) |
-| `PUBLIC_URL` | `http://localhost:8000` | external base URL for OIDC redirects |
+| `PUBLIC_URL` | `http://localhost:8000` | external base URL for OIDC redirects; canonical same-origin origin for browser API validation; `https` enables `Secure` cookies and HSTS |
 | `OTEL_SDK_DISABLED` | `true` | set `false` to export traces/metrics/logs over OTLP; standard `OTEL_*` vars (`OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, ...) configure the export (see [docs/RUNNING.md](../docs/RUNNING.md)) |
 | `LOG_LEVEL` | `info` | minimum console log severity: `error`, `warn`, `info`, `debug` ([docs/LOGGING.md](../docs/LOGGING.md)) |
 | `LOG_FORMAT` | `json` | `text` opts into human-readable console output for local dev ([docs/LOGGING.md](../docs/LOGGING.md)) |

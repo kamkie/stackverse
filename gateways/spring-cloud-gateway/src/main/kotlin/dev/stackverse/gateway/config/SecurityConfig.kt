@@ -131,9 +131,9 @@ class SecurityConfig {
         // /auth/logout controller (the contract wants a 204, not a redirect dance).
         .csrf { it.disable() }
         .logout { it.disable() }
-        // The gateway adds nothing to the API semantics: no security response headers
-        // stamped onto proxied responses (the default Cache-Control rewrite would
-        // break the backend's ETag exhibit).
+        // Spring's default header writer would stamp Cache-Control onto proxied API
+        // responses and break the backend's ETag exhibit. The gateway contract's
+        // safe, scoped response headers are added by SecurityHeadersWebFilter.
         .headers { it.disable() }
         .requestCache { it.requestCache(NoOpServerRequestCache.getInstance()) }
         .oauth2Login { login ->

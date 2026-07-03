@@ -55,19 +55,22 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 - **Anonymous `/api/**` requests relay without a token.** The spec's public surface
   (public bookmark feeds, message reads) works logged-out; the backend owns
   per-endpoint auth. A session that can no longer refresh is destroyed and the
-  request degrades to anonymous. CSRF violations → `403` problem document
-  (mechanism pinned in [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)), and the
-  browser's cookies, the CSRF header, and any client-supplied `Authorization`
-  header are stripped before proxying.
+  request degrades to anonymous. CSRF and same-origin (`Origin` /
+  `Sec-Fetch-Site`) violations → `403` problem document (mechanism pinned in
+  [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)), and the browser's cookies,
+  the CSRF header, and any client-supplied `Authorization` header are stripped
+  before proxying.
 - **Callback failures redirect, never 500.** `error=access_denied` (the user pressed
   Cancel on the Keycloak form) and stale or replayed state both land in the
   authentication failure handler: log `oidc_callback_completed` outcome=failure at
   INFO — the failure *type* only, since the message can echo client-controlled query
   text — then redirect to `/` logged out.
-- **No response-header meddling.** Spring Security's default header writers are
-  disabled: the gateway adds nothing to the API semantics, and the default
-  `Cache-Control: no-store` stamp would break the backend's ETag caching exhibit on
-  proxied responses.
+- **Selective security headers.** Spring Security's default header writers are
+  disabled because their `Cache-Control: no-store` stamp would break the backend's
+  ETag caching exhibit on proxied responses. `SecurityHeadersWebFilter` applies the
+  gateway contract's exact browser-hardening headers to SPA/auth responses, only
+  `X-Content-Type-Options: nosniff` (and HTTPS-only HSTS) to `/api/**`, and never
+  rewrites backend `Cache-Control`, `ETag`, or `304` behavior.
 - **Observability** (docs/RUNNING.md) — the OpenTelemetry Java agent baked
   into the container image (auto-instruments WebFlux, the Netty proxy client,
   logging) — no SDK code in the application; active only when

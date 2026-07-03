@@ -62,9 +62,11 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
 - **Anonymous `/api/**` requests relay without a token.** The spec's public surface
   (public bookmark feeds, message reads) works logged-out; the backend owns
   per-endpoint auth. A session that can no longer refresh is destroyed and the
-  request degrades to anonymous. CSRF violations → `403` problem document
-  (mechanism pinned in [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)), and
-  the browser's cookies and the CSRF header are stripped before proxying.
+  request degrades to anonymous. CSRF and same-origin (`Origin` /
+  `Sec-Fetch-Site`) violations → `403` problem document (mechanism pinned in
+  [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)), and the browser's cookies,
+  the CSRF header, and any client-supplied `Authorization` header are stripped
+  before proxying.
 - **Refresh failures are two different animals** (semantics pinned in
   [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)). An IdP that *rejects* the
   refresh — an authoritative `400`/`401` from the token endpoint (RFC 6749 §5.2)
@@ -82,6 +84,10 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   both land in `OnRemoteFailure`: log `oidc_callback_completed` outcome=failure
   at INFO — the failure *type* only, since the message can echo client-controlled
   query text — then short-circuit the handler and redirect to `/` logged out.
+- **Selective security headers.** `EdgeSecurity` applies the gateway contract's
+  exact browser-hardening headers to SPA/auth responses, only
+  `X-Content-Type-Options: nosniff` (and HTTPS-only HSTS) to `/api/**`, and never
+  rewrites backend `Cache-Control`, `ETag`, or `304` behavior.
 
 ## Logging conformance
 

@@ -23,6 +23,20 @@ class StubBackend : AutoCloseable {
             lastAuthorization = http.requestHeaders.getFirst("Authorization") ?: ""
             lastCookie = http.requestHeaders.getFirst("Cookie") ?: ""
             lastCsrfHeader = http.requestHeaders.getFirst("X-XSRF-TOKEN") ?: ""
+            if (http.requestURI.path == "/api/v1/messages/bundle") {
+                http.responseHeaders.add("Cache-Control", "no-cache")
+                http.responseHeaders.add("ETag", """"bundle-v1"""")
+                if (http.requestHeaders.getFirst("If-None-Match") == """"bundle-v1"""") {
+                    http.sendResponseHeaders(304, -1)
+                    http.close()
+                    return@createContext
+                }
+                val body = """{"language":"en","messages":{}}""".toByteArray()
+                http.responseHeaders.add("Content-Type", "application/json")
+                http.sendResponseHeaders(200, body.size.toLong())
+                http.responseBody.use { it.write(body) }
+                return@createContext
+            }
             val body = """{"items":[]}""".toByteArray()
             http.responseHeaders.add("Content-Type", "application/json")
             http.sendResponseHeaders(200, body.size.toLong())

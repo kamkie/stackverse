@@ -128,6 +128,11 @@ confirmations only (report submitted, message saved, deletions); destructive act
   per-row actions name their row in the log.
 - Production build must be servable as static files by any gateway (`GATEWAY` serves
   the bundle); dev mode runs its own server which gateways can proxy via `FRONTEND_URL`.
+- Production HTML must satisfy the gateway CSP
+  (`default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'`):
+  no inline `<script>`, inline `<style>`, inline event handlers, or `style=`
+  attributes in the served document. Boot-time helpers such as the persisted-theme
+  script must be same-origin static files.
 - Ship a `Dockerfile`; the image plugs into `compose.yaml` via `FRONTEND_IMAGE`.
   It builds with the **repo root** as context (the build bundles `spec/design`),
   and the final image is a file carrier, not a server: the static build lives at
