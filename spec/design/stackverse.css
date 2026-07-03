@@ -216,6 +216,19 @@ a:hover {
   min-width: 12rem;
 }
 
+/* Small labeled control group inside a toolbar (e.g. date inputs with a
+   visible label). The label renders like .sv-label, one step smaller. */
+.sv-toolbar-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.sv-toolbar-field > .sv-label {
+  font-size: var(--sv-text-xs);
+  color: var(--sv-color-text-muted);
+}
+
 .sv-spacer {
   flex: 1;
 }
@@ -611,6 +624,23 @@ a:hover {
   color: var(--sv-color-text-muted);
 }
 
+/* A stat card rendered as a link (e.g. open reports → reports queue).
+   Overrides the global anchor color and adds a hover/focus affordance. */
+.sv-stat--link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sv-stat--link:hover {
+  text-decoration: none;
+  border-color: var(--sv-color-primary);
+  box-shadow: var(--sv-shadow-md);
+}
+
+.sv-stat--link:focus-visible {
+  border-color: var(--sv-color-primary);
+}
+
 .sv-chart {
   width: 100%;
   height: auto;
@@ -683,6 +713,12 @@ a:hover {
   color: var(--sv-color-warning);
 }
 
+.sv-alert--success {
+  background: var(--sv-color-success-soft);
+  border-color: var(--sv-color-success);
+  color: var(--sv-color-success);
+}
+
 .sv-spinner {
   display: inline-block;
   width: 1.25rem;
@@ -708,6 +744,58 @@ a:hover {
 @media (prefers-reduced-motion: reduce) {
   .sv-spinner {
     animation-duration: 2.4s;
+  }
+}
+
+/* ---- Toasts ----------------------------------------------------------------------------------- */
+
+/* Fixed bottom-right stack; the region ignores pointer events so it never
+   blocks the page, while each toast re-enables them. */
+.sv-toast-region {
+  position: fixed;
+  inset-block-end: var(--sv-space-5);
+  inset-inline-end: var(--sv-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.sv-toast {
+  background: var(--sv-color-surface);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-3) var(--sv-space-4);
+  box-shadow: var(--sv-shadow-lg);
+  font-size: var(--sv-text-sm);
+  color: var(--sv-color-text);
+  pointer-events: auto;
+  animation: sv-toast-in 0.2s ease-out;
+}
+
+.sv-toast--success {
+  background: var(--sv-color-success-soft);
+  border-color: var(--sv-color-success);
+  color: var(--sv-color-success);
+}
+
+.sv-toast--danger {
+  background: var(--sv-color-danger-soft);
+  border-color: var(--sv-color-danger);
+  color: var(--sv-color-danger);
+}
+
+@keyframes sv-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--sv-space-2));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sv-toast {
+    animation: none;
   }
 }
 

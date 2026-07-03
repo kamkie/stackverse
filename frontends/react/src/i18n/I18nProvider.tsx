@@ -24,6 +24,12 @@ interface I18nContextValue {
   setLang: (lang: string) => void;
   /** Message for a key; falls back to the key's last segment. */
   t: (key: string) => string;
+  /**
+   * Pluralized message: resolves `<key>.<plural category>` (CLDR category for
+   * `count` in the resolved language), falling back to the bare key and then
+   * to the key's last segment — the same fallback rule as `t`.
+   */
+  tCount: (key: string, count: number) => string;
   /** Revalidates the bundle (cheap 304 when unchanged) — call after message writes. */
   refresh: () => void;
 }
@@ -107,6 +113,18 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     [bundle],
   );
 
+  const tCount = useCallback(
+    (key: string, count: number): string => {
+      const category = new Intl.PluralRules(bundle?.language ?? "en").select(count);
+      return (
+        bundle?.messages[`${key}.${category}`] ??
+        bundle?.messages[key] ??
+        key.slice(key.lastIndexOf(".") + 1)
+      );
+    },
+    [bundle],
+  );
+
   const setLang = useCallback((next: string) => {
     localStorage.setItem(LANG_STORAGE_KEY, next);
     setLangState(next);
@@ -121,8 +139,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, [bundle]);
 
   const value = useMemo<I18nContextValue>(
-    () => ({ lang, resolvedLanguage: bundle?.language ?? "en", setLang, t, refresh }),
-    [lang, bundle, setLang, t, refresh],
+    () => ({ lang, resolvedLanguage: bundle?.language ?? "en", setLang, t, tCount, refresh }),
+    [lang, bundle, setLang, t, tCount, refresh],
   );
 
   // Hold rendering until the first bundle arrives so screens never flash keys.

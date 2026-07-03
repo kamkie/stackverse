@@ -30,6 +30,9 @@ test("create, edit and delete a bookmark through the dialog", async ({ page }) =
   await expect(edited).toHaveCount(1);
 
   await edited.getByRole("button", { name: "Delete" }).click();
+  // deleting now asks for confirmation — the danger button lives in the dialog
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await expect(dialog).toBeHidden();
   await expect(
     page.locator(".sv-bookmark").filter({ hasText: marker }),
   ).toHaveCount(0);

@@ -1,10 +1,13 @@
 import { useMemo, useState, type SubmitEvent } from "react";
 import { ApiError, fieldErrorFor } from "../../api/problem";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { Dialog } from "../../components/Dialog";
 import { Field } from "../../components/Field";
 import { Pagination } from "../../components/Pagination";
 import { ErrorState, Loading } from "../../components/states";
+import { useToast } from "../../components/Toast";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
+import { SUPPORTED_LANGUAGES } from "../../i18n/languages";
 import { useI18n } from "../../i18n/I18nProvider";
 import {
   useCreateMessage,
@@ -23,6 +26,7 @@ function MessageFormDialog({
   onClose: () => void;
 }) {
   const { t } = useI18n();
+  const toast = useToast();
   const create = useCreateMessage();
   const update = useUpdateMessage();
   const mutation = message ? update : create;
@@ -40,7 +44,14 @@ function MessageFormDialog({
       text,
       ...(description ? { description } : {}),
     };
-    const options = { onSuccess: onClose };
+    const options = {
+      onSuccess: () => {
+        toast.push(
+          t(message ? "ui.toast.message-updated" : "ui.toast.message-created"),
+        );
+        onClose();
+      },
+    };
     if (message) update.mutate({ id: message.id, body }, options);
     else create.mutate(body, options);
   }
@@ -50,7 +61,7 @@ function MessageFormDialog({
 
   return (
     <Dialog
-      title={message ? t("ui.action.edit") : t("ui.action.add")}
+      title={t(message ? "ui.messages.dialog.edit" : "ui.messages.dialog.add")}
       onClose={onClose}
     >
       <form className="sv-form" onSubmit={submit}>
@@ -63,11 +74,22 @@ function MessageFormDialog({
           />
         </Field>
         <Field label={t("ui.field.language")} error={fieldErrorFor(error, "language")}>
-          <input
-            className="sv-input"
+          <select
+            className="sv-select"
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-          />
+          >
+            {/* The contract allows any ISO 639-1 code; keep a message's own
+                language selectable when it is outside the supported set. */}
+            {(SUPPORTED_LANGUAGES as readonly string[]).includes(language)
+              ? null
+              : <option value={language}>{language}</option>}
+            {SUPPORTED_LANGUAGES.map((code) => (
+              <option key={code} value={code}>
+                {code}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label={t("ui.field.text")} error={fieldErrorFor(error, "text")}>
           <textarea
@@ -111,6 +133,7 @@ function MessageFormDialog({
 /** Runtime-managed localized messages: list, create, edit, delete (admin). */
 export function MessagesPage() {
   const { t } = useI18n();
+  const toast = useToast();
   const [keyInput, setKeyInput] = useState("");
   const key = useDebouncedValue(keyInput, 300);
   const [language, setLanguage] = useState("");
@@ -118,6 +141,7 @@ export function MessagesPage() {
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; message: Message } | null
   >(null);
+  const [deleting, setDeleting] = useState<Message | null>(null);
 
   const query = useMemo(
     () => ({
@@ -138,7 +162,8 @@ export function MessagesPage() {
       <div className="sv-toolbar">
         <input
           className="sv-input"
-          placeholder={t("ui.field.key")}
+          placeholder={t("ui.messages.filter.key.placeholder")}
+          aria-label={t("ui.messages.filter.key.placeholder")}
           value={keyInput}
           onChange={(e) => {
             setKeyInput(e.target.value);
@@ -147,15 +172,19 @@ export function MessagesPage() {
         />
         <select
           className="sv-select"
+          aria-label={t("ui.field.language")}
           value={language}
           onChange={(e) => {
             setLanguage(e.target.value);
             setPage(0);
           }}
         >
-          <option value="">*</option>
-          <option value="en">en</option>
-          <option value="pl">pl</option>
+          <option value="">{t("ui.messages.filter.all-languages")}</option>
+          {SUPPORTED_LANGUAGES.map((code) => (
+            <option key={code} value={code}>
+              {code}
+            </option>
+          ))}
         </select>
         <button
           type="button"
@@ -167,16 +196,22 @@ export function MessagesPage() {
       </div>
       {messages.isPending ? (
         <Loading />
+      ) : messages.data.items.length === 0 ? (
+        <div className="sv-empty">{t("ui.messages.empty")}</div>
       ) : (
         <>
           <div className="sv-table-wrap">
             <table className="sv-table">
               <thead>
                 <tr>
-                  <th>{t("ui.field.key")}</th>
-                  <th>{t("ui.field.language")}</th>
-                  <th>{t("ui.field.text")}</th>
-                  <th />
+                  <th scope="col">{t("ui.field.key")}</th>
+                  <th scope="col">{t("ui.field.language")}</th>
+                  <th scope="col">{t("ui.field.text")}</th>
+                  <th scope="col">
+                    <span className="sv-visually-hidden">
+                      {t("ui.field.actions")}
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -198,8 +233,7 @@ export function MessagesPage() {
                       <button
                         type="button"
                         className="sv-button sv-button--ghost sv-button--sm"
-                        disabled={deleteMessage.isPending}
-                        onClick={() => deleteMessage.mutate(message.id)}
+                        onClick={() => setDeleting(message)}
                       >
                         {t("ui.action.delete")}
                       </button>
@@ -220,6 +254,29 @@ export function MessagesPage() {
         <MessageFormDialog
           message={dialog.mode === "edit" ? dialog.message : undefined}
           onClose={() => setDialog(null)}
+        />
+      )}
+      {deleting && (
+        <ConfirmDialog
+          title={`${t("ui.action.delete")} — ${deleting.key}`}
+          body={t("ui.confirm.delete-message")}
+          confirmLabel={t("ui.action.delete")}
+          cancelLabel={t("ui.action.cancel")}
+          pending={deleteMessage.isPending}
+          onConfirm={() =>
+            deleteMessage.mutate(deleting.id, {
+              onSuccess: () => {
+                setDeleting(null);
+                toast.push(t("ui.toast.message-deleted"));
+              },
+              onError: (error) =>
+                toast.push(
+                  error instanceof Error ? error.message : String(error),
+                  "danger",
+                ),
+            })
+          }
+          onClose={() => setDeleting(null)}
         />
       )}
     </>

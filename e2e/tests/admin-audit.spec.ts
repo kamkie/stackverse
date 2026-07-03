@@ -19,9 +19,16 @@ test("blocking a user shows up as a filterable audit entry", async ({ page }) =>
   expect(unblock.status(), await unblock.text()).toBe(200);
 
   await page.reload();
+  // placeholder is "Exact action, e.g. report.resolved" — substring match
   await page.getByPlaceholder("Action").fill("user.blocked");
   const rows = page.locator(".sv-table tbody tr");
   await expect(rows.first()).toBeVisible();
   await expect(rows.first()).toContainText("admin"); // actor
   await expect(rows.first().locator(".sv-badge")).toHaveText("user.blocked");
+
+  // Clear filters resets the inputs and shows the unfiltered log again
+  await page.getByRole("button", { name: "Clear filters" }).click();
+  await expect(page.getByPlaceholder("Action")).toHaveValue("");
+  await expect(page.getByPlaceholder("Actor")).toHaveValue("");
+  await expect(rows.first()).toBeVisible();
 });

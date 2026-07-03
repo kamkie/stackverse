@@ -2,6 +2,7 @@ import { useState, type SubmitEvent } from "react";
 import { ApiError, fieldErrorFor } from "../api/problem";
 import { Dialog } from "../components/Dialog";
 import { Field } from "../components/Field";
+import { useToast } from "../components/Toast";
 import { useI18n } from "../i18n/I18nProvider";
 import { useReportBookmark, type Bookmark, type ReportInput } from "./queries";
 
@@ -10,11 +11,15 @@ const REASONS: ReportInput["reason"][] = ["spam", "offensive", "broken-link", "o
 export function ReportDialog({
   bookmark,
   onClose,
+  onReported,
 }: {
   bookmark: Bookmark;
   onClose: () => void;
+  /** Fires after a successful submit so the caller can mark the card as reported. */
+  onReported?: ((bookmarkId: string) => void) | undefined;
 }) {
   const { t } = useI18n();
+  const toast = useToast();
   const report = useReportBookmark();
   const [reason, setReason] = useState<ReportInput["reason"]>("spam");
   const [comment, setComment] = useState("");
@@ -26,7 +31,13 @@ export function ReportDialog({
         id: bookmark.id,
         body: { reason, ...(comment ? { comment } : {}) },
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          toast.push(t("ui.toast.report-submitted"), "success");
+          onReported?.(bookmark.id);
+          onClose();
+        },
+      },
     );
   }
 
@@ -34,7 +45,7 @@ export function ReportDialog({
   const conflict = error instanceof ApiError && error.status === 409;
 
   return (
-    <Dialog title={t("ui.action.report")} onClose={onClose}>
+    <Dialog title={`${t("ui.action.report")} — ${bookmark.title}`} onClose={onClose}>
       <form className="sv-form" onSubmit={submit}>
         <Field label={t("ui.field.reason")} error={fieldErrorFor(error, "reason")}>
           <select

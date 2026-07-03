@@ -36,11 +36,32 @@ test("dismissing an open report removes it from the open queue", async ({ page, 
   await page.goto("/admin/reports");
   const row = reportRow(page, marker);
   await expect(row).toHaveCount(1);
+  // the bookmark column resolves the reported bookmark's title for context
+  await expect(row).toContainText(`e2e reported ${marker}`);
   await row.getByRole("button", { name: "Dismiss" }).click();
   await expect(row).toHaveCount(0);
 
+  const dismissedLoaded = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/v1/admin/reports") &&
+      response.url().includes("status=dismissed") &&
+      response.ok(),
+  );
   await page.locator(".sv-toolbar .sv-select").selectOption("dismissed");
-  await expect(reportRow(page, marker)).toHaveCount(1);
+  await dismissedLoaded;
+
+  // Dismissed reports accumulate across suite runs and list oldest-first, so
+  // this run's report can sit past page one — walk forward until it appears.
+  const dismissedRow = reportRow(page, marker);
+  const nextPage = page.getByRole("button", { name: "Next" });
+  const pageIndicator = page.locator(".sv-pagination span");
+  for (let hop = 0; hop < 25 && (await dismissedRow.count()) === 0; hop++) {
+    if ((await nextPage.count()) === 0 || !(await nextPage.isEnabled())) break;
+    const before = await pageIndicator.innerText();
+    await nextPage.click();
+    await expect(pageIndicator).not.toHaveText(before);
+  }
+  await expect(dismissedRow).toHaveCount(1);
 });
 
 test("actioning a report hides the bookmark from the public feed", async ({ page, browser }) => {

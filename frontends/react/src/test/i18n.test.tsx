@@ -37,7 +37,8 @@ describe("language switch", () => {
     await user.click(screen.getByRole("button", { name: "PL" }));
 
     expect(await screen.findByRole("link", { name: "Publiczne" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Moje zakładki" })).toBeInTheDocument();
+    // Anonymous chrome re-renders in Polish too (the login link comes from the bundle).
+    expect(await screen.findByRole("link", { name: "Zaloguj się" })).toBeInTheDocument();
     expect(bundleRequests.at(-1)?.lang).toBe("pl");
     expect(localStorage.getItem("stackverse.lang")).toBe("pl");
   });

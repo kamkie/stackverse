@@ -8,26 +8,61 @@ import {
   useDeleteBookmark,
   type Bookmark,
 } from "../bookmarks/queries";
+import { useSession } from "../auth/session";
+import { ConfirmDialog } from "../components/ConfirmDialog";
+import { Loading, LoginPrompt } from "../components/states";
+import { useToast } from "../components/Toast";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
 import { useI18n } from "../i18n/I18nProvider";
 
 export function MyBookmarksPage() {
   const { t } = useI18n();
+  const toast = useToast();
+  const session = useSession();
   const [activeTags, setActiveTags] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const q = useDebouncedValue(search, 300);
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; bookmark: Bookmark } | null
   >(null);
+  const [deleting, setDeleting] = useState<Bookmark | null>(null);
 
   const filters = useMemo(() => ({ tags: activeTags, q }), [activeTags, q]);
-  const bookmarks = useBookmarks(filters);
+  // The list is owner-only: don't fire the query into a guaranteed 401 while
+  // anonymous (the page renders a login prompt instead, below).
+  const bookmarks = useBookmarks(filters, {
+    enabled: session.data?.authenticated === true,
+  });
   const deleteBookmark = useDeleteBookmark();
 
   const toggleTag = (tag: string) =>
     setActiveTags((tags) =>
       tags.includes(tag) ? tags.filter((existing) => existing !== tag) : [...tags, tag],
     );
+
+  // This page is owner-only: anonymous visitors get a login prompt instead of
+  // an Add/search toolbar whose every action would just 401. Session-based on
+  // purpose — /api/v1/me is 403 for blocked users, who must still reach the
+  // list to see the localized "blocked" error from the bookmarks call.
+  if (session.isPending) {
+    return (
+      <section className="sv-content">
+        <h1 className="sv-page-title">{t("ui.nav.my-bookmarks")}</h1>
+        <Loading />
+      </section>
+    );
+  }
+
+  if (session.data?.authenticated !== true) {
+    return (
+      <section className="sv-content">
+        <h1 className="sv-page-title">{t("ui.nav.my-bookmarks")}</h1>
+        <LoginPrompt />
+      </section>
+    );
+  }
+
+  const filtered = q !== "" || activeTags.length > 0;
 
   return (
     <div className="sv-layout">
@@ -53,6 +88,7 @@ export function MyBookmarksPage() {
         </div>
         <BookmarkList
           query={bookmarks}
+          emptyMessage={filtered ? t("ui.bookmarks.no-matches") : undefined}
           renderBookmark={(bookmark) => (
             <BookmarkCard
               key={bookmark.id}
@@ -71,7 +107,7 @@ export function MyBookmarksPage() {
                   <button
                     type="button"
                     className="sv-button sv-button--ghost sv-button--sm"
-                    onClick={() => deleteBookmark.mutate(bookmark.id)}
+                    onClick={() => setDeleting(bookmark)}
                   >
                     {t("ui.action.delete")}
                   </button>
@@ -84,6 +120,29 @@ export function MyBookmarksPage() {
           <BookmarkFormDialog
             bookmark={dialog.mode === "edit" ? dialog.bookmark : undefined}
             onClose={() => setDialog(null)}
+          />
+        )}
+        {deleting && (
+          <ConfirmDialog
+            title={`${t("ui.action.delete")} — ${deleting.title}`}
+            body={t("ui.confirm.delete-bookmark")}
+            confirmLabel={t("ui.action.delete")}
+            cancelLabel={t("ui.action.cancel")}
+            pending={deleteBookmark.isPending}
+            onConfirm={() =>
+              deleteBookmark.mutate(deleting.id, {
+                onSuccess: () => {
+                  setDeleting(null);
+                  toast.push(t("ui.toast.bookmark-deleted"), "success");
+                },
+                onError: (error) =>
+                  toast.push(
+                    error instanceof Error ? error.message : String(error),
+                    "danger",
+                  ),
+              })
+            }
+            onClose={() => setDeleting(null)}
           />
         )}
       </section>

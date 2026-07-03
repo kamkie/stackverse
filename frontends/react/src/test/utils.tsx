@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
+import { ToastProvider } from "../components/Toast";
 import { I18nProvider } from "../i18n/I18nProvider";
 import { routes } from "../routes";
 
@@ -13,7 +14,9 @@ export function renderApp(initialEntry = "/") {
   return render(
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </I18nProvider>
     </QueryClientProvider>,
   );

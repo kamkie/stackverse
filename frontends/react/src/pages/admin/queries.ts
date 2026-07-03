@@ -153,3 +153,21 @@ export function useDeleteMessage() {
     onSuccess: invalidate,
   });
 }
+
+/**
+ * A single bookmark by id, for showing report context. `404` is an expected
+ * state here: the endpoint is owner-or-public-only (existence is not
+ * disclosed), so private, hidden, or deleted bookmarks reject even
+ * moderators — hence no retry.
+ */
+export function useBookmark(id: string) {
+  return useQuery({
+    queryKey: ["bookmark", id],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/api/v1/bookmarks/{id}", { params: { path: { id } } }),
+      ),
+    retry: false,
+    staleTime: 60_000,
+  });
+}

@@ -10,10 +10,12 @@ type CursorPage = components["schemas"]["BookmarkCursorPage"];
 interface BookmarkListProps {
   query: UseInfiniteQueryResult<InfiniteData<CursorPage>, Error>;
   renderBookmark: (bookmark: Bookmark) => ReactNode;
+  /** Shown when the list is empty; defaults to the "no bookmarks yet" message. */
+  emptyMessage?: string | undefined;
 }
 
 /** Cursor-paginated list with the "load more" UX of `GET /api/v2/bookmarks`. */
-export function BookmarkList({ query, renderBookmark }: BookmarkListProps) {
+export function BookmarkList({ query, renderBookmark, emptyMessage }: BookmarkListProps) {
   const { t } = useI18n();
 
   if (query.isPending) return <Loading />;
@@ -22,7 +24,7 @@ export function BookmarkList({ query, renderBookmark }: BookmarkListProps) {
   const bookmarks = query.data.pages.flatMap((page) => page.items);
 
   if (bookmarks.length === 0) {
-    return <div className="sv-empty">{t("ui.bookmarks.empty")}</div>;
+    return <div className="sv-empty">{emptyMessage ?? t("ui.bookmarks.empty")}</div>;
   }
 
   return (

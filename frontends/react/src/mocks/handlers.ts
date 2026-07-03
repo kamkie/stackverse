@@ -265,6 +265,21 @@ const createBookmark = http.post("/api/v1/bookmarks", async ({ request, response
   });
 });
 
+const getBookmark = http.get("/api/v1/bookmarks/{id}", ({ params, response }) => {
+  const user = getCurrentUser();
+  const bookmark = db.bookmarks.find((b) => b.id === params.id);
+  // Owners always read their own; everyone else (moderators included) only
+  // sees public + active. Anything else is 404 — existence is not disclosed.
+  if (
+    !bookmark ||
+    (bookmark.owner !== user?.username &&
+      !(bookmark.visibility === "public" && bookmark.status === "active"))
+  ) {
+    return response(404).json(notFound());
+  }
+  return response(200).json(bookmark);
+});
+
 const updateBookmark = http.put(
   "/api/v1/bookmarks/{id}",
   async ({ params, request, response }) => {
@@ -830,6 +845,7 @@ export const handlers = [
   blockedGate,
   listBookmarksV2,
   createBookmark,
+  getBookmark,
   updateBookmark,
   deleteBookmark,
   listTags,
