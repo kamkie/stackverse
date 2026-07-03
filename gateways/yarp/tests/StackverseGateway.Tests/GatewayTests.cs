@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace StackverseGateway.Tests;
@@ -52,6 +53,148 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
         var problem = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
         Assert.Equal(403, problem.GetProperty("status").GetInt32());
+    }
+
+    [Fact]
+    public async Task Cross_origin_preflight_is_not_honored_as_cors()
+    {
+        using var client = CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/bookmarks");
+        request.Headers.Add("Origin", "https://evil.example");
+        request.Headers.Add("Access-Control-Request-Method", "POST");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertNoAccessControlAllowHeaders(response);
+    }
+
+    [Fact]
+    public async Task Foreign_origin_rejects_state_changing_api_requests_even_when_csrf_passes()
+    {
+        using var client = CreateClient();
+        var xsrf = await IssueCsrfTokenAsync(client);
+        using var request = StateChangingRequest(xsrf);
+        request.Headers.Add("Origin", "https://evil.example");
+
+        var response = await client.SendAsync(request);
+
+        await AssertCrossOriginForbiddenAsync(response);
+    }
+
+    [Theory]
+    [InlineData("same-site")]
+    [InlineData("cross-site")]
+    public async Task Same_site_and_cross_site_fetch_metadata_reject_state_changing_api_requests(string fetchSite)
+    {
+        using var client = CreateClient();
+        var xsrf = await IssueCsrfTokenAsync(client);
+        using var request = StateChangingRequest(xsrf);
+        request.Headers.Add("Sec-Fetch-Site", fetchSite);
+
+        var response = await client.SendAsync(request);
+
+        await AssertCrossOriginForbiddenAsync(response);
+    }
+
+    [Fact]
+    public async Task One_failing_same_origin_signal_rejects_even_when_the_other_passes()
+    {
+        using (var client = CreateClient())
+        {
+            var xsrf = await IssueCsrfTokenAsync(client);
+            using var request = StateChangingRequest(xsrf);
+            request.Headers.Add("Origin", "http://localhost:8000");
+            request.Headers.Add("Sec-Fetch-Site", "same-site");
+
+            await AssertCrossOriginForbiddenAsync(await client.SendAsync(request));
+        }
+
+        using (var client = CreateClient())
+        {
+            var xsrf = await IssueCsrfTokenAsync(client);
+            using var request = StateChangingRequest(xsrf);
+            request.Headers.Add("Origin", "https://evil.example");
+            request.Headers.Add("Sec-Fetch-Site", "same-origin");
+
+            await AssertCrossOriginForbiddenAsync(await client.SendAsync(request));
+        }
+    }
+
+    [Fact]
+    public async Task Same_origin_none_and_absent_browser_signals_are_allowed_when_csrf_passes()
+    {
+        var cases = new (string Name, string Value)[][]
+        {
+            new[] { ("Origin", "http://localhost:8000") },
+            new[] { ("Sec-Fetch-Site", "same-origin") },
+            new[] { ("Sec-Fetch-Site", "none") },
+            Array.Empty<(string Name, string Value)>(),
+        };
+
+        foreach (var headers in cases)
+        {
+            using var client = CreateClient();
+            var xsrf = await IssueCsrfTokenAsync(client);
+            using var request = StateChangingRequest(xsrf);
+            foreach (var (name, value) in headers)
+            {
+                request.Headers.Add(name, value);
+            }
+
+            var response = await client.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+    }
+
+    [Fact]
+    public async Task Security_headers_are_scoped_without_changing_api_cache_semantics()
+    {
+        using var client = CreateClient();
+
+        var spa = await client.GetAsync("/");
+        Assert.Equal(HttpStatusCode.OK, spa.StatusCode);
+        AssertDocumentSecurityHeaders(spa, expectHsts: false);
+
+        var auth = await client.GetAsync("/auth/session");
+        Assert.Equal(HttpStatusCode.OK, auth.StatusCode);
+        AssertDocumentSecurityHeaders(auth, expectHsts: false);
+
+        var login = await client.GetAsync("/auth/login");
+        Assert.Equal(HttpStatusCode.Found, login.StatusCode);
+        AssertDocumentSecurityHeaders(login, expectHsts: false);
+
+        var api = await client.GetAsync("/api/v1/messages/bundle");
+        Assert.Equal(HttpStatusCode.OK, api.StatusCode);
+        AssertApiSecurityHeaders(api, expectHsts: false);
+        AssertHeader(api, "Cache-Control", "no-cache");
+        Assert.Equal("\"bundle-v1\"", api.Headers.ETag?.ToString());
+
+        using var revalidate = new HttpRequestMessage(HttpMethod.Get, "/api/v1/messages/bundle");
+        revalidate.Headers.TryAddWithoutValidation("If-None-Match", "\"bundle-v1\"");
+        var notModified = await client.SendAsync(revalidate);
+        Assert.Equal(HttpStatusCode.NotModified, notModified.StatusCode);
+        AssertApiSecurityHeaders(notModified, expectHsts: false);
+        AssertHeader(notModified, "Cache-Control", "no-cache");
+        Assert.Equal("\"bundle-v1\"", notModified.Headers.ETag?.ToString());
+        Assert.Equal("", await notModified.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Hsts_is_emitted_only_when_public_url_is_https()
+    {
+        using var httpClient = CreateClient();
+        var http = await httpClient.GetAsync("/auth/session");
+        AssertDocumentSecurityHeaders(http, expectHsts: false);
+
+        using var httpsFactory = fixture.Factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("PUBLIC_URL", "https://stackverse.example"));
+        using var httpsClient = httpsFactory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        var https = await httpsClient.GetAsync("/auth/session");
+
+        AssertDocumentSecurityHeaders(https, expectHsts: true);
     }
 
     [Fact]
@@ -163,4 +306,85 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
 
     private static StringContent JsonContent(object value) =>
         new(JsonSerializer.Serialize(value), Encoding.UTF8, "application/json");
+
+    private static async Task<string> IssueCsrfTokenAsync(HttpClient client)
+    {
+        var response = await client.GetAsync("/auth/session");
+        return AuthFlows.ExtractSetCookie(response, "XSRF-TOKEN")
+            ?? throw new InvalidOperationException("gateway did not issue an XSRF-TOKEN cookie");
+    }
+
+    private static HttpRequestMessage StateChangingRequest(string xsrf)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/bookmarks")
+        {
+            Content = JsonContent(new { url = "https://example.com" }),
+        };
+        request.Headers.Add("X-XSRF-TOKEN", xsrf);
+        return request;
+    }
+
+    private static async Task AssertCrossOriginForbiddenAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains(
+            "Cross-origin state-changing requests are not supported.",
+            await response.Content.ReadAsStringAsync());
+        AssertNoAccessControlAllowHeaders(response);
+    }
+
+    private static void AssertNoAccessControlAllowHeaders(HttpResponseMessage response)
+    {
+        var headerNames = response.Headers.Select(header => header.Key)
+            .Concat(response.Content.Headers.Select(header => header.Key));
+        Assert.DoesNotContain(headerNames, name =>
+            name.StartsWith("Access-Control-Allow", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void AssertDocumentSecurityHeaders(HttpResponseMessage response, bool expectHsts)
+    {
+        AssertHeader(response, "X-Content-Type-Options", "nosniff");
+        AssertHeader(response, "Referrer-Policy", "same-origin");
+        AssertHeader(response, "Content-Security-Policy",
+            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'");
+        AssertHeader(response, "X-Frame-Options", "DENY");
+        AssertHeader(response, "Cross-Origin-Opener-Policy", "same-origin");
+        AssertHeader(response, "Cross-Origin-Resource-Policy", "same-origin");
+        AssertHsts(response, expectHsts);
+    }
+
+    private static void AssertApiSecurityHeaders(HttpResponseMessage response, bool expectHsts)
+    {
+        AssertHeader(response, "X-Content-Type-Options", "nosniff");
+        AssertHeaderAbsent(response, "Referrer-Policy");
+        AssertHeaderAbsent(response, "Content-Security-Policy");
+        AssertHeaderAbsent(response, "X-Frame-Options");
+        AssertHeaderAbsent(response, "Cross-Origin-Opener-Policy");
+        AssertHeaderAbsent(response, "Cross-Origin-Resource-Policy");
+        AssertHsts(response, expectHsts);
+    }
+
+    private static void AssertHsts(HttpResponseMessage response, bool expected)
+    {
+        if (expected)
+        {
+            AssertHeader(response, "Strict-Transport-Security", EdgeSecurity.StrictTransportSecurity);
+        }
+        else
+        {
+            AssertHeaderAbsent(response, "Strict-Transport-Security");
+        }
+    }
+
+    private static void AssertHeader(HttpResponseMessage response, string name, string value)
+    {
+        Assert.True(response.Headers.TryGetValues(name, out var values), $"{name} should be present");
+        Assert.Equal(value, Assert.Single(values));
+    }
+
+    private static void AssertHeaderAbsent(HttpResponseMessage response, string name)
+    {
+        Assert.False(response.Headers.Contains(name), $"{name} should be absent");
+    }
 }

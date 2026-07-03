@@ -9,19 +9,7 @@
     <!-- Placeholder only: the runtime bundle replaces the title once loaded. -->
     <title>Stackverse</title>
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <script>
-      // Apply the persisted theme before first paint (see spec/design/tokens.css).
-      (function () {
-        try {
-          var theme = localStorage.getItem('stackverse.theme');
-          if (theme === 'light' || theme === 'dark') {
-            document.documentElement.setAttribute('data-theme', theme);
-          }
-        } catch (e) {
-          /* storage unavailable — stay on auto */
-        }
-      })();
-    </script>
+    <script src="/theme.js"></script>
   </head>
   <body>
     <app-root></app-root>

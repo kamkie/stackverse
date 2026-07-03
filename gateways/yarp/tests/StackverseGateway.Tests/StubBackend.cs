@@ -32,6 +32,16 @@ public sealed class StubBackend : IAsyncDisposable
             LastCookie = context.Request.Headers.Cookie.ToString();
             LastCsrfHeader = context.Request.Headers["X-XSRF-TOKEN"].ToString();
             LastPath = context.Request.Path.Value;
+            if (context.Request.Path == "/api/v1/messages/bundle")
+            {
+                context.Response.Headers.CacheControl = "no-cache";
+                context.Response.Headers.ETag = "\"bundle-v1\"";
+                if (context.Request.Headers.IfNoneMatch == "\"bundle-v1\"")
+                {
+                    return Results.StatusCode(StatusCodes.Status304NotModified);
+                }
+                return Results.Json(new { language = "en", messages = new Dictionary<string, string>() });
+            }
             return Results.Json(new { ok = true });
         });
     }

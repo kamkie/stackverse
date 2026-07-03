@@ -2,6 +2,7 @@ package dev.stackverse.gateway
 
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.fail
@@ -15,6 +16,9 @@ import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import java.net.CookieManager
 import java.net.CookiePolicy
+import java.net.URI
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 
 /**
  * Boots the real dependency set — Keycloak with the shared stackverse realm from
@@ -95,6 +99,132 @@ class GatewayIntegrationTest {
         assertEquals(403, response.statusCode())
         assertEquals("application/problem+json", response.headers().firstValue("content-type").orElse(""))
         assertTrue(response.body().contains("\"status\":403"))
+    }
+
+    @Test
+    fun `cross-origin preflight is not honored as cors`() {
+        val client = browserClient()
+        val request = HttpRequest.newBuilder(URI.create("$base/api/v1/bookmarks"))
+            .method("OPTIONS", HttpRequest.BodyPublishers.noBody())
+            .header("Origin", "https://evil.example")
+            .header("Access-Control-Request-Method", "POST")
+            .build()
+
+        val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+
+        assertEquals(200, response.statusCode())
+        assertNoAccessControlAllowHeaders(response)
+    }
+
+    @Test
+    fun `foreign origin rejects state-changing api requests even when csrf passes`() {
+        val client = browserClient()
+        val xsrf = issueCsrfToken(client)
+
+        val response = post(
+            client, "$base/api/v1/bookmarks", """{"url":"https://example.com"}""",
+            "X-XSRF-TOKEN" to xsrf,
+            "Origin" to "https://evil.example",
+        )
+
+        assertCrossOriginForbidden(response)
+    }
+
+    @Test
+    fun `same-site and cross-site fetch metadata reject state-changing api requests`() {
+        for (fetchSite in listOf("same-site", "cross-site")) {
+            val client = browserClient()
+            val xsrf = issueCsrfToken(client)
+
+            val response = post(
+                client, "$base/api/v1/bookmarks", """{"url":"https://example.com"}""",
+                "X-XSRF-TOKEN" to xsrf,
+                "Sec-Fetch-Site" to fetchSite,
+            )
+
+            assertCrossOriginForbidden(response)
+        }
+    }
+
+    @Test
+    fun `one failing same-origin signal rejects even when the other passes`() {
+        val expectedOrigin = "http://localhost:8000"
+
+        val goodOriginBadFetch = run {
+            val client = browserClient()
+            val xsrf = issueCsrfToken(client)
+            post(
+                client, "$base/api/v1/bookmarks", """{"url":"https://example.com"}""",
+                "X-XSRF-TOKEN" to xsrf,
+                "Origin" to expectedOrigin,
+                "Sec-Fetch-Site" to "same-site",
+            )
+        }
+        assertCrossOriginForbidden(goodOriginBadFetch)
+
+        val badOriginGoodFetch = run {
+            val client = browserClient()
+            val xsrf = issueCsrfToken(client)
+            post(
+                client, "$base/api/v1/bookmarks", """{"url":"https://example.com"}""",
+                "X-XSRF-TOKEN" to xsrf,
+                "Origin" to "https://evil.example",
+                "Sec-Fetch-Site" to "same-origin",
+            )
+        }
+        assertCrossOriginForbidden(badOriginGoodFetch)
+    }
+
+    @Test
+    fun `same-origin none and absent browser signals are allowed when csrf passes`() {
+        val cases = listOf(
+            arrayOf("Origin" to "http://localhost:8000"),
+            arrayOf("Sec-Fetch-Site" to "same-origin"),
+            arrayOf("Sec-Fetch-Site" to "none"),
+            emptyArray<Pair<String, String>>(),
+        )
+
+        for (headers in cases) {
+            val client = browserClient()
+            val xsrf = issueCsrfToken(client)
+            val response = post(
+                client, "$base/api/v1/bookmarks", """{"url":"https://example.com"}""",
+                "X-XSRF-TOKEN" to xsrf,
+                *headers,
+            )
+
+            assertEquals(200, response.statusCode(), "headers=${headers.toList()}")
+        }
+    }
+
+    @Test
+    fun `security headers are scoped without changing api cache semantics`() {
+        val client = browserClient()
+
+        val spa = get(client, "$base/")
+        assertEquals(200, spa.statusCode())
+        assertDocumentSecurityHeaders(spa, expectHsts = false)
+
+        val auth = get(client, "$base/auth/session")
+        assertEquals(200, auth.statusCode())
+        assertDocumentSecurityHeaders(auth, expectHsts = false)
+
+        val login = get(client, "$base/auth/login")
+        assertEquals(302, login.statusCode())
+        assertDocumentSecurityHeaders(login, expectHsts = false)
+
+        val api = get(client, "$base/api/v1/messages/bundle")
+        assertEquals(200, api.statusCode())
+        assertApiSecurityHeaders(api, expectHsts = false)
+        assertEquals("no-cache", api.headers().firstValue("Cache-Control").orElse(""))
+        assertEquals(""""bundle-v1"""", api.headers().firstValue("ETag").orElse(""))
+
+        val notModified = get(client, "$base/api/v1/messages/bundle", "If-None-Match" to """"bundle-v1"""")
+        assertEquals(304, notModified.statusCode())
+        assertApiSecurityHeaders(notModified, expectHsts = false)
+        assertEquals("no-cache", notModified.headers().firstValue("Cache-Control").orElse(""))
+        assertEquals(""""bundle-v1"""", notModified.headers().firstValue("ETag").orElse(""))
+        assertEquals("", notModified.body())
     }
 
     @Test
@@ -259,5 +389,64 @@ class GatewayIntegrationTest {
         val session = get(client, "$base/auth/session")
         assertTrue(session.body().contains("\"authenticated\":false"))
         assertTrue(sessions.findById(sessionId).blockOptional().isEmpty, "the dead session must be gone from Redis")
+    }
+
+    private fun issueCsrfToken(client: java.net.http.HttpClient): String {
+        val response = get(client, "$base/auth/session")
+        return setCookieValue(response, "XSRF-TOKEN") ?: fail("no XSRF-TOKEN Set-Cookie")
+    }
+
+    private fun assertCrossOriginForbidden(response: HttpResponse<String>) {
+        assertEquals(403, response.statusCode())
+        assertEquals("application/problem+json", response.headers().firstValue("content-type").orElse(""))
+        assertTrue(response.body().contains("Cross-origin state-changing requests are not supported."))
+        assertNoAccessControlAllowHeaders(response)
+    }
+
+    private fun assertNoAccessControlAllowHeaders(response: HttpResponse<String>) {
+        assertTrue(
+            response.headers().map().keys.none { it.startsWith("access-control-allow", ignoreCase = true) },
+            "response must not expose CORS allow headers: ${response.headers().map().keys}",
+        )
+    }
+
+    private fun assertDocumentSecurityHeaders(response: HttpResponse<String>, expectHsts: Boolean) {
+        assertHeader(response, "X-Content-Type-Options", "nosniff")
+        assertHeader(response, "Referrer-Policy", "same-origin")
+        assertHeader(
+            response,
+            "Content-Security-Policy",
+            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
+        )
+        assertHeader(response, "X-Frame-Options", "DENY")
+        assertHeader(response, "Cross-Origin-Opener-Policy", "same-origin")
+        assertHeader(response, "Cross-Origin-Resource-Policy", "same-origin")
+        assertHsts(response, expectHsts)
+    }
+
+    private fun assertApiSecurityHeaders(response: HttpResponse<String>, expectHsts: Boolean) {
+        assertHeader(response, "X-Content-Type-Options", "nosniff")
+        assertHeaderAbsent(response, "Referrer-Policy")
+        assertHeaderAbsent(response, "Content-Security-Policy")
+        assertHeaderAbsent(response, "X-Frame-Options")
+        assertHeaderAbsent(response, "Cross-Origin-Opener-Policy")
+        assertHeaderAbsent(response, "Cross-Origin-Resource-Policy")
+        assertHsts(response, expectHsts)
+    }
+
+    private fun assertHsts(response: HttpResponse<String>, expected: Boolean) {
+        if (expected) {
+            assertHeader(response, "Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        } else {
+            assertHeaderAbsent(response, "Strict-Transport-Security")
+        }
+    }
+
+    private fun assertHeader(response: HttpResponse<String>, name: String, value: String) {
+        assertEquals(value, response.headers().firstValue(name).orElse(""), name)
+    }
+
+    private fun assertHeaderAbsent(response: HttpResponse<String>, name: String) {
+        assertFalse(response.headers().firstValue(name).isPresent, "$name should be absent")
     }
 }
