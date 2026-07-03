@@ -4,6 +4,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { db } from "../mocks/db";
 import { MOCK_USERS, setCurrentUser } from "../mocks/state";
 import { renderApp } from "./utils";
 
@@ -48,10 +49,12 @@ describe("audit log filters", () => {
 
     expect(await screen.findByText("user.blocked")).toBeInTheDocument();
 
-    // The seeded entry was written at 12:00 UTC nine days ago (mocks/db.ts).
-    const seededAt = new Date();
-    seededAt.setUTCDate(seededAt.getUTCDate() - 9);
-    seededAt.setUTCHours(12, 0, 0, 0);
+    // Anchor on the seeded entry itself (admin blocked mallory, mocks/db.ts)
+    // rather than recomputing its timestamp, which could drift across a
+    // midnight boundary between seeding and this test.
+    const seededAt = new Date(
+      db.audit.find((entry) => entry.action === "user.blocked")!.createdAt,
+    );
     const entryDay = localDateValue(seededAt);
     const dayBefore = localDateValue(
       new Date(seededAt.getTime() - 24 * 60 * 60 * 1000),

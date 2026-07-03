@@ -2,7 +2,11 @@
 // days, so the query maps From to the first millisecond of the selected day
 // and To to the last — a "To: today" filter must include today's entries.
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+  type TestRequest,
+} from '@angular/common/http/testing';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { flushAsync, stubBundleFetch, type BundleFetchStub } from '../../testing/bundle-fetch';
 import { AuditLogPage } from './audit-log-page';
@@ -15,6 +19,7 @@ describe('AuditLogPage', () => {
   let fetchStub: BundleFetchStub;
   let controller: HttpTestingController;
   let fixture: ComponentFixture<AuditLogPage>;
+  let bootRequest: TestRequest;
 
   beforeEach(async () => {
     localStorage.clear();
@@ -27,7 +32,8 @@ describe('AuditLogPage', () => {
     fixture = TestBed.createComponent(AuditLogPage);
     fixture.detectChanges();
     await flushAsync();
-    controller.expectOne(isAuditRequest).flush(EMPTY_PAGE);
+    bootRequest = controller.expectOne(isAuditRequest);
+    bootRequest.flush(EMPTY_PAGE);
     await flushAsync();
     fixture.detectChanges();
   });
@@ -48,8 +54,8 @@ describe('AuditLogPage', () => {
   }
 
   it('omits from/to until a date is picked', () => {
-    // The boot request in beforeEach carried no date bounds — nothing pending.
-    controller.verify();
+    expect(bootRequest.request.params.has('from')).toBe(false);
+    expect(bootRequest.request.params.has('to')).toBe(false);
   });
 
   it('sends From as the local start and To as the local end of the selected day', async () => {
@@ -64,9 +70,10 @@ describe('AuditLogPage', () => {
 
     await setDate('to', '2026-06-01');
     const toRequest = controller.expectOne(isAuditRequest);
-    // To covers the whole selected day, not just its first instant.
+    // To covers the whole selected day, not just its first instant — down to
+    // the backend's microsecond timestamp precision.
     expect(toRequest.request.params.get('to')).toBe(
-      new Date('2026-06-01T23:59:59.999').toISOString(),
+      new Date('2026-06-01T23:59:59.999').toISOString().replace('.999Z', '.999999Z'),
     );
     expect(toRequest.request.params.get('from')).toBe(
       new Date('2026-06-01T00:00:00').toISOString(),

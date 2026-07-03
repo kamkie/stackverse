@@ -21,6 +21,16 @@ const KNOWN_ACTIONS = [
 
 const ACTION_DATALIST_ID = "audit-log-known-actions";
 
+/**
+ * The last instant of a local calendar day as an ISO instant. Backends store
+ * microsecond timestamps and compare inclusively, so the millisecond Date
+ * resolves to is extended to microseconds — otherwise entries in the day's
+ * final millisecond would be filtered out.
+ */
+function endOfDayIso(day: string): string {
+  return new Date(`${day}T23:59:59.999`).toISOString().replace(".999Z", ".999999Z");
+}
+
 /** Filterable, paginated browser over the append-only audit trail (admin). */
 export function AuditLogPage() {
   const { t, resolvedLanguage } = useI18n();
@@ -38,9 +48,9 @@ export function AuditLogPage() {
       ...(action ? { action } : {}),
       // The date inputs select whole local calendar days; the API takes instants
       // and the backend compares both bounds inclusively, so "from" becomes the
-      // first millisecond of the selected day and "to" the last.
+      // first instant of the selected day and "to" the last.
       ...(from ? { from: new Date(`${from}T00:00:00`).toISOString() } : {}),
-      ...(to ? { to: new Date(`${to}T23:59:59.999`).toISOString() } : {}),
+      ...(to ? { to: endOfDayIso(to) } : {}),
       page,
     }),
     [actor, action, from, to, page],
