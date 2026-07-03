@@ -19,6 +19,11 @@ updates:
     groups:
       gradle-minor:
         update-types: [minor, patch]
+    ignore:
+      # CodeQL's Kotlin extractor rejects 2.4+ (github/codeql#21938) — drop
+      # this once a CodeQL release supports it, then bump build.gradle.kts.
+      - dependency-name: "org.jetbrains.kotlin*"
+        versions: ["[2.4,)"]
 
   - package-ecosystem: nuget
     directory: /gateways/yarp

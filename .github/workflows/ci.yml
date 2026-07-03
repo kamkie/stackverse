@@ -45,8 +45,9 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v7
         with:
+          report_type: test_results
           directory: backends/spring-kotlin/build/test-results/test
           flags: backend-spring-kotlin
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -74,8 +75,9 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v7
         with:
+          report_type: test_results
           files: gateways/yarp/TestResults/TestResults.xml
           flags: gateway-yarp
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -114,8 +116,9 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v7
         with:
+          report_type: test_results
           files: frontends/react/test-results/junit.xml
           flags: frontend-react
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -159,8 +162,9 @@ jobs:
         run: yarn playwright test
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v7
         with:
+          report_type: test_results
           files: conformance/test-results/junit.xml
           flags: conformance
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -221,8 +225,9 @@ jobs:
         run: yarn playwright test
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
+        uses: codecov/codecov-action@v7
         with:
+          report_type: test_results
           files: e2e/test-results/junit.xml
           flags: e2e
           token: ${{ secrets.CODECOV_TOKEN }}
