@@ -1,0 +1,55 @@
+# Build and unit/integration tests for one implementation. Each implementation
+# has its own build workflow file so parallel variant PRs never edit a shared
+# workflow — adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-go
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-go:
+    name: Backend · Go (stdlib + chi)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/go
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backends/go/go.mod
+          cache-dependency-path: backends/go/go.sum
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: |
+          mkdir -p TestResults
+          go run gotest.tools/gotestsum@v1.13.0 --junitfile TestResults/junit.xml \
+            -- -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/go/coverage.out
+          flags: backend-go
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/go/TestResults/junit.xml
+          flags: backend-go
+          token: ${{ secrets.CODECOV_TOKEN }}

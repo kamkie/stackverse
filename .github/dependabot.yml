@@ -17,14 +17,13 @@ updates:
       actions-minor:
         update-types: [minor, patch]
 
-  # pre-seeded for backends/go — uncomment when the directory lands
-  # - package-ecosystem: gomod
-  #   directory: /backends/go
-  #   schedule:
-  #     interval: weekly
-  #   groups:
-  #     gomod-minor:
-  #       update-types: [minor, patch]
+  - package-ecosystem: gomod
+    directory: /backends/go
+    schedule:
+      interval: weekly
+    groups:
+      gomod-minor:
+        update-types: [minor, patch]
 
   - package-ecosystem: gradle
     directories:
@@ -77,7 +76,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /backends/dotnet
-      # - /backends/go        # pre-seeded — uncomment when the directory lands
+      - /backends/go
       # - /backends/node-ts   # pre-seeded — uncomment when the directory lands
       - /backends/spring-kotlin
       - /frontends/angular
