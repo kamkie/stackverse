@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
@@ -20,9 +21,14 @@ func writeJSONWithContentType(w http.ResponseWriter, status int, contentType str
 }
 
 // DecodeJSON reads a request body into target. Unknown fields are ignored
-// (SPEC rule 5); a syntactically broken body is a 400 problem.
+// (SPEC rule 5); a syntactically broken body — including trailing data after
+// the JSON document — is a 400 problem.
 func DecodeJSON(r *http.Request, target any) *Problem {
-	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(target); err != nil {
+		return BadRequest("Malformed JSON request body.")
+	}
+	if err := decoder.Decode(new(json.RawMessage)); err != io.EOF {
 		return BadRequest("Malformed JSON request body.")
 	}
 	return nil
