@@ -154,6 +154,31 @@ realm import — infra created before the client existed needs a one-time
 `docker compose up -d --force-recreate keycloak` (dev Keycloak has no
 persistent volume, so recreating re-imports the realm).
 
+## Testing-tool showcase suites
+
+Stackverse has two canonical acceptance gates:
+
+- [conformance/](../conformance) is the backend API gate. It runs directly
+  against `BACKEND_URL` with dev-realm tokens and proves
+  [spec/openapi.yaml](../spec/openapi.yaml) plus [docs/SPEC.md](SPEC.md).
+- [e2e/](../e2e) is the composed-stack UI gate. It runs through the gateway at
+  `STACKVERSE_URL`, drives the real Keycloak login, and proves every required
+  frontend screen from [frontends/README.md](../frontends/README.md).
+
+Additional suites under [testing/](../testing/README.md) are showcase variants
+for comparing testing tools such as Selenium, Cypress, Schemathesis, Hurl,
+Robot Framework, API collections, k6, ZAP, axe-core, or trace assertions. They
+should choose representative public, authenticated, moderator, and admin flows
+that show the tool's style. They are not a way to add new product requirements
+or to replace the canonical gates.
+
+New showcase suites use `testing/<tool>-<scope>` and carry their own README,
+default local command, and `.github/workflows/test-<tool>-<scope>.yml` when
+they need CI. A workflow that runs on `push` or `pull_request` is effectively
+gating because `ci-ok` waits for every GitHub Actions check run on the commit.
+Keep immature showcase suites manual, scheduled, or failure-tolerant until the
+repo deliberately promotes them to a required gate.
+
 ## Continuous integration
 
 CI runs on every push to `main` and every pull request, split so that shared

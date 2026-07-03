@@ -36,6 +36,11 @@ the browser, any instance can serve any request.
   real enough to be worth reading.
 - **Contract-first.** The spec is the product. Implementations conform to it;
   none of them defines it.
+- **Testing tools on equal footing.** Testing ecosystems are comparison material
+  too. The canonical gates stay small and stable: API conformance in
+  [conformance/](../conformance) and Playwright end-to-end acceptance in
+  [e2e/](../e2e). Extra suites under [testing/](../testing/README.md) showcase
+  other tools against representative flows; they do not redefine correctness.
 - **Idiomatic per stack, consistent across stacks.** Each implementation should look
   like what an experienced developer in that ecosystem would write — while exposing
   identical behavior. Where idiom and consistency conflict, behavioral consistency
@@ -67,6 +72,9 @@ the browser, any instance can serve any request.
   Kubernetes manifests, cloud IaC, and CI/CD pipelines per stack would multiply the
   maintenance surface without adding comparison value on the axes this repo cares
   about.
+- **Not an exhaustive testing-tools catalog.** Showcase suites are added when they
+  explain a distinct testing style or toolchain. They should cover representative
+  Stackverse flows, not duplicate every canonical conformance or end-to-end case.
 - **Not an observability-operations showcase.** The `observability` compose profile
   is deliberately dev-grade — one container, no persistence, no alerting.
   Applications must *emit* production-quality logs and telemetry
