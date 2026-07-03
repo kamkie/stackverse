@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { pool } from "../db.js";
+import { pool, withTransaction } from "../db.js";
 import { requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
@@ -147,23 +147,29 @@ export function registerMessageRoutes(app: FastifyInstance): void {
   app.post("/api/v1/messages", async (request, reply) => {
     const caller = requireRole(request, "admin");
     const input = validateMessageInput(request.body);
-    const duplicate = await pool.query("select 1 from messages where key = $1 and language = $2", [
-      input.key,
-      input.language,
-    ]);
-    if (duplicate.rowCount) {
-      throw new ConflictProblem(
-        `A message with key '${input.key}' and language '${input.language}' already exists.`,
-      );
-    }
-    const now = new Date();
-    const result = await pool.query(
-      `insert into messages (id, key, language, text, description, created_at, updated_at)
-       values ($1, $2, $3, $4, $5, $6, $6) returning *`,
-      [randomUUID(), input.key, input.language, input.text, input.description, now],
-    );
-    const message = result.rows[0] as MessageRow;
-    await recordAudit(pool, caller.username, "message.created", "message", message.id, snapshot(message));
+    // mutation + audit commit together (SPEC rule 18: every backoffice mutation is audited)
+    const message = await withTransaction(async (client) => {
+      const duplicate = await client.query("select 1 from messages where key = $1 and language = $2", [
+        input.key,
+        input.language,
+      ]);
+      if (duplicate.rowCount) throw duplicateConflict(input);
+      let row: MessageRow;
+      try {
+        const result = await client.query(
+          `insert into messages (id, key, language, text, description, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, $6) returning *`,
+          [randomUUID(), input.key, input.language, input.text, input.description, new Date()],
+        );
+        row = result.rows[0] as MessageRow;
+      } catch (error) {
+        // lost the (key, language) race against a concurrent create — same 409 as the pre-check
+        if ((error as { code?: string }).code === "23505") throw duplicateConflict(input);
+        throw error;
+      }
+      await recordAudit(client, caller.username, "message.created", "message", row.id, snapshot(row));
+      return row;
+    });
     logMessageEvent("message_created", "Message created", caller.username, message);
     return reply
       .code(201)
@@ -174,25 +180,30 @@ export function registerMessageRoutes(app: FastifyInstance): void {
   app.put("/api/v1/messages/:id", async (request) => {
     const caller = requireRole(request, "admin");
     const id = parseUuid((request.params as { id: string }).id);
-    const existing = await pool.query("select 1 from messages where id = $1", [id]);
-    if (!existing.rowCount) throw new NotFoundProblem();
     const input = validateMessageInput(request.body);
-    const duplicate = await pool.query(
-      "select 1 from messages where key = $1 and language = $2 and id <> $3",
-      [input.key, input.language, id],
-    );
-    if (duplicate.rowCount) {
-      throw new ConflictProblem(
-        `A message with key '${input.key}' and language '${input.language}' already exists.`,
+    const message = await withTransaction(async (client) => {
+      const existing = await client.query("select 1 from messages where id = $1", [id]);
+      if (!existing.rowCount) throw new NotFoundProblem();
+      const duplicate = await client.query(
+        "select 1 from messages where key = $1 and language = $2 and id <> $3",
+        [input.key, input.language, id],
       );
-    }
-    const result = await pool.query(
-      `update messages set key = $2, language = $3, text = $4, description = $5, updated_at = $6
-       where id = $1 returning *`,
-      [id, input.key, input.language, input.text, input.description, new Date()],
-    );
-    const message = result.rows[0] as MessageRow;
-    await recordAudit(pool, caller.username, "message.updated", "message", message.id, snapshot(message));
+      if (duplicate.rowCount) throw duplicateConflict(input);
+      let row: MessageRow;
+      try {
+        const result = await client.query(
+          `update messages set key = $2, language = $3, text = $4, description = $5, updated_at = $6
+           where id = $1 returning *`,
+          [id, input.key, input.language, input.text, input.description, new Date()],
+        );
+        row = result.rows[0] as MessageRow;
+      } catch (error) {
+        if ((error as { code?: string }).code === "23505") throw duplicateConflict(input);
+        throw error;
+      }
+      await recordAudit(client, caller.username, "message.updated", "message", row.id, snapshot(row));
+      return row;
+    });
     logMessageEvent("message_updated", "Message updated", caller.username, message);
     return toMessageResponse(message);
   });
@@ -200,14 +211,20 @@ export function registerMessageRoutes(app: FastifyInstance): void {
   app.delete("/api/v1/messages/:id", async (request, reply) => {
     const caller = requireRole(request, "admin");
     const id = parseUuid((request.params as { id: string }).id);
-    const result = await pool.query("delete from messages where id = $1 returning *", [id]);
-    const message = result.rows[0] as MessageRow | undefined;
-    if (!message) throw new NotFoundProblem();
-    await recordAudit(pool, caller.username, "message.deleted", "message", message.id, snapshot(message));
+    const message = await withTransaction(async (client) => {
+      const result = await client.query("delete from messages where id = $1 returning *", [id]);
+      const row = result.rows[0] as MessageRow | undefined;
+      if (!row) throw new NotFoundProblem();
+      await recordAudit(client, caller.username, "message.deleted", "message", row.id, snapshot(row));
+      return row;
+    });
     logMessageEvent("message_deleted", "Message deleted", caller.username, message);
     return reply.code(204).send();
   });
 }
+
+const duplicateConflict = (input: { key: string; language: string }): ConflictProblem =>
+  new ConflictProblem(`A message with key '${input.key}' and language '${input.language}' already exists.`);
 
 const snapshot = (message: MessageRow): Record<string, unknown> => ({
   key: message.key,
