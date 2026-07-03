@@ -44,7 +44,7 @@ public static class MessageEndpoints
             }
             var total = await filtered.LongCountAsync();
             var items = await filtered.OrderBy(m => m.Key).ThenBy(m => m.Language)
-                .Skip(page * size).Take(size).ToListAsync();
+                .Skip(Paging.SkipOf(page, size)).Take(size).ToListAsync();
             response.Headers.CacheControl = "no-cache";
             return PageResponse<MessageResponse>.Of(items.Select(MessageResponse.Of).ToList(), page, size, total);
         }).AllowAnonymous();

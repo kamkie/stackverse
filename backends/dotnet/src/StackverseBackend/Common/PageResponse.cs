@@ -21,6 +21,14 @@ public static class Paging
         }
     }
 
+    /// <summary>
+    /// Offset for a validated page/size pair. `page` alone fits an int, but
+    /// `page * size` can overflow; past int.MaxValue any page is empty anyway,
+    /// so clamping preserves the contract's empty-page answer for absurd offsets.
+    /// </summary>
+    public static int SkipOf(int page, int size) =>
+        (int)Math.Min((long)page * size, int.MaxValue);
+
     public static void RequireMaxLength(string? value, int max, string name)
     {
         if (value is { } text && text.Length > max)

@@ -50,8 +50,17 @@ if (otlpEndpointConfigured && otelExportEnabled)
 }
 
 // --- Persistence: EF Core + Npgsql; the schema is owned by this backend's
-// --- migrations, applied on startup below (backends/README.md).
-builder.Services.AddDbContext<AppDbContext>(db => db.UseNpgsql(options.ConnectionString));
+// --- migrations, applied on startup below (backends/README.md). The interceptors
+// --- emit dependency_call_failed with real durations (docs/LOGGING.md §5).
+builder.Services.AddDbContext<AppDbContext>((provider, db) =>
+{
+    var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("StackverseBackend.Database");
+    db.UseNpgsql(options.ConnectionString)
+        .AddInterceptors(
+            new CommandFailureLogger(logger),
+            new ConnectionFailureLogger(logger),
+            new TransactionFailureLogger(logger));
+});
 
 // --- The wire format: camelCase, kebab-case enum strings, nulls omitted.
 builder.Services.ConfigureHttpJsonOptions(json =>

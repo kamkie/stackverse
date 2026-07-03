@@ -78,7 +78,7 @@ public sealed partial class BookmarkService(AppDbContext db)
     {
         var filtered = QueryFor(caller, query);
         var total = await filtered.LongCountAsync();
-        var items = await NewestFirst(filtered).Skip(page * size).Take(size).AsNoTracking().ToListAsync();
+        var items = await NewestFirst(filtered).Skip(Paging.SkipOf(page, size)).Take(size).AsNoTracking().ToListAsync();
         return (items, total);
     }
 

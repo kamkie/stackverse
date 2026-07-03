@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using StackverseBackend.Audit;
 using StackverseBackend.Common;
 using StackverseBackend.Data;
@@ -33,7 +34,15 @@ public sealed partial class MessageService(AppDbContext db, AuditService auditSe
         };
         db.Messages.Add(message);
         auditService.Record(actor, "message.created", "message", message.Id.ToString(), Snapshot(message));
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException e) when (IsKeyLanguageConflict(e))
+        {
+            // lost the race against a concurrent write of the same (key, language) — same outcome as the pre-check
+            throw new ConflictProblem($"A message with key '{input.Key}' and language '{input.Language}' already exists.");
+        }
         LogMessageEvent("message_created", "Message created", actor, message);
         return message;
     }
@@ -54,7 +63,14 @@ public sealed partial class MessageService(AppDbContext db, AuditService auditSe
         message.Description = input.Description;
         message.UpdatedAt = Clock.UtcNow();
         auditService.Record(actor, "message.updated", "message", message.Id.ToString(), Snapshot(message));
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (DbUpdateException e) when (IsKeyLanguageConflict(e))
+        {
+            throw new ConflictProblem($"A message with key '{input.Key}' and language '{input.Language}' already exists.");
+        }
         LogMessageEvent("message_updated", "Message updated", actor, message);
         return message;
     }
@@ -87,6 +103,13 @@ public sealed partial class MessageService(AppDbContext db, AuditService auditSe
         }
         return texts;
     }
+
+    private static bool IsKeyLanguageConflict(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "uq_messages_key_language",
+        };
 
     /// <summary>The message key is safe to log: validated against the key pattern, so no free-form client text.</summary>
     private void LogMessageEvent(string @event, string description, string actor, Message message) =>

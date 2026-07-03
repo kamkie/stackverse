@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using StackverseBackend.Audit;
 using StackverseBackend.Bookmarks;
 using StackverseBackend.Common;
@@ -40,10 +41,22 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
         {
             await db.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException e) when (e.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "uq_reports_one_open_per_reporter",
+        })
         {
             // lost the race against a concurrent report by the same user — same outcome as the pre-check
             throw new ConflictProblem("You already have an open report on this bookmark.");
+        }
+        catch (DbUpdateException e) when (e.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.ForeignKeyViolation,
+        })
+        {
+            // the bookmark vanished between the visibility check and the insert — the 404 mask still applies
+            throw new NotFoundProblem();
         }
         logger.Event(LogLevel.Information, "report_created", "success", "Report created on a public bookmark",
             fields:
@@ -62,7 +75,7 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
         var filtered = db.Reports.AsNoTracking().Where(r => r.Status == status);
         var total = await filtered.LongCountAsync();
         var items = await filtered.OrderBy(r => r.CreatedAt).ThenBy(r => r.Id)
-            .Skip(page * size).Take(size).ToListAsync();
+            .Skip(Paging.SkipOf(page, size)).Take(size).ToListAsync();
         return (items, total);
     }
 
@@ -77,7 +90,7 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
         }
         var total = await filtered.LongCountAsync();
         var items = await filtered.OrderByDescending(r => r.CreatedAt).ThenByDescending(r => r.Id)
-            .Skip(page * size).Take(size).ToListAsync();
+            .Skip(Paging.SkipOf(page, size)).Take(size).ToListAsync();
         return (items, total);
     }
 

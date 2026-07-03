@@ -57,7 +57,7 @@ public static class AdminAuditEndpoints
             }
             var total = await filtered.LongCountAsync();
             var items = await filtered.OrderByDescending(a => a.CreatedAt)
-                .Skip(page * size).Take(size).ToListAsync();
+                .Skip(Paging.SkipOf(page, size)).Take(size).ToListAsync();
             return PageResponse<AuditEntryResponse>.Of(
                 items.Select(entry => new AuditEntryResponse(
                     entry.Id,

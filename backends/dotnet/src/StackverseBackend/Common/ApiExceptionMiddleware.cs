@@ -61,14 +61,9 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
                     break;
 
                 default:
-                    if (FindDbException(exception) is { } db)
-                    {
-                        logger.Event(LogLevel.Error, "dependency_call_failed", "failure",
-                            "PostgreSQL call failed", db,
-                            ("dependency", "postgresql"),
-                            ("error_code", db.SqlState ?? db.GetType().Name));
-                    }
-                    else
+                    // database failures are already logged as dependency_call_failed — with the
+                    // real call duration — by the EF interceptors (Data/DependencyLogging.cs)
+                    if (FindDbException(exception) is null)
                     {
                         logger.LogError(exception, "Unhandled exception while processing the request");
                     }

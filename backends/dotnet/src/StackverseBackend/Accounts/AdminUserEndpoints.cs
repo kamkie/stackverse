@@ -46,7 +46,7 @@ public static class AdminUserEndpoints
             }
             var total = await filtered.LongCountAsync();
             var items = await filtered.OrderByDescending(u => u.LastSeen)
-                .Skip(page * size).Take(size)
+                .Skip(Paging.SkipOf(page, size)).Take(size)
                 .Select(u => new
                 {
                     Account = u,

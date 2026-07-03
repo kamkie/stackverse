@@ -271,9 +271,11 @@ no per-environment profiles.
 Redis and the backend upstream are still uncovered — partial coverage keeps
 the row a gap.
 
-² dotnet emits `dependency_call_failed` for both of its dependencies:
-PostgreSQL (request-path failures and the readiness probe) and the Keycloak
-JWKS fetch. It has no retry loops, so `retry_exhausted` has no occurrence to
+² dotnet emits `dependency_call_failed` — with `duration_ms` measured at the
+failing call — for both of its dependencies: PostgreSQL (EF Core command,
+connection, and transaction interceptors, which also cover the readiness
+probe) and the Keycloak metadata/JWKS fetch (an instrumented document
+retriever). It has no retry loops, so `retry_exhausted` has no occurrence to
 log.
 
 Gaps are tracked here on purpose: a new implementation must satisfy every

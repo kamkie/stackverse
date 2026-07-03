@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,20 +33,6 @@ public static class AuthSetup
                     NameClaimType = "preferred_username",
                     RoleClaimType = ClaimTypes.Role,
                 };
-                if (options.OidcJwksUri is { } jwksUri)
-                {
-                    // inside compose the issuer host is not dialable from a container;
-                    // keys are then fetched here while the `iss` validation stays as-is
-                    bearer.ConfigurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-                        jwksUri,
-                        new JwksRetriever(),
-                        new HttpDocumentRetriever { RequireHttps = jwksUri.StartsWith("https", StringComparison.OrdinalIgnoreCase) });
-                }
-                else
-                {
-                    bearer.Authority = options.OidcIssuerUri;
-                    bearer.RequireHttpsMetadata = options.OidcIssuerUri.StartsWith("https", StringComparison.OrdinalIgnoreCase);
-                }
                 bearer.Events = new JwtBearerEvents
                 {
                     // identity = `preferred_username`; roles = `realm_access.roles` (SPEC rule 6)
@@ -69,21 +56,27 @@ public static class AuthSetup
                         return Problems.Write(context.HttpContext, StatusCodes.Status401Unauthorized,
                             "Unauthorized", "Authentication is required.");
                     },
-                    // the JWKS fetch is a dependency call; its failure is an ERROR, not a 401 statistic
-                    OnAuthenticationFailed = context =>
-                    {
-                        if (context.Exception is InvalidOperationException or IOException or HttpRequestException)
-                        {
-                            context.HttpContext.RequestServices.GetRequiredService<ILoggerFactory>()
-                                .CreateLogger("StackverseBackend.Auth")
-                                .Event(LogLevel.Error, "dependency_call_failed", "failure",
-                                    "Could not obtain the IdP signing keys", context.Exception,
-                                    ("dependency", "keycloak-jwks"),
-                                    ("error_code", context.Exception.GetType().Name));
-                        }
-                        return Task.CompletedTask;
-                    },
                 };
+            });
+
+        // Signing keys come from OIDC_JWKS_URI when the issuer host is not directly
+        // dialable (compose) — the `iss` validation stays as-is — and from the
+        // issuer's OIDC discovery otherwise. Both fetches go through the same
+        // instrumented retriever, so an unreachable IdP logs dependency_call_failed
+        // with a real duration (docs/LOGGING.md §5). Configured via DI options
+        // because the retriever needs a logger.
+        builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<ILoggerFactory>((bearer, loggerFactory) =>
+            {
+                var address = options.OidcJwksUri ?? $"{options.OidcIssuerUri}/.well-known/openid-configuration";
+                var retriever = new InstrumentedDocumentRetriever(
+                    loggerFactory.CreateLogger("StackverseBackend.Auth"),
+                    requireHttps: address.StartsWith("https", StringComparison.OrdinalIgnoreCase));
+                bearer.ConfigurationManager = options.OidcJwksUri is null
+                    ? new ConfigurationManager<OpenIdConnectConfiguration>(
+                        address, new OpenIdConnectConfigurationRetriever(), retriever)
+                    : new ConfigurationManager<OpenIdConnectConfiguration>(
+                        address, new JwksRetriever(), retriever);
             });
 
         builder.Services.AddAuthorizationBuilder()
@@ -127,6 +120,34 @@ public static class AuthSetup
                 configuration.SigningKeys.Add(key);
             }
             return configuration;
+        }
+    }
+
+    /// <summary>
+    /// The metadata/JWKS fetch is a dependency call: a failure logs
+    /// `dependency_call_failed` with the elapsed time, then surfaces as the usual
+    /// authentication failure (an expected 401 for the caller, docs/LOGGING.md §3).
+    /// </summary>
+    private sealed class InstrumentedDocumentRetriever(ILogger logger, bool requireHttps) : IDocumentRetriever
+    {
+        private readonly HttpDocumentRetriever _inner = new() { RequireHttps = requireHttps };
+
+        public async Task<string> GetDocumentAsync(string address, CancellationToken cancel)
+        {
+            var start = Stopwatch.GetTimestamp();
+            try
+            {
+                return await _inner.GetDocumentAsync(address, cancel);
+            }
+            catch (Exception exception)
+            {
+                logger.Event(LogLevel.Error, "dependency_call_failed", "failure",
+                    "Could not fetch the IdP metadata / signing keys", exception,
+                    ("dependency", "keycloak-jwks"),
+                    ("duration_ms", (long)Stopwatch.GetElapsedTime(start).TotalMilliseconds),
+                    ("error_code", exception.GetType().Name));
+                throw;
+            }
         }
     }
 }
