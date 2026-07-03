@@ -58,6 +58,13 @@ state machine, blocking, audit and stats — no gateway or frontend required.
 A backend is not "done" until it passes (see the acceptance checklist in
 [docs/SPEC.md](../docs/SPEC.md)).
 
+For local demos, `./scripts/seed-test-data.sh` / `.ps1` uses the same dev
+Keycloak realm and the public API to populate seed-namespaced data against
+the running backend (`BACKEND_URL`, default `http://localhost:8080`). Because
+the seed does not write backend-specific tables, it applies equally to every
+backend implementation. Reset seeded data by wiping the compose database
+volume (`docker compose down -v`) before starting infra again.
+
 ## Per-implementation README
 
 Each implementation's README covers only what is *specific to that stack*: how to run

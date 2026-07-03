@@ -91,6 +91,54 @@ Then open http://localhost:8000 and log in as `demo` / `demo`,
 | Keycloak admin | http://localhost:8180 (`admin` / `admin`) |
 | PostgreSQL | localhost:5432 (`stackverse` / `stackverse`) |
 
+## Local demo seed data
+
+For a non-empty local stack, seed the running backend through the public API:
+
+```sh
+./scripts/seed-test-data.sh
+```
+
+```powershell
+./scripts/seed-test-data.ps1
+```
+
+Defaults are `BACKEND_URL=http://localhost:8080` and
+`KEYCLOAK_URL=http://localhost:8180`. Override them with environment
+variables, or with shell flags. Node.js 18+ is required; set `NODE_BIN` when
+the desired Node binary is not first on `PATH`.
+
+```sh
+BACKEND_URL=http://localhost:8080 KEYCLOAK_URL=http://localhost:8180 ./scripts/seed-test-data.sh
+./scripts/seed-test-data.sh --backend-url http://localhost:8080 --keycloak-url http://localhost:8180
+```
+
+```powershell
+./scripts/seed-test-data.ps1 -BackendUrl http://localhost:8080 -KeycloakUrl http://localhost:8180
+```
+
+The script uses the dev-only `stackverse-conformance` Keycloak client to get
+tokens for `demo`, `mentor`, `moderator`, and `admin`, then creates data only
+through documented API endpoints. It creates or updates seed-namespaced
+bookmarks by exact title, so reruns do not add duplicate seed bookmarks. The
+dataset includes public and private bookmarks for `demo` and `admin`, one
+open report for the moderator queue, one bookmark hidden through the normal
+moderation resolution flow, user accounts for the built-in dev users, top-tag
+data, stats data, and at least one audit entry from the moderation action.
+
+The seed is intentionally direct-to-backend: gateway sessions and CSRF are
+exercised by the e2e suite, while the seed needs to work the same way for any
+backend/gateway/frontend combination. To clear all local seed and test data,
+reset the compose database volume:
+
+```sh
+docker compose down -v
+docker compose up -d
+```
+
+Use the same reset when switching backend implementations, because each
+backend owns its schema and migrations.
+
 The stack runs attached; Ctrl+C stops it. **Logs:** `docker compose logs -f
 [service]`, or Docker Desktop.
 

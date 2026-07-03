@@ -126,6 +126,22 @@ end-to-end suite drives the real app through every required screen:
 backend, `./scripts/conformance.sh` (PowerShell: `./scripts/conformance.ps1`)
 checks that backend against the API contract directly.
 
+To populate a small repeatable local dataset for demos, run the seed against
+the running backend API:
+
+```sh
+./scripts/seed-test-data.sh
+```
+
+```powershell
+./scripts/seed-test-data.ps1
+```
+
+The seed uses the dev Keycloak users and the public API, so it works with any
+backend implementation. It is idempotent by seed title and leaves one open
+report plus one hidden bookmark for the backoffice screens. Wipe local data
+with `docker compose down -v` before recreating the stack.
+
 Then open http://localhost:8000 and log in as `demo` / `demo` (regular user),
 `moderator` / `moderator` (reports queue, dashboard), or `admin` / `admin`
 (full backoffice).
@@ -149,6 +165,7 @@ e2e/           black-box Playwright suite for any composed stack
 testing/       optional testing-tool showcase suites and their conventions
 infra/         shared infrastructure config (Keycloak realm, ...)
 scripts/       build/run/test helpers, each as a .ps1 + .sh pair
+tools/         implementation-neutral developer helpers used by scripts
 compose.yaml   infra + pluggable app combination
 .github/       CI + CodeQL workflows, Dependabot config
 ```
