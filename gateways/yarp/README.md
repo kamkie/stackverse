@@ -14,7 +14,7 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
 | `POST /auth/logout` | endpoint: server-to-server RP-initiated logout at Keycloak, cookie sign-out, `204` |
 | `GET /auth/session` | endpoint reading the cookie principal (`preferred_username`) |
 | `/api/**` | YARP route to `BACKEND_URL` with a Bearer-token request transform |
-| `/**` | YARP route to `FRONTEND_URL` when set; otherwise static files + `index.html` fallback |
+| `/**` | YARP route to the `FRONTEND_URL` SPA upstream when set; otherwise static files + `index.html` fallback |
 
 ## Design notes
 
@@ -115,8 +115,9 @@ the row a gap.
 
 ## Configuration
 
-All shared variables from [gateways/README.md](../README.md). `SPA_ROOT`
-defaults to the bundled `wwwroot` (a placeholder page) when unset.
+All shared variables from [gateways/README.md](../README.md). `FRONTEND_URL`
+is the normal path in compose and dev mode. If it is unset, `SPA_ROOT`
+defaults to the bundled `wwwroot` placeholder page.
 
 ## Run
 

@@ -21,6 +21,7 @@ public sealed class GatewayFixture : IAsyncLifetime
         .Build();
 
     public StubBackend Backend { get; } = new();
+    public StubFrontend Frontend { get; } = new();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public string KeycloakBaseUrl => _keycloak.GetBaseAddress().TrimEnd('/');
 
@@ -32,11 +33,12 @@ public sealed class GatewayFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await Task.WhenAll(_redis.StartAsync(), _keycloak.StartAsync(), Backend.StartAsync());
+        await Task.WhenAll(_redis.StartAsync(), _keycloak.StartAsync(), Backend.StartAsync(), Frontend.StartAsync());
 
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseSetting("BACKEND_URL", Backend.Url);
+            builder.UseSetting("FRONTEND_URL", Frontend.Url);
             builder.UseSetting("REDIS_URL", "redis://" + _redis.GetConnectionString());
             builder.UseSetting("OIDC_ISSUER_URI", KeycloakBaseUrl + "/realms/stackverse");
         });
@@ -45,6 +47,7 @@ public sealed class GatewayFixture : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await Factory.DisposeAsync();
+        await Frontend.DisposeAsync();
         await Backend.DisposeAsync();
         await Task.WhenAll(_redis.DisposeAsync().AsTask(), _keycloak.DisposeAsync().AsTask());
     }

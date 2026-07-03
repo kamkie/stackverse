@@ -16,8 +16,8 @@ using Yarp.ReverseProxy.Transforms;
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    // SPA_ROOT points the static file root somewhere other than the bundled wwwroot
-    // (e.g. a frontend production build); FRONTEND_URL takes precedence over both.
+    // SPA_ROOT points the fallback static file root somewhere other than the bundled
+    // wwwroot. FRONTEND_URL (static server or dev server) takes precedence.
     WebRootPath = Environment.GetEnvironmentVariable("SPA_ROOT"),
 });
 
@@ -156,7 +156,7 @@ builder.Services.AddAuthentication(options =>
         };
     });
 
-// --- YARP: /api/** → backend with token relay; /** → frontend dev server when configured.
+// --- YARP: /api/** → backend with token relay; /** → frontend SPA upstream when configured.
 var routes = new List<RouteConfig>
 {
     new()
@@ -347,8 +347,9 @@ app.MapPost("/auth/logout", async (HttpContext context, RpInitiatedLogout idpLog
     return Results.NoContent();
 });
 
-// --- SPA delivery: proxy the dev server when FRONTEND_URL is set, otherwise serve
-// --- static files (SPA_ROOT or the bundled wwwroot) with a fallback to index.html.
+// --- SPA delivery: proxy the static/dev frontend upstream when FRONTEND_URL is set,
+// --- otherwise serve static files (SPA_ROOT or the bundled wwwroot) with a fallback
+// --- to index.html for standalone gateway runs.
 if (gateway.FrontendUrl is null)
 {
     app.UseStaticFiles();
