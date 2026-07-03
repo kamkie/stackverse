@@ -3,9 +3,8 @@
 #
 #   docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .
 #
-# The final image is not a server: it carries the static production build at
-# /dist, and its default command publishes it into the volume mounted at /spa
-# for the gateway to serve (SPA_ROOT) — see compose.yaml.
+# The final image is a long-running static-file server on port 8080. It stays
+# internal to compose; the gateway proxies browser traffic to it.
 
 FROM node:26-alpine AS build
 # node 25+ no longer bundles corepack — install it before enabling the yarn shim
@@ -19,7 +18,8 @@ COPY spec /build/spec
 COPY frontends/react ./
 RUN yarn build
 
-FROM busybox:1.38
-COPY --from=build /build/frontends/react/dist /dist
-# find -delete (not rm /spa/*) so stale dotfiles from older builds go too
-CMD ["sh", "-c", "find /spa -mindepth 1 -delete && cp -R /dist/. /spa/"]
+FROM nginx:1.29-alpine
+COPY frontends/react/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /build/frontends/react/dist /usr/share/nginx/html
+EXPOSE 8080
+HEALTHCHECK --interval=10s --timeout=3s --retries=10 CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
