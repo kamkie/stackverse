@@ -114,9 +114,11 @@ Angular frontend:
 BUILD=1 ./scripts/run-stack.sh spring-kotlin yarp angular
 ```
 
-The frontend image is a file carrier, not a server: on `up` it copies its
-static build into a shared volume and exits, and the gateway serves those
-files (`SPA_ROOT`). The gateway waits for that copy before starting.
+The frontend image is a long-running static server on the compose network. It
+is not published to the host; the gateway remains the only browser entry point
+and proxies the SPA from `FRONTEND_URL=http://frontend:8080`. Direct navigation
+to client-side routes through `http://localhost:8000` still returns the SPA
+shell, while built assets are served normally by the frontend server.
 
 ## End-to-end tests
 

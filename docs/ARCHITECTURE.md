@@ -150,6 +150,7 @@ for the standards-track version of this argument.
 | Keycloak | 8180 |
 | PostgreSQL | 5432 |
 | Redis | 6379 |
-| Frontend dev server (dev mode only; proxied by the gateway via `FRONTEND_URL`) | 5173 |
+| Frontend static server (container mode; internal compose network only) | 8080 |
+| Frontend dev server (dev mode; proxied by the gateway via `FRONTEND_URL`) | 5173 |
 | Grafana (`observability` profile) | 3000 |
 | OTLP collector (`observability` profile) | 4317 (gRPC) / 4318 (HTTP) |
