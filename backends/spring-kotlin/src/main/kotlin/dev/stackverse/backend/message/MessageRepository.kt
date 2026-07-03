@@ -22,9 +22,11 @@ interface MessageRepository : JpaRepository<Message, UUID> {
     @Query(
         """
         select m from Message m
-        where (:key is null or m.key = :key) and (:language is null or m.language = :language)
+        where (:key is null or m.key = :key)
+          and (:qLike is null or lower(m.key) like :qLike escape '\' or lower(m.text) like :qLike escape '\')
+          and (:language is null or m.language = :language)
         order by m.key, m.language
         """,
     )
-    fun search(key: String?, language: String?, pageable: Pageable): Page<Message>
+    fun search(key: String?, qLike: String?, language: String?, pageable: Pageable): Page<Message>
 }

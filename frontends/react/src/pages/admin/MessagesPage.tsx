@@ -134,8 +134,8 @@ function MessageFormDialog({
 export function MessagesPage() {
   const { t } = useI18n();
   const toast = useToast();
-  const [keyInput, setKeyInput] = useState("");
-  const key = useDebouncedValue(keyInput, 300);
+  const [qInput, setQInput] = useState("");
+  const q = useDebouncedValue(qInput, 300);
   const [language, setLanguage] = useState("");
   const [page, setPage] = useState(0);
   const [dialog, setDialog] = useState<
@@ -145,11 +145,11 @@ export function MessagesPage() {
 
   const query = useMemo(
     () => ({
-      ...(key ? { key } : {}),
+      ...(q ? { q } : {}),
       ...(language ? { language } : {}),
       page,
     }),
-    [key, language, page],
+    [q, language, page],
   );
   const messages = useMessages(query);
   const deleteMessage = useDeleteMessage();
@@ -162,11 +162,11 @@ export function MessagesPage() {
       <div className="sv-toolbar">
         <input
           className="sv-input"
-          placeholder={t("ui.messages.filter.key.placeholder")}
-          aria-label={t("ui.messages.filter.key.placeholder")}
-          value={keyInput}
+          placeholder={t("ui.messages.search.placeholder")}
+          aria-label={t("ui.messages.search.placeholder")}
+          value={qInput}
           onChange={(e) => {
-            setKeyInput(e.target.value);
+            setQInput(e.target.value);
             setPage(0);
           }}
         />

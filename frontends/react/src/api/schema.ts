@@ -1161,6 +1161,8 @@ export interface operations {
             query?: {
                 /** @description Exact message key. */
                 key?: components["schemas"]["MessageKey"];
+                /** @description Case-insensitive substring match over key and text. */
+                q?: string;
                 language?: components["schemas"]["LanguageCode"];
                 page?: number;
                 size?: number;

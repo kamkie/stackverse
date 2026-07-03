@@ -1,7 +1,7 @@
 // Admin messages backoffice: destructive deletes are confirmed, writes give
-// toast feedback, the language pickers are constrained selects, the exact-key
-// filter is labeled as such, and a zero-match filter shows an empty state
-// instead of a header-only table.
+// toast feedback, the language pickers are constrained selects, the toolbar
+// searches by substring over key and text, and a zero-match filter shows an
+// empty state instead of a header-only table.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -100,7 +100,7 @@ describe("admin messages page", () => {
     const user = userEvent.setup();
     renderApp("/admin/messages");
 
-    const filter = await screen.findByLabelText("Exact key (e.g. ui.app.title)");
+    const filter = await screen.findByLabelText("Search key and text...");
     await user.type(filter, "ui.no.such-key");
 
     expect(

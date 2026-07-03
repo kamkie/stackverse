@@ -685,6 +685,13 @@ const listMessages = http.get("/api/v1/messages", ({ query, request, response })
   );
   const key = query.get("key");
   if (key) items = items.filter((m) => m.key === key);
+  const q = query.get("q");
+  if (q) {
+    const needle = q.toLowerCase();
+    items = items.filter(
+      (m) => m.key.toLowerCase().includes(needle) || m.text.toLowerCase().includes(needle),
+    );
+  }
   const language = query.get("language");
   if (language) items = items.filter((m) => m.language === language);
   return response(200).json(paginate(items, query.get("page"), query.get("size")), {

@@ -119,8 +119,9 @@ representation, not a different feature. All other operations exist in v1 only.
    echoes the caller's identity including roles.
 7. **Messages.** Reads (`GET /api/v1/messages`, `/api/v1/messages/bundle`,
    `/api/v1/messages/{id}`) are public. Writes require the `admin` role.
-   `GET /api/v1/messages` supports exact `key` and `language` filters plus the
-   standard pagination.
+   `GET /api/v1/messages` supports exact `key` and `language` filters, a `q`
+   filter (case-insensitive substring over key and text), plus the standard
+   pagination.
 8. **Language resolution.** For any localized response the language is resolved as:
    explicit `lang` query parameter → first supported language in `Accept-Language`
    (quality-ordered) → default `en`. Unsupported values fall back down the chain, never

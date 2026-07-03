@@ -94,9 +94,9 @@ and reports; `admin` sees everything:
 9. **Audit log** (`admin`) — filterable, paginated browser. Every filter says what
    it matches (the action filter is an exact match; the date inputs carry visible
    from/to labels), and one click clears them all.
-10. **Messages** (`admin`) — list/create/edit/delete localized messages. The language
-    field is a select over the supported languages, and the key filter is labeled as
-    an exact-key match (which is what the API does).
+10. **Messages** (`admin`) — list/create/edit/delete localized messages, searchable
+    via `q` (case-insensitive substring over key and text). The language field is a
+    select over the supported languages.
 
 Validation errors (RFC 9457 problem documents with an `errors` array) must be surfaced
 on the corresponding form fields, not as a generic toast. Toasts are for success

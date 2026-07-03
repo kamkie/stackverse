@@ -634,6 +634,12 @@ paths:
           description: Exact message key.
           schema:
             $ref: '#/components/schemas/MessageKey'
+        - name: q
+          in: query
+          description: Case-insensitive substring match over key and text.
+          schema:
+            type: string
+            maxLength: 200
         - name: language
           in: query
           schema:
