@@ -11,7 +11,7 @@ Vocabulary cheat sheets, NIST SP 800-92, the CNCF observability whitepaper
 Two boundaries up front:
 
 - **Logs are diagnostics, not the audit trail.** The append-only audit trail
-  (`docs/SPEC.md` rule 16) is a product feature in the database with its own
+  (`docs/SPEC.md` rule 18) is a product feature in the database with its own
   API and its own integrity guarantees. Moderation and admin actions MAY log
   a diagnostic line, but the audit entry is the authoritative record — do not
   build a second audit system in the log pipeline.
@@ -197,7 +197,8 @@ Prefer: internal ids, resource references, token fingerprints, stable error
 codes. Anything client-controlled (URLs, titles, comments, usernames in
 free text) MUST be sanitized before logging: strip control characters,
 encode newlines, cap length — the Vite client-log forwarder
-(`frontends/react/vite.config.ts`) is the reference implementation; server
+(`frontends/react/vite.config.ts`; the Angular sibling ports it in
+`frontends/angular/proxy.conf.mjs`) is the reference implementation; server
 logs get no weaker rule. Usernames as `actor` are fine: `preferred_username`
 *is* the identity here. Log storms MUST be preventable: repeated identical
 failures SHOULD be rate-limited or aggregated.
@@ -252,24 +253,31 @@ no per-environment profiles.
 
 ## 10. Conformance
 
-| Requirement | spring-kotlin | yarp | spring-cloud-gateway | react |
-|---|---|---|---|---|
-| stdout-only logging | ✅ | ✅ | ✅ | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) | ✅ (.NET SDK) | ✅ (Java agent) | n/a |
-| lifecycle events at `INFO` | ✅ | ✅ | ✅ | n/a |
-| expected 4xx not logged as errors | ✅ | ✅ | ✅ | n/a |
-| secrets kept out of logs | ✅ | ✅ | ✅ | ✅ |
-| `LOG_LEVEL` honored | ✅ | ✅ | ✅ | n/a |
-| trace id on console lines when tracing on | ✅ | ✅ | ✅ | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | ✅ | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ❌ gap¹ | ❌ gap¹ | n/a |
-| JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | ✅ | n/a |
-| dev-only console forwarding, sanitized | n/a | n/a | n/a | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a | n/a | n/a | ✅ |
+| Requirement | spring-kotlin | dotnet | yarp | spring-cloud-gateway | react | angular |
+|---|---|---|---|---|---|---|
+| stdout-only logging | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| OTLP log export behind `OTEL_SDK_DISABLED` | ✅ (Java agent) | ✅ (.NET SDK) | ✅ (.NET SDK) | ✅ (Java agent) | n/a | n/a |
+| lifecycle events at `INFO` | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| expected 4xx not logged as errors | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| secrets kept out of logs | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `LOG_LEVEL` honored | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| trace id on console lines when tracing on | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| stable `event` names (§5: lifecycle, session, security, moderation) | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | ❌ gap | ✅² | ❌ gap¹ | ❌ gap¹ | n/a | n/a |
+| JSON console by default (`LOG_FORMAT`) | ✅ | ✅ | ✅ | ✅ | n/a | n/a |
+| dev-only console forwarding, sanitized | n/a | n/a | n/a | n/a | ✅ | ✅ |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a | n/a | n/a | n/a | ✅ | ✅ |
 
 ¹ both gateways emit `dependency_call_failed` for Keycloak token-refresh
 outages, but Redis and the backend upstream are still uncovered — partial
 coverage keeps the row a gap.
+
+² dotnet emits `dependency_call_failed` — with `duration_ms` measured at the
+failing call — for both of its dependencies: PostgreSQL (EF Core command,
+connection, and transaction interceptors, which also cover the readiness
+probe) and the Keycloak metadata/JWKS fetch (an instrumented document
+retriever). It has no retry loops, so `retry_exhausted` has no occurrence to
+log.
 
 Gaps are tracked here on purpose: a new implementation must satisfy every
 row, and any `❌` an implementation accrues is its agreed, visible backlog.
@@ -306,7 +314,7 @@ real deployment of any Stackverse combination.
   days · application 30–90 days · errors 90–180 days · security 180–400
   days — typically tiered hot (active incidents) / warm (trends, security) /
   cold (compliance evidence). The **audit trail retention is a
-  product/database concern** (SPEC rule 16), not a log-pipeline concern.
+  product/database concern** (SPEC rule 18), not a log-pipeline concern.
 - **Monitoring:** alerts on pipeline failure, missing logs, and abnormal
   volume; security events feed detection rules; hosts time-synchronized
   (NTP) so cross-service ordering holds.

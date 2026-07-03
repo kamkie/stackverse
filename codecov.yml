@@ -16,6 +16,10 @@ flags:
     paths:
       - backends/spring-kotlin/
     carryforward: true
+  backend-dotnet:
+    paths:
+      - backends/dotnet/
+    carryforward: true
   gateway-yarp:
     paths:
       - gateways/yarp/
@@ -27,6 +31,10 @@ flags:
   frontend-react:
     paths:
       - frontends/react/
+    carryforward: true
+  frontend-angular:
+    paths:
+      - frontends/angular/
     carryforward: true
 
 # Components are yml-defined virtual filters over the same uploads — one per
@@ -41,6 +49,10 @@ component_management:
       name: "backend · spring-kotlin"
       paths:
         - backends/spring-kotlin/**
+    - component_id: backend-dotnet
+      name: "backend · dotnet"
+      paths:
+        - backends/dotnet/**
     - component_id: gateway-yarp
       name: "gateway · yarp"
       paths:
@@ -53,6 +65,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-angular
+      name: "frontend · angular"
+      paths:
+        - frontends/angular/**
 
 comment:
   layout: "condensed_header, diff, flags, components"

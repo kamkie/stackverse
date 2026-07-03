@@ -1,6 +1,6 @@
 # CI for every push/PR: each implementation builds and tests in isolation,
 # then the two black-box suites prove the contract — conformance directly
-# against the spring-kotlin backend, e2e through the full composed stack.
+# against every backend, e2e through the full composed stack.
 #
 # All jobs run unconditionally (no path filters): the contract couples
 # everything to spec/ and docs/, and with one implementation per layer the
@@ -50,6 +50,35 @@ jobs:
           report_type: test_results
           directory: backends/spring-kotlin/build/test-results/test
           flags: backend-spring-kotlin
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  backend-dotnet:
+    name: Backend · ASP.NET Core (C#)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/dotnet
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build and test
+        run: dotnet test --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          directory: backends/dotnet/TestResults
+          flags: backend-dotnet
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/dotnet/TestResults/TestResults.xml
+          flags: backend-dotnet
           token: ${{ secrets.CODECOV_TOKEN }}
 
   gateway-spring-cloud-gateway:
@@ -135,6 +164,9 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-frontend-react-
       - name: Install dependencies
         run: yarn install --immutable
+      # the committed src/api/schema.ts must match spec/openapi.yaml
+      - name: Check generated API types are current
+        run: yarn generate:api:check
       # `yarn build` runs the typecheck (tsc --noEmit) before vite build
       - name: Typecheck and build
         run: yarn build
@@ -155,16 +187,61 @@ jobs:
           flags: frontend-react
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  frontend-angular:
+    name: Frontend · Angular
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/angular
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-angular-${{ hashFiles('frontends/angular/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-angular-
+      - name: Install dependencies
+        run: yarn install --immutable
+      # `ng build` type-checks (AOT + strict templates) as part of the build
+      - name: Typecheck and build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test --coverage --reporters junit --output-file test-results/junit.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: frontends/angular/coverage/frontend-angular/lcov.info
+          flags: frontend-angular
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: frontends/angular/test-results/junit.xml
+          flags: frontend-angular
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   conformance:
-    name: Conformance · spring-kotlin backend
+    name: Conformance · ${{ matrix.backend }} backend
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [spring-kotlin, dotnet]
     env:
-      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      BACKEND_IMAGE: stackverse/backend-${{ matrix.backend }}:local
     steps:
       - uses: actions/checkout@v7
       - name: Build backend image
-        run: docker build -t "$BACKEND_IMAGE" -f backends/spring-kotlin/Dockerfile .
+        run: docker build -t "$BACKEND_IMAGE" -f "backends/${{ matrix.backend }}/Dockerfile" .
       # starts postgres + keycloak (waits on their healthchecks), then the backend
       - name: Start infra + backend
         run: docker compose --profile app up -d backend
@@ -207,7 +284,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: conformance-report
+          name: conformance-report-${{ matrix.backend }}
           path: conformance/playwright-report/
           retention-days: 7
 
@@ -271,6 +348,74 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: e2e-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
+
+  # Same black-box suite, same backend and gateway, the Angular frontend —
+  # frontends are proven by e2e (there is no per-frontend conformance suite),
+  # so every frontend implementation gets its own composed run.
+  e2e-angular:
+    name: E2E · spring-kotlin + yarp + angular
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      GATEWAY_IMAGE: stackverse/gateway-yarp:local
+      FRONTEND_IMAGE: stackverse/frontend-angular:local
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images
+        run: ./scripts/build-images.sh spring-kotlin yarp angular
+      - name: Start the full stack
+        run: docker compose --profile app up -d
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-e2e-${{ hashFiles('e2e/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-e2e-
+      - name: Install dependencies
+        working-directory: e2e
+        run: yarn install --immutable
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: yarn playwright install --with-deps chromium
+      # the gateway serves the SPA only after the frontend one-shot has
+      # published it and keycloak/backend are up — poll both layers
+      - name: Wait for the stack to be ready
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 \
+               && curl -fsS http://localhost:8000/ >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "stack never became ready" >&2
+          exit 1
+      - name: Run e2e suite
+        working-directory: e2e
+        run: yarn playwright test
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: e2e/test-results/junit.xml
+          flags: e2e
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-angular-report
           path: |
             e2e/playwright-report/
             e2e/test-results/

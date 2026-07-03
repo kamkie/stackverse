@@ -37,7 +37,9 @@ updates:
         versions: ["[2.4,)"]
 
   - package-ecosystem: nuget
-    directory: /gateways/yarp
+    directories:
+      - /backends/dotnet
+      - /gateways/yarp
     schedule:
       interval: weekly
     groups:
@@ -47,6 +49,7 @@ updates:
   - package-ecosystem: npm
     directories:
       - /frontends/react
+      - /frontends/angular
       - /conformance
       - /e2e
     schedule:
@@ -58,10 +61,12 @@ updates:
   # Dockerfile base images
   - package-ecosystem: docker
     directories:
+      - /backends/dotnet
       - /backends/spring-kotlin
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
       - /frontends/react
+      - /frontends/angular
     schedule:
       interval: weekly
 

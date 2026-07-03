@@ -1,14 +1,11 @@
 import type { ReactNode } from "react";
 import type { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
-import type { components } from "../api/schema";
 import { ErrorState, Loading } from "../components/states";
 import { useI18n } from "../i18n/I18nProvider";
-import type { Bookmark } from "./queries";
-
-type CursorPage = components["schemas"]["BookmarkCursorPage"];
+import type { Bookmark, BookmarkCursorPage } from "./queries";
 
 interface BookmarkListProps {
-  query: UseInfiniteQueryResult<InfiniteData<CursorPage>, Error>;
+  query: UseInfiniteQueryResult<InfiniteData<BookmarkCursorPage>, Error>;
   renderBookmark: (bookmark: Bookmark) => ReactNode;
   /** Shown when the list is empty; defaults to the "no bookmarks yet" message. */
   emptyMessage?: string | undefined;

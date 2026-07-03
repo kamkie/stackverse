@@ -40,6 +40,13 @@ implemented in many stacks. Read these before changing anything:
   conformance table), `docs/INTENT.md` for scope shifts, the component READMEs, and
   this file. Also verify cross-references: a document cited for a claim must
   actually make that claim. Waiting to be asked is a defect.
+- **A branch task is done only when its PR is up.** Committing locally is not the
+  end of the job. Before ending the session or reporting the task complete: rename
+  an auto-generated worktree branch to `claude/<short-task-slug>`, push it, open
+  the PR, and run the cross-review below with its findings triaged. Work stranded
+  unpushed in a local worktree is an unfinished task — any agent that discovers
+  such a branch finishes the handoff (push, PR, cross-review) instead of waiting
+  to be asked.
 - **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
   authoring agent asks the other agent for review and triages the findings — fix
   them or answer them on the PR:
@@ -70,7 +77,9 @@ What the script runs (also the manual recipe):
 3. Gateway — in `gateways/yarp`: `dotnet run --project src/StackverseGateway` with
    `FRONTEND_URL=http://localhost:5173` so it proxies the frontend dev server.
 4. Frontend — in `frontends/react`: `yarn dev` with `VITE_API_MOCK=false` (mocks off,
-   Vite proxies `/api` and `/auth` to the gateway).
+   Vite proxies `/api` and `/auth` to the gateway). To develop against the Angular
+   variant instead, run `yarn dev` in `frontends/angular` — same port 5173, same
+   proxying, no mock toggle (that app has no in-browser mocks).
 
 Use the app at http://localhost:8000 (gateway). Stop with Ctrl+C per tab and
 `docker compose down`.

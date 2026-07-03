@@ -6,6 +6,14 @@ import { MOCK_USERS, setCurrentUser } from "../mocks/state";
 import { renderApp } from "./utils";
 
 describe("session bootstrap", () => {
+  it("lands an anonymous visitor on the public feed from /", async () => {
+    renderApp("/");
+
+    expect(
+      await screen.findByRole("heading", { name: "Public feed" }),
+    ).toBeInTheDocument();
+  });
+
   it("offers login (full-page redirect to /auth/login) when anonymous", async () => {
     renderApp("/feed");
 

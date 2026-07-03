@@ -93,7 +93,7 @@ export function BookmarkFormDialog({ bookmark, onClose }: BookmarkFormDialogProp
           <select
             className="sv-select"
             value={visibility}
-            onChange={(e) => setVisibility(e.target.value as BookmarkInput["visibility"])}
+            onChange={(e) => setVisibility(e.target.value as NonNullable<BookmarkInput["visibility"]>)}
           >
             <option value="private">{t("ui.visibility.private")}</option>
             <option value="public">{t("ui.visibility.public")}</option>
