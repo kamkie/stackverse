@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import pg from "pg";
 import { logger, logEvent } from "./logging.js";
 import { registerAuth } from "./auth.js";
 import { registerBookmarkRoutes } from "./routes/bookmarks.js";
@@ -41,6 +42,18 @@ async function requestLanguage(request: FastifyRequest): Promise<string> {
   );
 }
 
+/** Node socket-level failures that mean "the database was unreachable", not a query bug. */
+const CONNECTION_ERROR_CODES = new Set(["ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "EPIPE", "ENOTFOUND", "EAI_AGAIN"]);
+
+/** Returns a stable error code when `error` is a PostgreSQL failure, else undefined. */
+function dbErrorCode(error: unknown): string | undefined {
+  if (error instanceof pg.DatabaseError) return error.code ?? "db_error";
+  const code = (error as { code?: string }).code;
+  // SQLSTATE class 08 is "connection exception"; the socket codes cover a pool that never connected
+  if (typeof code === "string" && (CONNECTION_ERROR_CODES.has(code) || code.startsWith("08"))) return code;
+  return undefined;
+}
+
 export function buildApp(): FastifyInstance {
   // the cast erases the pino-specific logger generic — routes only need the base instance
   const app = Fastify({
@@ -79,8 +92,21 @@ export function buildApp(): FastifyInstance {
     if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) {
       return sendProblem(reply, statusCode, "Bad Request", (error as Error).message);
     }
-    // 5xx: unexpected — always with the stack trace and trace id (docs/LOGGING.md §3)
-    request.log.error({ err: error }, "Unhandled error");
+    // 5xx: unexpected — always with the stack trace and trace id (docs/LOGGING.md §3).
+    // A database failure that reached here is an uncaught dependency error (an
+    // expected 23505 is translated to 409 before this handler), so it is the
+    // `dependency_call_failed` event with dependency metadata (docs/LOGGING.md §5).
+    const dbCode = dbErrorCode(error);
+    if (dbCode !== undefined) {
+      logEvent("error", "dependency_call_failed", "failure", "PostgreSQL call failed during a request", {
+        dependency: "postgres",
+        duration_ms: Math.round(reply.elapsedTime),
+        error_code: dbCode,
+        err: error,
+      });
+    } else {
+      request.log.error({ err: error }, "Unhandled error");
+    }
     return sendProblem(reply, 500, "Internal Server Error", "An unexpected error occurred.");
   });
 
