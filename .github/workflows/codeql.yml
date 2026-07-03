@@ -1,6 +1,7 @@
 # CodeQL static analysis over every language in the repo. Kotlin still needs a
 # real compile (build-mode none analyzes Java but skips Kotlin sources), so the
-# java-kotlin matrix leg builds the backend manually; the rest scan buildless.
+# java-kotlin matrix leg builds every Kotlin project manually; the rest scan
+# buildless.
 name: CodeQL
 
 on:
@@ -53,6 +54,11 @@ jobs:
       - name: Build the Kotlin backend
         if: matrix.language == 'java-kotlin'
         working-directory: backends/spring-kotlin
+        run: ./gradlew assemble
+
+      - name: Build the Kotlin gateway
+        if: matrix.language == 'java-kotlin'
+        working-directory: gateways/spring-cloud-gateway
         run: ./gradlew assemble
 
       - uses: github/codeql-action/analyze@v4

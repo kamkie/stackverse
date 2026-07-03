@@ -38,6 +38,7 @@ dependency failure: `ERROR`, session kept, request answered `503` (see
 | `SPA_ROOT` | *(unset)* | directory of the SPA production build to serve when `FRONTEND_URL` is unset; if also unset, serve an implementation-bundled placeholder page (`compose.yaml` mounts the frontend image's build here) |
 | `REDIS_URL` | `redis://localhost:6379` | session store |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/stackverse` | IdP realm |
+| `OIDC_INTERNAL_ISSUER_URI` | *(unset)* | optional base URL for the gateway's own IdP calls (discovery, token, JWKS, logout) when the public issuer host is not dialable from the gateway's network; issuer validation and the browser-facing authorization redirect keep `OIDC_ISSUER_URI`. compose sets it to the keycloak service; gateways whose HTTP client retries every resolved address (yarp) may ignore it |
 | `OIDC_CLIENT_ID` | `stackverse-gateway` | OIDC client id |
 | `OIDC_CLIENT_SECRET` | `stackverse-secret` | OIDC client secret (dev value) |
 | `PUBLIC_URL` | `http://localhost:8000` | external base URL for OIDC redirects |

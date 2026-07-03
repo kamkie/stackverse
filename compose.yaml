@@ -110,6 +110,12 @@ services:
       BACKEND_URL: http://backend:8080
       REDIS_URL: redis://redis:6379
       OIDC_ISSUER_URI: http://localhost:8180/realms/stackverse
+      # the issuer host above is not dialable from inside the network for a
+      # single-address HTTP client (the JVM); gateways that honor this variable
+      # make their own IdP calls (discovery, token, JWKS, logout) here while
+      # issuer validation and the browser redirect stay on OIDC_ISSUER_URI —
+      # same escape hatch as the backend's OIDC_JWKS_URI
+      OIDC_INTERNAL_ISSUER_URI: http://keycloak:8080/realms/stackverse
       OIDC_CLIENT_ID: stackverse-gateway
       OIDC_CLIENT_SECRET: stackverse-secret
       PUBLIC_URL: http://localhost:8000

@@ -109,6 +109,7 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
 docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
 # gateway images build with their own directory as context
 docker build -t stackverse/gateway-yarp:local gateways/yarp
+docker build -t stackverse/gateway-spring-cloud-gateway:local gateways/spring-cloud-gateway
 # frontend images build with the REPO ROOT as context (they bundle spec/design)
 docker build -t stackverse/frontend-react:local -f frontends/react/Dockerfile .
 docker build -t stackverse/frontend-angular:local -f frontends/angular/Dockerfile .
@@ -165,9 +166,10 @@ persistent volume, so recreating re-imports the realm).
 to `main` and every pull request, as parallel jobs:
 
 - **Per-implementation builds** — each done implementation builds and tests in
-  its own toolchain: `gradlew build` for `backends/spring-kotlin` (Testcontainers
-  for its integration tests), `dotnet test` for `backends/dotnet`, `dotnet test`
-  for `gateways/yarp` (Testcontainers again), and `yarn build` + `yarn test`
+  its own toolchain: `gradlew build` for `backends/spring-kotlin` and
+  `gateways/spring-cloud-gateway` (Testcontainers for their integration
+  tests), `dotnet test` for `backends/dotnet`, `dotnet test` for
+  `gateways/yarp` (Testcontainers again), and `yarn build` + `yarn test`
   for `frontends/react` and `frontends/angular`.
 - **Conformance** — one matrix leg per backend implementation: builds that
   backend's image, starts the compose infra plus the backend, and runs the
@@ -184,9 +186,9 @@ artifacts when a suite fails.
 
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation
-flag (JaCoCo XML for the Kotlin backend, coverlet Cobertura for the dotnet
-backend and the gateway, vitest lcov for the frontends). `codecov.yml` also
-mirrors each implementation as a
+flag (JaCoCo XML for the Gradle projects, coverlet Cobertura for the dotnet
+projects, vitest lcov for the frontends). `codecov.yml` also mirrors each
+implementation as a
 [component](https://docs.codecov.com/docs/components) — same numbers sliced
 yml-side, so PR comments and the dashboard break coverage down per
 implementation without extra uploads. Coverage is informational only — see
@@ -195,8 +197,9 @@ e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
 
 Every job — including conformance and e2e — also submits its JUnit test
 results to Codecov test analytics under the same flags (Gradle's XML for the
-Kotlin backend, `--logger junit` for the dotnet projects, and a CI-only JUnit reporter wired
-into the vitest and Playwright configs), even when the tests fail. The README
+Gradle projects, `--logger junit` for the dotnet projects, and a CI-only JUnit
+reporter wired into the vitest and Playwright configs), even when the tests
+fail. The README
 implementation matrix shows a per-flag coverage badge for each done
 implementation.
 
@@ -205,7 +208,7 @@ Two more automations live in `.github/`:
 - [`workflows/codeql.yml`](../.github/workflows/codeql.yml) — CodeQL static
   analysis over Kotlin/Java, C#, JS/TS, and the workflow files themselves, on
   every push/PR and weekly. Kotlin needs a real compile, so that matrix leg
-  builds the backend; the rest scan buildless.
+  builds every Kotlin project; the rest scan buildless.
 - [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
   every ecosystem (Gradle, NuGet, npm, GitHub Actions, Dockerfiles, and the
   compose infra images), with minor/patch bumps grouped per ecosystem.
@@ -235,6 +238,8 @@ Per-implementation wiring:
   (auto-instruments Spring MVC, JDBC, logging).
 - `backends/dotnet` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient +
   Npgsql instrumentation, OTLP for traces/metrics/logs).
+- `gateways/spring-cloud-gateway` — OpenTelemetry Java agent baked into the
+  image (auto-instruments WebFlux, the Netty proxy client, logging).
 - `gateways/yarp` — OpenTelemetry .NET SDK (ASP.NET Core + HttpClient
   instrumentation, OTLP for traces/metrics/logs).
 

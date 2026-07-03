@@ -24,6 +24,10 @@ flags:
     paths:
       - gateways/yarp/
     carryforward: true
+  gateway-spring-cloud-gateway:
+    paths:
+      - gateways/spring-cloud-gateway/
+    carryforward: true
   frontend-react:
     paths:
       - frontends/react/
@@ -53,6 +57,10 @@ component_management:
       name: "gateway · yarp"
       paths:
         - gateways/yarp/**
+    - component_id: gateway-spring-cloud-gateway
+      name: "gateway · spring-cloud-gateway"
+      paths:
+        - gateways/spring-cloud-gateway/**
     - component_id: frontend-react
       name: "frontend · react"
       paths:

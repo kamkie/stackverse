@@ -13,7 +13,9 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: gradle
-    directory: /backends/spring-kotlin
+    directories:
+      - /backends/spring-kotlin
+      - /gateways/spring-cloud-gateway
     schedule:
       interval: weekly
     groups:
@@ -61,6 +63,7 @@ updates:
     directories:
       - /backends/dotnet
       - /backends/spring-kotlin
+      - /gateways/spring-cloud-gateway
       - /gateways/yarp
       - /frontends/react
       - /frontends/angular
