@@ -121,7 +121,7 @@ class ModerationService(
 
     /** Someone else's report is a 404 mask — existence is not disclosed. */
     private fun ownReport(reporter: String, reportId: UUID): Report {
-        val report = reportRepository.findById(reportId).orElseThrow { NotFoundProblem() }
+        val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
         if (report.reporter != reporter) throw NotFoundProblem()
         return report
     }
@@ -157,7 +157,7 @@ class ModerationService(
         validator.check((request.note?.length ?: 0) <= 1000, "note", "validation.resolution.note.too-long")
         validator.throwIfInvalid()
 
-        val report = reportRepository.findById(reportId).orElseThrow { NotFoundProblem() }
+        val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
         if (report.status != ReportStatus.OPEN) {
             throw ConflictProblem("The report has already been resolved.")
         }
