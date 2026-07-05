@@ -12,6 +12,7 @@ import org.springframework.data.jpa.domain.Specification
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.net.URI
+import java.time.Instant
 import java.util.UUID
 
 private val TAG_PATTERN = Regex("^[a-z0-9-]{1,30}$")
@@ -172,9 +173,9 @@ class BookmarkService(private val repository: BookmarkRepository) {
     private fun before(cursor: BookmarkCursor): Specification<Bookmark> =
         Specification { root, _, cb ->
             cb.or(
-                cb.lessThan(root.get<java.time.Instant>("createdAt"), cursor.createdAt),
+                cb.lessThan(root.get<Instant>("createdAt"), cursor.createdAt),
                 cb.and(
-                    cb.equal(root.get<java.time.Instant>("createdAt"), cursor.createdAt),
+                    cb.equal(root.get<Instant>("createdAt"), cursor.createdAt),
                     cb.lessThan(root.get<UUID>("id"), cursor.id),
                 ),
             )

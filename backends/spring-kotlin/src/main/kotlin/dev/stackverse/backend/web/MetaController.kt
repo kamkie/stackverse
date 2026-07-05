@@ -18,7 +18,7 @@ class MetaController(private val jdbcClient: JdbcClient) {
     fun readyz(): ResponseEntity<Map<String, String>> = try {
         jdbcClient.sql("select 1").query(Int::class.java).single()
         ResponseEntity.ok(mapOf("status" to "ready"))
-    } catch (e: DataAccessException) {
+    } catch (_: DataAccessException) {
         ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(mapOf("status" to "unavailable"))
     }
 }

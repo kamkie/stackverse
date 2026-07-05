@@ -66,7 +66,7 @@ class ModerationService(
                 "reason" to report.reason.wire,
             )
             report
-        } catch (e: DataIntegrityViolationException) {
+        } catch (_: DataIntegrityViolationException) {
             // lost the race against a concurrent report by the same user — same outcome as the pre-check
             throw ConflictProblem("You already have an open report on this bookmark.")
         }
@@ -140,7 +140,7 @@ class ModerationService(
         }
         validator.check((request.comment?.length ?: 0) <= 1000, "comment", "validation.report.comment.too-long")
         validator.throwIfInvalid()
-        return reason!!
+        return reason ?: error("Invalid report reason was not rejected.")
     }
 
     /**
@@ -171,8 +171,9 @@ class ModerationService(
         }
         validator.check((request.note?.length ?: 0) <= 1000, "note", "validation.resolution.note.too-long")
         validator.throwIfInvalid()
+        val validResolution = resolution ?: error("Invalid report resolution was not rejected.")
 
-        if (resolution == ReportStatus.ACTIONED) {
+        if (validResolution == ReportStatus.ACTIONED) {
             // bookmarkId is immutable, so an unlocked scalar read is a safe lock target;
             // a vanished bookmark cascades its reports away and the locked re-read 404s
             val bookmarkId = reportRepository.findBookmarkIdById(reportId) ?: throw NotFoundProblem()
@@ -180,14 +181,14 @@ class ModerationService(
         }
         val report = reportRepository.findForUpdateById(reportId) ?: throw NotFoundProblem()
 
-        if (resolution == ReportStatus.OPEN) {
+        if (validResolution == ReportStatus.OPEN) {
             reopenOne(report, actor)
             return report
         }
 
-        resolveOne(report, resolution!!, actor, request.note, autoResolved = false)
+        resolveOne(report, validResolution, actor, request.note, autoResolved = false)
 
-        if (resolution == ReportStatus.ACTIONED) {
+        if (validResolution == ReportStatus.ACTIONED) {
             hideBookmark(actor, report.bookmarkId, request.note)
             reportRepository.findForUpdateByBookmarkIdAndStatusOrderByIdAsc(report.bookmarkId, ReportStatus.OPEN)
                 .filter { it.id != report.id }
@@ -214,7 +215,7 @@ class ModerationService(
             // force the constraint check now so a lost race maps to 409, not a
             // commit-time 500 the handler can no longer translate
             reportRepository.flush()
-        } catch (e: DataIntegrityViolationException) {
+        } catch (_: DataIntegrityViolationException) {
             throw ConflictProblem("The reporter already has another open report on this bookmark.")
         }
         auditService.record(

@@ -23,7 +23,7 @@ data class BookmarkCursor(val createdAt: Instant, val id: UUID) {
             val decoded = String(Base64.getUrlDecoder().decode(cursor), Charsets.UTF_8)
             val (createdAt, id) = decoded.split('|', limit = 2).also { require(it.size == 2) }
             BookmarkCursor(Instant.parse(createdAt), UUID.fromString(id))
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             throw BadRequestProblem("The cursor is malformed or unresolvable.")
         }
     }

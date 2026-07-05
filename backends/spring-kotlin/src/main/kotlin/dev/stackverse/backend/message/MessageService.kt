@@ -43,7 +43,7 @@ class MessageService(
                     updatedAt = now,
                 ),
             )
-        } catch (e: DataIntegrityViolationException) {
+        } catch (_: DataIntegrityViolationException) {
             throw duplicateConflict(input)
         }
         auditService.record(actor, "message.created", "message", message.id.toString(), snapshot(message))
@@ -65,7 +65,7 @@ class MessageService(
         message.updatedAt = nowUtc()
         try {
             repository.flush()
-        } catch (e: DataIntegrityViolationException) {
+        } catch (_: DataIntegrityViolationException) {
             throw duplicateConflict(input)
         }
         auditService.record(actor, "message.updated", "message", message.id.toString(), snapshot(message))
