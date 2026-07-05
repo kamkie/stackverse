@@ -44,6 +44,6 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           report_type: test_results
-          directory: backends/ktor-kotlin/build/test-results/test
+          files: backends/ktor-kotlin/build/test-results/test/TEST-*.xml
           flags: backend-ktor-kotlin
           token: ${{ secrets.CODECOV_TOKEN }}

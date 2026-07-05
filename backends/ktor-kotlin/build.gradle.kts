@@ -42,7 +42,7 @@ dependencies {
 }
 
 application {
-    mainClass = "dev.stackverse.backend.MainKt"
+    mainClass = "dev.stackverse.backend.ApplicationKt"
 }
 
 tasks.withType<Test> {
