@@ -44,9 +44,10 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 
 ## What this implementation demonstrates
 
-- **Play controllers over raw SQL** — the route table in `conf/routes` maps directly
-  to one controller. Business rules stay explicit in Scala instead of disappearing
-  into an ORM.
+- **Conventional Play source layout over raw SQL** — `conf/routes` maps to
+  `app/controllers`, while configuration, services, repositories, models, and JSON
+  helpers live in their usual `app/*` packages. Business rules stay explicit in
+  Scala instead of disappearing into an ORM.
 - **Environment-owned configuration** — `PORT`, `DB_*`, `OIDC_*`, `LOG_*`, and
   `SEED_MESSAGES_DIR` are read from the environment; Play's config file only wires
   the framework.
@@ -62,7 +63,7 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 
 ## Deliberate deviations worth comparing
 
-- The code is intentionally a compact Play/JDBC service rather than package-by-feature:
+- The code remains a compact Play/JDBC service rather than package-by-feature:
   the comparison point here is Play's controller and JSON shape, not a custom
   application framework.
 - `LOG_FORMAT=json` controls Stackverse contract events emitted by the application

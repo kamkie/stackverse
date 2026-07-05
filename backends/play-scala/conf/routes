@@ -1,34 +1,34 @@
-GET     /healthz                                   stackverse.StackverseController.healthz
-GET     /readyz                                    stackverse.StackverseController.readyz
+GET     /healthz                                   controllers.StackverseController.healthz
+GET     /readyz                                    controllers.StackverseController.readyz
 
-GET     /api/v1/me                                 stackverse.StackverseController.me
+GET     /api/v1/me                                 controllers.StackverseController.me
 
-GET     /api/v1/bookmarks                          stackverse.StackverseController.listBookmarksV1
-POST    /api/v1/bookmarks                          stackverse.StackverseController.createBookmark
-GET     /api/v2/bookmarks                          stackverse.StackverseController.listBookmarksV2
-GET     /api/v1/bookmarks/:id                      stackverse.StackverseController.getBookmark(id: String)
-PUT     /api/v1/bookmarks/:id                      stackverse.StackverseController.updateBookmark(id: String)
-DELETE  /api/v1/bookmarks/:id                      stackverse.StackverseController.deleteBookmark(id: String)
-GET     /api/v1/tags                               stackverse.StackverseController.listTags
+GET     /api/v1/bookmarks                          controllers.StackverseController.listBookmarksV1
+POST    /api/v1/bookmarks                          controllers.StackverseController.createBookmark
+GET     /api/v2/bookmarks                          controllers.StackverseController.listBookmarksV2
+GET     /api/v1/bookmarks/:id                      controllers.StackverseController.getBookmark(id: String)
+PUT     /api/v1/bookmarks/:id                      controllers.StackverseController.updateBookmark(id: String)
+DELETE  /api/v1/bookmarks/:id                      controllers.StackverseController.deleteBookmark(id: String)
+GET     /api/v1/tags                               controllers.StackverseController.listTags
 
-POST    /api/v1/bookmarks/:id/reports              stackverse.StackverseController.createReport(id: String)
-GET     /api/v1/reports                            stackverse.StackverseController.listMyReports
-PUT     /api/v1/reports/:id                        stackverse.StackverseController.updateMyReport(id: String)
-DELETE  /api/v1/reports/:id                        stackverse.StackverseController.withdrawReport(id: String)
-GET     /api/v1/admin/reports                      stackverse.StackverseController.listReports
-PUT     /api/v1/admin/reports/:id                  stackverse.StackverseController.resolveReport(id: String)
-PUT     /api/v1/admin/bookmarks/:id/status         stackverse.StackverseController.setBookmarkStatus(id: String)
+POST    /api/v1/bookmarks/:id/reports              controllers.StackverseController.createReport(id: String)
+GET     /api/v1/reports                            controllers.StackverseController.listMyReports
+PUT     /api/v1/reports/:id                        controllers.StackverseController.updateMyReport(id: String)
+DELETE  /api/v1/reports/:id                        controllers.StackverseController.withdrawReport(id: String)
+GET     /api/v1/admin/reports                      controllers.StackverseController.listReports
+PUT     /api/v1/admin/reports/:id                  controllers.StackverseController.resolveReport(id: String)
+PUT     /api/v1/admin/bookmarks/:id/status         controllers.StackverseController.setBookmarkStatus(id: String)
 
-GET     /api/v1/admin/users                        stackverse.StackverseController.listUsers
-GET     /api/v1/admin/users/:username              stackverse.StackverseController.getUser(username: String)
-PUT     /api/v1/admin/users/:username/status       stackverse.StackverseController.setUserStatus(username: String)
+GET     /api/v1/admin/users                        controllers.StackverseController.listUsers
+GET     /api/v1/admin/users/:username              controllers.StackverseController.getUser(username: String)
+PUT     /api/v1/admin/users/:username/status       controllers.StackverseController.setUserStatus(username: String)
 
-GET     /api/v1/admin/audit-log                    stackverse.StackverseController.auditLog
-GET     /api/v1/admin/stats                        stackverse.StackverseController.stats
+GET     /api/v1/admin/audit-log                    controllers.StackverseController.auditLog
+GET     /api/v1/admin/stats                        controllers.StackverseController.stats
 
-GET     /api/v1/messages                           stackverse.StackverseController.listMessages
-POST    /api/v1/messages                           stackverse.StackverseController.createMessage
-GET     /api/v1/messages/bundle                    stackverse.StackverseController.messageBundle
-GET     /api/v1/messages/:id                       stackverse.StackverseController.getMessage(id: String)
-PUT     /api/v1/messages/:id                       stackverse.StackverseController.updateMessage(id: String)
-DELETE  /api/v1/messages/:id                       stackverse.StackverseController.deleteMessage(id: String)
+GET     /api/v1/messages                           controllers.StackverseController.listMessages
+POST    /api/v1/messages                           controllers.StackverseController.createMessage
+GET     /api/v1/messages/bundle                    controllers.StackverseController.messageBundle
+GET     /api/v1/messages/:id                       controllers.StackverseController.getMessage(id: String)
+PUT     /api/v1/messages/:id                       controllers.StackverseController.updateMessage(id: String)
+DELETE  /api/v1/messages/:id                       controllers.StackverseController.deleteMessage(id: String)

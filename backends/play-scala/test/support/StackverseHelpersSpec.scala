@@ -1,5 +1,6 @@
-package stackverse
+package support
 
+import models.{BadRequestProblem, BookmarkCursor}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
