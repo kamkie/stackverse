@@ -1,0 +1,47 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow so adding a variant does not edit a shared build matrix.
+name: build-backend-grails
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-grails:
+    name: Backend · Grails (Groovy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/grails
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build and test
+        run: ./gradlew build
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/grails/build/reports/jacoco/test/jacocoTestReport.xml
+          flags: backend-grails
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          directory: backends/grails/build/test-results/test
+          flags: backend-grails
+          token: ${{ secrets.CODECOV_TOKEN }}

@@ -1,0 +1,65 @@
+plugins {
+    id "groovy"
+    id "org.apache.grails.gradle.grails-web" version "7.1.2"
+    id "jacoco"
+}
+
+group = "dev.stackverse"
+version = "0.0.1-SNAPSHOT"
+description = "Stackverse backend - Grails + Groovy"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+dependencies {
+    implementation "org.springframework.boot:spring-boot-starter"
+    implementation "org.springframework.boot:spring-boot-starter-web"
+    implementation "org.springframework.boot:spring-boot-starter-security"
+    implementation "org.springframework.boot:spring-boot-starter-oauth2-resource-server"
+    implementation "org.springframework.boot:spring-boot-starter-jdbc"
+    implementation "org.flywaydb:flyway-core"
+    implementation "org.flywaydb:flyway-database-postgresql"
+
+    implementation "org.apache.grails:grails-core"
+    implementation "org.apache.grails:grails-web-boot"
+    implementation "org.apache.grails:grails-controllers"
+    implementation "org.apache.grails:grails-services"
+    implementation "org.apache.grails:grails-url-mappings"
+    implementation "org.apache.grails:grails-rest-transforms"
+    implementation "org.apache.grails:grails-converters"
+    implementation "org.apache.grails:grails-logging"
+    implementation "org.apache.grails:grails-databinding"
+
+    runtimeOnly "org.postgresql:postgresql"
+    implementation "com.zaxxer:HikariCP"
+    runtimeOnly "org.fusesource.jansi:jansi"
+
+    testImplementation "org.apache.grails:grails-testing-support-web"
+    testImplementation "org.springframework.boot:spring-boot-starter-test"
+    testImplementation "org.springframework.security:spring-security-test"
+    testImplementation "org.spockframework:spock-core"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+    finalizedBy tasks.jacocoTestReport
+}
+
+jacoco {
+    toolVersion = "0.8.15"
+}
+
+tasks.jacocoTestReport {
+    dependsOn tasks.test
+    reports {
+        xml.required = true
+    }
+}
+
+tasks.jar {
+    enabled = false
+}

@@ -29,6 +29,7 @@ updates:
 
   - package-ecosystem: gradle
     directories:
+      - /backends/grails
       - /backends/ktor-kotlin
       - /backends/micronaut-java
       - /backends/spring-kotlin
@@ -95,6 +96,7 @@ updates:
     directories:
       - /backends/dotnet
       - /backends/go
+      - /backends/grails
       - /backends/ktor-kotlin
       - /backends/micronaut-java
       - /backends/node-nestjs
