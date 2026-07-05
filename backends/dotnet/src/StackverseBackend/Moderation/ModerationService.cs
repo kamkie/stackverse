@@ -169,8 +169,7 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
             // a vanished bookmark cascades its reports away and the locked re-read 404s
             var bookmarkId = await db.Reports.Where(r => r.Id == reportId)
                 .Select(r => (Guid?)r.BookmarkId).SingleOrDefaultAsync() ?? throw new NotFoundProblem();
-            await db.Bookmarks.FromSql($"select * from bookmarks where id = {bookmarkId} for update")
-                .SingleOrDefaultAsync();
+            await BookmarkForUpdateAsync(bookmarkId);
         }
         var report = await ForUpdateAsync(reportId) ?? throw new NotFoundProblem();
 
@@ -212,9 +211,7 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
             await HideBookmarkAsync(actor, report.BookmarkId, request.Note);
             // FOR UPDATE re-checks the status after the lock is granted, so a report
             // resolved by a concurrent transaction drops out instead of being overwritten
-            var siblings = await db.Reports.FromSql(
-                    $"select * from reports where bookmark_id = {report.BookmarkId} and status = 'open' and id <> {report.Id} order by id for update")
-                .ToListAsync();
+            var siblings = await SiblingOpenReportsForUpdateAsync(report.BookmarkId, report.Id);
             foreach (var sibling in siblings)
             {
                 ResolveOne(sibling, ReportStatus.Actioned, actor, request.Note, autoResolved: true);
@@ -269,14 +266,28 @@ public sealed class ModerationService(AppDbContext db, AuditService auditService
     /// a just-resolved report).
     /// </summary>
     private Task<Report?> ForUpdateAsync(Guid reportId) =>
-        db.Reports.FromSql($"select * from reports where id = {reportId} for update").SingleOrDefaultAsync();
+        db.Database.IsNpgsql()
+            ? db.Reports.FromSql($"select * from reports where id = {reportId} for update").SingleOrDefaultAsync()
+            : db.Reports.SingleOrDefaultAsync(r => r.Id == reportId);
 
     /// <summary>
     /// Locks a bookmark row for the status endpoint; the owner update takes the
     /// same lock, so a hide/restore and a hidden-publish check (rule 15) serialize.
     /// </summary>
     private Task<Bookmark?> BookmarkForUpdateAsync(Guid bookmarkId) =>
-        db.Bookmarks.FromSql($"select * from bookmarks where id = {bookmarkId} for update").SingleOrDefaultAsync();
+        db.Database.IsNpgsql()
+            ? db.Bookmarks.FromSql($"select * from bookmarks where id = {bookmarkId} for update").SingleOrDefaultAsync()
+            : db.Bookmarks.SingleOrDefaultAsync(b => b.Id == bookmarkId);
+
+    private Task<List<Report>> SiblingOpenReportsForUpdateAsync(Guid bookmarkId, Guid reportId) =>
+        db.Database.IsNpgsql()
+            ? db.Reports.FromSql(
+                    $"select * from reports where bookmark_id = {bookmarkId} and status = 'open' and id <> {reportId} order by id for update")
+                .ToListAsync()
+            : db.Reports
+                .Where(r => r.BookmarkId == bookmarkId && r.Status == ReportStatus.Open && r.Id != reportId)
+                .OrderBy(r => r.Id)
+                .ToListAsync();
 
     /// <summary>Someone else's report is a 404 mask — existence is not disclosed.</summary>
     private async Task<Report> OwnReportAsync(string reporter, Guid reportId)

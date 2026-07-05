@@ -26,7 +26,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(u => u.FirstSeen).HasColumnName("first_seen");
             entity.Property(u => u.LastSeen).HasColumnName("last_seen");
             entity.Property(u => u.Status).HasColumnName("status").HasMaxLength(10)
-                .HasConversion(status => Wire.Of(status), value => Wire.Parse<UserAccountStatus>(value)!.Value);
+                .HasConversion(status => Wire.Of(status), value => Wire.ParseStored<UserAccountStatus>(value, "user_accounts.status"));
             entity.Property(u => u.BlockedReason).HasColumnName("blocked_reason").HasMaxLength(1000);
         });
 
@@ -41,9 +41,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(b => b.Notes).HasColumnName("notes").HasMaxLength(4000);
             entity.Property(b => b.Tags).HasColumnName("tags").HasColumnType("text[]");
             entity.Property(b => b.Visibility).HasColumnName("visibility").HasMaxLength(10)
-                .HasConversion(visibility => Wire.Of(visibility), value => Wire.Parse<Visibility>(value)!.Value);
+                .HasConversion(visibility => Wire.Of(visibility), value => Wire.ParseStored<Visibility>(value, "bookmarks.visibility"));
             entity.Property(b => b.Status).HasColumnName("status").HasMaxLength(10)
-                .HasConversion(status => Wire.Of(status), value => Wire.Parse<BookmarkStatus>(value)!.Value);
+                .HasConversion(status => Wire.Of(status), value => Wire.ParseStored<BookmarkStatus>(value, "bookmarks.status"));
             entity.Property(b => b.CreatedAt).HasColumnName("created_at");
             entity.Property(b => b.UpdatedAt).HasColumnName("updated_at");
             // keyset pagination and the default owner listing both walk (created_at, id) descending
@@ -65,10 +65,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             entity.Property(r => r.BookmarkId).HasColumnName("bookmark_id");
             entity.Property(r => r.Reporter).HasColumnName("reporter").HasMaxLength(255);
             entity.Property(r => r.Reason).HasColumnName("reason").HasMaxLength(20)
-                .HasConversion(reason => Wire.Of(reason), value => Wire.Parse<ReportReason>(value)!.Value);
+                .HasConversion(reason => Wire.Of(reason), value => Wire.ParseStored<ReportReason>(value, "reports.reason"));
             entity.Property(r => r.Comment).HasColumnName("comment").HasMaxLength(1000);
             entity.Property(r => r.Status).HasColumnName("status").HasMaxLength(10)
-                .HasConversion(status => Wire.Of(status), value => Wire.Parse<ReportStatus>(value)!.Value);
+                .HasConversion(status => Wire.Of(status), value => Wire.ParseStored<ReportStatus>(value, "reports.status"));
             entity.Property(r => r.ResolvedBy).HasColumnName("resolved_by").HasMaxLength(255);
             entity.Property(r => r.ResolvedAt).HasColumnName("resolved_at");
             entity.Property(r => r.ResolutionNote).HasColumnName("resolution_note").HasMaxLength(1000);

@@ -35,4 +35,15 @@ public class WireTests
         Assert.Equal(Visibility.Public, Wire.ParseQuery<Visibility>("public", "visibility"));
         Assert.Throws<BadRequestProblem>(() => Wire.ParseQuery<Visibility>("everyone", "visibility"));
     }
+
+    [Fact]
+    public void ParseStoredNamesTheBadValueAndColumn()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => Wire.ParseStored<ReportStatus>("pending", "reports.status"));
+
+        Assert.Contains("ReportStatus", exception.Message);
+        Assert.Contains("pending", exception.Message);
+        Assert.Contains("reports.status", exception.Message);
+    }
 }

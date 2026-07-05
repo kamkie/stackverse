@@ -22,7 +22,7 @@ migrations apply on startup — the database must be one this backend owns
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests (plain unit tests, no containers):
+Tests (unit tests plus WebApplicationFactory integration tests; no containers):
 
 ```sh
 dotnet test
@@ -63,6 +63,11 @@ docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
   authenticated caller unless it opts out with `AllowAnonymous`; role
   endpoints declare the single role they need (`moderator`/`admin`) and the
   admin ⊃ moderator hierarchy stays in Keycloak.
+- **WebApplicationFactory integration tests without containers** — the suite
+  swaps in EF Core's in-memory provider and a test auth handler, so endpoint
+  routing, auth policies, services, and EF-tracked state machine behavior are
+  exercised in process while the canonical live-DB conformance suite remains
+  the PostgreSQL acceptance gate.
 - **Body-hash ETags in middleware** — `EtagMiddleware` buffers message/stats
   responses and derives the ETag from the bytes, the same stateless
   revalidation scheme as the reference backend's `ShallowEtagHeaderFilter`.
