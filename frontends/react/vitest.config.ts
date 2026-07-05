@@ -7,6 +7,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
     restoreMocks: true,
+    server: {
+      deps: {
+        inline: true,
+      },
+    },
     // CI also emits JUnit XML for Codecov test analytics
     reporters: process.env.CI
       ? ["default", ["junit", { outputFile: "test-results/junit.xml" }]]
