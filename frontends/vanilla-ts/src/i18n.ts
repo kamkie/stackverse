@@ -95,9 +95,9 @@ export class RuntimeI18n {
 
   tCount = (key: string, count: number): string => {
     const category = new Intl.PluralRules(this.resolvedLanguage).select(count);
-    return this.t(`${key}.${category}`) !== keyFallback(`${key}.${category}`)
-      ? this.t(`${key}.${category}`)
-      : this.t(key);
+    const pluralKey = `${key}.${category}`;
+    const plural = this.t(pluralKey);
+    return plural !== keyFallback(pluralKey) ? plural : this.t(key);
   };
 }
 
@@ -105,4 +105,3 @@ export function localizeFieldError(error: FieldError, t: (key: string) => string
   const localized = t(error.messageKey);
   return localized === keyFallback(error.messageKey) ? error.message : localized;
 }
-
