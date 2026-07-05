@@ -12,6 +12,7 @@ on:
       - '.github/workflows/build-backend-open-liberty-java.yml'
       - 'backends/open-liberty-java/**'
       - 'spec/openapi.yaml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

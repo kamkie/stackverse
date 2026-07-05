@@ -12,6 +12,7 @@ on:
       - '.github/workflows/build-backend-quarkus-java.yml'
       - 'backends/quarkus-java/**'
       - 'spec/openapi.yaml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
