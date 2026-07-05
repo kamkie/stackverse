@@ -634,7 +634,10 @@ Two more automations live in `.github/`:
 - [`workflows/codeql.yml`](../.github/workflows/codeql.yml) — CodeQL static
   analysis over Kotlin/Java, C#, Go, JS/TS, and the workflow files themselves,
   on every push/PR and weekly. Kotlin needs a real compile, so that matrix leg
-  builds every Kotlin project; the rest scan buildless.
+  builds every Kotlin project; the rest scan buildless. On `main`, an
+  `advanced-security/dismiss-alerts` step honors inline `// codeql[query-id]`
+  suppression comments by dismissing the matching code-scanning alerts from each
+  language's SARIF.
 - [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
   every ecosystem (Gradle, NuGet, npm, pip, GitHub Actions, Dockerfiles, and
   the compose infra images), with minor/patch bumps grouped per ecosystem.
