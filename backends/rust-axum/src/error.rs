@@ -504,6 +504,7 @@ mod tests {
 
     use super::{
         accepted_languages, escape_like, etag_json, first, page_response, parse_page, parse_query,
+        parse_size, rune_len,
     };
 
     #[test]
@@ -544,6 +545,21 @@ mod tests {
     }
 
     #[test]
+    fn parse_size_rejects_non_integer_and_out_of_range_values() {
+        let non_integer: Uri = "/api/v2/bookmarks?size=abc".parse().unwrap();
+        assert_eq!(
+            parse_size(&parse_query(&non_integer)).unwrap_err(),
+            "size must be an integer"
+        );
+
+        let zero: Uri = "/api/v2/bookmarks?size=0".parse().unwrap();
+        assert_eq!(
+            parse_size(&parse_query(&zero)).unwrap_err(),
+            "size must be between 1 and 100"
+        );
+    }
+
+    #[test]
     fn page_response_calculates_total_pages() {
         let page = page_response(vec!["a", "b"], 1, 2, 5);
 
@@ -554,8 +570,23 @@ mod tests {
     }
 
     #[test]
+    fn page_response_reports_zero_pages_for_empty_results() {
+        let page = page_response::<String>(Vec::new(), 0, 20, 0);
+
+        assert_eq!(page.items.len(), 0);
+        assert_eq!(page.total_items, 0);
+        assert_eq!(page.total_pages, 0);
+    }
+
+    #[test]
     fn escape_like_escapes_sql_wildcards_and_escape_character() {
         assert_eq!(escape_like(r"100%\_"), r"100\%\\\_");
+    }
+
+    #[test]
+    fn rune_len_counts_characters_not_bytes_and_treats_none_as_zero() {
+        assert_eq!(rune_len(&Some("a\u{1f600}".to_string())), 2);
+        assert_eq!(rune_len(&None), 0);
     }
 
     #[test]
@@ -563,6 +594,14 @@ mod tests {
         assert_eq!(
             accepted_languages("pl-PL;q=0.8, en;q=0.9, *;q=1, fr;q=0"),
             vec!["en".to_string(), "pl".to_string()]
+        );
+    }
+
+    #[test]
+    fn accepted_languages_preserves_header_order_for_equal_quality_values() {
+        assert_eq!(
+            accepted_languages("fr-CA;q=0.7, pl-PL;q=0.7, en-US;q=0.9"),
+            vec!["en".to_string(), "fr".to_string(), "pl".to_string()]
         );
     }
 
@@ -581,5 +620,27 @@ mod tests {
 
         assert_eq!(second.status(), StatusCode::NOT_MODIFIED);
         assert!(second.headers().get(header::CONTENT_TYPE).is_none());
+    }
+
+    #[test]
+    fn etag_json_treats_wildcard_if_none_match_as_not_modified() {
+        let body = json!({ "items": [] });
+        let mut headers = HeaderMap::new();
+        headers.insert(header::IF_NONE_MATCH, HeaderValue::from_static("*"));
+
+        let response = etag_json(&headers, StatusCode::OK, &body, &[]);
+
+        assert_eq!(response.status(), StatusCode::NOT_MODIFIED);
+        assert_eq!(
+            response
+                .headers()
+                .get(header::CACHE_CONTROL)
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "no-cache"
+        );
+        assert!(response.headers().get(header::ETAG).is_some());
+        assert!(response.headers().get(header::CONTENT_TYPE).is_none());
     }
 }
