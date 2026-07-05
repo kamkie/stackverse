@@ -10,7 +10,7 @@ RUN mvn -B -q dependency:go-offline
 COPY backends/quarkus-java/src src
 RUN mvn -B -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
 COPY --from=build /build/target/quarkus-app/lib/ lib/
