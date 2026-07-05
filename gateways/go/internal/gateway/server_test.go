@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"math/big"
@@ -64,6 +65,35 @@ func TestAnonymousAPIRequestsRelayWithoutBearerToken(t *testing.T) {
 	}
 }
 
+func TestAuthenticatedAPIRequestsRelayBearerToken(t *testing.T) {
+	app := newHarness(t, nil)
+	app.putSession("s1", session.Data{
+		Username:     "demo",
+		AccessToken:  "live-access",
+		RefreshToken: "refresh",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	})
+	app.setSessionCookie("s1")
+
+	request, _ := http.NewRequest(http.MethodGet, app.server.URL+"/api/v1/me", nil)
+	request.Header.Set("Authorization", "Bearer forged")
+	response, err := app.client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if app.backend.lastAuthorization != "Bearer live-access" {
+		t.Fatalf("Authorization = %q", app.backend.lastAuthorization)
+	}
+	if app.backend.lastCookie != "" {
+		t.Fatalf("Cookie leaked upstream: %q", app.backend.lastCookie)
+	}
+}
+
 func TestStateChangingAPIRequiresCSRFAndSameOriginSignals(t *testing.T) {
 	app := newHarness(t, nil)
 
@@ -94,6 +124,29 @@ func TestStateChangingAPIRequiresCSRFAndSameOriginSignals(t *testing.T) {
 	}
 }
 
+func TestAPIUpstreamFailureReturnsProblemDocument(t *testing.T) {
+	app := newHarnessWithConfig(t, nil, harnessConfig{
+		transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("backend unavailable")
+		}),
+	})
+
+	response := app.get("/api/v1/bookmarks")
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusBadGateway {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	assertAPIHeaders(t, response, false)
+	if got := response.Header.Get("Content-Type"); !strings.HasPrefix(got, "application/problem+json") {
+		t.Fatalf("content type = %q", got)
+	}
+	body, _ := io.ReadAll(response.Body)
+	if !strings.Contains(string(body), "The upstream API is temporarily unavailable.") {
+		t.Fatalf("problem body = %s", body)
+	}
+}
+
 func TestSecurityHeadersAreScopedWithoutChangingAPISemantics(t *testing.T) {
 	app := newHarness(t, nil)
 
@@ -107,6 +160,67 @@ func TestSecurityHeadersAreScopedWithoutChangingAPISemantics(t *testing.T) {
 	}
 	if got := api.Header.Get("ETag"); got != `"bundle-v1"` {
 		t.Fatalf("ETag = %q", got)
+	}
+}
+
+func TestFrontendProxyUsesConfiguredUpstreamAndStripsCookies(t *testing.T) {
+	var upstreamPath string
+	var upstreamCookie string
+	frontend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamPath = r.URL.RequestURI()
+		upstreamCookie = r.Header.Get("Cookie")
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = w.Write([]byte("frontend ok"))
+	}))
+	t.Cleanup(frontend.Close)
+	app := newHarnessWithConfig(t, nil, harnessConfig{frontendURL: mustURL(t, frontend.URL)})
+
+	request, _ := http.NewRequest(http.MethodGet, app.server.URL+"/deep/link?tab=all", nil)
+	request.AddCookie(&http.Cookie{Name: "browser_state", Value: "private"})
+	response, err := app.client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	assertDocumentHeaders(t, response, false)
+	if upstreamPath != "/deep/link?tab=all" {
+		t.Fatalf("upstream path = %q", upstreamPath)
+	}
+	if upstreamCookie != "" {
+		t.Fatalf("Cookie leaked to frontend upstream: %q", upstreamCookie)
+	}
+	body, _ := io.ReadAll(response.Body)
+	if string(body) != "frontend ok" {
+		t.Fatalf("body = %q", body)
+	}
+}
+
+func TestSPAServesBundledIndexAndRejectsWrites(t *testing.T) {
+	app := newHarness(t, nil)
+
+	response := app.get("/")
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("GET status = %d", response.StatusCode)
+	}
+	assertDocumentHeaders(t, response, false)
+	body, _ := io.ReadAll(response.Body)
+	if !strings.Contains(string(body), "Stackverse gateway placeholder") {
+		t.Fatalf("fallback body = %s", body)
+	}
+
+	request, _ := http.NewRequest(http.MethodPost, app.server.URL+"/", nil)
+	rejected, err := app.client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rejected.Body.Close()
+	if rejected.StatusCode != http.StatusNotFound {
+		t.Fatalf("POST status = %d", rejected.StatusCode)
 	}
 }
 
@@ -289,7 +403,19 @@ type harness struct {
 	store   *memoryStore
 }
 
+type harnessConfig struct {
+	backendHandler http.Handler
+	frontendURL    *url.URL
+	publicURL      *url.URL
+	transport      http.RoundTripper
+}
+
 func newHarness(t *testing.T, behavior *idpBehavior) *harness {
+	t.Helper()
+	return newHarnessWithConfig(t, behavior, harnessConfig{})
+}
+
+func newHarnessWithConfig(t *testing.T, behavior *idpBehavior, overrides harnessConfig) *harness {
 	t.Helper()
 	if behavior == nil {
 		behavior = &idpBehavior{refreshStatus: http.StatusOK}
@@ -298,24 +424,37 @@ func newHarness(t *testing.T, behavior *idpBehavior) *harness {
 	t.Cleanup(idpServer.Close)
 
 	backend := &backendRecorder{}
-	backendServer := httptest.NewServer(backend)
+	backendHandler := http.Handler(backend)
+	if overrides.backendHandler != nil {
+		backendHandler = overrides.backendHandler
+	}
+	backendServer := httptest.NewServer(backendHandler)
 	t.Cleanup(backendServer.Close)
 
+	publicURL := overrides.publicURL
+	if publicURL == nil {
+		publicURL = mustURL(t, "http://localhost:8000")
+	}
+	transport := overrides.transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
 	cfg := config.Config{
 		Port:                  "0",
 		BackendURL:            mustURL(t, backendServer.URL),
+		FrontendURL:           overrides.frontendURL,
 		RedisURL:              "redis://localhost:6379",
 		OIDCIssuerURI:         idpServer.URL + "/realms/stackverse",
 		OIDCInternalIssuerURI: idpServer.URL + "/realms/stackverse",
 		OIDCClientID:          "stackverse-gateway",
 		OIDCClientSecret:      "stackverse-secret",
-		PublicURL:             mustURL(t, "http://localhost:8000"),
+		PublicURL:             publicURL,
 		LogLevel:              "error",
 		LogFormat:             "text",
 	}
 	store := newMemoryStore()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	handler, err := NewHandler(cfg, store, logger, idpServer.Client(), http.DefaultTransport)
+	handler, err := NewHandler(cfg, store, logger, idpServer.Client(), transport)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,6 +474,12 @@ func newHarness(t *testing.T, behavior *idpBehavior) *harness {
 		idp:     behavior,
 		store:   store,
 	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
 }
 
 func (h *harness) get(path string) *http.Response {
