@@ -22,6 +22,10 @@ flags:
     paths:
       - backends/go/
     carryforward: true
+  backend-micronaut-java:
+    paths:
+      - backends/micronaut-java/
+    carryforward: true
   backend-node-nestjs:
     paths:
       - backends/node-nestjs/
@@ -41,6 +45,14 @@ flags:
   frontend-react:
     paths:
       - frontends/react/
+    carryforward: true
+  frontend-svelte:
+    paths:
+      - frontends/svelte/
+    carryforward: true
+  frontend-vue:
+    paths:
+      - frontends/vue/
     carryforward: true
   gateway-go:
     paths:
@@ -79,6 +91,10 @@ component_management:
       name: "backend · go"
       paths:
         - backends/go/**
+    - component_id: backend-micronaut-java
+      name: "backend · micronaut-java"
+      paths:
+        - backends/micronaut-java/**
     - component_id: backend-node-nestjs
       name: "backend · node-nestjs"
       paths:
@@ -99,6 +115,14 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-svelte
+      name: "frontend · svelte"
+      paths:
+        - frontends/svelte/**
+    - component_id: frontend-vue
+      name: "frontend · vue"
+      paths:
+        - frontends/vue/**
     - component_id: gateway-go
       name: "gateway · go"
       paths:

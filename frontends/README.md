@@ -1,6 +1,6 @@
 # Frontends
 
-One directory per implementation (`react`, `angular`, ...). The frontend is a SPA that
+One directory per implementation (`react`, `angular`, `vue`, ...). The frontend is a SPA that
 consumes [spec/openapi.yaml](../spec/openapi.yaml) *through the gateway* and holds
 **no authentication state** — not even a token. The session cookie is invisible to it.
 
