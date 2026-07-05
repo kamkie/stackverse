@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -66,7 +67,7 @@ func (s *RedisStore) Close() error {
 
 func (s *RedisStore) LoadSession(ctx context.Context, key string) (Data, bool, error) {
 	raw, err := s.client.Get(ctx, SessionKeyPrefix+key).Bytes()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return Data{}, false, nil
 	}
 	if err != nil {
@@ -102,7 +103,7 @@ func (s *RedisStore) SaveOAuthState(ctx context.Context, state string, data OAut
 func (s *RedisStore) ConsumeOAuthState(ctx context.Context, state string) (OAuthState, bool, error) {
 	key := StateKeyPrefix + state
 	raw, err := s.client.Get(ctx, key).Bytes()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return OAuthState{}, false, nil
 	}
 	if err != nil {
