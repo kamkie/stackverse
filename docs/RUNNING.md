@@ -234,6 +234,39 @@ showcase for generated OpenAPI edge cases and response-schema checks. It does
 not replace the semantic conformance suite, which remains the executable form
 of `docs/SPEC.md`.
 
+## Hurl API showcase
+
+With just infra and one backend running, the optional Hurl showcase in
+[`testing/hurl-api/`](../testing/hurl-api) runs readable plain-text HTTP
+scenarios directly against `BACKEND_URL`:
+
+```sh
+./scripts/hurl-api.sh
+```
+
+```powershell
+./scripts/hurl-api.ps1
+```
+
+Defaults are `BACKEND_URL=http://localhost:8080` and
+`KEYCLOAK_URL=http://localhost:8180`. The Hurl file fetches dev tokens through
+the same `stackverse-conformance` Keycloak client as `conformance/`, then
+exercises representative public, authenticated, moderator, and admin API
+flows. The wrapper scripts generate a unique `HURL_RUN_ID` for deterministic
+scenario data; override it to reproduce a named run:
+
+```sh
+HURL_RUN_ID=hurl-local-demo ./scripts/hurl-api.sh -- --very-verbose
+```
+
+```powershell
+$env:HURL_RUN_ID = "hurl-local-demo"
+./scripts/hurl-api.ps1 --very-verbose
+```
+
+This suite is executable API documentation and a testing-tool comparison
+example. It does not replace the canonical semantic conformance suite.
+
 ## OWASP ZAP baseline security smoke
 
 With a full stack running, the optional ZAP showcase in
@@ -430,6 +463,11 @@ observability contract from [ARCHITECTURE.md](ARCHITECTURE.md#observability)
 and the trace-correlation assumptions in
 [LOGGING.md](LOGGING.md#7-correlation) without redefining API or UI
 correctness.
+
+The Hurl API showcase lives in [testing/hurl-api](../testing/hurl-api), uses
+`BACKEND_URL` plus `KEYCLOAK_URL`, and runs through `./scripts/hurl-api.sh` or
+`./scripts/hurl-api.ps1`. It has no CI workflow yet and remains a local
+optional showcase.
 
 ## Continuous integration
 

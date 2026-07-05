@@ -4,6 +4,9 @@
 #     -f compose.yaml -f testing/tracetest-otel/compose.yaml \
 #     --profile app --profile observability --profile tracetest up \
 #     --force-recreate --abort-on-container-exit --exit-code-from tracetest-run
+#
+# The tracetest profile is mandatory for this overlay because backend and
+# gateway telemetry is routed to the collector declared in that profile.
 
 services:
   postgres:
