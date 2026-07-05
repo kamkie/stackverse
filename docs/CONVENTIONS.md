@@ -200,7 +200,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Reactive Spring Cloud Gateway on WebFlux/Netty, non-blocking proxy | spring-cloud-starter-gateway-server-webflux; reactive Netty proxy | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | httputil.ReverseProxy with custom Director/ModifyResponse/ErrorHandler | NewSingleHostReverseProxy; Director strips Cookie/Auth, injects Bearer, per-proxy handlers | ✅ idiomatic |
-| [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | Hand-rolled native-fetch proxy in proxy.ts with manual hop-by-hop/header stripping | 🔴 undocumented |
+| [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | @fastify/reply-from proxy with Stackverse-specific header/token/trace policy | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Native proxy_pass to an upstream block | Manual lua-resty-http request_uri, buffers/re-emits response in content_by_lua | 🟡 deliberate |
 | [YARP](../gateways/yarp/README.md) | YARP AddReverseProxy with route/cluster config plus request transforms | AddReverseProxy + AddTransforms; strips Cookie/CSRF/Authorization, injects Bearer | ✅ idiomatic |
 
@@ -355,4 +355,3 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check only as separate typecheck script | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | None configured; stale eslint-disable comment but no ESLint/Prettier | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |
-
