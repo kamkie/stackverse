@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import { Injectable } from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { pool, withTransaction, type Queryable } from "../db.js";
 import { encodeCursor, decodeCursor, type BookmarkCursor } from "../cursor.js";
 import { requireCaller } from "../auth.js";
@@ -190,9 +191,10 @@ async function ownedByCaller(caller: string, id: string): Promise<BookmarkRow> {
 const isVisibleTo = (bookmark: BookmarkRow, caller: string | null): boolean =>
   bookmark.owner === caller || (bookmark.visibility === "public" && bookmark.status === "active");
 
-export function registerBookmarkRoutes(app: FastifyInstance): void {
+@Injectable()
+export class BookmarksService {
   /** RFC 9745 / 8594 / 8288 deprecation signaling on every v1 listing response. */
-  app.get("/api/v1/bookmarks", async (request, reply) => {
+  async listV1(request: FastifyRequest, reply: FastifyReply): Promise<Record<string, unknown>> {
     reply
       .header("deprecation", V1_BOOKMARKS_DEPRECATION)
       .header("sunset", V1_BOOKMARKS_SUNSET)
@@ -217,10 +219,10 @@ export function registerBookmarkRoutes(app: FastifyInstance): void {
       totalItems,
       totalPages: Math.ceil(totalItems / size),
     };
-  });
+  }
 
   /** Successor of the v1 listing: same filters and semantics, keyset pagination. */
-  app.get("/api/v2/bookmarks", async (request) => {
+  async listV2(request: FastifyRequest): Promise<Record<string, unknown>> {
     const query = request.query as Record<string, unknown>;
     const { size } = requireValidPaging(query);
     const filters = parseListFilters(query);
@@ -249,11 +251,11 @@ export function registerBookmarkRoutes(app: FastifyInstance): void {
       ...(fetched.length > size &&
         last !== undefined && { nextCursor: encodeCursor({ createdAt: last.created_at, id: last.id }) }),
     };
-  });
+  }
 
-  app.post("/api/v1/bookmarks", async (request, reply) => {
+  async create(request: FastifyRequest, reply: FastifyReply, body: unknown): Promise<FastifyReply> {
     const caller = requireCaller(request);
-    const input = validateBookmarkInput(request.body);
+    const input = validateBookmarkInput(body);
     const now = new Date();
     const id = randomUUID();
     const result = await pool.query(
@@ -266,21 +268,21 @@ export function registerBookmarkRoutes(app: FastifyInstance): void {
       .code(201)
       .header("location", `/api/v1/bookmarks/${id}`)
       .send(toBookmarkResponse(result.rows[0] as BookmarkRow));
-  });
+  }
 
-  app.get("/api/v1/bookmarks/:id", async (request) => {
-    const id = parseUuid((request.params as { id: string }).id);
+  async get(request: FastifyRequest, idParam: string): Promise<Partial<BookmarkRow>> {
+    const id = parseUuid(idParam);
     const bookmark = await findBookmark(pool, id);
     if (!bookmark || !isVisibleTo(bookmark, request.caller?.username ?? null)) {
       throw new NotFoundProblem();
     }
     return toBookmarkResponse(bookmark);
-  });
+  }
 
-  app.put("/api/v1/bookmarks/:id", async (request) => {
+  async update(request: FastifyRequest, idParam: string, body: unknown): Promise<Partial<BookmarkRow>> {
     const caller = requireCaller(request);
-    const id = parseUuid((request.params as { id: string }).id);
-    const input = validateBookmarkInput(request.body);
+    const id = parseUuid(idParam);
+    const input = validateBookmarkInput(body);
     // lock the row so a concurrent moderation hide cannot slip between the
     // hidden-publish check and the write (SPEC rule 15) — moderation takes the
     // same `for update` lock, so the two serialize
@@ -302,18 +304,18 @@ export function registerBookmarkRoutes(app: FastifyInstance): void {
       return result.rows[0] as BookmarkRow;
     });
     return toBookmarkResponse(updated);
-  });
+  }
 
-  app.delete("/api/v1/bookmarks/:id", async (request, reply) => {
+  async delete(request: FastifyRequest, reply: FastifyReply, idParam: string): Promise<FastifyReply> {
     const caller = requireCaller(request);
-    const id = parseUuid((request.params as { id: string }).id);
+    const id = parseUuid(idParam);
     await ownedByCaller(caller.username, id);
     await pool.query("delete from bookmarks where id = $1", [id]);
     return reply.code(204).send();
-  });
+  }
 
   /** SPEC rule 4: the caller's tags with usage counts, most used first. */
-  app.get("/api/v1/tags", async (request) => {
+  async listTags(request: FastifyRequest): Promise<{ tags: { tag: string; count: number }[] }> {
     const caller = requireCaller(request);
     const result = await pool.query(
       `select tag, count(*)::int as count
@@ -324,5 +326,5 @@ export function registerBookmarkRoutes(app: FastifyInstance): void {
       [caller.username],
     );
     return { tags: result.rows as { tag: string; count: number }[] };
-  });
+  }
 }

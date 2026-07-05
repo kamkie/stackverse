@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance } from "fastify";
+import { Injectable } from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import type { PoolClient } from "pg";
 import { pool, withTransaction, type Queryable } from "../db.js";
 import { requireCaller, requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
-import { toBookmarkResponse, type BookmarkRow } from "./bookmarks.js";
+import { toBookmarkResponse, type BookmarkRow } from "../bookmarks/bookmarks.service.js";
 import {
   BadRequestProblem,
   ConflictProblem,
@@ -123,10 +124,7 @@ async function hideBookmark(client: PoolClient, actor: string, bookmarkId: strin
   const bookmark = result.rows[0] as BookmarkRow | undefined;
   if (!bookmark) throw new NotFoundProblem();
   if (bookmark.status === "hidden") return;
-  await client.query("update bookmarks set status = 'hidden', updated_at = $2 where id = $1", [
-    bookmarkId,
-    new Date(),
-  ]);
+  await client.query("update bookmarks set status = 'hidden', updated_at = $2 where id = $1", [bookmarkId, new Date()]);
   await recordAudit(client, actor, "bookmark.status-changed", "bookmark", bookmarkId, {
     from: "active",
     to: "hidden",
@@ -141,12 +139,18 @@ async function hideBookmark(client: PoolClient, actor: string, bookmarkId: strin
   });
 }
 
-export function registerModerationRoutes(app: FastifyInstance): void {
+@Injectable()
+export class ModerationService {
   /** SPEC rule 13: only public, non-hidden bookmarks can be reported; anything else is a 404 mask. */
-  app.post("/api/v1/bookmarks/:id/reports", async (request, reply) => {
+  async reportBookmark(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    bookmarkIdParam: string,
+    body: unknown,
+  ): Promise<FastifyReply> {
     const caller = requireCaller(request);
-    const bookmarkId = parseUuid((request.params as { id: string }).id);
-    const input = validateReportInput(request.body);
+    const bookmarkId = parseUuid(bookmarkIdParam);
+    const input = validateReportInput(body);
     // lock the bookmark and recheck visibility inside the transaction: a
     // concurrent hide (which takes the same lock) must not let an open report
     // land on a now-hidden bookmark
@@ -186,10 +190,10 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       reason: report.reason,
     });
     return reply.code(201).send(toReportResponse(report));
-  });
+  }
 
   /** SPEC rule 13: the reporter's own feedback loop — their reports, newest first. */
-  app.get("/api/v1/reports", async (request) => {
+  async listMyReports(request: FastifyRequest) {
     const caller = requireCaller(request);
     const query = request.query as Record<string, unknown>;
     const { page, size } = requireValidPaging(query);
@@ -209,20 +213,21 @@ export function registerModerationRoutes(app: FastifyInstance): void {
     );
     const total = await pool.query(`select count(*)::int as count from reports where ${where}`, params);
     return pageOf(items.rows as ReportRow[], page, size, (total.rows[0] as { count: number }).count);
-  });
+  }
 
   /** SPEC rule 13: the reporter may revise reason/comment while the report is open. */
-  app.put("/api/v1/reports/:id", async (request) => {
+  async updateMyReport(request: FastifyRequest, idParam: string, body: unknown) {
     const caller = requireCaller(request);
-    const id = parseUuid((request.params as { id: string }).id);
+    const id = parseUuid(idParam);
     return withTransaction(async (client) => {
       const report = await ownReport(client, caller.username, id);
-      const input = validateReportInput(request.body);
+      const input = validateReportInput(body);
       requireOpen(report);
-      const updated = await client.query(
-        "update reports set reason = $2, comment = $3 where id = $1 returning *",
-        [id, input.reason, input.comment],
-      );
+      const updated = await client.query("update reports set reason = $2, comment = $3 where id = $1 returning *", [
+        id,
+        input.reason,
+        input.comment,
+      ]);
       logEvent("info", "report_updated", "success", "Report updated by its reporter", {
         actor: caller.username,
         resource_type: "report",
@@ -232,12 +237,12 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       });
       return toReportResponse(updated.rows[0] as ReportRow);
     });
-  });
+  }
 
   /** SPEC rule 13: withdrawing removes the report and frees the one-open-report slot. */
-  app.delete("/api/v1/reports/:id", async (request, reply) => {
+  async withdrawReport(request: FastifyRequest, reply: FastifyReply, idParam: string): Promise<FastifyReply> {
     const caller = requireCaller(request);
-    const id = parseUuid((request.params as { id: string }).id);
+    const id = parseUuid(idParam);
     await withTransaction(async (client) => {
       const report = await ownReport(client, caller.username, id);
       requireOpen(report);
@@ -250,10 +255,10 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       });
     });
     return reply.code(204).send();
-  });
+  }
 
   /** The moderation queue: open reports by default, oldest first. */
-  app.get("/api/v1/admin/reports", async (request) => {
+  async listAdminReports(request: FastifyRequest) {
     requireRole(request, "moderator");
     const query = request.query as Record<string, unknown>;
     const { page, size } = requireValidPaging(query);
@@ -266,7 +271,7 @@ export function registerModerationRoutes(app: FastifyInstance): void {
     );
     const total = await pool.query("select count(*)::int as count from reports where status = $1", [status]);
     return pageOf(items.rows as ReportRow[], page, size, (total.rows[0] as { count: number }).count);
-  });
+  }
 
   /**
    * SPEC rule 14: `actioned` hides the bookmark and drags every sibling open
@@ -281,22 +286,19 @@ export function registerModerationRoutes(app: FastifyInstance): void {
    * in opposite orders and deadlock. Taking the bookmark lock up front
    * serializes `actioned` resolutions per bookmark.
    */
-  app.put("/api/v1/admin/reports/:id", async (request) => {
+  async resolveReport(request: FastifyRequest, idParam: string, body: unknown) {
     const caller = requireRole(request, "moderator");
-    const id = parseUuid((request.params as { id: string }).id);
+    const id = parseUuid(idParam);
 
-    const body = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<
-      string,
-      unknown
-    >;
+    const inputBody = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
     const validator = new Validator();
-    const resolution = body["resolution"];
+    const resolution = inputBody["resolution"];
     validator.check(
       typeof resolution === "string" && (REPORT_STATUSES as readonly string[]).includes(resolution),
       "resolution",
       "validation.resolution.invalid",
     );
-    const note = typeof body["note"] === "string" ? body["note"] : null;
+    const note = typeof inputBody["note"] === "string" ? inputBody["note"] : null;
     validator.check((note?.length ?? 0) <= 1000, "note", "validation.resolution.note.too-long");
     validator.throwIfInvalid();
     const target = resolution as ReportStatus;
@@ -367,25 +369,18 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       }
       return toReportResponse(resolved);
     });
-  });
+  }
 
   /** SPEC rule 15: hide/restore switches `status` only; `visibility` is never touched. */
-  app.put("/api/v1/admin/bookmarks/:id/status", async (request) => {
+  async setBookmarkStatus(request: FastifyRequest, idParam: string, body: unknown) {
     const caller = requireRole(request, "moderator");
-    const id = parseUuid((request.params as { id: string }).id);
+    const id = parseUuid(idParam);
 
-    const body = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<
-      string,
-      unknown
-    >;
+    const inputBody = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
     const validator = new Validator();
-    const status = body["status"];
-    validator.check(
-      status === "active" || status === "hidden",
-      "status",
-      "validation.bookmark-status.invalid",
-    );
-    const note = typeof body["note"] === "string" ? body["note"] : null;
+    const status = inputBody["status"];
+    validator.check(status === "active" || status === "hidden", "status", "validation.bookmark-status.invalid");
+    const note = typeof inputBody["note"] === "string" ? inputBody["note"] : null;
     validator.check((note?.length ?? 0) <= 1000, "note", "validation.bookmark-status.note.too-long");
     validator.throwIfInvalid();
 
@@ -411,7 +406,7 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       });
       return toBookmarkResponse(updated.rows[0] as BookmarkRow);
     });
-  });
+  }
 }
 
 function pageOf(rows: ReportRow[], page: number, size: number, totalItems: number) {

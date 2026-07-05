@@ -1,4 +1,5 @@
 import { pool } from "./db.js";
+import { firstParam } from "./problems.js";
 
 export const DEFAULT_LANGUAGE = "en";
 
@@ -36,16 +37,20 @@ const supportedLanguages = async (): Promise<Set<string>> => {
  * down the chain, never error. "Supported" means at least one message exists
  * in that language.
  */
-export async function resolveLanguage(
-  lang: string | undefined,
-  acceptLanguage: string | undefined,
-): Promise<string> {
+export async function resolveLanguage(lang: string | undefined, acceptLanguage: string | undefined): Promise<string> {
   const supported = await supportedLanguages();
   if (lang && supported.has(lang)) return lang;
   for (const code of parseAcceptLanguage(acceptLanguage)) {
     if (supported.has(code)) return code;
   }
   return DEFAULT_LANGUAGE;
+}
+
+export async function resolveRequestLanguage(
+  query: Record<string, unknown>,
+  acceptLanguage: string | undefined,
+): Promise<string> {
+  return resolveLanguage(firstParam(query["lang"]), acceptLanguage);
 }
 
 /**

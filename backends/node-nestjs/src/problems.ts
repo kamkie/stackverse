@@ -23,7 +23,7 @@ export function sendProblem(
 /**
  * Application errors that map 1:1 onto RFC 9457 problem documents.
  * Thrown from route handlers and services, translated to responses by the
- * error handler in `app.ts`.
+ * Nest problem filter / Fastify adapter bridge.
  */
 export class ApiProblem extends Error {
   constructor(

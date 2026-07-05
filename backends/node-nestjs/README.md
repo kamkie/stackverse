@@ -8,10 +8,10 @@ endpoints, and environment variables are documented once in
 this file covers only what is specific to this stack.
 
 Framework choice: NestJS for the opinionated application shell, module
-lifecycle, and adapter boundary that many TypeScript teams use in production.
-The Stackverse contract routes stay close to the SQL and are registered on the
-Fastify adapter, so the comparison is Nest's runtime shape without introducing
-an ORM or shared framework code.
+lifecycle, controller/provider model, guards, filters, and adapter boundary
+that many TypeScript teams use in production. The Stackverse contract routes
+are expressed as Nest feature modules with controllers and injectable services;
+Fastify remains only the HTTP adapter.
 
 ## Run it locally
 
@@ -22,7 +22,7 @@ Prerequisites: Node.js >= 22 with corepack (Yarn Berry resolves from
 cd backends/node-nestjs
 yarn install
 yarn build
-yarn start          # or: yarn dev (rebuild once, restart on dist changes)
+yarn start          # or: yarn dev / yarn start:dev (Nest watch mode)
 ```
 
 Defaults match the compose infra (PostgreSQL on 5432, Keycloak on 8180); the
@@ -34,7 +34,10 @@ message seed resolves to the repo's `spec/messages` automatically. Migrations
 Tests (plain unit tests, no containers):
 
 ```sh
-yarn test           # vitest; yarn typecheck for tsc --noEmit
+yarn lint
+yarn typecheck      # tsc --noEmit
+yarn test           # vitest
+yarn format:check
 ```
 
 Conformance (the acceptance gate), with the backend running:
@@ -52,17 +55,24 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 
 ## What this implementation demonstrates
 
-- **NestJS on Fastify** - `src/app.ts` creates a Nest application with the
-  Fastify adapter, while the contract route modules register on the adapter's
-  Fastify instance. Nest owns the application lifecycle; Fastify keeps the HTTP
-  surface and pino integration identical to the Node sibling for comparison.
-- **Fastify hooks as the security boundary** - one request hook does JWT
-  validation, lazy account provisioning, and the blocked-account 403
-  (`src/auth.ts`); route handlers ask for what they need with
-  `requireCaller`/`requireRole`. The admin > moderator hierarchy stays in
-  Keycloak.
+- **NestJS modules, controllers, and services** - `src/app.module.ts` imports
+  feature modules (`bookmarks`, `messages`, `moderation`, `admin-users`,
+  `audit-log`, `stats`, `meta`); controllers own the HTTP decorators and
+  injectable services own the contract logic.
+- **Nest guard + exception filter** - a global `BearerAuthGuard` validates JWTs,
+  lazily provisions accounts, and enforces blocked-account rejection
+  (`src/auth.ts`), while `ProblemFilter` is the single RFC 9457 renderer for
+  validation, authorization, and unexpected errors.
+- **Nest CLI build/dev flow** - `nest-cli.json` points at the `server.ts`
+  entrypoint; `yarn build` and `yarn dev` run through the Nest CLI.
+- **ESLint + Prettier scaffold scripts** - this variant has package-local
+  lint and format scripts, matching a conventional Nest TypeScript project.
+- **Fastify adapter boundary** - Fastify is still the Nest platform adapter so
+  the backend keeps pino integration and Fastify replies for explicit status,
+  header, and ETag handling, but routes are not registered directly on a
+  Fastify instance.
 - **SQL without an ORM** - hand-written parameterized queries per feature
-  module (`src/routes/*.ts`), with a tiny `withTransaction` helper for the
+  service (`src/*/*.service.ts`), with a tiny `withTransaction` helper for the
   moderation state machine. Lock ordering, keyset predicates, and partial
   unique indexes remain visible comparison material.
 - **PostgreSQL arrays for tags** - `tags text[]` with a GIN index; tag filters
@@ -73,9 +83,9 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 - **Body-hash ETags** - `sendWithEtag` (`src/etag.ts`) hashes the serialized
   response, a stateless revalidation scheme with deterministic message bundle
   and stats bodies.
-- **Yarn Berry PnP, ESM, tsc** - zero `node_modules`, matching the repo's
-  other Node projects; the Docker runtime stage runs plain `node` with the PnP
-  require hook + ESM loader, no Yarn in the image.
+- **Yarn Berry PnP, ESM, Nest CLI, and tsc** - zero `node_modules`, matching
+  the repo's other Node projects; the Docker runtime stage runs plain `node`
+  with the PnP require hook + ESM loader, no Yarn in the image.
 - **Observability** (docs/RUNNING.md) - the OpenTelemetry NodeSDK, wired in
   code (`src/otel.ts`: HTTP + pg instrumentation, OTLP/gRPC for
   traces/metrics/logs) and active only when `OTEL_SDK_DISABLED=false`. Console
@@ -84,9 +94,14 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 
 ## Deliberate deviations worth comparing
 
-- This backend deliberately avoids TypeORM/Prisma. Nest is used for the app
-  shell and HTTP adapter while persistence stays explicit, so the TypeScript
-  comparison can separate framework structure from ORM structure.
+- This backend deliberately avoids TypeORM/Prisma. Nest owns the module,
+  controller, provider, guard, and filter layers while persistence stays
+  explicit, so the TypeScript comparison can separate framework structure from
+  ORM structure.
+- Validation stays in a hand-rolled `Validator` rather than class-validator DTO
+  decorators. The Stackverse contract requires localized field errors with
+  runtime-managed message keys, and keeping that accumulator explicit makes the
+  cross-stack comparison easier to read.
 - Enum-like values are stored as their lowercase wire strings (`'public'`,
   `'open'`) - there is no enum layer to map through, so the database reads
   like the API.

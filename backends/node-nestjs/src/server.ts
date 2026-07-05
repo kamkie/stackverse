@@ -1,3 +1,4 @@
+import "reflect-metadata";
 // Telemetry first: instrumentation must register before http/pg are imported.
 import { shutdownTelemetry } from "./otel.js";
 import { config } from "./config.js";

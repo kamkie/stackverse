@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateBookmarkInput, validateQueryTags } from "./routes/bookmarks.js";
+import { validateBookmarkInput, validateQueryTags } from "./bookmarks/bookmarks.service.js";
 import { ValidationProblem } from "./problems.js";
 
 const violations = (body: unknown): { field: string; messageKey: string }[] => {
