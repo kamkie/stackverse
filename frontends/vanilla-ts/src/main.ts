@@ -379,11 +379,12 @@ function headerHtml(): string {
   </header>`;
 }
 
-function renderShell(mainHtml: string): void {
+function renderShell(mainHtml: string, options: { includeDialog?: boolean } = {}): void {
+  const dialogMarkup = options.includeDialog === false ? "" : dialogHtml();
   root.innerHTML = `<div class="sv-app">
     ${headerHtml()}
     <main class="sv-main">${mainHtml}</main>
-    ${dialogHtml()}
+    ${dialogMarkup}
     ${toastHtml()}
   </div>`;
 
@@ -410,7 +411,7 @@ async function renderApp(): Promise<void> {
     history.replaceState(null, "", "/feed");
   }
   const version = ++state.renderVersion;
-  renderShell(loadingHtml());
+  renderShell(loadingHtml(), { includeDialog: false });
   let html = "";
   try {
     html = await routeHtml(currentPath());

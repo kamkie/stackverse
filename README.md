@@ -94,8 +94,9 @@ in [testing/hurl-api/](testing/hurl-api) documents representative HTTP API
 flows as executable plain text, and the Postman showcase in
 [testing/postman-api/](testing/postman-api) provides a Newman/Postman CLI
 collection for representative API workflows.
-CI runs the gates plus every implementation's own build and tests on each push
-and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
+CI runs affected implementation builds and contract-suite legs on pull requests,
+then keeps the full sweep on `main`, scheduled, and manual runs (see
+[docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
 ## Implementation matrix
 
