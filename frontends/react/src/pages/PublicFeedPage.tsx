@@ -6,7 +6,7 @@ import { useBookmarks, type Bookmark } from "../bookmarks/queries";
 import { addReportedId, readReportedIds } from "../bookmarks/reportedStore";
 import { useSession } from "../auth/session";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
-import { useI18n } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/I18nContext";
 
 /** Anonymous view of public bookmarks, with a report action when authenticated. */
 export function PublicFeedPage() {

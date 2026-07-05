@@ -13,6 +13,7 @@ admins can translate them later through the Messages screen without a deploy.
 yarn install
 yarn dev              # dev server on :5173, API mocked in-browser (MSW)
 VITE_API_MOCK=false yarn dev   # proxy /api and /auth to a gateway on :8000
+yarn lint             # ESLint: TypeScript + React Hooks + React Refresh rules
 yarn test             # vitest + Testing Library against the same MSW handlers
 yarn build            # type-check + static production bundle in dist/
 yarn generate:api     # regenerate src/api/schema.ts from spec/openapi.yaml

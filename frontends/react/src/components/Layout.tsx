@@ -3,7 +3,7 @@ import { NavLink, Outlet, Link, useNavigate } from "react-router";
 import { LOGIN_URL, useLogout, useSession } from "../auth/session";
 import { isModerator, useMe } from "../auth/useMe";
 import { SUPPORTED_LANGUAGES } from "../i18n/languages";
-import { useI18n } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/I18nContext";
 
 const THEME_STORAGE_KEY = "stackverse.theme";
 const THEME_OPTIONS = ["auto", "light", "dark"] as const;

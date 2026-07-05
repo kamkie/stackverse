@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { ErrorState, Loading } from "../../components/states";
-import { useI18n } from "../../i18n/I18nProvider";
+import { useI18n } from "../../i18n/I18nContext";
 import { useAdminStats, type AdminStats } from "./queries";
 
 /** Grouped-bar SVG chart of the 30-day series, styled entirely by sv-chart classes. */

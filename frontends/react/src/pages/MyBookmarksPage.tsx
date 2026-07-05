@@ -11,9 +11,9 @@ import {
 import { useSession } from "../auth/session";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Loading, LoginPrompt } from "../components/states";
-import { useToast } from "../components/Toast";
+import { useToast } from "../components/ToastContext";
 import { useDebouncedValue } from "../lib/useDebouncedValue";
-import { useI18n } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/I18nContext";
 
 export function MyBookmarksPage() {
   const { t } = useI18n();

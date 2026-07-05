@@ -2,7 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ApiError, isUnauthorized } from "../api/problem";
 import { LOGIN_URL } from "../auth/session";
-import { useI18n } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/I18nContext";
 
 export function Loading() {
   return (

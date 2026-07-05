@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { UseInfiniteQueryResult, InfiniteData } from "@tanstack/react-query";
 import { ErrorState, Loading } from "../components/states";
-import { useI18n } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/I18nContext";
 import type { Bookmark, BookmarkCursorPage } from "./queries";
 
 interface BookmarkListProps {
