@@ -6,6 +6,8 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 **Status legend:** ✅ idiomatic · 🟡 deliberate deviation (documented in the variant's README) · 🔴 undocumented deviation · — not applicable.
 
+> Authoritative source: the per-variant issues (#163–#183, #197–#198) are the verified, adversarially-checked record behind each status tag; this table is a quick-reference synthesis of them. Where a cell and its issue disagree, trust the issue.
+>
 > Maintenance note: unlike most shared docs this file is O(N) in the number of implementations — a new variant adds one row to each table in its layer section. Keep cells terse; put the *why* in the variant README, not here.
 
 ## Backends
@@ -57,7 +59,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Grails](../backends/grails/README.md) | By-name Spring bean injection of services into controllers/services | Convention property injection for services; Spring @Configuration/@Bean for security | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Compile-time DI: constructor injection, @Singleton/@Controller, annotation processing | Constructor injection with @Singleton/@Controller/@Filter and annotation processors | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Fastify decorate/register plugin model; no container (or tsyringe/Nest if used) | Fastify decorate/hook/register + module-level singletons (pool, config, logger) | ✅ idiomatic |
-| [NestJS](../backends/node-nestjs/README.md) | Nest IoC container: @Injectable providers, @Controller, constructor injection | One empty @Module; module-level singletons, plain function imports, no DI | 🟡 deliberate |
+| [NestJS](../backends/node-nestjs/README.md) | Nest IoC container: @Injectable providers, @Controller, constructor injection | One empty @Module; module-level singletons, plain function imports, no DI | 🔴 undocumented |
 | [Open Liberty](../backends/open-liberty-java/README.md) | CDI beans with @Inject; beans.xml bean-discovery | beans.xml present but no @Inject; JAX-RS getClasses() + static RuntimeSupport | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | FastAPI Depends() for db sessions, current user, config | No Depends; auth via HTTP middleware + request.state, db via module-global pool | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice binds one eager-singleton StackverseBackend that manually news all collaborators | 🔴 undocumented |
@@ -93,7 +95,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Grails](../backends/grails/README.md) | respond with errors, or UrlMappings error controllers | Spring @ControllerAdvice + ApiError to RFC7807 problem+json; UrlMappings 404/500 | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @Produces ExceptionHandler beans mapping exceptions to responses | ExceptionHandler&lt;ProblemException&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | central setErrorHandler mapping typed errors to responses | setErrorHandler maps ApiProblem subclasses to RFC 9457 problem+json | ✅ idiomatic |
-| [NestJS](../backends/node-nestjs/README.md) | Throw HttpException subclasses; Nest exception filters render responses | Custom ApiProblem classes to RFC 9457 via Fastify setErrorHandler; token Nest filter | 🟡 deliberate |
+| [NestJS](../backends/node-nestjs/README.md) | Throw HttpException subclasses; Nest exception filters render responses | Custom ApiProblem → RFC 9457 via Fastify setErrorHandler; dead Nest @Catch filter | 🔴 undocumented |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JAX-RS ExceptionMapper translating exceptions to responses | ExceptionMapper&lt;Throwable&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | Raise HTTPException; FastAPI serializes the detail body | Custom AppProblem hierarchy + exception_handlers emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Custom ApiProblem hierarchy caught in controller api() wrapper, emits RFC 7807 problem+json | 🔴 undocumented |
@@ -106,7 +108,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Servlet blocking model, @Transactional, pessimistic locks where needed | Web MVC blocking, @Transactional(readOnly), @Lock PESSIMISTIC_WRITE row locks | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | suspend handlers; offload blocking work to Dispatchers.IO | suspend repos wrap blocking JDBC in withContext(Dispatchers.IO) | ✅ idiomatic |
-| [ASP.NET Core](../backends/dotnet/README.md) | async/await throughout, CancellationToken flowed to I/O | async/await throughout; explicit FOR UPDATE transaction for publish race; no CancellationToken params | ✅ idiomatic |
+| [ASP.NET Core](../backends/dotnet/README.md) | async/await end-to-end; DB races handled explicitly | async/await throughout; explicit FOR UPDATE transaction for the publish race | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | server goroutine, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Synchronous servlet request handling; Promise/async only when needed | Synchronous JdbcTemplate calls under @Transactional; nothing async | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Blocking controllers offloaded via @ExecuteOn(TaskExecutors.BLOCKING) | Synchronous blocking JDBC controllers, no @ExecuteOn offload from event loop | 🔴 undocumented |
@@ -142,7 +144,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | JUnit 5, @SpringBootTest/MockMvc, Testcontainers, spring-security-test | JUnit 5, @SpringBootTest + MockMvc + Testcontainers Postgres, injected JWTs | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | testApplication from ktor-server-test-host with kotlin.test/JUnit5 | testApplication + kotlin.test/JUnit5; helper/unit tests only, no DB integration | ✅ idiomatic |
-| [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests only (validation, cursor, middleware); Program exposed but no integration tests | 🔴 undocumented |
+| [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests only (validation, cursor, middleware); Program exposed but no integration tests | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for services and support helpers; unit-only, no integration tests | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @MicronautTest with injected HTTP client for integration tests | Plain JUnit 5 + AssertJ unit tests; controllers instantiated directly, no @MicronautTest | 🔴 undocumented |
@@ -163,7 +165,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .editorconfig only (whitespace); no dotnet format or analyzer gate in CI | 🔴 undocumented |
 | [Go (chi)](../backends/go/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | gofmt + go vet in CI; no golangci-lint config | 🔴 undocumented |
 | [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | No CodeNarc or any linter/formatter configured | 🔴 undocumented |
-| [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | None configured (no Spotless/Checkstyle/PMD/.editorconfig) | ✅ idiomatic |
+| [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | tsc --noEmit (strict) only; no ESLint/Prettier/Biome config anywhere | 🔴 undocumented |
 | [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | No linter/formatter config; only tsc strict typecheck | 🔴 undocumented |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Spotless/Checkstyle or google-java-format via Maven plugin | No formatter or linter plugin configured in pom.xml | 🔴 undocumented |
@@ -339,7 +341,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
-| [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | 🟡 deliberate |
+| [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom on lib/*.ts only; no component tests | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Vitest + jsdom with @vue/test-utils for mounting | Vitest + jsdom, manual createApp mount helper, no @vue/test-utils | 🔴 undocumented |
@@ -349,7 +351,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | No ESLint/Prettier/Biome; only tsc strict + root .editorconfig | 🔴 undocumented |
-| [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Prettier only; no ESLint/angular-eslint, no lint script | 🔴 undocumented |
+| [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check only as separate typecheck script | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | None configured; stale eslint-disable comment but no ESLint/Prettier | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |
