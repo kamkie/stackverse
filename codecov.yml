@@ -22,6 +22,10 @@ flags:
     paths:
       - backends/go/
     carryforward: true
+  backend-ktor-kotlin:
+    paths:
+      - backends/ktor-kotlin/
+    carryforward: true
   backend-micronaut-java:
     paths:
       - backends/micronaut-java/
@@ -91,6 +95,10 @@ component_management:
       name: "backend · go"
       paths:
         - backends/go/**
+    - component_id: backend-ktor-kotlin
+      name: "backend · ktor-kotlin"
+      paths:
+        - backends/ktor-kotlin/**
     - component_id: backend-micronaut-java
       name: "backend · micronaut-java"
       paths:
