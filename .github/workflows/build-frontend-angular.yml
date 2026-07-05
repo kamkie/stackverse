@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      # Yarn Berry: archives live in the global cache; node_modules is generated.
       - uses: actions/cache@v6
         with:
           path: ~/.yarn/berry/cache
