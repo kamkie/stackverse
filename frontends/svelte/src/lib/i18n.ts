@@ -85,7 +85,6 @@ export async function loadBundle(lang = readStoredLanguage()): Promise<void> {
       ...state,
       lang,
       ready: true,
-      messages: state.messages,
     }));
   }
 }

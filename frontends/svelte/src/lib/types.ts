@@ -4,6 +4,19 @@ export type ReportReason = "spam" | "offensive" | "broken-link" | "other";
 export type ReportStatus = "open" | "dismissed" | "actioned";
 export type UserAccountStatus = "active" | "blocked";
 
+export const REPORT_REASONS = [
+  "spam",
+  "offensive",
+  "broken-link",
+  "other",
+] as const satisfies readonly ReportReason[];
+
+export const REPORT_STATUSES = [
+  "open",
+  "dismissed",
+  "actioned",
+] as const satisfies readonly ReportStatus[];
+
 export interface BookmarkInput {
   url: string;
   title: string;

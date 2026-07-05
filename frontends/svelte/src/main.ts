@@ -3,6 +3,7 @@
 import "../../../spec/design/tokens.css";
 import "../../../spec/design/stackverse.css";
 
+import { mount } from "svelte";
 import App from "./App.svelte";
 
 async function bootstrap() {
@@ -17,7 +18,7 @@ async function bootstrap() {
 
   const target = document.getElementById("app");
   if (!target) throw new Error("#app not found");
-  new App({ target });
+  mount(App, { target });
 }
 
 void bootstrap();

@@ -4,16 +4,18 @@
   import { formatDate } from "../../lib/format";
   import { i18n, m } from "../../lib/i18n";
   import type { Page, Report, ReportStatus } from "../../lib/types";
+  import { REPORT_STATUSES } from "../../lib/types";
   import BookmarkContext from "../../components/BookmarkContext.svelte";
   import Pagination from "../../components/Pagination.svelte";
 
-  const statuses: ReportStatus[] = ["open", "dismissed", "actioned"];
+  const statuses = REPORT_STATUSES;
 
   let status: ReportStatus = "open";
   let page = 0;
   let reports: Page<Report> | null = null;
   let loading = true;
   let error: Error | null = null;
+  let resolvingId: string | null = null;
 
   async function load() {
     loading = true;
@@ -30,11 +32,19 @@
   }
 
   async function resolve(report: Report, resolution: ReportStatus) {
-    await api<Report>(`/api/v1/admin/reports/${report.id}`, {
-      method: "PUT",
-      ...jsonBody({ resolution }),
-    });
-    await load();
+    resolvingId = report.id;
+    error = null;
+    try {
+      await api<Report>(`/api/v1/admin/reports/${report.id}`, {
+        method: "PUT",
+        ...jsonBody({ resolution }),
+      });
+      await load();
+    } catch (caught) {
+      error = caught instanceof Error ? caught : new Error(String(caught));
+    } finally {
+      resolvingId = null;
+    }
   }
 
   onMount(() => {
@@ -87,10 +97,10 @@
             <td>{report.comment}</td>
             <td class="sv-cell-actions">
               {#if report.status === "open"}
-                <button type="button" class="sv-button sv-button--sm" on:click={() => resolve(report, "dismissed")}>
+                <button type="button" class="sv-button sv-button--sm" disabled={resolvingId === report.id} on:click={() => resolve(report, "dismissed")}>
                   {m($i18n, "ui.action.dismiss")}
                 </button>
-                <button type="button" class="sv-button sv-button--danger sv-button--sm" on:click={() => resolve(report, "actioned")}>
+                <button type="button" class="sv-button sv-button--danger sv-button--sm" disabled={resolvingId === report.id} on:click={() => resolve(report, "actioned")}>
                   {m($i18n, "ui.action.action")}
                 </button>
               {:else}
@@ -98,15 +108,15 @@
                   {m($i18n, `ui.report.status.${report.status}`)}
                 </span>
                 {#if report.status === "actioned"}
-                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" on:click={() => resolve(report, "dismissed")}>
+                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" disabled={resolvingId === report.id} on:click={() => resolve(report, "dismissed")}>
                     {m($i18n, "ui.action.dismiss")}
                   </button>
                 {:else}
-                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" on:click={() => resolve(report, "actioned")}>
+                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" disabled={resolvingId === report.id} on:click={() => resolve(report, "actioned")}>
                     {m($i18n, "ui.action.action")}
                   </button>
                 {/if}
-                <button type="button" class="sv-button sv-button--ghost sv-button--sm" on:click={() => resolve(report, "open")}>
+                <button type="button" class="sv-button sv-button--ghost sv-button--sm" disabled={resolvingId === report.id} on:click={() => resolve(report, "open")}>
                   {m($i18n, "ui.action.reopen")}
                 </button>
               {/if}

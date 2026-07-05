@@ -5,6 +5,7 @@
   import { i18n, m } from "../lib/i18n";
   import { removeReported } from "../lib/reportedStore";
   import type { Page, Report, ReportInput, ReportReason, ReportStatus } from "../lib/types";
+  import { REPORT_REASONS, REPORT_STATUSES } from "../lib/types";
   import BookmarkContext from "../components/BookmarkContext.svelte";
   import ConfirmDialog from "../components/ConfirmDialog.svelte";
   import Dialog from "../components/Dialog.svelte";
@@ -13,8 +14,8 @@
 
   export let toast: (message: string, tone?: "success" | "danger") => void;
 
-  const statuses: ReportStatus[] = ["open", "dismissed", "actioned"];
-  const reasons: ReportReason[] = ["spam", "offensive", "broken-link", "other"];
+  const statuses = REPORT_STATUSES;
+  const reasons = REPORT_REASONS;
 
   let status: ReportStatus | "" = "";
   let page = 0;
@@ -23,7 +24,7 @@
   let error: Error | null = null;
   let editing: Report | null = null;
   let withdrawing: Report | null = null;
-  let editReason: ReportReason = "spam";
+  let editReason: ReportReason = reasons[0];
   let editComment = "";
   let editError: unknown = undefined;
   let editPending = false;
@@ -73,11 +74,15 @@
   }
 
   async function withdraw(report: Report) {
-    await api<void>(`/api/v1/reports/${report.id}`, { method: "DELETE" });
-    removeReported(report.bookmarkId);
-    withdrawing = null;
-    toast(m($i18n, "ui.toast.report-withdrawn"));
-    await load();
+    try {
+      await api<void>(`/api/v1/reports/${report.id}`, { method: "DELETE" });
+      removeReported(report.bookmarkId);
+      withdrawing = null;
+      toast(m($i18n, "ui.toast.report-withdrawn"));
+      await load();
+    } catch (caught) {
+      toast(caught instanceof Error ? caught.message : String(caught), "danger");
+    }
   }
 
   onMount(() => {

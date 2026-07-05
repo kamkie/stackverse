@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, queryString } from "../lib/api";
+  import { loadBookmarkCursor } from "../lib/bookmarkCursor";
   import { i18n, m } from "../lib/i18n";
   import { isReported } from "../lib/reportedStore";
   import { session } from "../lib/session";
-  import type { Bookmark, BookmarkCursorPage } from "../lib/types";
+  import type { Bookmark } from "../lib/types";
   import BookmarkCard from "../components/BookmarkCard.svelte";
   import ReportDialog from "../components/ReportDialog.svelte";
 
@@ -21,17 +21,17 @@
     loading = true;
     error = null;
     try {
-      const cursor = reset ? undefined : nextCursor;
-      const page = await api<BookmarkCursorPage>(
-        `/api/v2/bookmarks${queryString({
+      const loaded = await loadBookmarkCursor({
+        reset,
+        current: bookmarks,
+        nextCursor,
+        params: {
           visibility: "public",
-          size: 20,
-          cursor,
           q,
-        })}`,
-      );
-      bookmarks = reset ? page.items : [...bookmarks, ...page.items];
-      nextCursor = page.nextCursor;
+        },
+      });
+      bookmarks = loaded.bookmarks;
+      nextCursor = loaded.nextCursor;
     } catch (caught) {
       error = caught instanceof Error ? caught : new Error(String(caught));
     } finally {

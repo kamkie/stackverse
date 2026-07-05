@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { api, queryString } from "../lib/api";
+  import { api } from "../lib/api";
+  import { loadBookmarkCursor } from "../lib/bookmarkCursor";
   import { i18n, m } from "../lib/i18n";
-  import type { Bookmark, BookmarkCursorPage } from "../lib/types";
+  import type { Bookmark } from "../lib/types";
   import BookmarkCard from "../components/BookmarkCard.svelte";
   import BookmarkFormDialog from "../components/BookmarkFormDialog.svelte";
   import ConfirmDialog from "../components/ConfirmDialog.svelte";
@@ -24,17 +25,17 @@
     loading = true;
     error = null;
     try {
-      const cursor = reset ? undefined : nextCursor;
-      const page = await api<BookmarkCursorPage>(
-        `/api/v2/bookmarks${queryString({
-          size: 20,
-          cursor,
+      const loaded = await loadBookmarkCursor({
+        reset,
+        current: bookmarks,
+        nextCursor,
+        params: {
           q,
           tag: selectedTag ? [selectedTag] : [],
-        })}`,
-      );
-      bookmarks = reset ? page.items : [...bookmarks, ...page.items];
-      nextCursor = page.nextCursor;
+        },
+      });
+      bookmarks = loaded.bookmarks;
+      nextCursor = loaded.nextCursor;
     } catch (caught) {
       error = caught instanceof Error ? caught : new Error(String(caught));
     } finally {
@@ -43,11 +44,15 @@
   }
 
   async function remove(bookmark: Bookmark) {
-    await api<void>(`/api/v1/bookmarks/${bookmark.id}`, { method: "DELETE" });
-    toast(m($i18n, "ui.toast.bookmark-deleted"));
-    deleting = null;
-    await load();
-    await tagSidebar?.reload();
+    try {
+      await api<void>(`/api/v1/bookmarks/${bookmark.id}`, { method: "DELETE" });
+      toast(m($i18n, "ui.toast.bookmark-deleted"));
+      deleting = null;
+      await load();
+      await tagSidebar?.reload();
+    } catch (caught) {
+      toast(caught instanceof Error ? caught.message : String(caught), "danger");
+    }
   }
 
   function selectTag(tag: string) {

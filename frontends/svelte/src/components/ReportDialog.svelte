@@ -3,6 +3,7 @@
   import { i18n, m } from "../lib/i18n";
   import { markReported } from "../lib/reportedStore";
   import type { Bookmark, Report, ReportInput, ReportReason } from "../lib/types";
+  import { REPORT_REASONS } from "../lib/types";
   import Dialog from "./Dialog.svelte";
   import Field from "./Field.svelte";
 
@@ -11,8 +12,8 @@
   export let onDone: () => void | Promise<void>;
   export let onClose: () => void;
 
-  const reasons: ReportReason[] = ["spam", "offensive", "broken-link", "other"];
-  let reason: ReportReason = "spam";
+  const reasons = REPORT_REASONS;
+  let reason: ReportReason = reasons[0];
   let comment = "";
   let error: unknown = undefined;
   let pending = false;

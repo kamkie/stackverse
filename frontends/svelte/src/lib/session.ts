@@ -15,12 +15,12 @@ export async function refreshSession(): Promise<Session> {
   } catch {
     next = { authenticated: false };
   }
-  session.set(next);
   if (next.authenticated) {
     await refreshMe();
   } else {
     me.set(null);
   }
+  session.set(next);
   return next;
 }
 
