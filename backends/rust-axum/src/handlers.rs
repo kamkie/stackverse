@@ -300,10 +300,7 @@ fn validate_bookmark(body: BookmarkRequest) -> Result<ValidBookmark, Vec<FieldVi
 
     let visibility = body.visibility.unwrap_or_else(|| "private".to_string());
     if visibility != "private" && visibility != "public" {
-        return Err(vec![FieldViolation {
-            field: "visibility",
-            message_key: "validation.visibility.invalid",
-        }]);
+        validator.reject("visibility", "validation.visibility.invalid");
     }
 
     if validator.is_empty() {
@@ -1848,8 +1845,8 @@ async fn resolve_report(
     };
     let resolved = if resolution == "open" {
         match reopen_report(&mut tx, &actor, locked).await {
-            Ok(report) => report,
-            Err(err) if db::pg_unique_violation(&err) => {
+            Ok(Some(report)) => report,
+            Ok(None) => {
                 return error::conflict(
                     &state,
                     &headers,
@@ -1918,7 +1915,7 @@ async fn reopen_report(
     tx: &mut Transaction<'_, Postgres>,
     actor: &str,
     mut report: ReportRow,
-) -> Result<ReportRow, sqlx::Error> {
+) -> Result<Option<ReportRow>, sqlx::Error> {
     let duplicate = sqlx::query_scalar::<_, bool>(
         "select exists (select 1 from reports where bookmark_id = $1 and reporter = $2 and status = 'open' and id <> $3)",
     )
@@ -1928,11 +1925,7 @@ async fn reopen_report(
     .fetch_one(&mut **tx)
     .await?;
     if duplicate {
-        let err = sqlx::query("select 1/0")
-            .execute(&mut **tx)
-            .await
-            .unwrap_err();
-        return Err(err);
+        return Ok(None);
     }
     report.status = "open".to_string();
     report.resolved_by = None;
@@ -1962,7 +1955,7 @@ async fn reopen_report(
         bookmark_id = %report.bookmark_id,
         "Report re-opened"
     );
-    Ok(report)
+    Ok(Some(report))
 }
 
 async fn resolve_one_report(
