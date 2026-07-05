@@ -1,0 +1,74 @@
+name: Cypress E2E Showcase
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cypress-e2e:
+    name: Cypress E2E - spring-kotlin + yarp + react
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      GATEWAY_IMAGE: stackverse/gateway-yarp:local
+      FRONTEND_IMAGE: stackverse/frontend-react:local
+      STACKVERSE_URL: http://localhost:8000
+      KEYCLOAK_ORIGIN: http://localhost:8180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images
+        run: ./scripts/build-images.sh spring-kotlin yarp react
+      - name: Start the full stack
+        run: docker compose --profile app up -d
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.yarn/berry/cache
+            ~/.cache/Cypress
+          key: yarn-${{ runner.os }}-cypress-e2e-${{ hashFiles('testing/cypress-e2e/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-cypress-e2e-
+      - name: Install dependencies
+        working-directory: testing/cypress-e2e
+        run: yarn install --immutable
+      - name: Install Cypress binary
+        working-directory: testing/cypress-e2e
+        run: yarn cypress install
+      - name: Verify Cypress binary
+        working-directory: testing/cypress-e2e
+        run: yarn cypress verify
+      - name: Wait for the stack to be ready
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 \
+               && curl -fsS http://localhost:8000/ >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "stack never became ready" >&2
+          exit 1
+      - name: Run Cypress suite
+        working-directory: testing/cypress-e2e
+        run: yarn test
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload Cypress artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: cypress-e2e-artifacts
+          path: |
+            testing/cypress-e2e/cypress/screenshots/
+            testing/cypress-e2e/cypress/videos/
+          if-no-files-found: ignore
+          retention-days: 7

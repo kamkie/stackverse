@@ -243,6 +243,23 @@ moderation, and admin-message workflows. Its CI workflow,
 [`test-selenium-e2e.yml`](../.github/workflows/test-selenium-e2e.yml), is
 manual-only (`workflow_dispatch`) so the suite stays optional and non-blocking.
 
+The Cypress showcase lives in [testing/cypress-e2e](../testing/cypress-e2e)
+and runs through the gateway at `STACKVERSE_URL` (default
+`http://localhost:8000`), including the real Keycloak redirect/login flow:
+
+```sh
+cd testing/cypress-e2e
+yarn install --immutable
+yarn test
+```
+
+Set `KEYCLOAK_ORIGIN` when the gateway redirects to a Keycloak origin other
+than http://localhost:8180; Cypress needs that origin for its `cy.origin()`
+login block. CI execution is manual through
+[test-cypress-e2e.yml](../.github/workflows/test-cypress-e2e.yml), which builds
+the reference stack, runs the suite, and uploads Cypress artifacts on failure.
+It is not part of the merge gate.
+
 ## Continuous integration
 
 CI runs on every push to `main` and every pull request, split so that shared
