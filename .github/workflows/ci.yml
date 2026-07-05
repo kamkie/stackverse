@@ -182,10 +182,6 @@ jobs:
                   all_frontend_contract=1
                   all_contract_build_workflows=1
                   ;;
-                docs/SPEC.md|docs/ARCHITECTURE.md|docs/LOGGING.md)
-                  all_backend_contract=1
-                  all_frontend_contract=1
-                  ;;
                 conformance/*|conformance/**)
                   all_backend_contract=1
                   ;;
