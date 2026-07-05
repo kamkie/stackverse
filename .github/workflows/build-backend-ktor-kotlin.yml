@@ -76,4 +76,4 @@ jobs:
           dependency-graph: generate-and-submit
           dependency-graph-continue-on-failure: false
       - name: Submit Gradle dependency graph
-        run: ./gradlew build
+        run: ./gradlew dependencies
