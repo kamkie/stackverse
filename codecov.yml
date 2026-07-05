@@ -58,6 +58,10 @@ flags:
     paths:
       - frontends/svelte/
     carryforward: true
+  frontend-vanilla-ts:
+    paths:
+      - frontends/vanilla-ts/
+    carryforward: true
   frontend-vue:
     paths:
       - frontends/vue/
@@ -135,6 +139,10 @@ component_management:
       name: "frontend · svelte"
       paths:
         - frontends/svelte/**
+    - component_id: frontend-vanilla-ts
+      name: "frontend · vanilla-ts"
+      paths:
+        - frontends/vanilla-ts/**
     - component_id: frontend-vue
       name: "frontend · vue"
       paths:

@@ -62,6 +62,7 @@ updates:
       - /frontends/angular
       - /frontends/react
       - /frontends/svelte
+      - /frontends/vanilla-ts
       - /frontends/vue
       - /gateways/node-fastify
       - /testing/axe-a11y
@@ -112,6 +113,7 @@ updates:
       - /frontends/angular
       - /frontends/react
       - /frontends/svelte
+      - /frontends/vanilla-ts
       - /frontends/vue
       - /gateways/go
       - /gateways/node-fastify
