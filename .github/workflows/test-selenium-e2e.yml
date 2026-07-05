@@ -1,0 +1,73 @@
+# Optional Selenium showcase. This workflow is manual-only so it does not
+# become part of the ci-ok merge gate while the suite remains non-canonical.
+name: test-selenium-e2e
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  selenium-e2e:
+    name: Selenium E2E showcase
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      GATEWAY_IMAGE: stackverse/gateway-yarp:local
+      FRONTEND_IMAGE: stackverse/frontend-react:local
+      STACKVERSE_URL: http://localhost:8000
+      CI: "true"
+    defaults:
+      run:
+        working-directory: testing/selenium-e2e
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: browser-actions/setup-chrome@v2
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-selenium-e2e-${{ hashFiles('testing/selenium-e2e/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-selenium-e2e-
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Typecheck suite
+        run: yarn typecheck
+      - name: Build reference images
+        working-directory: ${{ github.workspace }}
+        run: ./scripts/build-images.sh spring-kotlin yarp react
+      - name: Start the full stack
+        working-directory: ${{ github.workspace }}
+        run: docker compose --profile app up -d
+      - name: Wait for the stack to be ready
+        working-directory: ${{ github.workspace }}
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 \
+               && curl -fsS http://localhost:8000/ >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "stack never became ready" >&2
+          exit 1
+      - name: Run Selenium suite
+        run: yarn test
+      - name: Dump compose logs
+        if: failure()
+        working-directory: ${{ github.workspace }}
+        run: docker compose logs
+      - name: Upload Selenium artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: selenium-e2e-artifacts
+          path: testing/selenium-e2e/artifacts/
+          retention-days: 7

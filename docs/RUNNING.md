@@ -227,6 +227,22 @@ gating because `ci-ok` waits for every GitHub Actions check run on the commit.
 Keep immature showcase suites manual, scheduled, or failure-tolerant until the
 repo deliberately promotes them to a required gate.
 
+The Selenium showcase lives in [testing/selenium-e2e](../testing/selenium-e2e).
+With a stack running at `STACKVERSE_URL` (default `http://localhost:8000`), run
+it from that directory:
+
+```sh
+corepack enable
+yarn install --immutable
+yarn test
+```
+
+It drives Chrome through the real gateway and Keycloak login flow, covering
+representative login/session, public feed, bookmark CRUD, reporting,
+moderation, and admin-message workflows. Its CI workflow,
+[`test-selenium-e2e.yml`](../.github/workflows/test-selenium-e2e.yml), is
+manual-only (`workflow_dispatch`) so the suite stays optional and non-blocking.
+
 ## Continuous integration
 
 CI runs on every push to `main` and every pull request, split so that shared
