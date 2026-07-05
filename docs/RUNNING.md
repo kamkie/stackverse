@@ -513,8 +513,10 @@ CI runs on every push to `main`, every pull request, a weekly schedule, and
 manual dispatch. Shared workflow files stay O(1) in the number of
 implementations: a new variant adds its own workflow file and is otherwise
 picked up automatically. Pull requests run the affected subset, while pushes
-to `main`, scheduled runs, and manual runs keep the full sweep. Four job
-categories:
+to `main`, scheduled runs, and manual runs keep the full sweep.
+Documentation-only pull requests do not select implementation variants for
+builds, conformance, or e2e; `ci-ok` still runs and records that no variant
+workflow is expected. Four job categories:
 
 - **Per-implementation builds** — each implementation has its own workflow
   file, `.github/workflows/build-<layer>-<name>.yml`, running that stack's
@@ -528,8 +530,7 @@ categories:
   requests to affected backend implementations, and runs one matrix leg per
   selected backend. Each leg builds that backend's image, starts the compose
   infra plus the backend, and runs the `conformance/` suite against it
-  directly. Contract/shared changes such as `spec/openapi.yaml`,
-  `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/LOGGING.md`,
+  directly. Contract/runtime changes such as `spec/openapi.yaml`,
   `conformance/`, `compose.yaml`, `.dockerignore`, or the Keycloak realm run
   conformance against every backend.
 - **E2E** ([`ci.yml`](../.github/workflows/ci.yml)) — the same discovery over
@@ -539,12 +540,12 @@ categories:
   spring-kotlin + yarp), building the images with `scripts/build-images.sh`
   and driving the `e2e/` Playwright suite through the gateway. Frontends have
   no conformance suite of their own, so e2e is their acceptance gate.
-  Contract/shared changes such as `spec/openapi.yaml`, `docs/SPEC.md`,
-  `docs/ARCHITECTURE.md`, `docs/LOGGING.md`, `e2e/`, `compose.yaml`,
-  `.dockerignore`, `scripts/build-images.*`, or the Keycloak realm run e2e
-  against every frontend. Changes to the e2e reference backend
-  (`backends/spring-kotlin`) or gateway (`gateways/yarp`) also run e2e against
-  every frontend because those implementations anchor the composed-stack suite.
+  Contract/runtime changes such as `spec/openapi.yaml`, `e2e/`,
+  `compose.yaml`, `.dockerignore`, `scripts/build-images.*`, or the
+  Keycloak realm run e2e against every frontend. Changes to the e2e reference
+  backend (`backends/spring-kotlin`) or gateway (`gateways/yarp`) also run e2e
+  against every frontend because those implementations anchor the
+  composed-stack suite.
 - **`ci-ok`** ([`ci.yml`](../.github/workflows/ci.yml)) — the single merge
   gate: it fails if any selected contract-suite job failed or was cancelled,
   if any observed GitHub Actions check failed, if an implementation directory
