@@ -49,7 +49,7 @@ npm test
 `npm test` runs:
 
 ```sh
-bru run --env-file environments/local.yml --bail
+bru run --env-file environments/local.yml --bail --reporter-skip-all-headers --reporter-skip-body
 ```
 
 The checked-in `environments/local.yml` defaults to

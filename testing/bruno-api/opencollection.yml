@@ -15,9 +15,6 @@ extensions:
   ignore:
     - .env
     - .bruno
-    - .pnp.*
-    - .yarn
-    - .yarnrc.yml
     - node_modules
     - reports
     - .git
@@ -25,9 +22,6 @@ extensions:
     ignore:
       - .env
       - .bruno
-      - .pnp.*
-      - .yarn
-      - .yarnrc.yml
       - node_modules
       - reports
       - .git

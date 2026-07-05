@@ -1,6 +1,4 @@
 .env
 .bruno/
-.pnp.*
-.yarn/
 reports/
 node_modules/
