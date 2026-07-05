@@ -52,7 +52,9 @@ jobs:
         if: matrix.language == 'go'
         with:
           go-version-file: backends/go/go.mod
-          cache-dependency-path: backends/go/go.sum
+          cache-dependency-path: |
+            backends/go/go.sum
+            gateways/go/go.sum
 
       - uses: github/codeql-action/init@v4
         with:
@@ -72,6 +74,11 @@ jobs:
       - name: Build the Go backend
         if: matrix.language == 'go'
         working-directory: backends/go
+        run: go build ./...
+
+      - name: Build the Go gateway
+        if: matrix.language == 'go'
+        working-directory: gateways/go
         run: go build ./...
 
       - uses: github/codeql-action/analyze@v4

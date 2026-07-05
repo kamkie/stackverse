@@ -1,0 +1,54 @@
+# Build and unit/integration tests for one implementation. Each implementation
+# has its own build workflow file so parallel variant PRs never edit a shared
+# workflow — adding a variant means adding a sibling file, nothing else.
+name: build-gateway-go
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gateway-go:
+    name: Gateway · Go (stdlib + chi)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: gateways/go
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: gateways/go/go.mod
+          cache-dependency-path: gateways/go/go.sum
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: |
+          mkdir -p TestResults
+          go run gotest.tools/gotestsum@v1.13.0 --junitfile TestResults/junit.xml \
+            -- -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: gateways/go/coverage.out
+          flags: gateway-go
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: gateways/go/TestResults/junit.xml
+          flags: gateway-go
+          token: ${{ secrets.CODECOV_TOKEN }}
