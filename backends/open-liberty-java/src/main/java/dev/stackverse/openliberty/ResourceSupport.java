@@ -438,7 +438,7 @@ abstract class ResourceSupport {
   }
 
   protected static String escapeLike(String value) {
-    return value.replace("\\", "\\\\").replace("%", "\\%");
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
   }
 
   protected static Map<String, Object> page(List<?> items, Paging paging, long total) {
@@ -498,7 +498,7 @@ abstract class ResourceSupport {
     Map<String, Integer> result = new LinkedHashMap<>();
     try (Connection connection = RuntimeSupport.connection();
          PreparedStatement statement = connection.prepareStatement(
-             "select to_char(" + column + ", 'YYYY-MM-DD') as date, count(*)::int as count "
+             "select to_char(" + column + " at time zone 'UTC', 'YYYY-MM-DD') as date, count(*)::int as count "
                  + "from " + table + " where " + column + " >= ? group by date")) {
       RuntimeSupport.bind(statement, 1, from, connection);
       try (ResultSet rs = statement.executeQuery()) {
