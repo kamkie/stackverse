@@ -321,6 +321,28 @@ under `testing/robot-acceptance/results/`. CI execution is manual through
 which builds the reference stack, runs the suite, and uploads Robot artifacts.
 It is not part of the merge gate.
 
+The axe-core accessibility showcase lives in
+[testing/axe-a11y](../testing/axe-a11y) and runs through the gateway at
+`STACKVERSE_URL` (default `http://localhost:8000`). It uses Playwright plus
+`@axe-core/playwright` to scan representative public, authenticated,
+moderator, and admin screen states:
+
+```sh
+cd testing/axe-a11y
+corepack enable
+yarn install --immutable
+yarn playwright install chromium
+yarn test
+```
+
+Failures print the affected page/state, axe rule id, impact, help URL, and
+selectors, and attach JSON details to the Playwright result. The suite is
+limited to automatically detectable WCAG A/AA checks and does not replace
+manual accessibility review. CI execution is manual through
+[test-axe-a11y.yml](../.github/workflows/test-axe-a11y.yml), which builds the
+reference stack, runs the suite, and uploads Playwright artifacts on failure.
+It is not part of the merge gate.
+
 ## Continuous integration
 
 CI runs on every push to `main` and every pull request, split so that shared

@@ -83,7 +83,9 @@ Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
 generates bounded OpenAPI property tests against a running backend, and the
 Robot Framework showcase in
 [testing/robot-acceptance/](testing/robot-acceptance) demonstrates
-keyword-driven UI acceptance tests against a running stack.
+keyword-driven UI acceptance tests against a running stack. The
+axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
+accessibility checks against representative browser states.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -99,6 +101,7 @@ and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration))
 | Gateway | Spring Cloud Gateway (Kotlin) | `gateways/spring-cloud-gateway` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-spring-cloud-gateway)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Go (stdlib + chi) | `gateways/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Node.js Fastify | `gateways/node-fastify` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-node-fastify)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Gateway | OpenResty (nginx + Lua) | `gateways/openresty` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-openresty)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Angular | `frontends/angular` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-angular)](https://app.codecov.io/gh/kamkie/stackverse/flags) |

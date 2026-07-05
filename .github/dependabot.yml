@@ -60,6 +60,7 @@ updates:
       - /frontends/angular
       - /frontends/react
       - /gateways/node-fastify
+      - /testing/axe-a11y
       - /testing/cypress-e2e
     schedule:
       interval: weekly
@@ -99,6 +100,7 @@ updates:
       - /frontends/react
       - /gateways/go
       - /gateways/node-fastify
+      - /gateways/openresty
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
     schedule:
