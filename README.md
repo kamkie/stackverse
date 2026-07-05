@@ -80,9 +80,13 @@ suites are the canonical acceptance gates. Additional testing-tool examples live
 under [testing/](testing/README.md) as showcase variants: they compare tools and
 representative workflows without replacing or expanding the canonical gates. The
 Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
-generates bounded OpenAPI property tests against a running backend, and the
+generates bounded OpenAPI property tests against a running backend, the
 Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
-API-client collection for direct-backend exploration.
+API-client collection for direct-backend exploration, the
+axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
+accessibility checks against representative browser states, and the OWASP ZAP
+showcase in [testing/zap-security/](testing/zap-security) runs a passive
+baseline security smoke scan against a running gateway.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -93,14 +97,19 @@ and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration))
 | Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-spring-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-dotnet)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Go (stdlib + chi) | `backends/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Micronaut (Java) | `backends/micronaut-java` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-micronaut-java)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (TypeScript) | `backends/node-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (NestJS) | `backends/node-nestjs` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-nestjs)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Python FastAPI | `backends/python-fastapi` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-python-fastapi)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Spring Cloud Gateway (Kotlin) | `gateways/spring-cloud-gateway` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-spring-cloud-gateway)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Go (stdlib + chi) | `gateways/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Node.js Fastify | `gateways/node-fastify` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-node-fastify)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Gateway | OpenResty (nginx + Lua) | `gateways/openresty` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-openresty)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Angular | `frontends/angular` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-angular)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | Svelte | `frontends/svelte` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-svelte)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | Vue | `frontends/vue` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vue)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 
 ## Quickstart
 
@@ -135,8 +144,13 @@ checks that backend against the API contract directly. For optional OpenAPI
 property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
 `./scripts/schemathesis-api.ps1`). For a curated API-client walkthrough of the
-same direct-backend surface, run the Bruno showcase from
-`testing/bruno-api`.
+same direct-backend surface, run the Bruno showcase from `testing/bruno-api`.
+For an optional passive security smoke scan against a running gateway, use
+`./scripts/zap-security.sh` (PowerShell:
+`./scripts/zap-security.ps1`). For optional trace-based observability
+assertions against a composed stack with OpenTelemetry enabled, use
+`./scripts/tracetest-otel.sh` (PowerShell:
+`./scripts/tracetest-otel.ps1`).
 
 To populate a small repeatable local dataset for demos, run the seed against
 the running backend API:

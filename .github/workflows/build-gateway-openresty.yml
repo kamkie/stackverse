@@ -1,0 +1,33 @@
+# Build and smoke tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else.
+name: build-gateway-openresty
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gateway-openresty:
+    name: Gateway · OpenResty
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: gateways/openresty
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        run: docker build -t stackverse/gateway-openresty:local .
+      - name: Validate OpenResty config
+        run: docker run --rm stackverse/gateway-openresty:local openresty -t -c /usr/local/openresty/nginx/conf/nginx.conf
+      - name: Run Lua smoke tests
+        run: docker run --rm stackverse/gateway-openresty:local resty -I /opt/stackverse/lua /opt/stackverse/test/smoke.lua

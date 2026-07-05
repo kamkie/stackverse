@@ -1,0 +1,17 @@
+{
+  "name": "@stackverse/testing-axe-a11y",
+  "private": true,
+  "type": "module",
+  "packageManager": "yarn@4.17.0+sha512.c2957de2f9025ab14d63b24d0d8be1f1655810e22c341042c27f7ecd017b180ec12db73d69ac366d71b304ef9f069349ce462de96f04f8f1da317f4f762c95ae",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^26.1.0",
+    "playwright-core": "^1.61.1",
+    "typescript": "^6.0.3"
+  }
+}

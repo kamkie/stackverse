@@ -1,0 +1,56 @@
+# Optional Tracetest showcase. Manual-only so it does not become part of the
+# ci-ok merge gate while trace assertions remain non-canonical.
+name: Tracetest OpenTelemetry Showcase
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend implementation directory name
+        required: true
+        default: spring-kotlin
+        type: string
+      gateway:
+        description: Gateway implementation directory name
+        required: true
+        default: yarp
+        type: string
+      frontend:
+        description: Frontend implementation directory name
+        required: true
+        default: react
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.backend }}-${{ inputs.gateway }}-${{ inputs.frontend }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tracetest-otel:
+    name: Tracetest OTEL - ${{ inputs.backend }} + ${{ inputs.gateway }} + ${{ inputs.frontend }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BACKEND_IMAGE: stackverse/backend-${{ inputs.backend }}:local
+      GATEWAY_IMAGE: stackverse/gateway-${{ inputs.gateway }}:local
+      FRONTEND_IMAGE: stackverse/frontend-${{ inputs.frontend }}:local
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images
+        run: ./scripts/build-images.sh "${{ inputs.backend }}" "${{ inputs.gateway }}" "${{ inputs.frontend }}"
+      - name: Run trace-based observability suite
+        run: ./scripts/tracetest-otel.sh "${{ inputs.backend }}" "${{ inputs.gateway }}" "${{ inputs.frontend }}"
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose -p stackverse-tracetest -f compose.yaml -f testing/tracetest-otel/compose.yaml logs
+      - name: Upload Tracetest report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tracetest-otel-report-${{ inputs.backend }}-${{ inputs.gateway }}-${{ inputs.frontend }}
+          path: testing/tracetest-otel/reports/
+          if-no-files-found: ignore
+          retention-days: 7

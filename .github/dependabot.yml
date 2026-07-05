@@ -29,6 +29,7 @@ updates:
 
   - package-ecosystem: gradle
     directories:
+      - /backends/micronaut-java
       - /backends/spring-kotlin
       - /gateways/spring-cloud-gateway
     schedule:
@@ -59,7 +60,10 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /frontends/svelte
+      - /frontends/vue
       - /gateways/node-fastify
+      - /testing/axe-a11y
       - /testing/cypress-e2e
     schedule:
       interval: weekly
@@ -90,13 +94,17 @@ updates:
     directories:
       - /backends/dotnet
       - /backends/go
+      - /backends/micronaut-java
       - /backends/node-nestjs
       - /backends/node-ts
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /frontends/svelte
+      - /frontends/vue
       - /gateways/go
       - /gateways/node-fastify
+      - /gateways/openresty
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
     schedule:

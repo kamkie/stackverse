@@ -1,0 +1,68 @@
+# Optional OWASP ZAP baseline showcase. This workflow is manual-only so it does
+# not become part of the ci-ok merge gate while the suite remains non-canonical.
+name: ZAP Baseline Security
+
+on:
+  workflow_dispatch:
+    inputs:
+      spider_minutes:
+        description: Minutes for the baseline spider
+        required: true
+        default: "1"
+        type: string
+      fail_on_warnings:
+        description: Return ZAP exit code 2 when WARN findings exist
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  zap-baseline:
+    name: ZAP baseline - spring-kotlin + yarp + react
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      GATEWAY_IMAGE: stackverse/gateway-yarp:local
+      FRONTEND_IMAGE: stackverse/frontend-react:local
+      STACKVERSE_URL: http://localhost:8000
+      ZAP_SPIDER_MINUTES: ${{ inputs.spider_minutes }}
+      ZAP_FAIL_ON_WARNINGS: ${{ inputs.fail_on_warnings }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images
+        run: ./scripts/build-images.sh spring-kotlin yarp react
+      - name: Start the full stack
+        run: docker compose --profile app up -d
+      - name: Wait for the stack to be ready
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 \
+               && curl -fsS http://localhost:8000/ >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "stack never became ready" >&2
+          exit 1
+      - name: Run ZAP baseline scan
+        run: ./scripts/zap-security.sh
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: zap-baseline-reports
+          path: testing/zap-security/reports/
+          if-no-files-found: warn
+          retention-days: 7

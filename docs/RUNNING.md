@@ -234,6 +234,80 @@ showcase for generated OpenAPI edge cases and response-schema checks. It does
 not replace the semantic conformance suite, which remains the executable form
 of `docs/SPEC.md`.
 
+## OWASP ZAP baseline security smoke
+
+With a full stack running, the optional ZAP showcase in
+[`testing/zap-security/`](../testing/zap-security) runs the OWASP ZAP baseline
+scan against the gateway at `STACKVERSE_URL`:
+
+```sh
+./scripts/zap-security.sh
+```
+
+```powershell
+./scripts/zap-security.ps1
+```
+
+Defaults are `STACKVERSE_URL=http://localhost:8000`,
+`ZAP_SPIDER_MINUTES=1`, and reports under
+`testing/zap-security/reports/` as HTML, Markdown, and JSON. The helper runs
+ZAP in Docker; for localhost targets it converts the in-container URL to
+`host.docker.internal` while keeping `STACKVERSE_URL` as the human-facing
+gateway URL. Set `ZAP_TARGET_URL` to override that target.
+
+This is a passive baseline scan: ZAP spiders the site for a bounded time,
+waits for passive scanners, and reports findings. It does not run active
+attack testing. WARN-only findings do not fail the helper by default
+(`ZAP_FAIL_ON_WARNINGS=false`) but remain visible in the reports; set
+`ZAP_FAIL_ON_WARNINGS=true` when calibrating stricter local runs.
+
+## Trace-based observability tests
+
+The optional Tracetest showcase in
+[`testing/tracetest-otel/`](../testing/tracetest-otel) runs a composed stack
+with OpenTelemetry enabled and proves the architecture's trace propagation
+rule: one API action through the gateway yields one trace with both gateway
+and backend spans.
+
+The helper starts the stack attached, runs the Tracetest runner, and stops any
+started containers when the runner exits:
+
+```sh
+./scripts/tracetest-otel.sh
+```
+
+```powershell
+./scripts/tracetest-otel.ps1
+```
+
+Build images first, or let the helper build them:
+
+```sh
+BUILD=1 ./scripts/tracetest-otel.sh
+```
+
+```powershell
+./scripts/tracetest-otel.ps1 -Build
+```
+
+By default it runs `spring-kotlin + yarp + react`; positional arguments select
+another backend, gateway, and frontend using the same image naming convention
+as `scripts/run-stack.*`. The Tracetest overlay keeps stack ports internal to
+the compose network, so it can run alongside a normal local Stackverse stack
+that already owns the standard host ports.
+
+The suite adds a small OpenTelemetry Collector that receives app telemetry,
+fans traces out to both Grafana LGTM and Tracetest, and forwards logs/metrics
+to LGTM. Tracetest sends `GET /api/v1/messages/bundle?lang=en` through the
+gateway and asserts that `stackverse-gateway` and `stackverse-backend` spans
+exist, with backend work descending from gateway work in the same trace.
+
+Reports are written under `testing/tracetest-otel/reports/`. Expect roughly
+2-4 minutes after images are present. The workflow
+[`test-tracetest-otel.yml`](../.github/workflows/test-tracetest-otel.yml) is
+manual-only (`workflow_dispatch`) so trace assertions remain opt-in and
+non-blocking while the observability surface matures.
+
 ## Testing-tool showcase suites
 
 Stackverse has two canonical acceptance gates:
@@ -315,6 +389,42 @@ acquisition through the `stackverse-conformance` password-grant client and
 stores tokens only as Bruno runtime variables during a run. There is no CI
 workflow yet, so the suite remains a local API-client showcase and not a merge
 gate.
+
+The axe-core accessibility showcase lives in
+[testing/axe-a11y](../testing/axe-a11y) and runs through the gateway at
+`STACKVERSE_URL` (default `http://localhost:8000`). It uses Playwright plus
+`@axe-core/playwright` to scan representative public, authenticated,
+moderator, and admin screen states:
+
+```sh
+cd testing/axe-a11y
+corepack enable
+yarn install --immutable
+yarn playwright install chromium
+yarn test
+```
+
+Failures print the affected page/state, axe rule id, impact, help URL, and
+selectors, and attach JSON details to the Playwright result. The suite is
+limited to automatically detectable WCAG A/AA checks and does not replace
+manual accessibility review. CI execution is manual through
+[test-axe-a11y.yml](../.github/workflows/test-axe-a11y.yml), which builds the
+reference stack, runs the suite, and uploads Playwright artifacts on failure.
+It is not part of the merge gate.
+
+The ZAP security showcase lives in
+[testing/zap-security](../testing/zap-security). Its manual workflow,
+[test-zap-security.yml](../.github/workflows/test-zap-security.yml), builds
+the reference stack, runs the passive baseline scan against the gateway, and
+uploads the HTML, Markdown, and JSON reports. It is not triggered by
+`push` or `pull_request`, so it stays non-blocking while it is a showcase.
+
+The Tracetest showcase lives in
+[testing/tracetest-otel](../testing/tracetest-otel). It exercises the
+observability contract from [ARCHITECTURE.md](ARCHITECTURE.md#observability)
+and the trace-correlation assumptions in
+[LOGGING.md](LOGGING.md#7-correlation) without redefining API or UI
+correctness.
 
 ## Continuous integration
 

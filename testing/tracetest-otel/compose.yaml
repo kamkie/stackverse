@@ -1,0 +1,130 @@
+# Optional trace-based observability test harness. Use with the root compose file:
+#
+#   docker compose -p stackverse-tracetest \
+#     -f compose.yaml -f testing/tracetest-otel/compose.yaml \
+#     --profile app --profile observability --profile tracetest up \
+#     --force-recreate --abort-on-container-exit --exit-code-from tracetest-run
+
+services:
+  postgres:
+    ports: !override []
+
+  redis:
+    ports: !override []
+
+  keycloak:
+    ports: !override []
+
+  backend:
+    ports: !override []
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tracetest-otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SDK_DISABLED: "false"
+    depends_on:
+      tracetest-otel-collector:
+        condition: service_started
+
+  gateway:
+    ports: !override []
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tracetest-otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_SDK_DISABLED: "false"
+    depends_on:
+      tracetest-otel-collector:
+        condition: service_started
+
+  lgtm:
+    ports: !override []
+
+  tracetest-postgres:
+    profiles: [tracetest]
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: tracetest
+      POSTGRES_USER: tracetest
+      POSTGRES_PASSWORD: tracetest
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracetest -d tracetest"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  tracetest:
+    profiles: [tracetest]
+    image: ${TRACETEST_IMAGE:-kubeshop/tracetest:latest}
+    command:
+      - --postgres.host
+      - tracetest-postgres
+      - --postgres.user
+      - tracetest
+      - --postgres.password
+      - tracetest
+      - --postgres.dbname
+      - tracetest
+      - --postgres.params
+      - sslmode=disable
+      - --provisioning-file
+      - /app/tracetest-provision.yaml
+    volumes:
+      - ./testing/tracetest-otel/tracetest-provision.yaml:/app/tracetest-provision.yaml:ro
+    expose:
+      - "4317"
+      - "4318"
+      - "11633"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:11633"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+    depends_on:
+      tracetest-postgres:
+        condition: service_healthy
+
+  tracetest-otel-collector:
+    profiles: [tracetest]
+    image: otel/opentelemetry-collector-contrib:0.130.0
+    command:
+      - --config=/etc/otelcol-contrib/config.yaml
+    volumes:
+      - ./testing/tracetest-otel/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    depends_on:
+      lgtm:
+        condition: service_started
+      tracetest:
+        condition: service_healthy
+
+  tracetest-run:
+    profiles: [tracetest]
+    image: ${TRACETEST_IMAGE:-kubeshop/tracetest:latest}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /suite/reports
+        for i in $(seq 1 90); do
+          if wget -q -O /dev/null http://backend:8080/readyz &&
+             wget -q -O /dev/null http://gateway:8000/ &&
+             wget -q -O /dev/null http://tracetest:11633; then
+            break
+          fi
+          if [ "$$i" -eq 90 ]; then
+            echo "Stack or Tracetest did not become ready" >&2
+            exit 1
+          fi
+          sleep 2
+        done
+        tracetest -s http://tracetest:11633 run test \
+          -f /suite/tests/gateway-backend-trace.yaml \
+          --required-gates test-specs \
+          --junit /suite/reports/junit.xml
+    volumes:
+      - ./testing/tracetest-otel:/suite
+    depends_on:
+      backend:
+        condition: service_started
+      gateway:
+        condition: service_started
+      tracetest:
+        condition: service_healthy

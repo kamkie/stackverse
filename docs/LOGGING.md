@@ -207,7 +207,9 @@ failures SHOULD be rate-limited or aggregated.
 
 - The gateway MUST propagate W3C `traceparent` to the backend on proxied
   requests when telemetry is enabled — one browser action, one trace across
-  gateway and backend.
+  gateway and backend. The optional Tracetest showcase in
+  [`testing/tracetest-otel/`](../testing/tracetest-otel) verifies this trace
+  spine; logging conformance still lives with each implementation's README.
 - No custom correlation-ID or request-ID headers; the repo standardizes on
   OpenTelemetry (in a fully-traced synchronous system a request id adds
   nothing over `trace_id`). This holds because every hop today is
