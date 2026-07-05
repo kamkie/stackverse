@@ -71,8 +71,13 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 function Test-AnyLike {
-  param([string]$Value, [string[]]$Patterns)
-  foreach ($p in $Patterns) { if ($Value -like $p) { return $true } }
+  # -CaseSensitive uses -clike so the JVM CamelCase suffix rules (*Test.java, ...)
+  # match Bash's case-sensitive `case` and do not divergently tag e.g. contest.java.
+  param([string]$Value, [string[]]$Patterns, [switch]$CaseSensitive)
+  foreach ($p in $Patterns) {
+    if ($CaseSensitive) { if ($Value -clike $p) { return $true } }
+    else { if ($Value -like $p) { return $true } }
+  }
   return $false
 }
 
@@ -109,8 +114,8 @@ function Get-Bucket {
   # proxy.conf.mjs). Scoped to the variant root so nested app code such as Angular's
   # src/app/app.config.ts stays classified as app.
   if (-not $Rel.Contains('/')) {
-    if (Test-AnyLike $lbase @('*.config.ts', '*.config.js', '*.config.mjs', '*.config.cjs',
-        '*.conf.ts', '*.conf.js', '*.conf.mjs', '*.conf.cjs')) { return 'infra' }
+    if (Test-AnyLike $lbase @('*.config.ts', '*.config.mts', '*.config.cts', '*.config.js', '*.config.mjs', '*.config.cjs',
+        '*.conf.ts', '*.conf.mts', '*.conf.cts', '*.conf.js', '*.conf.mjs', '*.conf.cjs')) { return 'infra' }
   }
 
   # --- infra (path rules) ---
@@ -120,13 +125,13 @@ function Get-Bucket {
   if (Test-AnyLike "/$lrel" @('*/test/*', '*/tests/*', '*/__tests__/*', '*/spec/*', '*/specs/*')) { return 'tests' }
 
   # --- tests (basename, lower-case) ---
-  if (Test-AnyLike $lbase @('*.test.ts', '*.test.tsx', '*.test.js', '*.test.jsx', '*.test.mjs', '*.test.cjs',
-      '*.spec.ts', '*.spec.tsx', '*.spec.js', '*.spec.jsx', '*.spec.mjs', '*.spec.cjs',
+  if (Test-AnyLike $lbase @('*.test.ts', '*.test.tsx', '*.test.js', '*.test.jsx', '*.test.mjs', '*.test.cjs', '*.test.svelte', '*.test.vue',
+      '*.spec.ts', '*.spec.tsx', '*.spec.js', '*.spec.jsx', '*.spec.mjs', '*.spec.cjs', '*.spec.svelte', '*.spec.vue',
       '*_test.go', 'test_*.py', '*_test.py')) { return 'tests' }
   # --- tests (basename, case-sensitive JVM) ---
   if (Test-AnyLike $base @('*Test.kt', '*Test.java', '*Test.scala', '*Test.groovy',
       '*Tests.kt', '*Tests.java', '*Tests.scala', '*Tests.groovy',
-      '*Spec.kt', '*Spec.scala', '*Spec.groovy', '*IT.kt', '*IT.java', '*IT.scala')) { return 'tests' }
+      '*Spec.kt', '*Spec.scala', '*Spec.groovy', '*IT.kt', '*IT.java', '*IT.scala') -CaseSensitive) { return 'tests' }
 
   return 'app'
 }
@@ -140,7 +145,9 @@ function Get-VariantStats {
     infra = @(0, 0, 0, 0)
     docs  = @(0, 0, 0, 0)
   }
-  $json = (& tokei $Dir --files --output json) | ConvertFrom-Json
+  $raw = & tokei $Dir --files --output json
+  if ($LASTEXITCODE -ne 0) { throw "code-stats: tokei failed for '$Dir' (exit $LASTEXITCODE)" }
+  $json = $raw | ConvertFrom-Json
   $prefix = "$Dir/"
   foreach ($prop in $json.PSObject.Properties) {
     if ($prop.Name -eq 'Total') { continue }

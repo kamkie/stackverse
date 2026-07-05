@@ -81,6 +81,11 @@ case "$FORMAT" in
   *) echo "code-stats: --format must be table, markdown or csv (got '$FORMAT')" >&2; exit 2;;
 esac
 
+case "$LAYER_FILTER" in
+  ''|backends|gateways|frontends) ;;
+  *) echo "code-stats: --layer must be backends, gateways or frontends (got '$LAYER_FILTER')" >&2; exit 2;;
+esac
+
 command -v tokei >/dev/null 2>&1 || { echo "code-stats: 'tokei' not found on PATH (https://github.com/XAMPPRocky/tokei)" >&2; exit 1; }
 command -v jq    >/dev/null 2>&1 || { echo "code-stats: 'jq' not found on PATH" >&2; exit 1; }
 
@@ -125,7 +130,7 @@ classify() {
     */*) ;; # nested -> not a root tool config
     *)
       case "$lower_base" in
-        *.config.ts|*.config.js|*.config.mjs|*.config.cjs|*.conf.ts|*.conf.js|*.conf.mjs|*.conf.cjs) echo infra; return;;
+        *.config.ts|*.config.mts|*.config.cts|*.config.js|*.config.mjs|*.config.cjs|*.conf.ts|*.conf.mts|*.conf.cts|*.conf.js|*.conf.mjs|*.conf.cjs) echo infra; return;;
       esac
       ;;
   esac
@@ -140,8 +145,8 @@ classify() {
   esac
   # --- tests (basename) ---
   case "$lower_base" in
-    *.test.ts|*.test.tsx|*.test.js|*.test.jsx|*.test.mjs|*.test.cjs) echo tests; return;;
-    *.spec.ts|*.spec.tsx|*.spec.js|*.spec.jsx|*.spec.mjs|*.spec.cjs) echo tests; return;;
+    *.test.ts|*.test.tsx|*.test.js|*.test.jsx|*.test.mjs|*.test.cjs|*.test.svelte|*.test.vue) echo tests; return;;
+    *.spec.ts|*.spec.tsx|*.spec.js|*.spec.jsx|*.spec.mjs|*.spec.cjs|*.spec.svelte|*.spec.vue) echo tests; return;;
     *_test.go|test_*.py|*_test.py) echo tests; return;;
   esac
   case "$base" in
@@ -215,7 +220,7 @@ render_table() {
     local dd=$((dc+dm))                 # docs measured as prose lines (markdown code is ~0)
     local total=$((ac+tc+ic+dd))
     local ratio="0.0"
-    if [ $((ac+tc)) -gt 0 ]; then ratio=$(awk -v t="$tc" -v a="$ac" 'BEGIN{printf "%.1f", 100*t/(a+t)}'); fi
+    if [ $((ac+tc)) -gt 0 ]; then ratio=$(LC_ALL=C awk -v t="$tc" -v a="$ac" 'BEGIN{printf "%.1f", 100*t/(a+t)}'); fi
     local files=$((af+tf+if_+df))
     if [ "$layer" != "$last_layer" ]; then
       if [ -n "$last_layer" ]; then
@@ -275,7 +280,7 @@ render_markdown() {
     read -r ac am ak af tc tm tk tf ic im ik if_ dc dm dk df <<< "$nums"
     local dd=$((dc+dm)) total files ratio="0.0"
     total=$((ac+tc+ic+dd)); files=$((af+tf+if_+df))
-    if [ $((ac+tc)) -gt 0 ]; then ratio=$(awk -v t="$tc" -v a="$ac" 'BEGIN{printf "%.1f", 100*t/(a+t)}'); fi
+    if [ $((ac+tc)) -gt 0 ]; then ratio=$(LC_ALL=C awk -v t="$tc" -v a="$ac" 'BEGIN{printf "%.1f", 100*t/(a+t)}'); fi
     if [ "$layer" != "$last_layer" ]; then
       if [ -n "$last_layer" ]; then
         buf+="| **subtotal** | $la | $lt | $li | $ld | $((la+lt+li+ld)) | | $lf |"$'\n'
