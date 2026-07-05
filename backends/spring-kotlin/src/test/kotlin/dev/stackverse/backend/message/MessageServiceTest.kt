@@ -64,4 +64,37 @@ class MessageServiceTest {
         assertThat(problem.detail).contains("race.message", "en", "already exists")
         verifyNoInteractions(auditService)
     }
+
+    @Test
+    fun `bundle overlays requested language and falls back to english for missing keys`() {
+        `when`(repository.findByLanguageIn(setOf(DEFAULT_LANGUAGE, "pl"))).thenReturn(
+            listOf(
+                message(key = "ui.nav.home", language = "en", text = "Home"),
+                message(key = "ui.nav.home", language = "pl", text = "Start"),
+                message(key = "ui.nav.settings", language = "en", text = "Settings"),
+            ),
+        )
+
+        val bundle = service.bundle("pl")
+
+        assertThat(bundle).containsEntry("ui.nav.home", "Start")
+        assertThat(bundle).containsEntry("ui.nav.settings", "Settings")
+        assertThat(bundle.keys).containsExactly("ui.nav.home", "ui.nav.settings")
+        verifyNoInteractions(auditService)
+    }
+
+    private fun message(
+        key: String,
+        language: String,
+        text: String,
+        id: UUID = UUID.randomUUID(),
+    ) = Message(
+        id = id,
+        key = key,
+        language = language,
+        text = text,
+        description = null,
+        createdAt = Instant.parse("2026-01-01T00:00:00Z"),
+        updatedAt = Instant.parse("2026-01-01T00:00:00Z"),
+    )
 }
