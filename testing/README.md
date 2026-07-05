@@ -15,6 +15,7 @@ canonical acceptance gates.
 | `testing/selenium-e2e` | Selenium WebDriver page-object browser showcase | composed stack, `STACKVERSE_URL` | optional manual workflow |
 | `testing/cypress-e2e` | Cypress browser-runner showcase for representative session, feed, CRUD, and moderation flows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/axe-a11y` | Axe-core automated accessibility checks for representative browser states | composed stack, `STACKVERSE_URL` | manual showcase workflow |
+| `testing/zap-security` | OWASP ZAP passive baseline security smoke scan | composed stack gateway, `STACKVERSE_URL` | manual showcase workflow |
 
 Showcase suites should demonstrate the tool, not clone every canonical test.
 Pick flows that exercise the tool's strengths while staying anchored to the
