@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import { AppModule } from "./app.module.js";
 import { logger } from "./logging.js";
+import { sendProblemForError } from "./problem.filter.js";
 
 export async function buildApp(): Promise<NestFastifyApplication> {
   const adapter = new FastifyAdapter({
@@ -16,5 +17,15 @@ export async function buildApp(): Promise<NestFastifyApplication> {
   // docs/INTENT.md non-goals). In this architecture throttling belongs at the
   // edge (gateway / operator), like the platform concerns in docs/LOGGING.md
   // Appendix A — not duplicated into every stateless backend.
-  return NestFactory.create<NestFastifyApplication>(AppModule, adapter, { logger: false });
+  const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, { logger: false });
+
+  // Fastify content parser failures (malformed JSON, oversized body) occur
+  // before Nest guards/filters run, so bridge adapter-level failures into the
+  // same RFC 9457 renderer used by the Nest exception filter.
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .setErrorHandler(async (error, request, reply) => sendProblemForError(error, request, reply));
+
+  return app;
 }

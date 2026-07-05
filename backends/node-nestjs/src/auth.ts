@@ -4,8 +4,8 @@ import type { FastifyRequest } from "fastify";
 import { config } from "./config.js";
 import { pool } from "./db.js";
 import { logEvent } from "./logging.js";
-import { ForbiddenProblem, UnauthorizedProblem, firstParam } from "./problems.js";
-import { localize, resolveLanguage } from "./i18n.js";
+import { ForbiddenProblem, UnauthorizedProblem } from "./problems.js";
+import { localize, resolveRequestLanguage } from "./i18n.js";
 
 /** The two application roles; everything else in `realm_access.roles` is Keycloak plumbing. */
 export const APP_ROLES = ["moderator", "admin"] as const;
@@ -123,8 +123,8 @@ export class BearerAuthGuard implements CanActivate {
       logEvent("warn", "blocked_user_rejected", "denied", "Refused a request from a blocked account", {
         actor: caller.username,
       });
-      const language = await resolveLanguage(
-        firstParam((request.query as Record<string, unknown>)["lang"]),
+      const language = await resolveRequestLanguage(
+        request.query as Record<string, unknown>,
         request.headers["accept-language"],
       );
       throw new ForbiddenProblem(await localize("error.account.blocked", language));

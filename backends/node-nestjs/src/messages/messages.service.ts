@@ -6,13 +6,12 @@ import { requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
 import { sendWithEtag } from "../etag.js";
-import { DEFAULT_LANGUAGE, messageBundle, resolveLanguage } from "../i18n.js";
+import { DEFAULT_LANGUAGE, messageBundle, resolveRequestLanguage } from "../i18n.js";
 import {
   ConflictProblem,
   NotFoundProblem,
   Validator,
   escapeLike,
-  firstParam,
   omitNulls,
   parseUuid,
   requireMaxLength,
@@ -83,13 +82,6 @@ function logMessageEvent(event: string, description: string, actor: string, mess
   });
 }
 
-async function requestLanguage(request: FastifyRequest): Promise<string> {
-  return resolveLanguage(
-    firstParam((request.query as Record<string, unknown>)["lang"]),
-    request.headers["accept-language"],
-  );
-}
-
 @Injectable()
 export class MessagesService {
   /** Reads are public with ETag revalidation (SPEC rules 7 + 10). */
@@ -133,7 +125,10 @@ export class MessagesService {
 
   /** The flat key → text bundle frontends load on startup (SPEC rule 9). */
   async bundle(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
-    const language = await requestLanguage(request);
+    const language = await resolveRequestLanguage(
+      request.query as Record<string, unknown>,
+      request.headers["accept-language"],
+    );
     reply.header("content-language", language);
     return sendWithEtag(request, reply, { language, messages: await messageBundle(language) });
   }

@@ -1,4 +1,5 @@
 import { pool } from "./db.js";
+import { firstParam } from "./problems.js";
 
 export const DEFAULT_LANGUAGE = "en";
 
@@ -43,6 +44,13 @@ export async function resolveLanguage(lang: string | undefined, acceptLanguage: 
     if (supported.has(code)) return code;
   }
   return DEFAULT_LANGUAGE;
+}
+
+export async function resolveRequestLanguage(
+  query: Record<string, unknown>,
+  acceptLanguage: string | undefined,
+): Promise<string> {
+  return resolveLanguage(firstParam(query["lang"]), acceptLanguage);
 }
 
 /**
