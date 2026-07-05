@@ -90,6 +90,8 @@ Then open http://localhost:8000 and log in as `demo` / `demo`,
 | Backend API (direct) | http://localhost:8080 |
 | Keycloak admin | http://localhost:8180 (`admin` / `admin`) |
 | PostgreSQL | localhost:5432 (`stackverse` / `stackverse`) |
+| Redis | localhost:6379 |
+| Grafana | http://localhost:3000 (`admin` / `admin`, `observability` profile) |
 
 ## Local demo seed data
 
@@ -202,12 +204,43 @@ realm import — infra created before the client existed needs a one-time
 `docker compose up -d --force-recreate keycloak` (dev Keycloak has no
 persistent volume, so recreating re-imports the realm).
 
-## OpenAPI property tests
+## Testing-tool showcase suites
 
-With just infra and one backend running, the optional Schemathesis showcase in
-[`testing/schemathesis-api/`](../testing/schemathesis-api) generates property
-tests from [`spec/openapi.yaml`](../spec/openapi.yaml) and runs them directly
-against `BACKEND_URL`:
+Stackverse has two canonical acceptance gates, documented above:
+
+- [conformance/](../conformance) is the backend API gate. It runs directly
+  against `BACKEND_URL` with dev-realm tokens and proves
+  [spec/openapi.yaml](../spec/openapi.yaml) plus [docs/SPEC.md](SPEC.md).
+- [e2e/](../e2e) is the composed-stack UI gate. It runs through the gateway at
+  `STACKVERSE_URL`, drives the real Keycloak login, and proves every required
+  frontend screen from [frontends/README.md](../frontends/README.md).
+
+Everything below is an *optional showcase* under
+[testing/](../testing/README.md): a variant for comparing testing tools such as
+Selenium, Cypress, Schemathesis, Postman, Bruno, Hurl, Robot Framework, k6,
+ZAP, axe-core, or trace assertions. Each is documented once. They choose
+representative public, authenticated, moderator, and admin flows that show the
+tool's style — they are not a way to add new product requirements or to replace
+the canonical gates.
+
+New showcase suites use `testing/<tool>-<scope>` and carry their own README,
+default local command, and `.github/workflows/test-<tool>-<scope>.yml` when they
+need CI. A workflow that runs on `push` or `pull_request` is effectively gating
+because `ci-ok` waits for every GitHub Actions check run on the commit. Keep
+immature showcase suites manual, scheduled, or failure-tolerant until the repo
+deliberately promotes them to a required gate — which is why every suite below
+uses a `workflow_dispatch`-only workflow (or has none yet).
+
+### API-contract showcases (direct to a backend)
+
+These need only the compose infra and one backend — no gateway or frontend —
+and run against `BACKEND_URL` (default `http://localhost:8080`) with dev-realm
+tokens from `KEYCLOAK_URL` (default `http://localhost:8180`).
+
+**Schemathesis (OpenAPI property tests)** —
+[testing/schemathesis-api/](../testing/schemathesis-api) generates property
+tests from [spec/openapi.yaml](../spec/openapi.yaml) and runs them directly
+against the backend:
 
 ```sh
 ./scripts/schemathesis-api.sh
@@ -217,28 +250,25 @@ against `BACKEND_URL`:
 ./scripts/schemathesis-api.ps1
 ```
 
-Defaults are `BACKEND_URL=http://localhost:8080`,
-`KEYCLOAK_URL=http://localhost:8180`, `SCHEMATHESIS_AUTH_ROLE=admin`,
-`SCHEMATHESIS_MAX_EXAMPLES=20`, positive fuzzing only, and one worker. Extra
-arguments are passed through to `st run`, so local exploration can raise the
-example count or select checks:
+Defaults are `SCHEMATHESIS_AUTH_ROLE=admin`, `SCHEMATHESIS_MAX_EXAMPLES=20`,
+positive fuzzing only, and one worker. Extra arguments pass through to `st run`,
+so local exploration can raise the example count or select checks:
 
 ```sh
 SCHEMATHESIS_MAX_EXAMPLES=50 ./scripts/schemathesis-api.sh --checks not_a_server_error,status_code_conformance
 ```
 
-Schemathesis failures include reproducible cases in the CLI output and crash
-files under `testing/schemathesis-api/.schemathesis/`; reports are written to
-`testing/schemathesis-api/schemathesis-report/`. The suite is a testing-tool
-showcase for generated OpenAPI edge cases and response-schema checks. It does
-not replace the semantic conformance suite, which remains the executable form
-of `docs/SPEC.md`.
+Failures include reproducible cases in the CLI output and crash files under
+`testing/schemathesis-api/.schemathesis/`; reports are written to
+`testing/schemathesis-api/schemathesis-report/`. It exercises generated OpenAPI
+edge cases and response-schema checks — a testing-tool showcase, not a
+replacement for the semantic conformance gate. Its CI workflow,
+[test-schemathesis-api.yml](../.github/workflows/test-schemathesis-api.yml), is
+`workflow_dispatch` only, with a selected backend input and bounded example
+count, so it does not become an accidental merge gate through `ci-ok`.
 
-## Hurl API showcase
-
-With just infra and one backend running, the optional Hurl showcase in
-[`testing/hurl-api/`](../testing/hurl-api) runs readable plain-text HTTP
-scenarios directly against `BACKEND_URL`:
+**Hurl (plain-text HTTP scenarios)** — [testing/hurl-api](../testing/hurl-api)
+runs readable plain-text HTTP scenarios directly against the backend:
 
 ```sh
 ./scripts/hurl-api.sh
@@ -248,12 +278,10 @@ scenarios directly against `BACKEND_URL`:
 ./scripts/hurl-api.ps1
 ```
 
-Defaults are `BACKEND_URL=http://localhost:8080` and
-`KEYCLOAK_URL=http://localhost:8180`. The Hurl file fetches dev tokens through
-the same `stackverse-conformance` Keycloak client as `conformance/`, then
-exercises representative public, authenticated, moderator, and admin API
-flows. The wrapper scripts generate a unique `HURL_RUN_ID` for deterministic
-scenario data; override it to reproduce a named run:
+The Hurl file fetches dev tokens through the `stackverse-conformance` Keycloak
+client, then exercises representative public, authenticated, moderator, and
+admin API flows. The wrapper scripts generate a unique `HURL_RUN_ID` for
+deterministic scenario data; override it to reproduce a named run:
 
 ```sh
 HURL_RUN_ID=hurl-local-demo ./scripts/hurl-api.sh -- --very-verbose
@@ -264,14 +292,150 @@ $env:HURL_RUN_ID = "hurl-local-demo"
 ./scripts/hurl-api.ps1 --very-verbose
 ```
 
-This suite is executable API documentation and a testing-tool comparison
-example. It does not replace the canonical semantic conformance suite.
+It is executable API documentation and a testing-tool comparison example. It
+has no CI workflow yet and remains a local optional showcase.
 
-## OWASP ZAP baseline security smoke
+**Postman (Newman)** — [testing/postman-api](../testing/postman-api) runs
+representative public, authenticated, moderator, and admin API workflows:
 
-With a full stack running, the optional ZAP showcase in
-[`testing/zap-security/`](../testing/zap-security) runs the OWASP ZAP baseline
-scan against the gateway at `STACKVERSE_URL`:
+```sh
+cd testing/postman-api
+corepack enable
+yarn install --immutable
+yarn test
+```
+
+The collection acquires dev-realm tokens from the `stackverse-conformance`
+client, creates unique per-run data, and writes Newman JSON/JUnit reports under
+`testing/postman-api/newman-report/`. The same collection runs with the Postman
+CLI:
+
+```sh
+postman collection run stackverse-api-showcase.postman_collection.json \
+  --environment stackverse-local.postman_environment.json \
+  --env-var "BACKEND_URL=http://localhost:8080" \
+  --env-var "KEYCLOAK_URL=http://localhost:8180"
+```
+
+CI execution is manual through
+[test-postman-api.yml](../.github/workflows/test-postman-api.yml), which builds
+one selected backend, runs the suite, and uploads the reports.
+
+**Bruno (OpenCollection)** — [testing/bruno-api](../testing/bruno-api) is a
+checked-in OpenCollection YAML collection for representative public,
+authenticated, moderation, and admin API workflows:
+
+```sh
+cd testing/bruno-api
+npm install
+npm test
+```
+
+It documents token acquisition through the `stackverse-conformance`
+password-grant client and stores tokens only as Bruno runtime variables during
+a run. There is no CI workflow yet, so it remains a local API-client showcase.
+
+### Browser and system showcases (through the gateway)
+
+These need a full stack running and drive the gateway at `STACKVERSE_URL`
+(default `http://localhost:8000`), including the real Keycloak login flow.
+
+**Selenium** — [testing/selenium-e2e](../testing/selenium-e2e) drives Chrome
+through the real gateway and Keycloak login flow, covering representative
+login/session, public feed, bookmark CRUD, reporting, moderation, and
+admin-message workflows:
+
+```sh
+cd testing/selenium-e2e
+corepack enable
+yarn install --immutable
+yarn test
+```
+
+Its CI workflow,
+[test-selenium-e2e.yml](../.github/workflows/test-selenium-e2e.yml), is
+manual-only (`workflow_dispatch`) so the suite stays optional and non-blocking.
+
+**Cypress** — [testing/cypress-e2e](../testing/cypress-e2e) runs through the
+gateway including the real Keycloak redirect/login flow:
+
+```sh
+cd testing/cypress-e2e
+yarn install --immutable
+yarn test
+```
+
+Set `KEYCLOAK_ORIGIN` when the gateway redirects to a Keycloak origin other
+than http://localhost:8180; Cypress needs that origin for its `cy.origin()`
+login block. CI execution is manual through
+[test-cypress-e2e.yml](../.github/workflows/test-cypress-e2e.yml), which builds
+the reference stack, runs the suite, and uploads Cypress artifacts on failure.
+
+**Robot Framework** — [testing/robot-acceptance](../testing/robot-acceptance)
+demonstrates Robot's keyword-driven style for representative login/session,
+bookmark CRUD, reporting, moderation, and admin-navigation checks:
+
+```sh
+cd testing/robot-acceptance
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m robot --outputdir results tests
+```
+
+PowerShell uses the same suite-local command with
+`.\.venv\Scripts\Activate.ps1`. Standard Robot artifacts (`output.xml`,
+`log.html`, `report.html`, plus failure screenshots) are written under
+`testing/robot-acceptance/results/`. CI execution is manual through
+[test-robot-acceptance.yml](../.github/workflows/test-robot-acceptance.yml),
+which builds the reference stack, runs the suite, and uploads Robot artifacts.
+
+**axe-core (accessibility)** — [testing/axe-a11y](../testing/axe-a11y) uses
+Playwright plus `@axe-core/playwright` to scan representative public,
+authenticated, moderator, and admin screen states:
+
+```sh
+cd testing/axe-a11y
+corepack enable
+yarn install --immutable
+yarn playwright install chromium
+yarn test
+```
+
+Failures print the affected page/state, axe rule id, impact, help URL, and
+selectors, and attach JSON details to the Playwright result. The suite is
+limited to automatically detectable WCAG A/AA checks and does not replace
+manual accessibility review. CI execution is manual through
+[test-axe-a11y.yml](../.github/workflows/test-axe-a11y.yml), which builds the
+reference stack, runs the suite, and uploads Playwright artifacts on failure.
+
+**k6 (light load / system)** — [testing/k6-system](../testing/k6-system) has a
+one-shot smoke script and a deliberately small light-load script: public feed
+and message-bundle reads, real gateway-to-Keycloak login, CSRF-protected
+bookmark setup/cleanup, authenticated user reads, and a moderator read check in
+smoke mode:
+
+```sh
+./scripts/k6-system.sh
+```
+
+```powershell
+./scripts/k6-system.ps1
+```
+
+Defaults are intentionally modest: `K6_DURATION=30s`, one public VU, one
+authenticated VU, zero unexpected `5xx`, fewer than 1% unexpected statuses, and
+p95 below `K6_P95_MS` (default 1500 ms) for tagged smoke/steady traffic. The
+numbers are smoke and regression signals only, not benchmark claims or stack
+rankings. CI execution is manual through
+[test-k6-system.yml](../.github/workflows/test-k6-system.yml), which builds the
+reference stack and uploads the k6 summary artifact.
+
+### Security and observability showcases
+
+**OWASP ZAP (baseline security smoke)** —
+[testing/zap-security](../testing/zap-security) runs the OWASP ZAP baseline
+scan against the gateway at `STACKVERSE_URL`, and needs a full stack running:
 
 ```sh
 ./scripts/zap-security.sh
@@ -281,29 +445,27 @@ scan against the gateway at `STACKVERSE_URL`:
 ./scripts/zap-security.ps1
 ```
 
-Defaults are `STACKVERSE_URL=http://localhost:8000`,
-`ZAP_SPIDER_MINUTES=1`, and reports under
-`testing/zap-security/reports/` as HTML, Markdown, and JSON. The helper runs
-ZAP in Docker; for localhost targets it converts the in-container URL to
-`host.docker.internal` while keeping `STACKVERSE_URL` as the human-facing
-gateway URL. Set `ZAP_TARGET_URL` to override that target.
-
-This is a passive baseline scan: ZAP spiders the site for a bounded time,
-waits for passive scanners, and reports findings. It does not run active
-attack testing. WARN-only findings do not fail the helper by default
+Defaults are `STACKVERSE_URL=http://localhost:8000`, `ZAP_SPIDER_MINUTES=1`,
+and reports under `testing/zap-security/reports/` as HTML, Markdown, and JSON.
+The helper runs ZAP in Docker; for localhost targets it converts the
+in-container URL to `host.docker.internal` while keeping `STACKVERSE_URL` as the
+human-facing gateway URL. Set `ZAP_TARGET_URL` to override that target. This is
+a passive baseline scan: ZAP spiders the site for a bounded time, waits for
+passive scanners, and reports findings — it does not run active attack testing.
+WARN-only findings do not fail the helper by default
 (`ZAP_FAIL_ON_WARNINGS=false`) but remain visible in the reports; set
-`ZAP_FAIL_ON_WARNINGS=true` when calibrating stricter local runs.
+`ZAP_FAIL_ON_WARNINGS=true` when calibrating stricter local runs. Its manual
+workflow, [test-zap-security.yml](../.github/workflows/test-zap-security.yml),
+builds the reference stack, runs the passive baseline scan, and uploads the
+HTML, Markdown, and JSON reports. It is not triggered by `push` or
+`pull_request`, so it stays non-blocking while it is a showcase.
 
-## Trace-based observability tests
-
-The optional Tracetest showcase in
-[`testing/tracetest-otel/`](../testing/tracetest-otel) runs a composed stack
-with OpenTelemetry enabled and proves the architecture's trace propagation
-rule: one API action through the gateway yields one trace with both gateway
-and backend spans.
-
-The helper starts the stack attached, runs the Tracetest runner, and stops any
-started containers when the runner exits:
+**Tracetest (trace assertions)** —
+[testing/tracetest-otel](../testing/tracetest-otel) runs a composed stack with
+OpenTelemetry enabled and proves the architecture's trace propagation rule: one
+API action through the gateway yields one trace with both gateway and backend
+spans. The helper starts the stack attached, runs the Tracetest runner, and
+stops any started containers when the runner exits:
 
 ```sh
 ./scripts/tracetest-otel.sh
@@ -335,231 +497,14 @@ to LGTM. Tracetest sends `GET /api/v1/messages/bundle?lang=en` through the
 gateway and asserts that `stackverse-gateway` and `stackverse-backend` spans
 exist, with backend work descending from gateway work in the same trace.
 
-Reports are written under `testing/tracetest-otel/reports/`. Expect roughly
-2-4 minutes after images are present. The workflow
-[`test-tracetest-otel.yml`](../.github/workflows/test-tracetest-otel.yml) is
+Reports are written under `testing/tracetest-otel/reports/`; expect roughly
+2-4 minutes after images are present. It exercises the observability contract
+from [ARCHITECTURE.md](ARCHITECTURE.md#observability) and the trace-correlation
+assumptions in [LOGGING.md](LOGGING.md#7-correlation) without redefining API or
+UI correctness. The workflow
+[test-tracetest-otel.yml](../.github/workflows/test-tracetest-otel.yml) is
 manual-only (`workflow_dispatch`) so trace assertions remain opt-in and
 non-blocking while the observability surface matures.
-
-## Postman API showcase
-
-With just infra and one backend running, the optional Postman collection in
-[`testing/postman-api/`](../testing/postman-api) runs representative public,
-authenticated, moderator, and admin API workflows directly against
-`BACKEND_URL`:
-
-```sh
-cd testing/postman-api
-corepack enable
-yarn install --immutable
-yarn test
-```
-
-Defaults are `BACKEND_URL=http://localhost:8080` and
-`KEYCLOAK_URL=http://localhost:8180`. The collection acquires dev-user tokens
-from the `stackverse-conformance` Keycloak client, creates unique per-run
-data, and writes Newman JSON/JUnit reports under
-`testing/postman-api/newman-report/`.
-
-The same collection can be run with the Postman CLI:
-
-```sh
-postman collection run stackverse-api-showcase.postman_collection.json \
-  --environment stackverse-local.postman_environment.json \
-  --env-var "BACKEND_URL=http://localhost:8080" \
-  --env-var "KEYCLOAK_URL=http://localhost:8180"
-```
-
-The suite is a testing-tool showcase for API exploration and team handoff. It
-does not replace the semantic conformance suite.
-
-## Testing-tool showcase suites
-
-Stackverse has two canonical acceptance gates:
-
-- [conformance/](../conformance) is the backend API gate. It runs directly
-  against `BACKEND_URL` with dev-realm tokens and proves
-  [spec/openapi.yaml](../spec/openapi.yaml) plus [docs/SPEC.md](SPEC.md).
-- [e2e/](../e2e) is the composed-stack UI gate. It runs through the gateway at
-  `STACKVERSE_URL`, drives the real Keycloak login, and proves every required
-  frontend screen from [frontends/README.md](../frontends/README.md).
-
-Additional suites under [testing/](../testing/README.md) are showcase variants
-for comparing testing tools such as Selenium, Cypress, Schemathesis, Postman,
-Hurl, Robot Framework, API collections, k6, ZAP, axe-core, or trace assertions.
-They should choose representative public, authenticated, moderator, and admin
-flows that show the tool's style. They are not a way to add new product
-requirements or to replace the canonical gates.
-
-The Schemathesis API showcase has a manual CI workflow,
-[`test-schemathesis-api.yml`](../.github/workflows/test-schemathesis-api.yml),
-with a selected backend input and bounded example count. It is deliberately
-`workflow_dispatch` only, so it does not become an accidental merge gate through
-`ci-ok`.
-
-New showcase suites use `testing/<tool>-<scope>` and carry their own README,
-default local command, and `.github/workflows/test-<tool>-<scope>.yml` when
-they need CI. A workflow that runs on `push` or `pull_request` is effectively
-gating because `ci-ok` waits for every GitHub Actions check run on the commit.
-Keep immature showcase suites manual, scheduled, or failure-tolerant until the
-repo deliberately promotes them to a required gate.
-
-The Selenium showcase lives in [testing/selenium-e2e](../testing/selenium-e2e).
-With a stack running at `STACKVERSE_URL` (default `http://localhost:8000`), run
-it from that directory:
-
-```sh
-corepack enable
-yarn install --immutable
-yarn test
-```
-
-It drives Chrome through the real gateway and Keycloak login flow, covering
-representative login/session, public feed, bookmark CRUD, reporting,
-moderation, and admin-message workflows. Its CI workflow,
-[`test-selenium-e2e.yml`](../.github/workflows/test-selenium-e2e.yml), is
-manual-only (`workflow_dispatch`) so the suite stays optional and non-blocking.
-
-The Cypress showcase lives in [testing/cypress-e2e](../testing/cypress-e2e)
-and runs through the gateway at `STACKVERSE_URL` (default
-`http://localhost:8000`), including the real Keycloak redirect/login flow:
-
-```sh
-cd testing/cypress-e2e
-yarn install --immutable
-yarn test
-```
-
-Set `KEYCLOAK_ORIGIN` when the gateway redirects to a Keycloak origin other
-than http://localhost:8180; Cypress needs that origin for its `cy.origin()`
-login block. CI execution is manual through
-[test-cypress-e2e.yml](../.github/workflows/test-cypress-e2e.yml), which builds
-the reference stack, runs the suite, and uploads Cypress artifacts on failure.
-It is not part of the merge gate.
-
-The Robot Framework acceptance showcase lives in
-[testing/robot-acceptance](../testing/robot-acceptance) and runs through the
-gateway at `STACKVERSE_URL` (default `http://localhost:8000`), including the
-real Keycloak login flow:
-
-```sh
-cd testing/robot-acceptance
-python -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-python -m robot --outputdir results tests
-```
-
-PowerShell uses the same suite-local command with
-`.\.venv\Scripts\Activate.ps1`. The suite demonstrates Robot's
-keyword-driven style for representative login/session, bookmark CRUD,
-reporting, moderation, and admin-navigation checks. Standard Robot artifacts
-(`output.xml`, `log.html`, `report.html`, plus failure screenshots) are written
-under `testing/robot-acceptance/results/`. CI execution is manual through
-[test-robot-acceptance.yml](../.github/workflows/test-robot-acceptance.yml),
-which builds the reference stack, runs the suite, and uploads Robot artifacts.
-It is not part of the merge gate.
-
-The Bruno API showcase lives in [testing/bruno-api](../testing/bruno-api) and
-runs directly against a backend at `BACKEND_URL` (default
-`http://localhost:8080`) with dev-realm tokens from `KEYCLOAK_URL` (default
-`http://localhost:8180`):
-
-```sh
-cd testing/bruno-api
-npm install
-npm test
-```
-
-It is a checked-in OpenCollection YAML collection for representative public,
-authenticated, moderation, and admin API workflows. It documents token
-acquisition through the `stackverse-conformance` password-grant client and
-stores tokens only as Bruno runtime variables during a run. There is no CI
-workflow yet, so the suite remains a local API-client showcase and not a merge
-gate.
-
-The k6 system showcase lives in [testing/k6-system](../testing/k6-system) and
-runs through the gateway at `STACKVERSE_URL` (default
-`http://localhost:8000`). It has a one-shot smoke script and a deliberately
-small light-load script: public feed and message-bundle reads, real
-gateway-to-Keycloak login, CSRF-protected bookmark setup/cleanup, authenticated
-user reads, and a moderator read check in smoke mode.
-
-```sh
-./scripts/k6-system.sh
-```
-
-```powershell
-./scripts/k6-system.ps1
-```
-
-Defaults are intentionally modest: `K6_DURATION=30s`, one public VU, one
-authenticated VU, zero unexpected `5xx`, fewer than 1% unexpected statuses, and
-p95 below `K6_P95_MS` (default 1500 ms) for tagged smoke/steady traffic. The
-numbers are smoke and regression signals only, not benchmark claims or stack
-rankings. CI execution is manual through
-[test-k6-system.yml](../.github/workflows/test-k6-system.yml), which builds the
-reference stack and uploads the k6 summary artifact.
-
-The axe-core accessibility showcase lives in
-[testing/axe-a11y](../testing/axe-a11y) and runs through the gateway at
-`STACKVERSE_URL` (default `http://localhost:8000`). It uses Playwright plus
-`@axe-core/playwright` to scan representative public, authenticated,
-moderator, and admin screen states:
-
-```sh
-cd testing/axe-a11y
-corepack enable
-yarn install --immutable
-yarn playwright install chromium
-yarn test
-```
-
-Failures print the affected page/state, axe rule id, impact, help URL, and
-selectors, and attach JSON details to the Playwright result. The suite is
-limited to automatically detectable WCAG A/AA checks and does not replace
-manual accessibility review. CI execution is manual through
-[test-axe-a11y.yml](../.github/workflows/test-axe-a11y.yml), which builds the
-reference stack, runs the suite, and uploads Playwright artifacts on failure.
-It is not part of the merge gate.
-
-The ZAP security showcase lives in
-[testing/zap-security](../testing/zap-security). Its manual workflow,
-[test-zap-security.yml](../.github/workflows/test-zap-security.yml), builds
-the reference stack, runs the passive baseline scan against the gateway, and
-uploads the HTML, Markdown, and JSON reports. It is not triggered by
-`push` or `pull_request`, so it stays non-blocking while it is a showcase.
-
-The Tracetest showcase lives in
-[testing/tracetest-otel](../testing/tracetest-otel). It exercises the
-observability contract from [ARCHITECTURE.md](ARCHITECTURE.md#observability)
-and the trace-correlation assumptions in
-[LOGGING.md](LOGGING.md#7-correlation) without redefining API or UI
-correctness.
-
-The Hurl API showcase lives in [testing/hurl-api](../testing/hurl-api), uses
-`BACKEND_URL` plus `KEYCLOAK_URL`, and runs through `./scripts/hurl-api.sh` or
-`./scripts/hurl-api.ps1`. It has no CI workflow yet and remains a local
-optional showcase.
-
-The Postman API showcase lives in
-[testing/postman-api](../testing/postman-api) and runs directly against a
-backend at `BACKEND_URL` (default `http://localhost:8080`) with Keycloak at
-`KEYCLOAK_URL` (default `http://localhost:8180`):
-
-```sh
-cd testing/postman-api
-corepack enable
-yarn install --immutable
-yarn test
-```
-
-The collection acquires dev-realm tokens, exercises representative public,
-authenticated, moderator, and admin workflows, and writes Newman reports.
-CI execution is manual through
-[test-postman-api.yml](../.github/workflows/test-postman-api.yml), which builds
-one selected backend, runs the suite, and uploads the reports. It is not part
-of the merge gate.
 
 ## Continuous integration
 
