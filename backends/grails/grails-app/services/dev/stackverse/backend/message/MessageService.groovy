@@ -8,7 +8,6 @@ import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.json.JsonSlurper
-import groovy.transform.CompileDynamic
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
@@ -20,7 +19,6 @@ import java.nio.file.Path
 import java.sql.Timestamp
 import java.util.regex.Pattern
 
-@CompileDynamic
 class MessageService implements ApplicationRunner {
     private static final Pattern KEY = ~/^[a-z0-9-]+(\.[a-z0-9-]+)*$/
     private static final Pattern LANG = ~/^[a-z]{2}$/
