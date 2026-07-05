@@ -102,7 +102,7 @@ describe("apiGet", () => {
       { items: [] },
     );
 
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(new URL(String(url)).searchParams.getAll("tag")).toEqual(["dev"]);
     expect(init).toMatchObject({
       credentials: "include",
@@ -152,7 +152,7 @@ describe("apiSend", () => {
       }),
     ).resolves.toEqual({ id: "bookmark-1" });
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init).toMatchObject({
       method: "POST",
       credentials: "include",
@@ -186,8 +186,8 @@ describe("apiSend", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ "X-XSRF-TOKEN": "stale" });
-    expect(fetchMock.mock.calls[1][1]?.headers).toMatchObject({ "X-XSRF-TOKEN": "fresh" });
+    expect(fetchMock.mock.calls[0]![1]?.headers).toMatchObject({ "X-XSRF-TOKEN": "stale" });
+    expect(fetchMock.mock.calls[1]![1]?.headers).toMatchObject({ "X-XSRF-TOKEN": "fresh" });
   });
 
   it("returns undefined for no-content mutations without adding a JSON body", async () => {
@@ -197,7 +197,7 @@ describe("apiSend", () => {
 
     await expect(apiSend<void>("DELETE", "/api/v1/bookmarks/one")).resolves.toBeUndefined();
 
-    const [, init] = fetchMock.mock.calls[0];
+    const [, init] = fetchMock.mock.calls[0]!;
     expect(init).toMatchObject({
       method: "DELETE",
       headers: { Accept: "application/json" },
