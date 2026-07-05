@@ -42,6 +42,10 @@ flags:
     paths:
       - frontends/react/
     carryforward: true
+  frontend-svelte:
+    paths:
+      - frontends/svelte/
+    carryforward: true
   frontend-vue:
     paths:
       - frontends/vue/
@@ -103,6 +107,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-svelte
+      name: "frontend · svelte"
+      paths:
+        - frontends/svelte/**
     - component_id: frontend-vue
       name: "frontend · vue"
       paths:

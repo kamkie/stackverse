@@ -59,6 +59,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /frontends/svelte
       - /frontends/vue
       - /gateways/node-fastify
       - /testing/axe-a11y
@@ -97,6 +98,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /frontends/svelte
       - /frontends/vue
       - /gateways/go
       - /gateways/node-fastify
