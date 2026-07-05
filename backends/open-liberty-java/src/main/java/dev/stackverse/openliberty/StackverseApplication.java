@@ -12,6 +12,15 @@ public class StackverseApplication extends Application {
 
   @Override
   public Set<Class<?>> getClasses() {
-    return Set.of(StackverseResource.class, AuthFilter.class, ProblemMapper.class);
+    return Set.of(
+        AccountResource.class,
+        AdminResource.class,
+        AuthFilter.class,
+        BookmarkResource.class,
+        HealthResource.class,
+        MessageResource.class,
+        ModerationResource.class,
+        ProblemMapper.class,
+        ReportResource.class);
   }
 }

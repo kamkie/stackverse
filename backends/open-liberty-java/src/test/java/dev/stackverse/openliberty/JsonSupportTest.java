@@ -24,10 +24,10 @@ class JsonSupportTest {
 
   @Test
   void v1BookmarkRouteIsDetectedForDeprecationHeaders() {
-    assertTrue(StackverseResource.isDeprecatedV1Bookmarks("GET", "api/v1/bookmarks"));
-    assertTrue(StackverseResource.isDeprecatedV1Bookmarks("GET", "/api/v1/bookmarks"));
-    assertFalse(StackverseResource.isDeprecatedV1Bookmarks("POST", "api/v1/bookmarks"));
-    assertFalse(StackverseResource.isDeprecatedV1Bookmarks("GET", "api/v2/bookmarks"));
+    assertTrue(DeprecationHeaders.isDeprecatedV1Bookmarks("GET", "api/v1/bookmarks"));
+    assertTrue(DeprecationHeaders.isDeprecatedV1Bookmarks("GET", "/api/v1/bookmarks"));
+    assertFalse(DeprecationHeaders.isDeprecatedV1Bookmarks("POST", "api/v1/bookmarks"));
+    assertFalse(DeprecationHeaders.isDeprecatedV1Bookmarks("GET", "api/v2/bookmarks"));
   }
 
   @Test

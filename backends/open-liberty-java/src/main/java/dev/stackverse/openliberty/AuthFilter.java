@@ -61,19 +61,19 @@ public class AuthFilter implements ContainerRequestFilter {
     if ("blocked".equals(state.status())) {
       Log.event("warn", "blocked_user_rejected", "denied", "Refused a request from a blocked account",
           Map.of("actor", caller.username()));
-      String language = StackverseResource.resolveLanguage(
-          StackverseResource.firstParam(request.getUriInfo().getQueryParameters().get("lang")),
+      String language = MessageCatalog.resolveLanguage(
+          MessageCatalog.firstParam(request.getUriInfo().getQueryParameters().get("lang")),
           request.getHeaderString("Accept-Language"));
       request.abortWith(withRouteHeaders(request, JsonSupport.problem(403, "Forbidden",
-          StackverseResource.localize("error.account.blocked", language), null)));
+          MessageCatalog.localize("error.account.blocked", language), null)));
       return;
     }
     servletRequest.setAttribute(CALLER_ATTRIBUTE, caller);
   }
 
   private static Response withRouteHeaders(ContainerRequestContext request, Response response) {
-    if (StackverseResource.isDeprecatedV1Bookmarks(request.getMethod(), request.getUriInfo().getPath())) {
-      return StackverseResource.withV1BookmarkDeprecation(response);
+    if (DeprecationHeaders.isDeprecatedV1Bookmarks(request.getMethod(), request.getUriInfo().getPath())) {
+      return DeprecationHeaders.addV1BookmarkHeaders(response);
     }
     return response;
   }

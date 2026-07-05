@@ -38,15 +38,15 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
       }
       fields.put("error_code", "validation_failed");
       Log.event("info", "input_validation_failed", "failure", "Input validation failed", fields);
-      String language = StackverseResource.resolveLanguage(
-          StackverseResource.firstParam(uriInfo.getQueryParameters().get("lang")),
+      String language = MessageCatalog.resolveLanguage(
+          MessageCatalog.firstParam(uriInfo.getQueryParameters().get("lang")),
           headers.getHeaderString("Accept-Language"));
       List<Map<String, Object>> errors = new ArrayList<>();
       for (FieldViolation violation : validation.violations) {
         Map<String, Object> item = new LinkedHashMap<>();
         item.put("field", violation.field());
         item.put("messageKey", violation.messageKey());
-        item.put("message", StackverseResource.localize(violation.messageKey(), language));
+        item.put("message", MessageCatalog.localize(violation.messageKey(), language));
         errors.add(item);
       }
       return withRouteHeaders(JsonSupport.problem(400, "Bad Request", "Validation failed", errors));
@@ -54,10 +54,10 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
     if (ex instanceof ApiProblem problem) {
       String detail = problem.detail;
       if (problem.detailKey != null) {
-        String language = StackverseResource.resolveLanguage(
-            StackverseResource.firstParam(uriInfo.getQueryParameters().get("lang")),
+        String language = MessageCatalog.resolveLanguage(
+            MessageCatalog.firstParam(uriInfo.getQueryParameters().get("lang")),
             headers.getHeaderString("Accept-Language"));
-        detail = StackverseResource.localize(problem.detailKey, language);
+        detail = MessageCatalog.localize(problem.detailKey, language);
       }
       return withRouteHeaders(JsonSupport.problem(problem.status, problem.title, detail, null));
     }
@@ -85,8 +85,8 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
   }
 
   private Response withRouteHeaders(Response response) {
-    if (StackverseResource.isDeprecatedV1Bookmarks(request.getMethod(), uriInfo.getPath())) {
-      return StackverseResource.withV1BookmarkDeprecation(response);
+    if (DeprecationHeaders.isDeprecatedV1Bookmarks(request.getMethod(), uriInfo.getPath())) {
+      return DeprecationHeaders.addV1BookmarkHeaders(response);
     }
     return response;
   }
