@@ -1,0 +1,73 @@
+# Optional k6 showcase. This workflow is manual-only so it does not become
+# part of the ci-ok merge gate while the suite remains non-canonical.
+name: k6 System Showcase
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: Light-load duration
+        required: true
+        default: 30s
+        type: string
+      public_vus:
+        description: Anonymous public-feed VUs
+        required: true
+        default: "1"
+        type: string
+      auth_vus:
+        description: Authenticated workflow VUs
+        required: true
+        default: "1"
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  k6-system:
+    name: k6 system showcase
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      BACKEND_IMAGE: stackverse/backend-spring-kotlin:local
+      GATEWAY_IMAGE: stackverse/gateway-yarp:local
+      FRONTEND_IMAGE: stackverse/frontend-react:local
+      STACKVERSE_URL: http://localhost:8000
+      K6_DURATION: ${{ inputs.duration }}
+      K6_PUBLIC_VUS: ${{ inputs.public_vus }}
+      K6_AUTH_VUS: ${{ inputs.auth_vus }}
+      K6_SUMMARY_DIR: testing/k6-system/artifacts
+    steps:
+      - uses: actions/checkout@v7
+      - uses: grafana/setup-k6-action@v1
+      - name: Build reference images
+        run: ./scripts/build-images.sh spring-kotlin yarp react
+      - name: Start the full stack
+        run: docker compose --profile app up -d
+      - name: Wait for the stack to be ready
+        run: |
+          for _ in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1 \
+               && curl -fsS http://localhost:8000/auth/session >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "stack never became ready" >&2
+          exit 1
+      - name: Run k6 smoke and light-load suite
+        run: ./scripts/k6-system.sh
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload k6 summary
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: k6-system-summary
+          path: testing/k6-system/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7

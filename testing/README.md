@@ -18,6 +18,7 @@ canonical acceptance gates.
 | `testing/selenium-e2e` | Selenium WebDriver page-object browser showcase | composed stack, `STACKVERSE_URL` | optional manual workflow |
 | `testing/cypress-e2e` | Cypress browser-runner showcase for representative session, feed, CRUD, and moderation flows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/robot-acceptance` | Robot Framework keyword-driven acceptance showcase for representative UI workflows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
+| `testing/k6-system` | k6 system smoke and light-load showcase for public feed plus authenticated gateway workflows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/axe-a11y` | Axe-core automated accessibility checks for representative browser states | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/zap-security` | OWASP ZAP passive baseline security smoke scan | composed stack gateway, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/tracetest-otel` | Tracetest assertions that one gateway API action produces one trace spanning gateway and backend spans | composed stack with observability enabled | manual showcase workflow |
