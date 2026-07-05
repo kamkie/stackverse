@@ -261,6 +261,53 @@ attack testing. WARN-only findings do not fail the helper by default
 (`ZAP_FAIL_ON_WARNINGS=false`) but remain visible in the reports; set
 `ZAP_FAIL_ON_WARNINGS=true` when calibrating stricter local runs.
 
+## Trace-based observability tests
+
+The optional Tracetest showcase in
+[`testing/tracetest-otel/`](../testing/tracetest-otel) runs a composed stack
+with OpenTelemetry enabled and proves the architecture's trace propagation
+rule: one API action through the gateway yields one trace with both gateway
+and backend spans.
+
+The helper starts the stack attached, runs the Tracetest runner, and stops any
+started containers when the runner exits:
+
+```sh
+./scripts/tracetest-otel.sh
+```
+
+```powershell
+./scripts/tracetest-otel.ps1
+```
+
+Build images first, or let the helper build them:
+
+```sh
+BUILD=1 ./scripts/tracetest-otel.sh
+```
+
+```powershell
+./scripts/tracetest-otel.ps1 -Build
+```
+
+By default it runs `spring-kotlin + yarp + react`; positional arguments select
+another backend, gateway, and frontend using the same image naming convention
+as `scripts/run-stack.*`. The Tracetest overlay keeps stack ports internal to
+the compose network, so it can run alongside a normal local Stackverse stack
+that already owns the standard host ports.
+
+The suite adds a small OpenTelemetry Collector that receives app telemetry,
+fans traces out to both Grafana LGTM and Tracetest, and forwards logs/metrics
+to LGTM. Tracetest sends `GET /api/v1/messages/bundle?lang=en` through the
+gateway and asserts that `stackverse-gateway` and `stackverse-backend` spans
+exist, with backend work descending from gateway work in the same trace.
+
+Reports are written under `testing/tracetest-otel/reports/`. Expect roughly
+2-4 minutes after images are present. The workflow
+[`test-tracetest-otel.yml`](../.github/workflows/test-tracetest-otel.yml) is
+manual-only (`workflow_dispatch`) so trace assertions remain opt-in and
+non-blocking while the observability surface matures.
+
 ## Testing-tool showcase suites
 
 Stackverse has two canonical acceptance gates:
@@ -353,6 +400,13 @@ The ZAP security showcase lives in
 the reference stack, runs the passive baseline scan against the gateway, and
 uploads the HTML, Markdown, and JSON reports. It is not triggered by
 `push` or `pull_request`, so it stays non-blocking while it is a showcase.
+
+The Tracetest showcase lives in
+[testing/tracetest-otel](../testing/tracetest-otel). It exercises the
+observability contract from [ARCHITECTURE.md](ARCHITECTURE.md#observability)
+and the trace-correlation assumptions in
+[LOGGING.md](LOGGING.md#7-correlation) without redefining API or UI
+correctness.
 
 ## Continuous integration
 

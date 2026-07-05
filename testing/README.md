@@ -16,6 +16,7 @@ canonical acceptance gates.
 | `testing/cypress-e2e` | Cypress browser-runner showcase for representative session, feed, CRUD, and moderation flows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/axe-a11y` | Axe-core automated accessibility checks for representative browser states | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/zap-security` | OWASP ZAP passive baseline security smoke scan | composed stack gateway, `STACKVERSE_URL` | manual showcase workflow |
+| `testing/tracetest-otel` | Tracetest assertions that one gateway API action produces one trace spanning gateway and backend spans | composed stack with observability enabled | manual showcase workflow |
 
 Showcase suites should demonstrate the tool, not clone every canonical test.
 Pick flows that exercise the tool's strengths while staying anchored to the
