@@ -186,7 +186,7 @@ async fn db_error(
             error_code = %err
                 .as_database_error()
                 .and_then(|db| db.code())
-                .unwrap_or_else(|| std::borrow::Cow::Borrowed("query_failed")),
+                .unwrap_or(std::borrow::Cow::Borrowed("query_failed")),
             "Database call failed"
         );
         error::internal_error(state, headers, uri, anyhow::Error::new(err)).await
@@ -1551,17 +1551,14 @@ async fn list_my_reports(
         )
         .await;
     }
-    report_page(
-        &state,
-        &headers,
-        &uri,
-        "where reporter = $1 and ($2 = '' or status = $2)",
-        vec![reporter, status],
-        "order by created_at desc, id desc",
+    let query = ReportPageQuery {
+        where_sql: "where reporter = $1 and ($2 = '' or status = $2)",
+        args: vec![reporter, status],
+        order_sql: "order by created_at desc, id desc",
         page,
         size,
-    )
-    .await
+    };
+    report_page(&state, &headers, &uri, query).await
 }
 
 async fn update_my_report(
@@ -1711,29 +1708,37 @@ async fn list_report_queue(
         )
         .await;
     }
-    report_page(
-        &state,
-        &headers,
-        &uri,
-        "where status = $1",
-        vec![status],
-        "order by created_at, id",
+    let query = ReportPageQuery {
+        where_sql: "where status = $1",
+        args: vec![status],
+        order_sql: "order by created_at, id",
         page,
         size,
-    )
-    .await
+    };
+    report_page(&state, &headers, &uri, query).await
+}
+
+struct ReportPageQuery {
+    where_sql: &'static str,
+    args: Vec<String>,
+    order_sql: &'static str,
+    page: i64,
+    size: i64,
 }
 
 async fn report_page(
     state: &AppState,
     headers: &HeaderMap,
     uri: &Uri,
-    where_sql: &str,
-    args: Vec<String>,
-    order_sql: &str,
-    page: i64,
-    size: i64,
+    query: ReportPageQuery,
 ) -> Response<Body> {
+    let ReportPageQuery {
+        where_sql,
+        args,
+        order_sql,
+        page,
+        size,
+    } = query;
     let mut count = sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
         "select count(*) from reports {where_sql}"
     )));

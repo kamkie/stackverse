@@ -408,10 +408,10 @@ pub async fn localize(state: &AppState, headers: &HeaderMap, uri: &Uri, key: &st
     if let Some(text) = text_for(&state.pool, key, &language).await {
         return text;
     }
-    if language != "en" {
-        if let Some(text) = text_for(&state.pool, key, "en").await {
-            return text;
-        }
+    if language != "en"
+        && let Some(text) = text_for(&state.pool, key, "en").await
+    {
+        return text;
     }
     key.to_string()
 }
@@ -472,12 +472,11 @@ fn accepted_languages(header: &str) -> Vec<String> {
         }
         let mut quality = 1.0;
         for parameter in pieces {
-            if let Some((name, value)) = parameter.trim().split_once('=') {
-                if name.trim() == "q" {
-                    if let Ok(parsed) = value.trim().parse::<f64>() {
-                        quality = parsed;
-                    }
-                }
+            if let Some((name, value)) = parameter.trim().split_once('=')
+                && name.trim() == "q"
+                && let Ok(parsed) = value.trim().parse::<f64>()
+            {
+                quality = parsed;
             }
         }
         if quality <= 0.0 {

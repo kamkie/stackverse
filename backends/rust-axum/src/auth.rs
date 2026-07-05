@@ -270,7 +270,7 @@ async fn validate_token(state: &AppState, raw: &str) -> anyhow::Result<Identity>
     let kid = header.kid.ok_or_else(|| anyhow!("token has no kid"))?;
     let key = state.jwks.key(&kid).await?;
     let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_issuer(&[state.config.oidc_issuer_uri.clone()]);
+    validation.set_issuer(std::slice::from_ref(&state.config.oidc_issuer_uri));
     validation.set_audience(&[Config::AUDIENCE]);
     let token = decode::<Claims>(raw, &key, &validation)?;
     if token.claims.preferred_username.is_empty() {
