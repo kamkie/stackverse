@@ -47,6 +47,8 @@ jobs:
         run: yarn build
       - name: Test with coverage
         run: yarn test --coverage
+      - name: Normalize coverage paths
+        run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info backends/node-ts/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
