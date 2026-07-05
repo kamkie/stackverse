@@ -1,0 +1,57 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-frontend-svelte
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-svelte:
+    name: Frontend · Svelte
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/svelte
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-svelte-${{ hashFiles('frontends/svelte/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-svelte-
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test --coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: frontends/svelte/coverage/lcov.info
+          flags: frontend-svelte
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: frontends/svelte/test-results/junit.xml
+          flags: frontend-svelte
+          token: ${{ secrets.CODECOV_TOKEN }}
