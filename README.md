@@ -102,6 +102,7 @@ and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration))
 | Backend | Ktor (Kotlin) | `backends/ktor-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-ktor-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-dotnet)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Go (stdlib + chi) | `backends/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Grails (Groovy) | `backends/grails` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-grails)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Micronaut (Java) | `backends/micronaut-java` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-micronaut-java)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (TypeScript) | `backends/node-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (NestJS) | `backends/node-nestjs` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-nestjs)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
