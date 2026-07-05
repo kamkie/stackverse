@@ -134,16 +134,36 @@ onMounted(() => void loadFeed(true));
     @close="reporting = null"
   >
     <form class="sv-form" @submit.prevent="submitReport">
-      <Field :label="t('ui.field.reason')" :error="fieldErrors.reason">
-        <select v-model="reportForm.reason" class="sv-select">
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.reason')"
+        :error="fieldErrors.reason"
+      >
+        <select
+          :id="inputId"
+          v-model="reportForm.reason"
+          class="sv-select"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        >
           <option value="spam">{{ t("ui.report.reason.spam") }}</option>
           <option value="offensive">{{ t("ui.report.reason.offensive") }}</option>
           <option value="broken-link">{{ t("ui.report.reason.broken-link") }}</option>
           <option value="other">{{ t("ui.report.reason.other") }}</option>
         </select>
       </Field>
-      <Field :label="t('ui.field.comment')" :error="fieldErrors.comment">
-        <textarea v-model="reportForm.comment" class="sv-textarea" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.comment')"
+        :error="fieldErrors.comment"
+      >
+        <textarea
+          :id="inputId"
+          v-model="reportForm.comment"
+          class="sv-textarea"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
       <div class="sv-form-actions">
         <button type="button" class="sv-button sv-button--ghost" @click="reporting = null">

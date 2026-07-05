@@ -5,7 +5,7 @@ import type { Bookmark } from "../types";
 function mountComponent(
   component: Component,
   props: Record<string, unknown> = {},
-  slots?: Record<string, () => unknown>,
+  slots?: Record<string, (props: Record<string, unknown>) => unknown>,
 ) {
   const host = document.createElement("div");
   document.body.append(host);
@@ -62,14 +62,32 @@ describe("shared components", () => {
     const { host } = mountComponent(
       Field,
       { label: "Title", hint: "Required", error: "Title is required" },
-      { default: () => h("input", { name: "title" }) },
+      {
+        default: (slotProps) =>
+          h("input", {
+            id: slotProps["inputId"],
+            name: "title",
+            "aria-describedby": slotProps["describedBy"],
+            "aria-invalid": slotProps["invalid"] || undefined,
+          }),
+      },
     );
+
+    const label = host.querySelector(".sv-field");
+    const input = host.querySelector<HTMLInputElement>("input[name='title']");
+    const hint = host.querySelector(".sv-field-hint");
+    const error = host.querySelector(".sv-field-error");
 
     expect(host.querySelector(".sv-field")?.classList.contains("is-invalid")).toBe(true);
     expect(host.textContent).toContain("Title");
     expect(host.textContent).toContain("Required");
     expect(host.textContent).toContain("Title is required");
-    expect(host.querySelector("input[name='title']")).not.toBeNull();
+    expect(input).not.toBeNull();
+    expect(input?.id).toBeTruthy();
+    expect(label?.getAttribute("for")).toBe(input?.id);
+    expect(input?.getAttribute("aria-invalid")).toBe("true");
+    expect(input?.getAttribute("aria-describedby")).toBe(`${hint?.id} ${error?.id}`);
+    expect(error?.getAttribute("role")).toBe("alert");
   });
 
   it("emits previous and next page requests with accessible labels", async () => {

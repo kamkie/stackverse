@@ -179,8 +179,18 @@ onMounted(() => void loadUsers());
     @close="blocking = null"
   >
     <form class="sv-form" @submit.prevent="blockUser">
-      <Field :label="t('ui.field.reason')" :error="fieldErrors.reason">
-        <textarea v-model="reason" class="sv-textarea" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.reason')"
+        :error="fieldErrors.reason"
+      >
+        <textarea
+          :id="inputId"
+          v-model="reason"
+          class="sv-textarea"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
       <div class="sv-form-actions">
         <button type="button" class="sv-button sv-button--ghost" @click="blocking = null">

@@ -6,7 +6,7 @@ import Dialog from "../../components/Dialog.vue";
 import Field from "../../components/Field.vue";
 import Pagination from "../../components/Pagination.vue";
 import { formatDateTime, toFieldErrorMap, type FieldErrorMap } from "../../forms";
-import { refreshBundle, resolvedLanguage, t } from "../../i18n/i18n";
+import { loadBundle, resolvedLanguage, t } from "../../i18n/i18n";
 import { SUPPORTED_LANGUAGES } from "../../i18n/languages";
 import { showToast } from "../../toast";
 import type { Message, MessageInput } from "../../types";
@@ -107,7 +107,7 @@ async function saveMessage(): Promise<void> {
       showToast(t("ui.toast.message-created"));
     }
     formOpen.value = false;
-    await refreshBundle();
+    await loadBundle();
   } catch (caught) {
     fieldErrors.value = toFieldErrorMap(fieldErrorsOf(caught));
     if (Object.keys(fieldErrors.value).length === 0) {
@@ -126,7 +126,7 @@ async function deleteMessage(): Promise<void> {
     messages.value = messages.value.filter((message) => message.id !== target.id);
     deleting.value = null;
     showToast(t("ui.toast.message-deleted"));
-    await refreshBundle();
+    await loadBundle();
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "Unable to delete message";
     error.value = message;
@@ -210,21 +210,61 @@ onMounted(() => void loadMessages());
     @close="formOpen = false"
   >
     <form class="sv-form" @submit.prevent="saveMessage">
-      <Field :label="t('ui.field.key')" :error="fieldErrors.key">
-        <input v-model="form.key" class="sv-input" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.key')"
+        :error="fieldErrors.key"
+      >
+        <input
+          :id="inputId"
+          v-model="form.key"
+          class="sv-input"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
-      <Field :label="t('ui.field.language')" :error="fieldErrors.language">
-        <select v-model="form.language" class="sv-select">
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.language')"
+        :error="fieldErrors.language"
+      >
+        <select
+          :id="inputId"
+          v-model="form.language"
+          class="sv-select"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        >
           <option v-for="code in SUPPORTED_LANGUAGES" :key="code" :value="code">
             {{ code }}
           </option>
         </select>
       </Field>
-      <Field :label="t('ui.field.text')" :error="fieldErrors.text">
-        <textarea v-model="form.text" class="sv-textarea" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.text')"
+        :error="fieldErrors.text"
+      >
+        <textarea
+          :id="inputId"
+          v-model="form.text"
+          class="sv-textarea"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
-      <Field :label="t('ui.field.description')" :error="fieldErrors.description">
-        <textarea v-model="form.description" class="sv-textarea" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.description')"
+        :error="fieldErrors.description"
+      >
+        <textarea
+          :id="inputId"
+          v-model="form.description"
+          class="sv-textarea"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
       <div class="sv-form-actions">
         <button type="button" class="sv-button sv-button--ghost" @click="formOpen = false">
