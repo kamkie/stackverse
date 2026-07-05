@@ -82,5 +82,20 @@ jobs:
         run: go build ./...
 
       - uses: github/codeql-action/analyze@v4
+        id: analyze
         with:
           category: "/language:${{ matrix.language }}"
+          output: sarif-results
+
+      # Honor inline `// codeql[query-id]` suppression comments: dismiss the
+      # code-scanning alerts each language's SARIF marks as suppressed. Gated to
+      # main so a PR branch's suppression comments can't dismiss alerts before
+      # they merge; per-language SARIF paths keep each analysis isolated (the
+      # action only reopens its own "Suppressed via SARIF" dismissals).
+      - uses: advanced-security/dismiss-alerts@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          sarif-id: ${{ steps.analyze.outputs.sarif-id }}
+          sarif-file: sarif-results/${{ matrix.language }}.sarif
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
