@@ -59,6 +59,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /frontends/vanilla-ts
       - /gateways/node-fastify
       - /testing/cypress-e2e
     schedule:
@@ -95,6 +96,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /frontends/vanilla-ts
       - /gateways/go
       - /gateways/node-fastify
       - /gateways/spring-cloud-gateway

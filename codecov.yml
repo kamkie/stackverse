@@ -42,6 +42,10 @@ flags:
     paths:
       - frontends/react/
     carryforward: true
+  frontend-vanilla-ts:
+    paths:
+      - frontends/vanilla-ts/
+    carryforward: true
   gateway-go:
     paths:
       - gateways/go/
@@ -95,6 +99,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-vanilla-ts
+      name: "frontend · vanilla-ts"
+      paths:
+        - frontends/vanilla-ts/**
     - component_id: gateway-go
       name: "gateway · go"
       paths:
