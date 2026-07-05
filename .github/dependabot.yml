@@ -97,6 +97,7 @@ updates:
       - /frontends/react
       - /gateways/go
       - /gateways/node-fastify
+      - /gateways/openresty
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
     schedule:
