@@ -58,6 +58,7 @@ jobs:
         with:
           go-version-file: backends/go/go.mod
           cache-dependency-path: |
+            backends/go-echo/go.sum
             backends/go/go.sum
             gateways/go/go.sum
 
@@ -79,6 +80,11 @@ jobs:
       - name: Build the Go backend
         if: matrix.language == 'go'
         working-directory: backends/go
+        run: go build ./...
+
+      - name: Build the Go Echo backend
+        if: matrix.language == 'go'
+        working-directory: backends/go-echo
         run: go build ./...
 
       - name: Build the Go gateway

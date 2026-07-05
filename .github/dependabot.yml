@@ -29,6 +29,7 @@ updates:
   - package-ecosystem: gomod
     directories:
       - /backends/go
+      - /backends/go-echo
       - /gateways/go
     schedule:
       interval: weekly
@@ -127,6 +128,7 @@ updates:
     directories:
       - /backends/dotnet
       - /backends/go
+      - /backends/go-echo
       - /backends/grails
       - /backends/ktor-kotlin
       - /backends/micronaut-java
