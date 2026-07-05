@@ -64,12 +64,28 @@ describe("i18n helpers", () => {
 
     expect(i18n.t("ui.app.title")).toBe("Stackverse");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const secondRequest = fetchMock.mock.calls[1];
+    const secondRequest = fetchMock.mock.calls[1]!;
     expect(new URL(String(secondRequest[0])).searchParams.get("lang")).toBe("en");
     expect(secondRequest[1]?.headers).toBeInstanceOf(Headers);
     expect((secondRequest[1]?.headers as Headers).get("If-None-Match")).toBe('W/"one"');
     expect(document.documentElement.lang).toBe("en");
     expect(document.title).toBe("Stackverse");
+  });
+
+  it("syncs document metadata when the server revalidates a cached bundle", async () => {
+    localStorage.setItem(
+      "stackverse.bundle.en",
+      JSON.stringify({
+        etag: 'W/"en"',
+        bundle: { language: "en", messages: { "ui.app.title": "Cached Stackverse" } },
+      }),
+    );
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 304 }));
+
+    await new RuntimeI18n().load("en");
+
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("Cached Stackverse");
   });
 
   it("falls back to a cached bundle when refresh fails", async () => {
@@ -87,6 +103,8 @@ describe("i18n helpers", () => {
 
     expect(i18n.resolvedLanguage).toBe("pl");
     expect(i18n.t("ui.app.title")).toBe("Stackverse PL");
+    expect(document.documentElement.lang).toBe("pl");
+    expect(document.title).toBe("Stackverse PL");
   });
 
   it("throws when the bundle request fails without a cached copy", async () => {
@@ -110,7 +128,7 @@ describe("i18n helpers", () => {
 
     expect(i18n.lang).toBe("pl");
     expect(readStoredLanguage()).toBe("pl");
-    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get("lang")).toBe("pl");
+    expect(new URL(String(fetchMock.mock.calls[0]![0])).searchParams.get("lang")).toBe("pl");
   });
 
   it("keeps language storage failures from blocking selection", () => {

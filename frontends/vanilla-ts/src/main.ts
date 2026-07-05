@@ -251,9 +251,9 @@ function textFieldHtml({
   name: string;
   label: string;
   value: string;
-  error?: string;
-  type?: string;
-  hint?: string;
+  error?: string | undefined;
+  type?: string | undefined;
+  hint?: string | undefined;
 }): string {
   const id = `field-${name}`;
   const errorId = `${id}-error`;
@@ -276,7 +276,7 @@ function textareaFieldHtml({
   name: string;
   label: string;
   value: string;
-  error?: string;
+  error?: string | undefined;
 }): string {
   const id = `field-${name}`;
   const errorId = `${id}-error`;
@@ -298,7 +298,7 @@ function selectFieldHtml({
   label: string;
   value: string;
   options: { value: string; label: string }[];
-  error?: string;
+  error?: string | undefined;
 }): string {
   const id = `field-${name}`;
   const errorId = `${id}-error`;
@@ -443,7 +443,8 @@ async function fetchNextBookmarks(list: BookmarkListState, visibility?: Visibili
     ...(list.nextCursor ? { cursor: list.nextCursor } : {}),
   });
   list.pages.push(page);
-  list.nextCursor = page.nextCursor;
+  if (page.nextCursor === undefined) delete list.nextCursor;
+  else list.nextCursor = page.nextCursor;
 }
 
 async function ensureBookmarks(list: BookmarkListState, visibility?: Visibility): Promise<void> {
@@ -1139,10 +1140,11 @@ function messageFormDialogHtml(dialog: Extract<DialogState, { kind: "message-for
     text: message?.text ?? "",
     description: message?.description ?? "",
   };
+  const selectedLanguage = values.language ?? "en";
   const languageOptions = [
-    ...(SUPPORTED_LANGUAGES.includes(values.language as (typeof SUPPORTED_LANGUAGES)[number])
+    ...(SUPPORTED_LANGUAGES.includes(selectedLanguage as (typeof SUPPORTED_LANGUAGES)[number])
       ? []
-      : [{ value: values.language, label: values.language }]),
+      : [{ value: selectedLanguage, label: selectedLanguage }]),
     ...SUPPORTED_LANGUAGES.map((lang) => ({ value: lang, label: lang })),
   ];
   const error = dialog.error;
@@ -1150,7 +1152,7 @@ function messageFormDialogHtml(dialog: Extract<DialogState, { kind: "message-for
     t(dialog.mode === "edit" ? "ui.messages.dialog.edit" : "ui.messages.dialog.add"),
     `<form class="sv-form" data-form="message">
       ${textFieldHtml({ name: "key", label: t("ui.field.key"), value: values.key ?? "", error: fieldError(error, "key") })}
-      ${selectFieldHtml({ name: "language", label: t("ui.field.language"), value: values.language ?? "en", error: fieldError(error, "language"), options: languageOptions })}
+      ${selectFieldHtml({ name: "language", label: t("ui.field.language"), value: selectedLanguage, error: fieldError(error, "language"), options: languageOptions })}
       ${textareaFieldHtml({ name: "text", label: t("ui.field.text"), value: values.text ?? "", error: fieldError(error, "text") })}
       ${textareaFieldHtml({ name: "description", label: t("ui.field.description"), value: values.description ?? "", error: fieldError(error, "description") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
@@ -1235,37 +1237,71 @@ function formValues(form: HTMLFormElement): FormValues {
   return values;
 }
 
-function rememberDialogValues(form: HTMLFormElement): void {
+type DialogFormErrorUpdate = { kind: "clear" } | { kind: "set"; error: unknown };
+
+function rememberDialogFormState(
+  form: HTMLFormElement,
+  values: FormValues,
+  errorUpdate: DialogFormErrorUpdate,
+): void {
   if (!state.dialog) return;
-  const values = formValues(form);
 
   switch (form.dataset.form) {
     case "bookmark":
       if (state.dialog.kind === "bookmark-form") {
-        state.dialog = { ...state.dialog, values, error: undefined };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "report-bookmark":
       if (state.dialog.kind === "report-bookmark") {
-        state.dialog = { ...state.dialog, values, error: undefined };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "edit-report":
       if (state.dialog.kind === "edit-report") {
-        state.dialog = { ...state.dialog, values, error: undefined };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "block-user":
       if (state.dialog.kind === "block-user") {
-        state.dialog = { ...state.dialog, values, error: undefined };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "message":
       if (state.dialog.kind === "message-form") {
-        state.dialog = { ...state.dialog, values, error: undefined };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
   }
+}
+
+function rememberDialogValues(form: HTMLFormElement): void {
+  rememberDialogFormState(form, formValues(form), { kind: "clear" });
 }
 
 function reportBody(values: FormValues): ReportInput {
@@ -1374,7 +1410,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
     }
   } catch (error) {
-    state.dialog = { ...state.dialog, values, error } as DialogState;
+    rememberDialogFormState(form, values, { kind: "set", error });
   }
   await renderApp();
 }

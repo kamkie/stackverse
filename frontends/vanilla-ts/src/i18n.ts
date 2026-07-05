@@ -54,6 +54,11 @@ export class RuntimeI18n {
     return this.bundle?.language ?? "en";
   }
 
+  private applyDocumentBundle(bundle: MessageBundle): void {
+    document.documentElement.lang = bundle.language;
+    document.title = bundle.messages["ui.app.title"] ?? document.title;
+  }
+
   async load(lang: string | null = this.lang): Promise<void> {
     const cached = readCachedBundle(lang);
     const headers = new Headers();
@@ -65,11 +70,13 @@ export class RuntimeI18n {
 
     if (response.status === 304 && cached) {
       this.bundle = cached.bundle;
+      this.applyDocumentBundle(cached.bundle);
       return;
     }
     if (!response.ok) {
       if (cached) {
         this.bundle = cached.bundle;
+        this.applyDocumentBundle(cached.bundle);
         return;
       }
       throw new Error(`Failed to load message bundle: ${response.status}`);
@@ -79,8 +86,7 @@ export class RuntimeI18n {
     const fresh = { etag: response.headers.get("ETag"), bundle };
     writeCachedBundle(lang, fresh);
     this.bundle = bundle;
-    document.documentElement.lang = bundle.language;
-    document.title = bundle.messages["ui.app.title"] ?? document.title;
+    this.applyDocumentBundle(bundle);
   }
 
   async setLanguage(lang: string): Promise<void> {
