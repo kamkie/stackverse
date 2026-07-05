@@ -26,6 +26,7 @@ import org.flywaydb.core.Flyway;
 final class RuntimeSupport {
   static final Config CONFIG = Config.fromEnv();
   private static final AtomicBoolean BOOTED = new AtomicBoolean(false);
+  private static final AtomicBoolean SHUTDOWN_LOG_REGISTERED = new AtomicBoolean(false);
   private static HikariDataSource dataSource;
 
   private RuntimeSupport() {}
@@ -50,6 +51,7 @@ final class RuntimeSupport {
         seedMessages();
         Log.event("info", "application_start", "success", "Stackverse Open Liberty backend started",
             Map.of("port", CONFIG.port(), "db_host", CONFIG.dbHost(), "oidc_issuer_uri", CONFIG.issuerUri()));
+        registerShutdownLog();
         BOOTED.set(true);
       } catch (RuntimeException | Error ex) {
         candidate.close();
@@ -129,6 +131,14 @@ final class RuntimeSupport {
     hikari.setMinimumIdle(0);
     hikari.setPoolName("stackverse-open-liberty-java");
     return new HikariDataSource(hikari);
+  }
+
+  private static void registerShutdownLog() {
+    if (SHUTDOWN_LOG_REGISTERED.compareAndSet(false, true)) {
+      Runtime.getRuntime().addShutdownHook(new Thread(
+          () -> Log.event("info", "application_stop", "success", "Stackverse Open Liberty backend stopped", Map.of()),
+          "stackverse-open-liberty-stop-log"));
+    }
   }
 
   private static void seedMessages() {

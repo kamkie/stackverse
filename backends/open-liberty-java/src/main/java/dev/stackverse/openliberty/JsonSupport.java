@@ -58,21 +58,15 @@ final class JsonSupport {
   static Response etagResponse(String ifNoneMatch, Object payload) {
     String body = jsonString(payload);
     String etag = "\"" + Base64.getUrlEncoder().withoutPadding().encodeToString(sha256(body)) + "\"";
-    Response.ResponseBuilder builder = Response.ok(body, MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8"))
-        .header("ETag", etag)
-        .header("Cache-Control", "no-cache");
     if (ifNoneMatch != null) {
       for (String candidate : ifNoneMatch.split(",")) {
         String token = candidate.trim();
         if (etag.equals(token) || "*".equals(token)) {
-          return Response.status(Response.Status.NOT_MODIFIED)
-              .header("ETag", etag)
-              .header("Cache-Control", "no-cache")
-              .build();
+          return cacheHeaders(Response.status(Response.Status.NOT_MODIFIED), etag).build();
         }
       }
     }
-    return builder.build();
+    return cacheHeaders(Response.ok(body, MediaType.APPLICATION_JSON_TYPE.withCharset("utf-8")), etag).build();
   }
 
   static Response problem(int status, String title, String detail, List<Map<String, Object>> errors) {
@@ -106,5 +100,11 @@ final class JsonSupport {
     } catch (NoSuchAlgorithmException ex) {
       throw new IllegalStateException(ex);
     }
+  }
+
+  private static Response.ResponseBuilder cacheHeaders(Response.ResponseBuilder builder, String etag) {
+    return builder
+        .header("ETag", etag)
+        .header("Cache-Control", "no-cache");
   }
 }

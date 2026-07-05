@@ -49,7 +49,7 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
         item.put("message", StackverseResource.localize(violation.messageKey(), language));
         errors.add(item);
       }
-      return JsonSupport.problem(400, "Bad Request", "Validation failed", errors);
+      return withRouteHeaders(JsonSupport.problem(400, "Bad Request", "Validation failed", errors));
     }
     if (ex instanceof ApiProblem problem) {
       String detail = problem.detail;
@@ -59,21 +59,22 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
             headers.getHeaderString("Accept-Language"));
         detail = StackverseResource.localize(problem.detailKey, language);
       }
-      return JsonSupport.problem(problem.status, problem.title, detail, null);
+      return withRouteHeaders(JsonSupport.problem(problem.status, problem.title, detail, null));
     }
     if (ex instanceof NotAllowedException) {
-      return JsonSupport.problem(405, "Method Not Allowed", null, null);
+      return withRouteHeaders(JsonSupport.problem(405, "Method Not Allowed", null, null));
     }
     if (ex instanceof NotFoundException) {
-      return JsonSupport.problem(404, "Not Found", null, null);
+      return withRouteHeaders(JsonSupport.problem(404, "Not Found", null, null));
     }
     if (ex instanceof WebApplicationException web) {
       int status = web.getResponse().getStatus();
-      return JsonSupport.problem(status, Response.Status.fromStatusCode(status).getReasonPhrase(), null, null);
+      return withRouteHeaders(
+          JsonSupport.problem(status, Response.Status.fromStatusCode(status).getReasonPhrase(), null, null));
     }
     Log.error("request_failed", "failure", "Unhandled request failure", ex,
         Map.of("error_code", ex.getClass().getSimpleName()));
-    return JsonSupport.problem(500, "Internal Server Error", "Unexpected server error.", null);
+    return withRouteHeaders(JsonSupport.problem(500, "Internal Server Error", "Unexpected server error.", null));
   }
 
   private Throwable unwrap(Throwable throwable) {
@@ -81,5 +82,12 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
       return runtime.getCause();
     }
     return throwable;
+  }
+
+  private Response withRouteHeaders(Response response) {
+    if (StackverseResource.isDeprecatedV1Bookmarks(request.getMethod(), uriInfo.getPath())) {
+      return StackverseResource.withV1BookmarkDeprecation(response);
+    }
+    return response;
   }
 }

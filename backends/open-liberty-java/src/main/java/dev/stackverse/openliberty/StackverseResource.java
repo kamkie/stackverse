@@ -101,7 +101,7 @@ public class StackverseResource {
     try (Connection connection = RuntimeSupport.connection()) {
       try (PreparedStatement statement = prepare(connection,
           "select * from bookmarks where " + parts.where() + " order by created_at desc, id desc limit ? offset ?",
-          append(parts.params(), paging.size(), paging.page() * paging.size()))) {
+          append(parts.params(), paging.size(), paging.offset()))) {
         try (ResultSet rs = statement.executeQuery()) {
           while (rs.next()) items.add(bookmark(rs));
         }
@@ -114,12 +114,7 @@ public class StackverseResource {
         }
       }
     }
-    Response base = JsonSupport.json(page(items, paging, total));
-    return Response.fromResponse(base)
-        .header("Deprecation", V1_DEPRECATION)
-        .header("Sunset", V1_SUNSET)
-        .header("Link", V1_SUCCESSOR)
-        .build();
+    return withV1BookmarkDeprecation(JsonSupport.json(page(items, paging, total)));
   }
 
   @GET
@@ -302,7 +297,7 @@ public class StackverseResource {
     try (Connection connection = RuntimeSupport.connection()) {
       try (PreparedStatement statement = prepare(connection,
           "select * from messages where " + where + " order by key, language limit ? offset ?",
-          append(params, paging.size(), paging.page() * paging.size()))) {
+          append(params, paging.size(), paging.offset()))) {
         try (ResultSet rs = statement.executeQuery()) {
           while (rs.next()) items.add(message(rs));
         }
@@ -488,10 +483,10 @@ public class StackverseResource {
   public Response updateMyReport(@PathParam("id") String rawId, String body) {
     Caller caller = requireCaller();
     UUID id = uuid(rawId);
-    ReportInput input = reportInput(body);
     Map<String, Object> updated = RuntimeSupport.transaction(connection -> {
       Map<String, Object> report = ownReport(connection, caller.username(), id);
       if (!"open".equals(report.get("status"))) throw ApiProblem.conflict("The report has already been resolved.");
+      ReportInput input = reportInput(body);
       try (PreparedStatement statement = RuntimeSupport.prepare(connection,
           "update reports set reason = ?, comment = ? where id = ? returning *",
           input.reason(), input.comment(), id)) {
@@ -670,7 +665,7 @@ public class StackverseResource {
     try (Connection connection = RuntimeSupport.connection()) {
       try (PreparedStatement statement = prepare(connection,
           withCount + " where " + where + " order by u.last_seen desc, u.username asc limit ? offset ?",
-          append(params, paging.size(), paging.page() * paging.size()))) {
+          append(params, paging.size(), paging.offset()))) {
         try (ResultSet rs = statement.executeQuery()) {
           while (rs.next()) items.add(userAccount(rs));
         }
@@ -766,7 +761,7 @@ public class StackverseResource {
     try (Connection connection = RuntimeSupport.connection()) {
       try (PreparedStatement statement = prepare(connection,
           "select * from audit_entries where " + where + " order by created_at desc, id desc limit ? offset ?",
-          append(params, paging.size(), paging.page() * paging.size()))) {
+          append(params, paging.size(), paging.offset()))) {
         try (ResultSet rs = statement.executeQuery()) {
           while (rs.next()) items.add(auditEntry(rs));
         }
@@ -831,6 +826,19 @@ public class StackverseResource {
 
   static String firstParam(List<String> values) {
     return values == null || values.isEmpty() ? null : values.get(0);
+  }
+
+  static boolean isDeprecatedV1Bookmarks(String method, String path) {
+    String normalized = path != null && path.startsWith("/") ? path.substring(1) : path;
+    return "GET".equalsIgnoreCase(method) && "api/v1/bookmarks".equals(normalized);
+  }
+
+  static Response withV1BookmarkDeprecation(Response response) {
+    return Response.fromResponse(response)
+        .header("Deprecation", V1_DEPRECATION)
+        .header("Sunset", V1_SUNSET)
+        .header("Link", V1_SUCCESSOR)
+        .build();
   }
 
   static String localize(String key, String language) {
@@ -1097,7 +1105,7 @@ public class StackverseResource {
     List<Map<String, Object>> items = new ArrayList<>();
     long total;
     try (Connection connection = RuntimeSupport.connection()) {
-      try (PreparedStatement statement = prepare(connection, itemSql, append(params, paging.size(), paging.page() * paging.size()))) {
+      try (PreparedStatement statement = prepare(connection, itemSql, append(params, paging.size(), paging.offset()))) {
         try (ResultSet rs = statement.executeQuery()) {
           while (rs.next()) items.add(report(rs));
         }
@@ -1386,7 +1394,11 @@ public class StackverseResource {
   }
 }
 
-record Paging(int page, int size) {}
+record Paging(int page, int size) {
+  long offset() {
+    return (long) page * size;
+  }
+}
 record ListFilters(List<String> tags, String q, String visibility) {}
 record QueryParts(String where, List<Object> params) {}
 record Cursor(Instant createdAt, UUID id) {}

@@ -16,6 +16,7 @@ import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.Provider;
 import java.net.URI;
 import java.net.URL;
@@ -52,7 +53,8 @@ public class AuthFilter implements ContainerRequestFilter {
     } catch (Exception ex) {
       Log.event("info", "jwt_validation_failed", "failure", "Rejected a bearer token",
           Map.of("error_code", "invalid_token"));
-      request.abortWith(JsonSupport.problem(401, "Unauthorized", "Missing or invalid bearer token.", null));
+      request.abortWith(withRouteHeaders(request,
+          JsonSupport.problem(401, "Unauthorized", "Missing or invalid bearer token.", null)));
       return;
     }
     AccountState state = recordSeen(caller.username());
@@ -62,11 +64,18 @@ public class AuthFilter implements ContainerRequestFilter {
       String language = StackverseResource.resolveLanguage(
           StackverseResource.firstParam(request.getUriInfo().getQueryParameters().get("lang")),
           request.getHeaderString("Accept-Language"));
-      request.abortWith(JsonSupport.problem(403, "Forbidden",
-          StackverseResource.localize("error.account.blocked", language), null));
+      request.abortWith(withRouteHeaders(request, JsonSupport.problem(403, "Forbidden",
+          StackverseResource.localize("error.account.blocked", language), null)));
       return;
     }
     servletRequest.setAttribute(CALLER_ATTRIBUTE, caller);
+  }
+
+  private static Response withRouteHeaders(ContainerRequestContext request, Response response) {
+    if (StackverseResource.isDeprecatedV1Bookmarks(request.getMethod(), request.getUriInfo().getPath())) {
+      return StackverseResource.withV1BookmarkDeprecation(response);
+    }
+    return response;
   }
 
   private static Caller verify(String token) throws Exception {
