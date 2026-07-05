@@ -119,11 +119,20 @@ async function saveMessage(): Promise<void> {
 async function deleteMessage(): Promise<void> {
   if (!deleting.value) return;
   const target = deleting.value;
-  unwrap(await api.DELETE("/api/v1/messages/{id}", { params: { path: { id: target.id } } }));
-  messages.value = messages.value.filter((message) => message.id !== target.id);
-  deleting.value = null;
-  showToast(t("ui.toast.message-deleted"));
-  await refreshBundle();
+  try {
+    unwrap(
+      await api.DELETE("/api/v1/messages/{id}", { params: { path: { id: target.id } } }),
+    );
+    messages.value = messages.value.filter((message) => message.id !== target.id);
+    deleting.value = null;
+    showToast(t("ui.toast.message-deleted"));
+    await refreshBundle();
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Unable to delete message";
+    error.value = message;
+    deleting.value = null;
+    showToast(message, "danger");
+  }
 }
 
 watch([q, language], scheduleReload);

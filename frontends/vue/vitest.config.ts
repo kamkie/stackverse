@@ -3,6 +3,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   plugins: [vue()],
+  resolve: {
+    alias: {
+      vue: "vue/dist/vue.runtime.esm-bundler.js",
+    },
+  },
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],

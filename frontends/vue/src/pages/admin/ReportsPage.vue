@@ -62,13 +62,17 @@ async function loadReports(): Promise<void> {
 }
 
 async function resolveReport(report: Report, resolution: ReportStatus): Promise<void> {
-  unwrap(
-    await api.PUT("/api/v1/admin/reports/{id}", {
-      params: { path: { id: report.id } },
-      body: { resolution },
-    }),
-  );
-  await loadReports();
+  try {
+    unwrap(
+      await api.PUT("/api/v1/admin/reports/{id}", {
+        params: { path: { id: report.id } },
+        body: { resolution },
+      }),
+    );
+    await loadReports();
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : "Unable to update report";
+  }
 }
 
 watch(status, () => {

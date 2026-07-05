@@ -12,7 +12,7 @@ export const session = ref<Session | null>(null);
 export const me = ref<User | null>(null);
 
 export function isModerator(user: User | null = me.value): boolean {
-  return user?.roles.includes("moderator") === true;
+  return user?.roles.includes("moderator") === true || isAdmin(user);
 }
 
 export function isAdmin(user: User | null = me.value): boolean {

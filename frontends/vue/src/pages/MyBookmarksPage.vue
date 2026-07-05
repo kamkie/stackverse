@@ -119,11 +119,20 @@ async function saveBookmark(): Promise<void> {
 async function deleteBookmark(): Promise<void> {
   if (!deleting.value) return;
   const target = deleting.value;
-  unwrap(await api.DELETE("/api/v1/bookmarks/{id}", { params: { path: { id: target.id } } }));
-  bookmarks.value = bookmarks.value.filter((item) => item.id !== target.id);
-  deleting.value = null;
-  await loadTags();
-  showToast(t("ui.toast.bookmark-deleted"));
+  try {
+    unwrap(
+      await api.DELETE("/api/v1/bookmarks/{id}", { params: { path: { id: target.id } } }),
+    );
+    bookmarks.value = bookmarks.value.filter((item) => item.id !== target.id);
+    deleting.value = null;
+    await loadTags();
+    showToast(t("ui.toast.bookmark-deleted"));
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Unable to delete bookmark";
+    error.value = message;
+    deleting.value = null;
+    showToast(message, "danger");
+  }
 }
 
 watch([q, selectedTag], scheduleReload);

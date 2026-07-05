@@ -90,15 +90,19 @@ async function blockUser(): Promise<void> {
 }
 
 async function unblockUser(user: UserAccount): Promise<void> {
-  const updated = unwrap(
-    await api.PUT("/api/v1/admin/users/{username}/status", {
-      params: { path: { username: user.username } },
-      body: { status: "active" },
-    }),
-  );
-  users.value = users.value.map((item) =>
-    item.username === updated.username ? updated : item,
-  );
+  try {
+    const updated = unwrap(
+      await api.PUT("/api/v1/admin/users/{username}/status", {
+        params: { path: { username: user.username } },
+        body: { status: "active" },
+      }),
+    );
+    users.value = users.value.map((item) =>
+      item.username === updated.username ? updated : item,
+    );
+  } catch (caught) {
+    error.value = caught instanceof Error ? caught.message : "Unable to unblock user";
+  }
 }
 
 watch(q, scheduleReload);

@@ -118,17 +118,30 @@ async function saveReport(): Promise<void> {
 async function withdrawReport(): Promise<void> {
   if (!withdrawing.value) return;
   const target = withdrawing.value;
-  unwrap(await api.DELETE("/api/v1/reports/{id}", { params: { path: { id: target.id } } }));
-  reports.value = reports.value.filter((item) => item.id !== target.id);
-  unmarkReported(target.bookmarkId);
-  withdrawing.value = null;
-  showToast(t("ui.toast.report-withdrawn"));
+  try {
+    unwrap(
+      await api.DELETE("/api/v1/reports/{id}", { params: { path: { id: target.id } } }),
+    );
+    reports.value = reports.value.filter((item) => item.id !== target.id);
+    unmarkReported(target.bookmarkId);
+    withdrawing.value = null;
+    showToast(t("ui.toast.report-withdrawn"));
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Unable to withdraw report";
+    error.value = message;
+    withdrawing.value = null;
+    showToast(message, "danger");
+  }
 }
 
-watch([status, page], () => void loadReports());
 watch(status, () => {
-  page.value = 0;
+  if (page.value === 0) {
+    void loadReports();
+  } else {
+    page.value = 0;
+  }
 });
+watch(page, () => void loadReports());
 onMounted(() => void loadReports());
 </script>
 
