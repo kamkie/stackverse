@@ -1,4 +1,4 @@
-FROM openresty/openresty:1.27.1.2-0-bookworm-fat
+FROM openresty/openresty:1.31.1.1-1-bookworm-fat
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gettext-base ca-certificates \
