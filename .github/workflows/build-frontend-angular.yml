@@ -48,6 +48,8 @@ jobs:
         run: yarn build
       - name: Unit tests
         run: yarn test --coverage --reporters junit --output-file test-results/junit.xml
+      - name: Normalize coverage paths
+        run: node ../../tools/normalize-coverage-paths.mjs coverage/frontend-angular/lcov.info frontends/angular/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:

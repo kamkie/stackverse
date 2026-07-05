@@ -570,6 +570,13 @@ implementation without extra uploads. Coverage is informational only — see
 `codecov.yml` at the repo root; the acceptance gate stays the conformance and
 e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
 
+Coverage reports must name source files relative to the repository root before
+upload. Some tools run from an implementation directory and emit LCOV entries
+such as `SF:src/...`; those paths are ambiguous across Stackverse variants and
+do not match the Codecov flag/component path filters. Use
+`tools/normalize-coverage-paths.mjs` in the implementation workflow when a
+tool emits package-relative LCOV paths or Go module import paths.
+
 Every job — including conformance and e2e — also submits its JUnit test
 results to Codecov test analytics under the same flags, even when the tests
 fail. The README implementation matrix shows a per-flag coverage badge for

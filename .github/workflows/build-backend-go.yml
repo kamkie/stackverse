@@ -43,7 +43,9 @@ jobs:
         run: |
           mkdir -p TestResults
           go run gotest.tools/gotestsum@v1.13.0 --junitfile TestResults/junit.xml \
-            -- -coverprofile=coverage.out -covermode=atomic ./...
+            -- -coverprofile coverage.out -covermode=atomic ./...
+      - name: Normalize coverage paths
+        run: node ../../tools/normalize-coverage-paths.mjs coverage.out backends/go/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
