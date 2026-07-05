@@ -81,6 +81,14 @@ updates:
       nuget-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: sbt
+    directory: /backends/play-scala
+    schedule:
+      interval: weekly
+    groups:
+      sbt-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: pip
     directory: /testing/schemathesis-api
     schedule:
@@ -97,6 +105,7 @@ updates:
       - /backends/micronaut-java
       - /backends/node-nestjs
       - /backends/node-ts
+      - /backends/play-scala
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
