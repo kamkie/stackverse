@@ -308,3 +308,39 @@ async fn record_seen(state: &AppState, username: &str) -> anyhow::Result<Account
         status: row.try_get("status")?,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use axum::http::{HeaderMap, HeaderValue, header};
+
+    use super::{Identity, bearer_token};
+
+    #[test]
+    fn identity_role_check_requires_exact_role() {
+        let identity = Identity {
+            username: "demo".to_string(),
+            name: None,
+            email: None,
+            roles: vec!["moderator".to_string(), "admin".to_string()],
+        };
+
+        assert!(identity.has_role("admin"));
+        assert!(!identity.has_role("min"));
+    }
+
+    #[test]
+    fn bearer_token_accepts_only_bearer_authorization_header() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer abc.def"),
+        );
+        assert_eq!(bearer_token(&headers), Some("abc.def"));
+
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_static("Basic abc.def"),
+        );
+        assert_eq!(bearer_token(&headers), None);
+    }
+}

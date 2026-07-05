@@ -49,3 +49,31 @@ fn env(name: &str, fallback: &str) -> String {
 fn optional_env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Config;
+
+    #[test]
+    fn database_url_uses_configured_connection_fields() {
+        let config = Config {
+            port: "8080".to_string(),
+            db_host: "db".to_string(),
+            db_port: "6543".to_string(),
+            db_name: "stackverse_test".to_string(),
+            db_user: "tester".to_string(),
+            db_password: "secret".to_string(),
+            oidc_issuer_uri: "http://idp/realms/stackverse".to_string(),
+            oidc_jwks_uri: None,
+            seed_messages_dir: "../../spec/messages".to_string(),
+            log_level: "info".to_string(),
+            log_format: "json".to_string(),
+            otel_disabled: true,
+        };
+
+        assert_eq!(
+            config.database_url(),
+            "postgres://tester:secret@db:6543/stackverse_test"
+        );
+    }
+}

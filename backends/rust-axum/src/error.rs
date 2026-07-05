@@ -496,3 +496,90 @@ fn accepted_languages(header: &str) -> Vec<String> {
     });
     entries.into_iter().map(|(_, _, code)| code).collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri, header};
+    use serde_json::json;
+
+    use super::{
+        accepted_languages, escape_like, etag_json, first, page_response, parse_page, parse_query,
+    };
+
+    #[test]
+    fn parse_query_decodes_and_groups_repeated_parameters() {
+        let uri: Uri = "/api/v1/bookmarks?tag=rust&tag=web&q=hello%20world"
+            .parse()
+            .unwrap();
+
+        let params = parse_query(&uri);
+
+        assert_eq!(
+            params.get("tag").unwrap(),
+            &vec!["rust".to_string(), "web".to_string()]
+        );
+        assert_eq!(first(&params, "q"), "hello world");
+        assert_eq!(first(&params, "missing"), "");
+    }
+
+    #[test]
+    fn parse_page_uses_defaults_and_validates_bounds() {
+        let defaults: Uri = "/api/v1/bookmarks".parse().unwrap();
+        assert_eq!(parse_page(&parse_query(&defaults)).unwrap(), (0, 20));
+
+        let explicit: Uri = "/api/v1/bookmarks?page=2&size=100".parse().unwrap();
+        assert_eq!(parse_page(&parse_query(&explicit)).unwrap(), (2, 100));
+
+        let invalid_size: Uri = "/api/v1/bookmarks?size=101".parse().unwrap();
+        assert_eq!(
+            parse_page(&parse_query(&invalid_size)).unwrap_err(),
+            "size must be between 1 and 100"
+        );
+
+        let invalid_page: Uri = "/api/v1/bookmarks?page=-1".parse().unwrap();
+        assert_eq!(
+            parse_page(&parse_query(&invalid_page)).unwrap_err(),
+            "page must not be negative"
+        );
+    }
+
+    #[test]
+    fn page_response_calculates_total_pages() {
+        let page = page_response(vec!["a", "b"], 1, 2, 5);
+
+        assert_eq!(page.page, 1);
+        assert_eq!(page.size, 2);
+        assert_eq!(page.total_items, 5);
+        assert_eq!(page.total_pages, 3);
+    }
+
+    #[test]
+    fn escape_like_escapes_sql_wildcards_and_escape_character() {
+        assert_eq!(escape_like(r"100%\_"), r"100\%\\\_");
+    }
+
+    #[test]
+    fn accepted_languages_sorts_by_quality_and_ignores_wildcards() {
+        assert_eq!(
+            accepted_languages("pl-PL;q=0.8, en;q=0.9, *;q=1, fr;q=0"),
+            vec!["en".to_string(), "pl".to_string()]
+        );
+    }
+
+    #[test]
+    fn etag_json_returns_not_modified_for_matching_if_none_match() {
+        let body = json!({ "language": "en", "messages": {} });
+        let first = etag_json(&HeaderMap::new(), StatusCode::OK, &body, &[]);
+        let etag = first.headers().get(header::ETAG).unwrap().to_str().unwrap();
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::IF_NONE_MATCH,
+            HeaderValue::from_str(&format!("\"other\", {etag}")).unwrap(),
+        );
+        let second = etag_json(&headers, StatusCode::OK, &body, &[]);
+
+        assert_eq!(second.status(), StatusCode::NOT_MODIFIED);
+        assert!(second.headers().get(header::CONTENT_TYPE).is_none());
+    }
+}
