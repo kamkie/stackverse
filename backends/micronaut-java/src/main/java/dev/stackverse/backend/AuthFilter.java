@@ -1,5 +1,6 @@
 package dev.stackverse.backend;
 
+import io.micronaut.core.annotation.Nullable;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpResponse;
 import io.micronaut.http.annotation.RequestFilter;
@@ -28,6 +29,7 @@ final class AuthFilter {
 
     @RequestFilter
     @ExecuteOn(TaskExecutors.BLOCKING)
+    @Nullable
     MutableHttpResponse<?> authenticate(HttpRequest<?> request) {
         String header = request.getHeaders().get("Authorization");
         if (header == null || header.isBlank()) {
