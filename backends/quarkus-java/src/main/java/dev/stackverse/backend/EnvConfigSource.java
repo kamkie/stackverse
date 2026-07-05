@@ -7,27 +7,25 @@ import java.util.Map;
 import java.util.Set;
 
 public class EnvConfigSource implements ConfigSource {
+    private final Map<String, String> properties;
+
+    public EnvConfigSource() {
+        this.properties = buildProperties();
+    }
+
     @Override
     public Map<String, String> getProperties() {
-        Map<String, String> properties = new LinkedHashMap<>();
-        properties.put("quarkus.log.console.json.enabled", jsonConsoleEnabled());
-        String otelDisabled = otelSdkDisabled();
-        properties.put("quarkus.otel.sdk.disabled", otelDisabled);
-        if ("false".equals(otelDisabled)) {
-            properties.put("quarkus.otel.logs.enabled", "true");
-            properties.put("quarkus.otel.metrics.enabled", "true");
-        }
         return properties;
     }
 
     @Override
     public Set<String> getPropertyNames() {
-        return getProperties().keySet();
+        return properties.keySet();
     }
 
     @Override
     public String getValue(String propertyName) {
-        return getProperties().get(propertyName);
+        return properties.get(propertyName);
     }
 
     @Override
@@ -38,6 +36,18 @@ public class EnvConfigSource implements ConfigSource {
     @Override
     public int getOrdinal() {
         return 275;
+    }
+
+    private static Map<String, String> buildProperties() {
+        Map<String, String> properties = new LinkedHashMap<>();
+        properties.put("quarkus.log.console.json.enabled", jsonConsoleEnabled());
+        String otelDisabled = otelSdkDisabled();
+        properties.put("quarkus.otel.sdk.disabled", otelDisabled);
+        if ("false".equals(otelDisabled)) {
+            properties.put("quarkus.otel.logs.enabled", "true");
+            properties.put("quarkus.otel.metrics.enabled", "true");
+        }
+        return Map.copyOf(properties);
     }
 
     private static String jsonConsoleEnabled() {

@@ -1020,11 +1020,13 @@ public class StackverseService {
         return withConnection(connection -> {
             boolean previousAutoCommit = connection.getAutoCommit();
             connection.setAutoCommit(false);
+            Throwable failure = null;
             try {
                 T result = function.apply(connection);
                 connection.commit();
                 return result;
             } catch (SQLException | RuntimeException | Error error) {
+                failure = error;
                 try {
                     connection.rollback();
                 } catch (SQLException rollbackError) {
@@ -1032,7 +1034,15 @@ public class StackverseService {
                 }
                 throw error;
             } finally {
-                connection.setAutoCommit(previousAutoCommit);
+                try {
+                    connection.setAutoCommit(previousAutoCommit);
+                } catch (SQLException restoreError) {
+                    if (failure != null) {
+                        failure.addSuppressed(restoreError);
+                    } else {
+                        LOG.warn("Failed to restore connection auto-commit after transaction", restoreError);
+                    }
+                }
             }
         });
     }
