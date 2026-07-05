@@ -218,10 +218,11 @@ Stackverse has two canonical acceptance gates, documented above:
 Everything below is an *optional showcase* under
 [testing/](../testing/README.md): a variant for comparing testing tools such as
 Selenium, Cypress, Schemathesis, Postman, Bruno, Hurl, Robot Framework, k6,
-ZAP, axe-core, or trace assertions. Each is documented once. They choose
+ZAP, axe-core, or trace assertions. Each is documented once. Most cover
 representative public, authenticated, moderator, and admin flows that show the
-tool's style — they are not a way to add new product requirements or to replace
-the canonical gates.
+tool's style; a few are narrower by nature (ZAP is a passive baseline scan,
+Tracetest asserts one trace). None of them is a way to add new product
+requirements or to replace the canonical gates.
 
 New showcase suites use `testing/<tool>-<scope>` and carry their own README,
 default local command, and `.github/workflows/test-<tool>-<scope>.yml` when they
