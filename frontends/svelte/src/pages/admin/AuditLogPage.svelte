@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { api, queryString } from "../../lib/api";
   import { endOfDayIso, formatDate } from "../../lib/format";
   import { i18n, m } from "../../lib/i18n";
@@ -25,11 +25,23 @@
   let loading = true;
   let error: Error | null = null;
   let loadRequest = 0;
+  let filterTimer: number | undefined = undefined;
 
-  async function load() {
+  function clearPendingFilterReload() {
+    if (filterTimer !== undefined) {
+      window.clearTimeout(filterTimer);
+      filterTimer = undefined;
+    }
+  }
+
+  async function load(options: { clear?: boolean } = {}) {
     const request = ++loadRequest;
     loading = true;
     error = null;
+    if (options.clear) {
+      audit = null;
+    }
+
     try {
       const nextAudit = await api<Page<AuditEntry>>(
         `/api/v1/admin/audit-log${queryString({
@@ -59,22 +71,35 @@
   }
 
   function reloadFirstPage() {
+    clearPendingFilterReload();
     page = 0;
-    void load();
+    void load({ clear: true });
+  }
+
+  function scheduleFilterReload() {
+    clearPendingFilterReload();
+    page = 0;
+    filterTimer = window.setTimeout(() => {
+      filterTimer = undefined;
+      void load({ clear: true });
+    }, 200);
   }
 
   function clearFilters() {
+    clearPendingFilterReload();
     actor = "";
     action = "";
     from = "";
     to = "";
     page = 0;
-    void load();
+    void load({ clear: true });
   }
 
   onMount(() => {
     void load();
   });
+
+  onDestroy(clearPendingFilterReload);
 </script>
 
 <h1 class="sv-page-title">{m($i18n, "ui.admin.audit")}</h1>
@@ -85,7 +110,7 @@
     value={actor}
     on:input={(event) => {
       actor = filterValue(event);
-      reloadFirstPage();
+      scheduleFilterReload();
     }}
   />
   <input
@@ -96,7 +121,7 @@
     value={action}
     on:input={(event) => {
       action = filterValue(event);
-      reloadFirstPage();
+      scheduleFilterReload();
     }}
   />
   <datalist id="audit-log-known-actions">
