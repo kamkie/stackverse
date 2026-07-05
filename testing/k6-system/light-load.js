@@ -6,6 +6,7 @@ import {
   getJson,
   loginAs,
   logout,
+  numericEnv,
   parseJson,
   standardThresholds,
   uniqueRunId,
@@ -89,7 +90,7 @@ export function publicTraffic() {
 }
 
 export function authenticatedTraffic(data) {
-  ensureSession(demoSession, "demo", "steady");
+  ensureSession(demoSession, "demo", "login");
 
   group("authenticated user reads", () => {
     const me = getJson("/api/v1/me", 200, { traffic: "steady", flow: "me", role: "demo" });
@@ -132,9 +133,4 @@ export function teardown(data) {
   loginAs("demo", "teardown");
   deleteBookmark(data.bookmarkId, "teardown");
   logout("teardown");
-}
-
-function numericEnv(name, fallback) {
-  const value = Number(__ENV[name]);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
 }

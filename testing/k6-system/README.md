@@ -46,8 +46,12 @@ The wrapper runs `smoke.js` first and then `light-load.js`. Extra arguments are
 passed to each `k6 run` invocation:
 
 ```sh
-./scripts/k6-system.sh --summary-export testing/k6-system/artifacts/k6-summary.json
+./scripts/k6-system.sh --http-debug=full
 ```
+
+Because extra arguments are passed to both k6 runs, use `K6_SUMMARY_DIR` for
+JSON summaries instead of passing a single `--summary-export` file. The helper
+then writes `smoke-summary.json` and `light-load-summary.json`.
 
 Run individual scripts from this directory when iterating:
 
@@ -66,6 +70,7 @@ k6 run light-load.js
 | `K6_AUTH_VUS` | `1` | Authenticated user-read virtual users |
 | `K6_P95_MS` | `1500` | p95 threshold for tagged smoke or steady requests |
 | `K6_BIN` | `k6` | k6 executable used by the root helper scripts |
+| `K6_SUMMARY_DIR` | unset | Directory where helper scripts write per-script summary JSON files |
 | `K6_SKIP_SMOKE` | `false` | Set to `true` to run only `light-load.js` through the helper |
 
 Example:

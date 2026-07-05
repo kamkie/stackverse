@@ -181,13 +181,13 @@ export function standardThresholds(trafficTag) {
   };
 }
 
-function trimTrailingSlash(value) {
-  return value.replace(/\/+$/, "");
-}
-
-function numericEnv(name, fallback) {
+export function numericEnv(name, fallback) {
   const value = Number(__ENV[name]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function trimTrailingSlash(value) {
+  return value.replace(/\/+$/, "");
 }
 
 function isStateChanging(method) {

@@ -7,11 +7,25 @@ set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SUITE="$ROOT/testing/k6-system"
 K6_BIN="${K6_BIN:-k6}"
+SUMMARY_DIR="${K6_SUMMARY_DIR:-}"
+
+run_k6() {
+    script_name="$1"
+    summary_name="$2"
+    shift 2
+
+    if [ -n "$SUMMARY_DIR" ]; then
+        mkdir -p "$SUMMARY_DIR"
+        "$K6_BIN" run "$@" --summary-export "$SUMMARY_DIR/$summary_name" "$SUITE/$script_name"
+    else
+        "$K6_BIN" run "$@" "$SUITE/$script_name"
+    fi
+}
 
 "$K6_BIN" version
 
 if [ "${K6_SKIP_SMOKE:-false}" != "true" ]; then
-    "$K6_BIN" run "$@" "$SUITE/smoke.js"
+    run_k6 smoke.js smoke-summary.json "$@"
 fi
 
-exec "$K6_BIN" run "$@" "$SUITE/light-load.js"
+run_k6 light-load.js light-load-summary.json "$@"

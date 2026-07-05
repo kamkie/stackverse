@@ -41,6 +41,7 @@ jobs:
       K6_DURATION: ${{ inputs.duration }}
       K6_PUBLIC_VUS: ${{ inputs.public_vus }}
       K6_AUTH_VUS: ${{ inputs.auth_vus }}
+      K6_SUMMARY_DIR: testing/k6-system/artifacts
     steps:
       - uses: actions/checkout@v7
       - uses: grafana/setup-k6-action@v1
@@ -58,9 +59,7 @@ jobs:
           echo "stack never became ready" >&2
           exit 1
       - name: Run k6 smoke and light-load suite
-        run: |
-          mkdir -p testing/k6-system/artifacts
-          ./scripts/k6-system.sh --summary-export testing/k6-system/artifacts/k6-summary.json
+        run: ./scripts/k6-system.sh
       - name: Dump compose logs
         if: failure()
         run: docker compose logs
