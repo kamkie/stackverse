@@ -102,10 +102,17 @@ jobs:
             fi
           }
 
-          select_all_build_workflows() {
-            find .github/workflows -maxdepth 1 -name 'build-*.yml' -print \
+          select_build_workflows() {
+            layer="$1"
+            find .github/workflows -maxdepth 1 -name "build-${layer}-*.yml" -print \
               | sed 's#^\./##' \
               | sort >> "$expected_builds"
+          }
+
+          select_all_build_workflows() {
+            select_build_workflows backend
+            select_build_workflows frontend
+            select_build_workflows gateway
           }
 
           list_active backends > "$all_backends"
@@ -114,6 +121,7 @@ jobs:
 
           all_backend_contract=0
           all_frontend_contract=0
+          all_contract_build_workflows=0
           all_build_workflows=0
 
           if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
@@ -172,7 +180,7 @@ jobs:
                 spec/openapi.yaml)
                   all_backend_contract=1
                   all_frontend_contract=1
-                  all_build_workflows=1
+                  all_contract_build_workflows=1
                   ;;
                 docs/SPEC.md|docs/ARCHITECTURE.md|docs/LOGGING.md)
                   all_backend_contract=1
@@ -202,6 +210,10 @@ jobs:
             fi
             if [ "$all_build_workflows" -eq 1 ]; then
               select_all_build_workflows
+            fi
+            if [ "$all_contract_build_workflows" -eq 1 ]; then
+              select_build_workflows backend
+              select_build_workflows frontend
             fi
           fi
 
