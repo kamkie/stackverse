@@ -46,6 +46,10 @@ flags:
     paths:
       - backends/play-scala/
     carryforward: true
+  backend-quarkus-java:
+    paths:
+      - backends/quarkus-java/
+    carryforward: true
   backend-rust-axum:
     paths:
       - backends/rust-axum/
@@ -135,6 +139,10 @@ component_management:
       name: "backend · play-scala"
       paths:
         - backends/play-scala/**
+    - component_id: backend-quarkus-java
+      name: "backend · quarkus-java"
+      paths:
+        - backends/quarkus-java/**
     - component_id: backend-rust-axum
       name: "backend · rust-axum"
       paths:
