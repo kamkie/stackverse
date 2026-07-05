@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -104,6 +105,24 @@ func TestWriteProblemLocalizesDetailAndFieldErrors(t *testing.T) {
 		body.Errors[0].Message != "Title is required." ||
 		body.Errors[1].Message != "URL is invalid." {
 		t.Fatalf("localized errors = %+v", body.Errors)
+	}
+}
+
+func TestErrorMatchesWrappedProblem(t *testing.T) {
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/x", nil)
+
+	Error(response, request, testLocalizer{}, testLogger(), fmt.Errorf("handler failed: %w", BadRequest("bad input")))
+
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("wrapped problem status = %d", response.Code)
+	}
+	var body problemBody
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("problem response is not JSON: %v", err)
+	}
+	if body.Title != "Bad Request" || body.Detail != "bad input" {
+		t.Fatalf("wrapped problem body = %+v", body)
 	}
 }
 

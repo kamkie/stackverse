@@ -2,8 +2,8 @@ package web
 
 import (
 	"bytes"
-	"crypto/md5"
 	"encoding/hex"
+	"hash/fnv"
 	"net/http"
 	"strings"
 )
@@ -26,8 +26,9 @@ func ETagMiddleware(next http.Handler) http.Handler {
 			headers[name] = values
 		}
 		if recorder.status == http.StatusOK {
-			sum := md5.Sum(recorder.body.Bytes())
-			etag := `"` + hex.EncodeToString(sum[:]) + `"`
+			sum := fnv.New64a()
+			_, _ = sum.Write(recorder.body.Bytes())
+			etag := `"` + hex.EncodeToString(sum.Sum(nil)) + `"`
 			headers.Set("ETag", etag)
 			if ifNoneMatchMatches(r.Header.Get("If-None-Match"), etag) {
 				headers.Del("Content-Type")

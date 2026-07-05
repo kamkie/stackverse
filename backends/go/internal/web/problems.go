@@ -5,6 +5,7 @@ package web
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -155,8 +156,7 @@ func WriteProblem(w http.ResponseWriter, r *http.Request, localizer Localizer, l
 // an ERROR log (docs/LOGGING.md §3 — unexpected failures always log).
 func Error(w http.ResponseWriter, r *http.Request, localizer Localizer, logger *slog.Logger, err error) {
 	var problem *Problem
-	if p, ok := err.(*Problem); ok {
-		problem = p
+	if errors.As(err, &problem) {
 	} else if r.Context().Err() == context.Canceled {
 		// the client went away mid-request; nothing to report and nobody listening
 		return

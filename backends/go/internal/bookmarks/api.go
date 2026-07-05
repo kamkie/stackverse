@@ -215,6 +215,16 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, problem)
 		return
 	}
+	var body request
+	if problem := web.DecodeJSON(r, &body); problem != nil {
+		a.fail(w, r, problem)
+		return
+	}
+	input, problem := validate(body)
+	if problem != nil {
+		a.fail(w, r, problem)
+		return
+	}
 	// Lock the row and do the read → hidden-publish check → write in one
 	// transaction: the moderator status endpoint takes the same lock, so a
 	// concurrent hide cannot slip between the check and the write (SPEC rule 15).
@@ -227,14 +237,6 @@ func (a *API) Update(w http.ResponseWriter, r *http.Request) {
 		// rule 1: a non-owner never learns the bookmark exists — 404, not 403
 		if bookmark.Owner != caller {
 			return web.NotFound()
-		}
-		var body request
-		if problem := web.DecodeJSON(r, &body); problem != nil {
-			return problem
-		}
-		input, problem := validate(body)
-		if problem != nil {
-			return problem
 		}
 		// rule 15: a moderation-hidden bookmark cannot be (re)published by its owner
 		if bookmark.Status == StatusHidden && input.visibility == VisibilityPublic {
