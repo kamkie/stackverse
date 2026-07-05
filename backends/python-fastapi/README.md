@@ -30,6 +30,8 @@ Tests (plain unit tests, no containers):
 
 ```sh
 python -m compileall stackverse_backend tests
+python -m ruff check .
+python -m ruff format --check .
 python -m pytest
 ```
 
@@ -48,10 +50,11 @@ docker build -t stackverse/backend-python-fastapi:local -f backends/python-fasta
 
 ## What this implementation demonstrates
 
-- **FastAPI with a thin service layer** — handlers use FastAPI routing and
-  middleware, but request bodies are validated by contract-specific functions
-  so RFC 9457 problem documents carry the localized `validation.*` keys the
-  shared suite asserts.
+- **FastAPI with a thin service layer** — handlers live in resource-oriented
+  `APIRouter` modules and use `Depends` for caller/role injection, while
+  request bodies are validated by contract-specific functions so RFC 9457
+  problem documents carry the localized `validation.*` keys the shared suite
+  asserts.
 - **Plain SQL with psycopg** — feature logic stays close to PostgreSQL:
   arrays for tags, partial unique indexes for one open report per reporter,
   row locks for the moderation state machine, and keyset pagination over
@@ -77,7 +80,7 @@ docker build -t stackverse/backend-python-fastapi:local -f backends/python-fasta
   still demonstrating Python's database tooling surface.
 - Sync `psycopg` calls are used from FastAPI's worker threadpool. The code is
   easier to read for a contract-first comparison, while authentication
-  middleware moves blocking verification/account provisioning off the event
+  dependencies move blocking verification/account provisioning off the event
   loop.
 - Optional response fields are omitted rather than serialized as `null`, using
   small response mappers instead of a global serializer policy.

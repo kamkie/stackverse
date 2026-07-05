@@ -42,6 +42,10 @@ jobs:
           python -m pip install -e ".[test]"
       - name: Compile
         run: python -m compileall stackverse_backend tests
+      - name: Lint
+        run: python -m ruff check .
+      - name: Format check
+        run: python -m ruff format --check .
       - name: Test with coverage
         run: |
           mkdir -p TestResults

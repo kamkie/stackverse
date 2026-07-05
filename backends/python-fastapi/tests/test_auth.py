@@ -1,5 +1,4 @@
 import asyncio
-import json
 
 import jwt
 import pytest
@@ -37,17 +36,14 @@ def test_me_response_filters_to_application_roles_and_omits_missing_optional_fie
 
 
 def test_require_caller_and_role_raise_contract_problems(monkeypatch) -> None:
-    request = make_request()
-
     with pytest.raises(UnauthorizedProblem):
-        require_caller(request)
+        require_caller(None)
 
-    request.state.caller = Caller("demo", [])
     events = []
     monkeypatch.setattr(auth, "log_event", lambda *args, **fields: events.append((args, fields)))
 
     with pytest.raises(ForbiddenProblem):
-        require_role(request, "admin")
+        require_role("admin")(Caller("demo", []))
 
     assert events[0][0][:3] == ("info", "authz_denied", "denied")
     assert events[0][1]["actor"] == "demo"
@@ -103,31 +99,25 @@ def test_verify_bearer_rejects_tokens_without_username(monkeypatch) -> None:
         verify_bearer("token")
 
 
-def test_authenticate_request_accepts_active_bearer_and_stores_caller(monkeypatch) -> None:
+def test_authenticate_request_accepts_active_bearer(monkeypatch) -> None:
     request = make_request("Bearer token")
     caller = Caller("demo", ["admin"])
     monkeypatch.setattr(auth, "verify_bearer", lambda token: caller if token == "token" else None)
     monkeypatch.setattr(auth, "record_seen", lambda username: "active" if username == "demo" else "blocked")
 
-    response = asyncio.run(auth.authenticate_request(request))
-
-    assert response is None
-    assert request.state.caller == caller
+    assert asyncio.run(auth.authenticate_request(request)) == caller
 
 
-def test_authenticate_request_returns_401_problem_for_invalid_bearer(monkeypatch) -> None:
+def test_authenticate_request_raises_401_problem_for_invalid_bearer(monkeypatch) -> None:
     request = make_request("Bearer invalid")
     monkeypatch.setattr(auth, "verify_bearer", lambda _token: (_ for _ in ()).throw(ValueError("bad token")))
     monkeypatch.setattr(auth, "log_event", lambda *_args, **_fields: None)
 
-    response = asyncio.run(auth.authenticate_request(request))
-
-    assert response.status_code == 401
-    assert json.loads(response.body)["detail"] == "Missing or invalid bearer token."
-    assert request.state.caller is None
+    with pytest.raises(UnauthorizedProblem, match="Missing or invalid bearer token."):
+        asyncio.run(auth.authenticate_request(request))
 
 
-def test_authenticate_request_returns_localized_403_for_blocked_account(monkeypatch) -> None:
+def test_authenticate_request_raises_localized_403_for_blocked_account(monkeypatch) -> None:
     request = make_request("Bearer token", "pl")
     monkeypatch.setattr(auth, "verify_bearer", lambda _token: Caller("blocked-user", []))
     monkeypatch.setattr(auth, "record_seen", lambda _username: "blocked")
@@ -135,8 +125,7 @@ def test_authenticate_request_returns_localized_403_for_blocked_account(monkeypa
     monkeypatch.setattr(auth, "localize", lambda key, language: f"{key}:{language}")
     monkeypatch.setattr(auth, "log_event", lambda *_args, **_fields: None)
 
-    response = asyncio.run(auth.authenticate_request(request))
+    with pytest.raises(ForbiddenProblem) as raised:
+        asyncio.run(auth.authenticate_request(request))
 
-    assert response.status_code == 403
-    assert json.loads(response.body)["detail"] == "error.account.blocked:pl"
-    assert request.state.caller is None
+    assert raised.value.detail == "error.account.blocked:pl"

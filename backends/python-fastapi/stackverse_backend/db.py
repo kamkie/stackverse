@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from contextlib import contextmanager
 import os
+from collections.abc import Iterator, Sequence
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator, Sequence
 
-from psycopg import Connection
+from psycopg import Connection, sql
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
@@ -13,6 +13,7 @@ from .config import config
 from .logging_setup import log_event, logger
 
 pool = ConnectionPool(config.db_conninfo, min_size=1, max_size=10, open=False, kwargs={"row_factory": dict_row})
+SqlStatement = str | sql.Composable
 
 
 def open_pool() -> None:
@@ -23,19 +24,19 @@ def close_pool() -> None:
     pool.close()
 
 
-def query(sql: str, params: Sequence[object] = ()) -> list[dict]:
+def query(statement: SqlStatement, params: Sequence[object] = ()) -> list[dict]:
     with pool.connection() as conn:
-        return list(conn.execute(sql, params).fetchall())
+        return list(conn.execute(statement, params).fetchall())
 
 
-def one(sql: str, params: Sequence[object] = ()) -> dict | None:
-    rows = query(sql, params)
+def one(statement: SqlStatement, params: Sequence[object] = ()) -> dict | None:
+    rows = query(statement, params)
     return rows[0] if rows else None
 
 
-def execute(sql: str, params: Sequence[object] = ()) -> None:
+def execute(statement: SqlStatement, params: Sequence[object] = ()) -> None:
     with pool.connection() as conn:
-        conn.execute(sql, params)
+        conn.execute(statement, params)
 
 
 @contextmanager

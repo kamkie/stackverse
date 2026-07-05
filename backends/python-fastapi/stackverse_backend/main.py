@@ -1,22 +1,21 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
 
 import psycopg
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.concurrency import run_in_threadpool
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .api import register_routes
-from .auth import authenticate_request
 from .config import config
 from .db import close_pool, open_pool, run_migrations
 from .i18n import localize, resolve_language
 from .logging_setup import log_event, logger
 from .problems import AppProblem, ValidationProblem, first_param, problem_response
+from .routers import register_routes
 from .seed import seed_messages
 from .telemetry import configure_telemetry, shutdown_telemetry
 
@@ -52,13 +51,6 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 def build_app() -> FastAPI:
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
-
-    @app.middleware("http")
-    async def auth_middleware(request: Request, call_next):
-        response = await authenticate_request(request)
-        if response is not None:
-            return response
-        return await call_next(request)
 
     @app.exception_handler(ValidationProblem)
     async def validation_problem_handler(request: Request, exc: ValidationProblem):

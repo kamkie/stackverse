@@ -10,7 +10,6 @@ from opentelemetry import trace
 
 from .config import config
 
-
 LEVELS = {
     "debug": logging.DEBUG,
     "info": logging.INFO,
@@ -49,9 +48,9 @@ RESERVED = {
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds").replace(
-                "+00:00", "Z"
-            ),
+            "timestamp": datetime.fromtimestamp(record.created, UTC)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z"),
             "level": record.levelname.lower(),
             "logger": record.name,
             "message": record.getMessage(),
