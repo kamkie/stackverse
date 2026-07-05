@@ -25,7 +25,7 @@ class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: EventLogger
   def optional(request: RequestHeader): Option[Caller] = {
     request.headers.get("Authorization") match {
       case None => None
-      case Some(header) if !header.startsWith("Bearer ") => throw invalidToken("invalid_authorization_header")
+      case Some(header) if !header.startsWith("Bearer ") => None
       case Some(header) =>
         val caller = verify(header.stripPrefix("Bearer ").trim)
         val accountStatus = recordSeen(caller.username)
@@ -64,7 +64,7 @@ class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: EventLogger
       val now = Instant.now()
       if (claims.getIssuer != config.oidcIssuerUri) throw new IllegalArgumentException("issuer")
       if (!Option(claims.getAudience).exists(_.asScala.contains(Audience))) throw new IllegalArgumentException("audience")
-      if (Option(claims.getExpirationTime).forall(_.toInstant.isBefore(now))) throw new IllegalArgumentException("expired")
+      if (Option(claims.getExpirationTime).exists(_.toInstant.isBefore(now))) throw new IllegalArgumentException("expired")
       if (Option(claims.getNotBeforeTime).exists(_.toInstant.isAfter(now))) throw new IllegalArgumentException("not_before")
       val username = Option(claims.getStringClaim("preferred_username")).filter(_.nonEmpty).getOrElse {
         throw new IllegalArgumentException("preferred_username")
