@@ -20,9 +20,10 @@ sbt run
 
 Defaults match the compose infra (PostgreSQL on 5432, Keycloak on 8180). The message
 seed resolves to the repo's `spec/messages` directory; set `SEED_MESSAGES_DIR` if you
-run from a different working directory. Migrations apply on startup, so the database
-must be one this backend owns. When switching from another backend, reset the compose
-database volume first.
+run from a different working directory. `APPLICATION_SECRET` can override Play's
+local-development application secret for deployed runs. Migrations apply on startup,
+so the database must be one this backend owns. When switching from another backend,
+reset the compose database volume first.
 
 Tests:
 
