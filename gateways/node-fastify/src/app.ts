@@ -1,8 +1,7 @@
-import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
-import path from "node:path";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
+import replyFrom from "@fastify/reply-from";
+import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import { logEvent, logger, sanitizeLogValue } from "./logging.js";
@@ -49,8 +48,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     max: 600,
     timeWindow: "1 minute",
   });
-  app.addContentTypeParser("*", { parseAs: "buffer" }, (_request, body, done) => {
-    done(null, body);
+  await app.register(replyFrom, { disableRequestLogging: true });
+  app.removeAllContentTypeParsers();
+  app.addContentTypeParser("*", (_request, payload, done) => {
+    done(null, payload);
   });
 
   app.addHook("onRequest", async (request, reply) => {
@@ -63,6 +64,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.setErrorHandler((error, _request, reply) => {
+    if (isRateLimitError(error)) {
+      return reply.code(429).send({
+        statusCode: 429,
+        error: "Too Many Requests",
+        message: error.message,
+      });
+    }
     logger.error({ err: error }, "Unhandled gateway error");
     sendProblem(reply, 500, "Internal Server Error", "The gateway failed to handle the request.");
   });
@@ -188,17 +196,41 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       }
     }
 
-    return proxyRequest(request, reply, gateway.backendUrl, "backend", fetchImpl, accessToken);
+    return proxyRequest(request, reply, gateway.backendUrl, "backend", accessToken);
   });
 
-  app.all("/*", { config: { rateLimit: SPA_RATE_LIMIT } }, async (request, reply) => {
-    if (gateway.frontendUrl) {
-      return proxyRequest(request, reply, gateway.frontendUrl, "frontend", fetchImpl);
-    }
-    return serveStaticSpa(request, reply, gateway.spaRoot);
-  });
+  const frontendUrl = gateway.frontendUrl;
+  if (frontendUrl) {
+    app.all("/*", { config: { rateLimit: SPA_RATE_LIMIT } }, async (request, reply) => {
+      return proxyRequest(request, reply, frontendUrl, "frontend");
+    });
+  } else {
+    await registerStaticSpa(app, gateway.spaRoot);
+  }
 
   return app;
+}
+
+function isRateLimitError(error: unknown): error is Error & { statusCode: 429 } {
+  return error instanceof Error && "statusCode" in error && error.statusCode === 429;
+}
+
+async function registerStaticSpa(app: FastifyInstance, root: string): Promise<void> {
+  await app.register(async (spa) => {
+    spa.addHook("preHandler", spa.rateLimit(SPA_RATE_LIMIT));
+    await spa.register(fastifyStatic, {
+      root,
+      prefix: "/",
+      redirect: false,
+      wildcard: true,
+    });
+    spa.setNotFoundHandler(async (request, reply) => {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return sendProblem(reply, 404, "Not Found", "No route matched the request.");
+      }
+      return reply.sendFile("index.html", root);
+    });
+  });
 }
 
 function sessionFromTokens(username: string, tokens: TokenSet): GatewaySession {
@@ -271,62 +303,4 @@ function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
     secure,
     path: "/",
   });
-}
-
-async function serveStaticSpa(request: FastifyRequest, reply: FastifyReply, root: string): Promise<FastifyReply> {
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    return sendProblem(reply, 404, "Not Found", "No route matched the request.");
-  }
-
-  const rootPath = path.resolve(root);
-  const url = new URL(request.url, "http://stackverse.local");
-  const requestedPath = safeStaticPath(rootPath, url.pathname);
-  const file = await existingFile(requestedPath) ?? path.join(rootPath, "index.html");
-  reply.type(contentType(file));
-  return reply.send(createReadStream(file));
-}
-
-function safeStaticPath(root: string, pathname: string): string {
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(pathname);
-  } catch {
-    decoded = "/";
-  }
-  const relative = path.normalize(decoded).replace(/^[/\\]+/, "");
-  const candidate = path.resolve(root, relative);
-  const rootWithSeparator = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
-  if (candidate !== root && !candidate.startsWith(rootWithSeparator)) {
-    return path.join(root, "index.html");
-  }
-  return candidate;
-}
-
-async function existingFile(candidate: string): Promise<string | null> {
-  try {
-    const details = await stat(candidate);
-    if (details.isFile()) return candidate;
-  } catch {
-    return null;
-  }
-  return null;
-}
-
-function contentType(file: string): string {
-  switch (path.extname(file).toLowerCase()) {
-    case ".css":
-      return "text/css; charset=utf-8";
-    case ".js":
-      return "text/javascript; charset=utf-8";
-    case ".json":
-      return "application/json; charset=utf-8";
-    case ".svg":
-      return "image/svg+xml";
-    case ".png":
-      return "image/png";
-    case ".ico":
-      return "image/x-icon";
-    default:
-      return "text/html; charset=utf-8";
-  }
 }

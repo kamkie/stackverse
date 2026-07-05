@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import type { FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { buildApp } from "./app.js";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import type { OidcClient } from "./oidc.js";
@@ -12,7 +12,10 @@ import { MemorySessionStore, type GatewaySession } from "./session-store.js";
 interface FetchCall {
   url: string;
   init?: RequestInit & { duplex?: "half" };
+  body?: unknown;
 }
+
+type FetchHandler = (url: string, init?: RequestInit & { duplex?: "half" }) => Response | Promise<Response>;
 
 const BACKEND_ORIGIN = new URL("http://backend.test").origin;
 const FRONTEND_ORIGIN = new URL("http://frontend.test").origin;
@@ -35,22 +38,83 @@ function testConfig(overrides: Record<string, string> = {}): GatewayConfig {
 async function withApp(
   test: (app: FastifyInstance, store: MemorySessionStore, calls: FetchCall[]) => Promise<void>,
   config: GatewayConfig = testConfig(),
-  fetchHandler?: (url: string, init?: RequestInit & { duplex?: "half" }) => Response | Promise<Response>,
+  fetchHandler?: FetchHandler,
 ): Promise<void> {
   const store = new MemorySessionStore();
   const calls: FetchCall[] = [];
+  const backend = await startProxyTarget(BACKEND_ORIGIN, calls, fetchHandler);
+  const frontend = config.frontendUrl ? await startProxyTarget(FRONTEND_ORIGIN, calls, fetchHandler) : undefined;
+  const appConfig: GatewayConfig = { ...config, backendUrl: backend.url };
+  if (frontend) {
+    appConfig.frontendUrl = frontend.url;
+  }
   const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit & { duplex?: "half" }) => {
     const url = input.toString();
     calls.push({ url, init });
     if (fetchHandler) return fetchHandler(url, init);
     return defaultFetch(url);
   });
-  const app = await buildApp({ config, sessionStore: store, fetchImpl: fetchImpl as typeof fetch });
+  const app = await buildApp({ config: appConfig, sessionStore: store, fetchImpl: fetchImpl as typeof fetch });
   try {
     await test(app, store, calls);
   } finally {
     await app.close();
+    await frontend?.app.close();
+    await backend.app.close();
   }
+}
+
+async function startProxyTarget(
+  logicalOrigin: string,
+  calls: FetchCall[],
+  fetchHandler?: FetchHandler,
+): Promise<{ app: FastifyInstance; url: URL }> {
+  const app = Fastify({ logger: false });
+  app.removeAllContentTypeParsers();
+  app.addContentTypeParser("*", { parseAs: "buffer" }, (_request, body, done) => {
+    done(null, body);
+  });
+  app.all("/*", async (request, reply) => {
+    const url = `${logicalOrigin}${request.url}`;
+    const init: RequestInit & { duplex?: "half" } = {
+      method: request.method,
+      headers: headersFromRequest(request),
+    };
+    calls.push({ url, init, body: request.body });
+
+    let response: Response;
+    try {
+      response = fetchHandler ? await fetchHandler(url, init) : defaultFetch(url);
+    } catch {
+      reply.hijack();
+      request.raw.destroy();
+      return reply;
+    }
+
+    reply.code(response.status);
+    response.headers.forEach((value, name) => {
+      reply.header(name, value);
+    });
+    if (request.method === "HEAD" || response.body === null) {
+      return reply.send();
+    }
+    return reply.send(Buffer.from(await response.arrayBuffer()));
+  });
+
+  const address = await app.listen({ host: "127.0.0.1", port: 0 });
+  return { app, url: new URL(address) };
+}
+
+function headersFromRequest(request: FastifyRequest): Headers {
+  const headers = new Headers();
+  for (const [name, value] of Object.entries(request.headers)) {
+    if (Array.isArray(value)) {
+      for (const item of value) headers.append(name, item);
+    } else if (value !== undefined) {
+      headers.set(name, String(value));
+    }
+  }
+  return headers;
 }
 
 function defaultFetch(url: string): Response {
@@ -198,6 +262,9 @@ describe("node-fastify gateway", () => {
         headers: {
           authorization: "Bearer forged",
           cookie: "stackverse_session=missing; XSRF-TOKEN=token",
+          "proxy-authorization": "Basic forged",
+          te: "trailers",
+          upgrade: "websocket",
         },
       });
 
@@ -206,6 +273,9 @@ describe("node-fastify gateway", () => {
       expect(backend?.url).toBe("http://backend.test/api/v2/bookmarks?visibility=public");
       expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
       expect(header(backend?.init?.headers as Headers, "cookie")).toBeNull();
+      expect(header(backend?.init?.headers as Headers, "proxy-authorization")).toBeNull();
+      expect(header(backend?.init?.headers as Headers, "te")).toBeNull();
+      expect(header(backend?.init?.headers as Headers, "upgrade")).toBeNull();
     });
   });
 
@@ -283,20 +353,21 @@ describe("node-fastify gateway", () => {
     });
   });
 
-  it("does not forward stale compression framing after fetch decodes an upstream body", async () => {
+  it("streams API response bodies with upstream framing intact", async () => {
     await withApp(async (app) => {
       const response = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
 
       expect(response.statusCode).toBe(200);
-      expect(response.headers["content-encoding"]).toBeUndefined();
+      expect(response.headers["content-encoding"]).toBe("gzip");
       expect(response.headers["content-length"]).toBe(String(Buffer.byteLength(response.body)));
       expect(response.body).toBe("{\"ok\":true}");
     }, testConfig(), (url) => {
       if (hasOrigin(url, BACKEND_ORIGIN)) {
+        const body = "{\"ok\":true}";
         return new Response("{\"ok\":true}", {
           headers: {
             "content-encoding": "gzip",
-            "content-length": "999",
+            "content-length": String(Buffer.byteLength(body)),
           },
         });
       }
@@ -483,7 +554,7 @@ describe("node-fastify gateway", () => {
       await withApp(async (app) => {
         const asset = await app.inject({ method: "GET", url: "/assets/app.js" });
         expect(asset.statusCode).toBe(200);
-        expect(asset.headers["content-type"]).toBe("text/javascript; charset=utf-8");
+        expect(asset.headers["content-type"]).toBe("application/javascript; charset=utf-8");
         expect(asset.body).toBe("window.stackverse = true;");
 
         const fallback = await app.inject({ method: "GET", url: "/admin/users" });
@@ -504,6 +575,27 @@ describe("node-fastify gateway", () => {
         const unsupportedMethod = await app.inject({ method: "POST", url: "/admin/users" });
         expect(unsupportedMethod.statusCode).toBe(404);
         expect(unsupportedMethod.headers["content-type"]).toContain("application/problem+json");
+      }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("rate limits static SPA traffic", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "stackverse-node-fastify-spa-"));
+    await mkdir(path.join(root, "assets"));
+    await writeFile(path.join(root, "index.html"), "<main>fallback shell</main>");
+    await writeFile(path.join(root, "assets", "app.js"), "window.stackverse = true;");
+
+    try {
+      await withApp(async (app) => {
+        for (let attempt = 0; attempt < 600; attempt += 1) {
+          const response = await app.inject({ method: "GET", url: "/assets/app.js" });
+          expect(response.statusCode).toBe(200);
+        }
+
+        const limited = await app.inject({ method: "GET", url: "/assets/app.js" });
+        expect(limited.statusCode).toBe(429);
       }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
     } finally {
       await rm(root, { force: true, recursive: true });

@@ -13,8 +13,8 @@ Route contract, cookie rules, and the login sequence live in
 | `GET /auth/callback` | route exchanging the code, verifying the ID token, storing a Redis session, and redirecting to `/` |
 | `POST /auth/logout` | route: local Redis session destroyed first, best-effort server-to-server Keycloak logout, `204` |
 | `GET /auth/session` | route reading the Redis session keyed by `stackverse_session` |
-| `/api/**` | Fastify catch-all proxy to `BACKEND_URL` with bearer-token attachment |
-| `/**` | proxy to `FRONTEND_URL` when set; otherwise static files from `SPA_ROOT` or the bundled placeholder |
+| `/api/**` | Fastify catch-all proxy to `BACKEND_URL` with bearer-token attachment via `@fastify/reply-from` |
+| `/**` | proxy to `FRONTEND_URL` when set; otherwise `@fastify/static` serves files from `SPA_ROOT` or the bundled placeholder |
 
 ## Design notes
 
@@ -35,6 +35,12 @@ Route contract, cookie rules, and the login sequence live in
   works logged-out; the backend owns all authorization decisions. Client-supplied
   `Authorization`, `Cookie`, and `X-XSRF-TOKEN` headers are stripped before
   proxying.
+- **Proxy and static serving use Fastify plugins.** `@fastify/reply-from`
+  handles upstream streaming, hop-by-hop header handling, and response replay for
+  backend/frontend proxying; the gateway's code only applies Stackverse-specific
+  header policy, bearer-token attachment, trace propagation, and 502 problem
+  mapping. `@fastify/static` serves the bundled SPA fallback with the plugin's
+  path safety and MIME handling.
 - **CSRF and same-origin checks** follow the shared double-submit contract:
   readable `XSRF-TOKEN` cookie plus `X-XSRF-TOKEN` header on `POST`/`PUT`/
   `PATCH`/`DELETE` `/api/**` calls, with `Origin` and `Sec-Fetch-Site` enforced
@@ -43,6 +49,8 @@ Route contract, cookie rules, and the login sequence live in
   browser-hardening set from `docs/ARCHITECTURE.md`; proxied `/api/**` responses
   get only `X-Content-Type-Options: nosniff` plus HTTPS-only HSTS, preserving
   backend `Cache-Control`, `ETag`, `Content-Language`, `304`, and bodies.
+  Upstream API response streams, including compression framing such as
+  `Content-Encoding`, pass through without gateway decoding or replay.
 - **Observability** uses the OpenTelemetry Node SDK with HTTP instrumentation and
   OTLP traces/metrics/logs, enabled only when `OTEL_SDK_DISABLED=false`.
 - **Logging** uses Pino: JSON console output by default, `pino-pretty` for

@@ -200,7 +200,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Reactive Spring Cloud Gateway on WebFlux/Netty, non-blocking proxy | spring-cloud-starter-gateway-server-webflux; reactive Netty proxy | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | httputil.ReverseProxy with custom Director/ModifyResponse/ErrorHandler | NewSingleHostReverseProxy; Director strips Cookie/Auth, injects Bearer, per-proxy handlers | ✅ idiomatic |
-| [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | Hand-rolled native-fetch proxy in proxy.ts with manual hop-by-hop/header stripping | 🔴 undocumented |
+| [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | @fastify/reply-from proxy with Stackverse-specific header/token/trace policy | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Native proxy_pass to an upstream block | Manual lua-resty-http request_uri, buffers/re-emits response in content_by_lua | 🟡 deliberate |
 | [YARP](../gateways/yarp/README.md) | YARP AddReverseProxy with route/cluster config plus request transforms | AddReverseProxy + AddTransforms; strips Cookie/CSRF/Authorization, injects Bearer | ✅ idiomatic |
 
@@ -250,7 +250,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Reactor Mono/Flux, fully non-blocking; block() only at bootstrap | Reactor throughout; single startup .block() for OIDC discovery | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | goroutine-per-request net/http, context propagation, graceful shutdown | net/http server, signal.NotifyContext + Shutdown, ctx threaded through handlers | ✅ idiomatic |
-| [Fastify](../gateways/node-fastify/README.md) | async/await handlers, native fetch, stream large payloads | async/await throughout, native fetch upstream, streamed static SPA files | ✅ idiomatic |
+| [Fastify](../gateways/node-fastify/README.md) | async/await handlers, native fetch or proxy plugins, stream large payloads | async/await throughout, @fastify/reply-from proxy, @fastify/static SPA files | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Non-blocking cosockets (lua-resty-*), ngx.timer for background work | Cosocket lua-resty-http/redis, ngx.timer.at for OTLP export | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | async/await end-to-end with CancellationToken propagation | async throughout, ValueTask transforms; hand-rolled refresh may double-refresh | 🟡 deliberate |
 
