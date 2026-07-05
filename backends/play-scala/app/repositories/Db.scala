@@ -23,6 +23,7 @@ class Db @Inject() (config: BackendConfig, logger: EventLogger) {
     hikari.setJdbcUrl(s"jdbc:postgresql://${config.dbHost}:${config.dbPort}/${config.dbName}")
     hikari.setUsername(config.dbUser)
     hikari.setPassword(config.dbPassword)
+    // Keep in sync with conf/application.conf database-dispatcher fixed-pool-size.
     hikari.setMaximumPoolSize(10)
     hikari.setPoolName("stackverse-play-scala")
     new HikariDataSource(hikari)
