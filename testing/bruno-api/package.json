@@ -2,7 +2,7 @@
   "name": "@stackverse/testing-bruno-api",
   "private": true,
   "type": "module",
-  "packageManager": "npm@11.16.0",
+  "packageManager": "npm@11.18.0",
   "scripts": {
     "test": "bru run --env-file environments/local.yml --bail --reporter-skip-all-headers --reporter-skip-body",
     "test:public": "bru run 02-public --env-file environments/local.yml --bail --reporter-skip-all-headers --reporter-skip-body",
