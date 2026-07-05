@@ -127,7 +127,9 @@ export async function fillField(
 ): Promise<void> {
   const control = await fieldControl(driver, context, label);
   await control.click();
-  await control.sendKeys(Key.CONTROL, "a", Key.BACK_SPACE, value);
+  await control.sendKeys(Key.CONTROL, "a");
+  await control.sendKeys(Key.BACK_SPACE);
+  await control.sendKeys(value);
 }
 
 export async function selectFieldByValue(
@@ -153,7 +155,9 @@ export async function fillByAccessibleName(
     By.xpath(`.//*[self::input or self::textarea][@placeholder=${quoted} or @aria-label=${quoted}]`),
   );
   await input.click();
-  await input.sendKeys(Key.CONTROL, "a", Key.BACK_SPACE, value);
+  await input.sendKeys(Key.CONTROL, "a");
+  await input.sendKeys(Key.BACK_SPACE);
+  await input.sendKeys(value);
 }
 
 export async function cardContaining(driver: WebDriver, text: string): Promise<WebElement> {
