@@ -2,6 +2,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import cookie from "@fastify/cookie";
+import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import { logEvent, logger, sanitizeLogValue } from "./logging.js";
@@ -23,6 +24,8 @@ import { RedisSessionStore, type GatewaySession, type SessionStore } from "./ses
 const SESSION_TTL_SECONDS = 8 * 60 * 60;
 const LOGIN_STATE_TTL_SECONDS = 10 * 60;
 const REFRESH_SKEW_MS = 30_000;
+const AUTH_RATE_LIMIT = { max: 60, timeWindow: "1 minute" } as const;
+const SPA_RATE_LIMIT = { max: 600, timeWindow: "1 minute" } as const;
 
 export interface BuildAppOptions {
   config?: GatewayConfig;
@@ -41,6 +44,11 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   const app = Fastify({ logger: false });
   await app.register(cookie);
+  await app.register(rateLimit, {
+    global: false,
+    max: 600,
+    timeWindow: "1 minute",
+  });
   app.addContentTypeParser("*", { parseAs: "buffer" }, (_request, body, done) => {
     done(null, body);
   });
@@ -65,7 +73,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
   });
 
-  app.get("/auth/login", async (_request, reply) => {
+  app.get("/auth/login", { config: { rateLimit: AUTH_RATE_LIMIT } }, async (_request, reply) => {
     const state = randomToken(24);
     const codeVerifier = randomToken(32);
     const nonce = randomToken(24);
@@ -81,7 +89,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     }
   });
 
-  app.get("/auth/callback", async (request, reply) => {
+  app.get("/auth/callback", { config: { rateLimit: AUTH_RATE_LIMIT } }, async (request, reply) => {
     const query = request.query as Record<string, string | undefined>;
     if (query["error"] || !query["code"] || !query["state"]) {
       logEvent("info", "oidc_callback_completed", "failure", "Authorization code flow failed", {
@@ -183,7 +191,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     return proxyRequest(request, reply, gateway.backendUrl, "backend", fetchImpl, accessToken);
   });
 
-  app.all("/*", async (request, reply) => {
+  app.all("/*", { config: { rateLimit: SPA_RATE_LIMIT } }, async (request, reply) => {
     if (gateway.frontendUrl) {
       return proxyRequest(request, reply, gateway.frontendUrl, "frontend", fetchImpl);
     }

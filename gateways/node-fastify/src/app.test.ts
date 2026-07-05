@@ -10,6 +10,9 @@ interface FetchCall {
   init?: RequestInit & { duplex?: "half" };
 }
 
+const BACKEND_ORIGIN = new URL("http://backend.test").origin;
+const FRONTEND_ORIGIN = new URL("http://frontend.test").origin;
+
 function testConfig(overrides: Record<string, string> = {}): GatewayConfig {
   return loadConfig({
     PORT: "0",
@@ -55,13 +58,17 @@ function defaultFetch(url: string): Response {
       end_session_endpoint: "http://idp.test/realms/stackverse/protocol/openid-connect/logout",
     });
   }
-  if (url.startsWith("http://backend.test")) {
+  if (hasOrigin(url, BACKEND_ORIGIN)) {
     return Response.json({ ok: true }, { headers: { "cache-control": "no-cache", etag: "\"bundle-v1\"" } });
   }
-  if (url.startsWith("http://frontend.test")) {
+  if (hasOrigin(url, FRONTEND_ORIGIN)) {
     return new Response("<h1>Stackverse frontend stub</h1>", { headers: { "content-type": "text/html" } });
   }
   return new Response("not found", { status: 404 });
+}
+
+function hasOrigin(url: string, origin: string): boolean {
+  return new URL(url).origin === origin;
 }
 
 function cookieValue(response: { headers: Record<string, string | string[] | undefined> }, name: string): string {
@@ -136,7 +143,7 @@ describe("node-fastify gateway", () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const backend = calls.find((call) => call.url.startsWith("http://backend.test"));
+      const backend = calls.find((call) => hasOrigin(call.url, BACKEND_ORIGIN));
       expect(backend?.url).toBe("http://backend.test/api/v2/bookmarks?visibility=public");
       expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
       expect(header(backend?.init?.headers as Headers, "cookie")).toBeNull();
@@ -157,7 +164,7 @@ describe("node-fastify gateway", () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const backend = calls.find((call) => call.url.startsWith("http://backend.test"));
+      const backend = calls.find((call) => hasOrigin(call.url, BACKEND_ORIGIN));
       const headers = backend?.init?.headers as Headers;
       expect(header(headers, "authorization")).toBe("Bearer access-token");
       expect(header(headers, "cookie")).toBeNull();
@@ -226,7 +233,7 @@ describe("node-fastify gateway", () => {
       expect(response.headers["content-length"]).toBe(String(Buffer.byteLength(response.body)));
       expect(response.body).toBe("{\"ok\":true}");
     }, testConfig(), (url) => {
-      if (url.startsWith("http://backend.test")) {
+      if (hasOrigin(url, BACKEND_ORIGIN)) {
         return new Response("{\"ok\":true}", {
           headers: {
             "content-encoding": "gzip",
@@ -257,7 +264,7 @@ describe("node-fastify gateway", () => {
 
       expect(response.statusCode).toBe(200);
       expect(await store.getSession("session-id")).toBeNull();
-      const backend = calls.findLast((call) => call.url.startsWith("http://backend.test"));
+      const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
       expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
     }, testConfig(), (url) => {
       if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
@@ -279,7 +286,7 @@ describe("node-fastify gateway", () => {
       expect(response.statusCode).toBe(503);
       expect(response.headers["content-type"]).toContain("application/problem+json");
       expect(await store.getSession("session-id")).not.toBeNull();
-      expect(calls.some((call) => call.url.startsWith("http://backend.test"))).toBe(false);
+      expect(calls.some((call) => hasOrigin(call.url, BACKEND_ORIGIN))).toBe(false);
     }, testConfig(), (url) => {
       if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
       if (url.endsWith("/protocol/openid-connect/token")) return new Response("idp down", { status: 503 });
@@ -301,7 +308,7 @@ describe("node-fastify gateway", () => {
       const updated = await store.getSession("session-id");
       expect(updated?.accessToken).toBe("new-access");
       expect(updated?.refreshToken).toBe("new-refresh");
-      const backend = calls.findLast((call) => call.url.startsWith("http://backend.test"));
+      const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
       expect(header(backend?.init?.headers as Headers, "authorization")).toBe("Bearer new-access");
     }, testConfig(), (url) => {
       if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
@@ -359,7 +366,7 @@ describe("node-fastify gateway", () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain("Stackverse frontend stub");
-      const frontend = calls.find((call) => call.url.startsWith("http://frontend.test"));
+      const frontend = calls.find((call) => hasOrigin(call.url, FRONTEND_ORIGIN));
       expect(frontend?.url).toBe("http://frontend.test/admin/users");
       expect(header(frontend?.init?.headers as Headers, "cookie")).toBeNull();
     });
