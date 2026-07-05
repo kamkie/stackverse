@@ -9,7 +9,7 @@ import { t } from "../../i18n/i18n";
   <div v-else class="sv-layout">
     <aside class="sv-sidebar">
       <h2 class="sv-sidebar-title">{{ t("ui.nav.admin") }}</h2>
-      <nav class="sv-nav sv-nav--vertical" aria-label="Admin">
+      <nav class="sv-nav sv-nav--vertical" :aria-label="t('ui.nav.admin')">
         <RouterLink to="/admin" class="sv-nav-link" active-class="is-active">
           {{ t("ui.admin.dashboard") }}
         </RouterLink>
