@@ -182,7 +182,10 @@ export class OidcClient {
   }
 
   private async metadata(): Promise<OidcMetadata> {
-    this.metadataPromise ??= this.fetchMetadata();
+    this.metadataPromise ??= this.fetchMetadata().catch((error: unknown) => {
+      this.metadataPromise = undefined;
+      throw error;
+    });
     return this.metadataPromise;
   }
 

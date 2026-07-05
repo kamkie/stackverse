@@ -217,6 +217,27 @@ describe("node-fastify gateway", () => {
     });
   });
 
+  it("does not forward stale compression framing after fetch decodes an upstream body", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers["content-encoding"]).toBeUndefined();
+      expect(response.headers["content-length"]).toBe(String(Buffer.byteLength(response.body)));
+      expect(response.body).toBe("{\"ok\":true}");
+    }, testConfig(), (url) => {
+      if (url.startsWith("http://backend.test")) {
+        return new Response("{\"ok\":true}", {
+          headers: {
+            "content-encoding": "gzip",
+            "content-length": "999",
+          },
+        });
+      }
+      return defaultFetch(url);
+    });
+  });
+
   it("emits hsts only when PUBLIC_URL is https", async () => {
     await withApp(async (app) => {
       const response = await app.inject({ method: "GET", url: "/auth/session" });
@@ -286,6 +307,27 @@ describe("node-fastify gateway", () => {
       if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
       if (url.endsWith("/protocol/openid-connect/token")) {
         return Response.json({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 300 });
+      }
+      return defaultFetch(url);
+    });
+  });
+
+  it("retries OIDC discovery after a transient failure", async () => {
+    let discoveryAttempts = 0;
+    await withApp(async (app) => {
+      const first = await app.inject({ method: "GET", url: "/auth/login" });
+      expect(first.statusCode).toBe(503);
+
+      const second = await app.inject({ method: "GET", url: "/auth/login" });
+      expect(second.statusCode).toBe(302);
+      expect(second.headers.location).toContain("/protocol/openid-connect/auth");
+      expect(discoveryAttempts).toBe(2);
+    }, testConfig(), (url) => {
+      if (url.endsWith("/.well-known/openid-configuration")) {
+        discoveryAttempts += 1;
+        if (discoveryAttempts === 1) {
+          throw new Error("connection reset");
+        }
       }
       return defaultFetch(url);
     });
