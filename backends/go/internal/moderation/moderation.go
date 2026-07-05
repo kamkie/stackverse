@@ -365,7 +365,6 @@ func (a *API) Resolve(w http.ResponseWriter, r *http.Request) {
 	var resolved report
 	var events []func()
 	err := a.inTx(r.Context(), func(tx pgx.Tx) error {
-		events = nil // the closure retries on serialization errors never happen here, but stay idempotent
 		if body.Resolution == statusActioned {
 			// bookmarkId is immutable, so an unlocked scalar read is a safe lock
 			// target; a vanished bookmark cascades its reports away and the
