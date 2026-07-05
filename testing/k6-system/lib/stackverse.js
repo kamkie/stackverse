@@ -213,12 +213,7 @@ function loginFormAction(html) {
 }
 
 function decodeHtmlAttribute(value) {
-  return value
-    .replace(/&amp;/g, "&")
-    .replace(/&#x2F;/g, "/")
-    .replace(/&#47;/g, "/")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+  return value.replace(/&amp;/g, "&");
 }
 
 function cookieHeader(response) {
