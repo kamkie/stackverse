@@ -1,9 +1,10 @@
+import { Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
 import { createRemoteJWKSet, jwtVerify, errors as joseErrors, type JWTPayload } from "jose";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 import { config } from "./config.js";
 import { pool } from "./db.js";
 import { logEvent } from "./logging.js";
-import { ForbiddenProblem, UnauthorizedProblem, firstParam, sendProblem } from "./problems.js";
+import { ForbiddenProblem, UnauthorizedProblem, firstParam } from "./problems.js";
 import { localize, resolveLanguage } from "./i18n.js";
 
 /** The two application roles; everything else in `realm_access.roles` is Keycloak plumbing. */
@@ -93,19 +94,20 @@ async function recordSeen(username: string): Promise<AccountState> {
   return result.rows[0] as AccountState;
 }
 
-/**
- * Bearer authentication for every request: a missing token leaves the request
- * anonymous (whether that is acceptable is each endpoint's decision), a
- * presented-but-invalid token is always a 401, and a valid token from a
- * blocked account is a 403 with a localized problem document (SPEC rule 17) —
- * the lazy account upsert (rule 16) happens on the same hook.
- */
-export function registerAuth(app: FastifyInstance): void {
-  app.decorateRequest("caller", null);
-  app.addHook("onRequest", async (request, reply) => {
+@Injectable()
+export class BearerAuthGuard implements CanActivate {
+  /**
+   * Bearer authentication for every request: a missing token leaves the request
+   * anonymous (whether that is acceptable is each endpoint's decision), a
+   * presented-but-invalid token is always a 401, and a valid token from a
+   * blocked account is a 403 with a localized problem document (SPEC rule 17) —
+   * the lazy account upsert (rule 16) happens in this global Nest guard.
+   */
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
     request.caller = null;
     const header = request.headers.authorization;
-    if (!header?.startsWith("Bearer ")) return;
+    if (!header?.startsWith("Bearer ")) return true;
     let caller: Caller;
     try {
       caller = await verifyBearer(header.slice("Bearer ".length));
@@ -114,7 +116,7 @@ export function registerAuth(app: FastifyInstance): void {
       logEvent("info", "jwt_validation_failed", "failure", "Rejected a bearer token", {
         error_code: (error as { code?: string }).code?.toLowerCase() ?? "invalid_token",
       });
-      return sendProblem(reply, 401, "Unauthorized", "Missing or invalid bearer token.");
+      throw new UnauthorizedProblem("Missing or invalid bearer token.");
     }
     const account = await recordSeen(caller.username);
     if (account.status === "blocked") {
@@ -125,10 +127,11 @@ export function registerAuth(app: FastifyInstance): void {
         firstParam((request.query as Record<string, unknown>)["lang"]),
         request.headers["accept-language"],
       );
-      return sendProblem(reply, 403, "Forbidden", await localize("error.account.blocked", language));
+      throw new ForbiddenProblem(await localize("error.account.blocked", language));
     }
     request.caller = caller;
-  });
+    return true;
+  }
 }
 
 /** Rule 2: every endpoint requires authentication unless the spec says otherwise. */

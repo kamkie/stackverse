@@ -129,9 +129,7 @@ describe("serialization helpers", () => {
   });
 
   it("normalizes valid UUIDs and masks malformed ids as not found", () => {
-    expect(parseUuid("0F8FAD5B-D9CB-469F-A165-70867728950E")).toBe(
-      "0f8fad5b-d9cb-469f-a165-70867728950e",
-    );
+    expect(parseUuid("0F8FAD5B-D9CB-469F-A165-70867728950E")).toBe("0f8fad5b-d9cb-469f-a165-70867728950e");
     expect(() => parseUuid("not-a-uuid")).toThrow(NotFoundProblem);
   });
 

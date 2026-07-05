@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { FastifyInstance, FastifyRequest } from "fastify";
+import { Injectable } from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { pool, withTransaction } from "../db.js";
 import { requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
@@ -89,9 +90,10 @@ async function requestLanguage(request: FastifyRequest): Promise<string> {
   );
 }
 
-export function registerMessageRoutes(app: FastifyInstance): void {
+@Injectable()
+export class MessagesService {
   /** Reads are public with ETag revalidation (SPEC rules 7 + 10). */
-  app.get("/api/v1/messages", async (request, reply) => {
+  async list(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const query = request.query as Record<string, unknown>;
     const { page, size } = requireValidPaging(query);
     const key = singleParam(query["key"], "key");
@@ -127,26 +129,26 @@ export function registerMessageRoutes(app: FastifyInstance): void {
       totalItems,
       totalPages: Math.ceil(totalItems / size),
     });
-  });
+  }
 
   /** The flat key → text bundle frontends load on startup (SPEC rule 9). */
-  app.get("/api/v1/messages/bundle", async (request, reply) => {
+  async bundle(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     const language = await requestLanguage(request);
     reply.header("content-language", language);
     return sendWithEtag(request, reply, { language, messages: await messageBundle(language) });
-  });
+  }
 
-  app.get("/api/v1/messages/:id", async (request, reply) => {
-    const id = parseUuid((request.params as { id: string }).id);
+  async get(request: FastifyRequest, reply: FastifyReply, idParam: string): Promise<FastifyReply> {
+    const id = parseUuid(idParam);
     const result = await pool.query("select * from messages where id = $1", [id]);
     const message = result.rows[0] as MessageRow | undefined;
     if (!message) throw new NotFoundProblem();
     return sendWithEtag(request, reply, toMessageResponse(message));
-  });
+  }
 
-  app.post("/api/v1/messages", async (request, reply) => {
+  async create(request: FastifyRequest, reply: FastifyReply, body: unknown): Promise<FastifyReply> {
     const caller = requireRole(request, "admin");
-    const input = validateMessageInput(request.body);
+    const input = validateMessageInput(body);
     // mutation + audit commit together (SPEC rule 18: every backoffice mutation is audited)
     const message = await withTransaction(async (client) => {
       const duplicate = await client.query("select 1 from messages where key = $1 and language = $2", [
@@ -171,23 +173,21 @@ export function registerMessageRoutes(app: FastifyInstance): void {
       return row;
     });
     logMessageEvent("message_created", "Message created", caller.username, message);
-    return reply
-      .code(201)
-      .header("location", `/api/v1/messages/${message.id}`)
-      .send(toMessageResponse(message));
-  });
+    return reply.code(201).header("location", `/api/v1/messages/${message.id}`).send(toMessageResponse(message));
+  }
 
-  app.put("/api/v1/messages/:id", async (request) => {
+  async update(request: FastifyRequest, idParam: string, body: unknown) {
     const caller = requireRole(request, "admin");
-    const id = parseUuid((request.params as { id: string }).id);
-    const input = validateMessageInput(request.body);
+    const id = parseUuid(idParam);
+    const input = validateMessageInput(body);
     const message = await withTransaction(async (client) => {
       const existing = await client.query("select 1 from messages where id = $1", [id]);
       if (!existing.rowCount) throw new NotFoundProblem();
-      const duplicate = await client.query(
-        "select 1 from messages where key = $1 and language = $2 and id <> $3",
-        [input.key, input.language, id],
-      );
+      const duplicate = await client.query("select 1 from messages where key = $1 and language = $2 and id <> $3", [
+        input.key,
+        input.language,
+        id,
+      ]);
       if (duplicate.rowCount) throw duplicateConflict(input);
       let row: MessageRow;
       try {
@@ -206,11 +206,11 @@ export function registerMessageRoutes(app: FastifyInstance): void {
     });
     logMessageEvent("message_updated", "Message updated", caller.username, message);
     return toMessageResponse(message);
-  });
+  }
 
-  app.delete("/api/v1/messages/:id", async (request, reply) => {
+  async delete(request: FastifyRequest, reply: FastifyReply, idParam: string): Promise<FastifyReply> {
     const caller = requireRole(request, "admin");
-    const id = parseUuid((request.params as { id: string }).id);
+    const id = parseUuid(idParam);
     const message = await withTransaction(async (client) => {
       const result = await client.query("delete from messages where id = $1 returning *", [id]);
       const row = result.rows[0] as MessageRow | undefined;
@@ -220,7 +220,7 @@ export function registerMessageRoutes(app: FastifyInstance): void {
     });
     logMessageEvent("message_deleted", "Message deleted", caller.username, message);
     return reply.code(204).send();
-  });
+  }
 }
 
 const duplicateConflict = (input: { key: string; language: string }): ConflictProblem =>

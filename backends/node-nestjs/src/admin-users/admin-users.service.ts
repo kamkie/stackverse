@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import { Injectable } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 import { pool, withTransaction } from "../db.js";
 import { requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
@@ -44,8 +45,9 @@ async function findWithBookmarkCount(username: string): Promise<UserAccountRow |
 }
 
 /** App-level accounts, lazily provisioned from JWTs — not Keycloak's user store. */
-export function registerAdminUserRoutes(app: FastifyInstance): void {
-  app.get("/api/v1/admin/users", async (request) => {
+@Injectable()
+export class AdminUsersService {
+  async list(request: FastifyRequest) {
     requireRole(request, "admin");
     const query = request.query as Record<string, unknown>;
     const { page, size } = requireValidPaging(query);
@@ -73,10 +75,7 @@ export function registerAdminUserRoutes(app: FastifyInstance): void {
        order by u.last_seen desc, u.username asc limit ${size} offset ${page * size}`,
       params,
     );
-    const total = await pool.query(
-      `select count(*)::int as count from user_accounts u where ${where}`,
-      params,
-    );
+    const total = await pool.query(`select count(*)::int as count from user_accounts u where ${where}`, params);
     const totalItems = (total.rows[0] as { count: number }).count;
     return {
       items: (items.rows as UserAccountRow[]).map(toUserAccountResponse),
@@ -85,26 +84,22 @@ export function registerAdminUserRoutes(app: FastifyInstance): void {
       totalItems,
       totalPages: Math.ceil(totalItems / size),
     };
-  });
+  }
 
-  app.get("/api/v1/admin/users/:username", async (request) => {
+  async get(request: FastifyRequest, username: string) {
     requireRole(request, "admin");
-    const account = await findWithBookmarkCount((request.params as { username: string }).username);
+    const account = await findWithBookmarkCount(username);
     if (!account) throw new NotFoundProblem();
     return toUserAccountResponse(account);
-  });
+  }
 
   /** SPEC rule 17: block/unblock with audit; admins cannot block themselves. */
-  app.put("/api/v1/admin/users/:username/status", async (request) => {
+  async setStatus(request: FastifyRequest, username: string, body: unknown) {
     const caller = requireRole(request, "admin");
-    const username = (request.params as { username: string }).username;
-    const body = (typeof request.body === "object" && request.body !== null ? request.body : {}) as Record<
-      string,
-      unknown
-    >;
-    const status = body["status"];
+    const inputBody = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
+    const status = inputBody["status"];
     if (status !== "active" && status !== "blocked") throw new BadRequestProblem("status is required");
-    const reason = typeof body["reason"] === "string" ? body["reason"].trim() : undefined;
+    const reason = typeof inputBody["reason"] === "string" ? inputBody["reason"].trim() : undefined;
 
     if (status === "blocked") {
       const validator = new Validator();
@@ -143,5 +138,5 @@ export function registerAdminUserRoutes(app: FastifyInstance): void {
     const account = await findWithBookmarkCount(username);
     if (!account) throw new NotFoundProblem();
     return toUserAccountResponse(account);
-  });
+  }
 }

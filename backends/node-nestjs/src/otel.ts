@@ -25,8 +25,7 @@ if (config.otelEnabled) {
     instrumentations: [
       new HttpInstrumentation({
         // probe noise stays out of traces, as it stays out of access logs (docs/LOGGING.md §5)
-        ignoreIncomingRequestHook: (request) =>
-          request.url === "/healthz" || request.url === "/readyz",
+        ignoreIncomingRequestHook: (request) => request.url === "/healthz" || request.url === "/readyz",
       }),
       new PgInstrumentation(),
     ],

@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import { Injectable } from "@nestjs/common";
+import type { FastifyReply, FastifyRequest } from "fastify";
 import { pool } from "../db.js";
 import { requireRole } from "../auth.js";
 import { sendWithEtag } from "../etag.js";
@@ -19,9 +20,10 @@ async function countPerDay(table: string, column: string, from: Date): Promise<M
   return new Map((result.rows as { day: string; count: number }[]).map((row) => [row.day, row.count]));
 }
 
-export function registerStatsRoutes(app: FastifyInstance): void {
+@Injectable()
+export class StatsService {
   /** SPEC rule 19: totals, a 30-day zero-filled daily series, top tags; ETag as for messages. */
-  app.get("/api/v1/admin/stats", async (request, reply) => {
+  async get(request: FastifyRequest, reply: FastifyReply): Promise<FastifyReply> {
     requireRole(request, "moderator");
 
     const now = new Date();
@@ -59,7 +61,7 @@ export function registerStatsRoutes(app: FastifyInstance): void {
       daily,
       topTags: topTags.rows as { tag: string; count: number }[],
     });
-  });
+  }
 }
 
 async function count(sql: string): Promise<number> {

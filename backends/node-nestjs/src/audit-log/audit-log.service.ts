@@ -1,4 +1,5 @@
-import type { FastifyInstance } from "fastify";
+import { Injectable } from "@nestjs/common";
+import type { FastifyRequest } from "fastify";
 import { pool } from "../db.js";
 import { requireRole } from "../auth.js";
 import { BadRequestProblem, omitNulls, requireValidPaging, singleParam } from "../problems.js";
@@ -32,8 +33,9 @@ function dateParam(value: string | undefined, name: string): Date | undefined {
 }
 
 /** Browse-only: the audit trail is append-only (SPEC rule 18) — no mutation routes exist. */
-export function registerAuditRoutes(app: FastifyInstance): void {
-  app.get("/api/v1/admin/audit-log", async (request) => {
+@Injectable()
+export class AuditLogService {
+  async list(request: FastifyRequest) {
     requireRole(request, "admin");
     const query = request.query as Record<string, unknown>;
     const { page, size } = requireValidPaging(query);
@@ -74,5 +76,5 @@ export function registerAuditRoutes(app: FastifyInstance): void {
       totalItems,
       totalPages: Math.ceil(totalItems / size),
     };
-  });
+  }
 }
