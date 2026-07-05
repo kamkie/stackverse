@@ -195,6 +195,24 @@ final class AuthSupport {
     }
 }
 
+final class ResponseContracts {
+    private ResponseContracts() {
+    }
+
+    static Response routeHeaders(ContainerRequestContext request, UriInfo uriInfo, Response response) {
+        String requestPath = request == null ? null : request.getUriInfo().getPath();
+        String uriPath = uriInfo == null ? null : uriInfo.getPath();
+        if (isV1BookmarksPath(requestPath) || isV1BookmarksPath(uriPath)) {
+            return StackverseResource.v1BookmarksDeprecationHeaders(response);
+        }
+        return response;
+    }
+
+    private static boolean isV1BookmarksPath(String path) {
+        return "api/v1/bookmarks".equals(path) || "/api/v1/bookmarks".equals(path);
+    }
+}
+
 @ApplicationScoped
 class Localizer {
     static final String DEFAULT_LANGUAGE = "en";
@@ -317,12 +335,16 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
     @Context
     HttpHeaders headers;
 
+    @Context
+    ContainerRequestContext request;
+
     @Override
     public Response toResponse(AuthenticationFailedException exception) {
         StackverseLog.event(LOG, Logger.Level.INFO, "jwt_validation_failed", "failure",
                 "Rejected a bearer token", Map.of("error_code", "invalid_token"));
-        return StackverseProblem.unauthorized("Missing or invalid bearer token.")
+        Response response = StackverseProblem.unauthorized("Missing or invalid bearer token.")
                 .response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, response);
     }
 }
 
@@ -339,6 +361,9 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
     @Context
     HttpHeaders headers;
 
+    @Context
+    ContainerRequestContext request;
+
     @Override
     public Response toResponse(Throwable throwable) {
         StackverseProblem problem = toProblem(throwable);
@@ -351,7 +376,7 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
         if (problem.status >= 500) {
             LOG.error("Unhandled error serving request", throwable);
         }
-        return problem.response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, problem.response(localizer, uriInfo, headers));
     }
 
     private StackverseProblem toProblem(Throwable throwable) {

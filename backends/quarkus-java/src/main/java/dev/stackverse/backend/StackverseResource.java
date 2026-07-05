@@ -128,11 +128,8 @@ public class StackverseResource {
             return new Page<>(items, page, size, total);
         });
         List<Map<String, Object>> items = result.items().stream().map(StackverseResource::bookmarkResponse).toList();
-        return Response.ok(pageResponse(items, result.page(), result.size(), result.totalItems()))
-                .header("Deprecation", V1_BOOKMARKS_DEPRECATION)
-                .header("Sunset", V1_BOOKMARKS_SUNSET)
-                .header("Link", V1_BOOKMARKS_SUCCESSOR)
-                .build();
+        return v1BookmarksDeprecationHeaders(
+                Response.ok(pageResponse(items, result.page(), result.size(), result.totalItems())).build());
     }
 
     @GET
@@ -1494,6 +1491,14 @@ public class StackverseResource {
         if (value != null) {
             body.put(key, value);
         }
+    }
+
+    static Response v1BookmarksDeprecationHeaders(Response response) {
+        return Response.fromResponse(response)
+                .header("Deprecation", V1_BOOKMARKS_DEPRECATION)
+                .header("Sunset", V1_BOOKMARKS_SUNSET)
+                .header("Link", V1_BOOKMARKS_SUCCESSOR)
+                .build();
     }
 
     static List<Object> params(Object... values) {
