@@ -26,13 +26,23 @@ is_truthy() {
 
 container_target_url() {
     local url="$1"
-    case "$url" in
-        http://localhost*) printf 'http://host.docker.internal%s\n' "${url#http://localhost}" ;;
-        https://localhost*) printf 'https://host.docker.internal%s\n' "${url#https://localhost}" ;;
-        http://127.0.0.1*) printf 'http://host.docker.internal%s\n' "${url#http://127.0.0.1}" ;;
-        https://127.0.0.1*) printf 'https://host.docker.internal%s\n' "${url#https://127.0.0.1}" ;;
-        *) printf '%s\n' "$url" ;;
-    esac
+    local converted="$url"
+    local nocasematch_was_set=0
+
+    if shopt -q nocasematch; then
+        nocasematch_was_set=1
+    fi
+    shopt -s nocasematch
+
+    if [[ "$url" =~ ^(https?://)(localhost|127\.0\.0\.1)([:/?#].*)?$ ]]; then
+        converted="${BASH_REMATCH[1]}host.docker.internal${BASH_REMATCH[3]:-}"
+    fi
+
+    if [ "$nocasematch_was_set" -eq 0 ]; then
+        shopt -u nocasematch
+    fi
+
+    printf '%s\n' "$converted"
 }
 
 if [ -z "$ZAP_TARGET_URL" ]; then
