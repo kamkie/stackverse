@@ -16,17 +16,15 @@ import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
-import org.jboss.logging.Logger;
-
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.jboss.logging.Logger;
 
-record FieldViolation(String field, String messageKey) {
-}
+record FieldViolation(String field, String messageKey) {}
 
 final class StackverseProblem extends RuntimeException {
     final int status;
@@ -35,7 +33,12 @@ final class StackverseProblem extends RuntimeException {
     final String detailKey;
     final List<FieldViolation> fields;
 
-    StackverseProblem(int status, String title, String detail, String detailKey, List<FieldViolation> fields) {
+    StackverseProblem(
+            int status,
+            String title,
+            String detail,
+            String detailKey,
+            List<FieldViolation> fields) {
         super(detail == null ? title : detail);
         this.status = status;
         this.title = title;
@@ -73,7 +76,8 @@ final class StackverseProblem extends RuntimeException {
     }
 
     static StackverseProblem validation(List<FieldViolation> fields) {
-        return new StackverseProblem(400, "Bad Request", "Request validation failed.", null, fields);
+        return new StackverseProblem(
+                400, "Bad Request", "Request validation failed.", null, fields);
     }
 
     Response response(Localizer localizer, UriInfo uriInfo, HttpHeaders headers) {
@@ -132,10 +136,10 @@ final class Validator {
 }
 
 final class ResponseContracts {
-    private ResponseContracts() {
-    }
+    private ResponseContracts() {}
 
-    static Response routeHeaders(ContainerRequestContext request, UriInfo uriInfo, Response response) {
+    static Response routeHeaders(
+            ContainerRequestContext request, UriInfo uriInfo, Response response) {
         if (request == null || !"GET".equals(request.getMethod())) {
             return response;
         }
@@ -159,14 +163,11 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
 
     private final Localizer localizer;
 
-    @Context
-    UriInfo uriInfo;
+    @Context UriInfo uriInfo;
 
-    @Context
-    HttpHeaders headers;
+    @Context HttpHeaders headers;
 
-    @Context
-    ContainerRequestContext request;
+    @Context ContainerRequestContext request;
 
     @Inject
     AuthenticationFailedMapper(Localizer localizer) {
@@ -175,10 +176,16 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
 
     @Override
     public Response toResponse(AuthenticationFailedException exception) {
-        StackverseLog.event(LOG, Logger.Level.INFO, "jwt_validation_failed", "failure",
-                "Rejected a bearer token", Map.of("error_code", "invalid_token"));
-        Response response = StackverseProblem.unauthorized("Missing or invalid bearer token.")
-                .response(localizer, uriInfo, headers);
+        StackverseLog.event(
+                LOG,
+                Logger.Level.INFO,
+                "jwt_validation_failed",
+                "failure",
+                "Rejected a bearer token",
+                Map.of("error_code", "invalid_token"));
+        Response response =
+                StackverseProblem.unauthorized("Missing or invalid bearer token.")
+                        .response(localizer, uriInfo, headers);
         return ResponseContracts.routeHeaders(request, uriInfo, response);
     }
 }
@@ -189,14 +196,11 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
 
     private final Localizer localizer;
 
-    @Context
-    UriInfo uriInfo;
+    @Context UriInfo uriInfo;
 
-    @Context
-    HttpHeaders headers;
+    @Context HttpHeaders headers;
 
-    @Context
-    ContainerRequestContext request;
+    @Context ContainerRequestContext request;
 
     @Inject
     ProblemMapper(Localizer localizer) {
@@ -207,15 +211,25 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
     public Response toResponse(Throwable throwable) {
         StackverseProblem problem = toProblem(throwable);
         if (!problem.fields.isEmpty()) {
-            StackverseLog.event(LOG, Logger.Level.INFO, "input_validation_failed", "failure",
+            StackverseLog.event(
+                    LOG,
+                    Logger.Level.INFO,
+                    "input_validation_failed",
+                    "failure",
                     "Request validation failed",
-                    Map.of("error_code", "validation_failed",
-                            "fields", String.join(",", problem.fields.stream().map(FieldViolation::field).toList())));
+                    Map.of(
+                            "error_code",
+                            "validation_failed",
+                            "fields",
+                            String.join(
+                                    ",",
+                                    problem.fields.stream().map(FieldViolation::field).toList())));
         }
         if (problem.status >= 500) {
             LOG.error("Unhandled error serving request", throwable);
         }
-        return ResponseContracts.routeHeaders(request, uriInfo, problem.response(localizer, uriInfo, headers));
+        return ResponseContracts.routeHeaders(
+                request, uriInfo, problem.response(localizer, uriInfo, headers));
     }
 
     private StackverseProblem toProblem(Throwable throwable) {
@@ -223,12 +237,18 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
             return problem;
         }
         if (throwable instanceof NotAuthorizedException) {
-            StackverseLog.event(LOG, Logger.Level.INFO, "jwt_validation_failed", "failure",
-                    "Rejected a bearer token", Map.of("error_code", "invalid_token"));
+            StackverseLog.event(
+                    LOG,
+                    Logger.Level.INFO,
+                    "jwt_validation_failed",
+                    "failure",
+                    "Rejected a bearer token",
+                    Map.of("error_code", "invalid_token"));
             return StackverseProblem.unauthorized("Missing or invalid bearer token.");
         }
         if (throwable instanceof ForbiddenException) {
-            return StackverseProblem.forbidden("You do not have the role required for this operation.");
+            return StackverseProblem.forbidden(
+                    "You do not have the role required for this operation.");
         }
         if (throwable instanceof NotFoundException) {
             return StackverseProblem.notFound();
@@ -244,11 +264,14 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
                 && webApplicationException.getResponse().getStatus() >= 400
                 && webApplicationException.getResponse().getStatus() < 500) {
             int status = webApplicationException.getResponse().getStatus();
-            String title = status == 401 ? "Unauthorized"
-                    : status == 403 ? "Forbidden"
-                    : status == 404 ? "Not Found"
-                    : status == 405 ? "Method Not Allowed"
-                    : "Bad Request";
+            String title =
+                    status == 401
+                            ? "Unauthorized"
+                            : status == 403
+                                    ? "Forbidden"
+                                    : status == 404
+                                            ? "Not Found"
+                                            : status == 405 ? "Method Not Allowed" : "Bad Request";
             return new StackverseProblem(status, title, null, null, null);
         }
         return new StackverseProblem(500, "Internal Server Error", null, null, null);

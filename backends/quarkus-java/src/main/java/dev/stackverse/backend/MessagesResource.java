@@ -40,8 +40,8 @@ public class MessagesResource {
 
     @GET
     @Path("/{id}")
-    public Response getMessage(@Context UriInfo uriInfo, @Context HttpHeaders headers,
-                               @PathParam("id") String rawId) {
+    public Response getMessage(
+            @Context UriInfo uriInfo, @Context HttpHeaders headers, @PathParam("id") String rawId) {
         return service.getMessage(new RequestContext(uriInfo, headers), rawId);
     }
 

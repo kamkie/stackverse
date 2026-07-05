@@ -171,7 +171,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Open Liberty](../backends/open-liberty-java/README.md) | Spotless/Checkstyle or google-java-format via Maven plugin | No formatter or linter plugin configured in pom.xml | 🔴 undocumented |
 | [FastAPI](../backends/python-fastapi/README.md) | Ruff (and/or Black + mypy) configured in pyproject | None configured; CI runs only compileall + pytest | 🔴 undocumented |
 | [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🔴 undocumented |
-| [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | No formatter or linter plugin configured in pom.xml | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
 
 ### API & domain-type modeling
