@@ -140,15 +140,15 @@ Public Feed Should Not Show Bookmark
 
 Input Dialog Field
     [Arguments]    ${label}    ${value}
-    Input Text    xpath://div[contains(@class, "sv-dialog")]//label[normalize-space(.)="${label}"]/following::*[self::input or self::textarea][1]    ${value}
+    Input Text    xpath://*[contains(concat(" ", normalize-space(@class), " "), " sv-dialog ")]//label[normalize-space(.)="${label}"]/following::*[self::input or self::textarea][1]    ${value}
 
 Select Dialog Field By Value
     [Arguments]    ${label}    ${value}
-    Select From List By Value    xpath://div[contains(@class, "sv-dialog")]//label[normalize-space(.)="${label}"]/following::select[1]    ${value}
+    Select From List By Value    xpath://*[contains(concat(" ", normalize-space(@class), " "), " sv-dialog ")]//label[normalize-space(.)="${label}"]/following::select[1]    ${value}
 
 Click Dialog Button
     [Arguments]    ${label}
-    Click Button    xpath://div[contains(@class, "sv-dialog")]//button[normalize-space(.)="${label}" or @aria-label="${label}"]
+    Click Button    xpath://*[contains(concat(" ", normalize-space(@class), " "), " sv-dialog ")]//button[normalize-space(.)="${label}" or @aria-label="${label}"]
 
 Bookmark Should Be Visible
     [Arguments]    ${title}
