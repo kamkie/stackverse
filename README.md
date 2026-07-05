@@ -128,10 +128,13 @@ then keeps the full sweep on `main`, scheduled, and manual runs (see
 | Frontend | Vanilla TypeScript | `frontends/vanilla-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vanilla-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Vue | `frontends/vue` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vue)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 
-Line counts per variant, split into app / tests / infra / docs with
-[`tokei`](https://github.com/XAMPPRocky/tokei), live in
-[docs/CODE-STATS.md](docs/CODE-STATS.md) — regenerate with `./scripts/code-stats.sh`
-(PowerShell: `./scripts/code-stats.ps1`).
+Line counts per variant — split into source / tests / config / docs, with a
+language breakdown and Dockerfile size — live in
+[docs/CODE-STATS.md](docs/CODE-STATS.md). Files come from `git ls-files`, counts
+from [`tokei`](https://github.com/XAMPPRocky/tokei); the single generator is
+[`tools/code-stats.mjs`](tools/code-stats.mjs). Regenerate with
+`./scripts/code-stats.sh --write docs/CODE-STATS.md` (PowerShell:
+`./scripts/code-stats.ps1 -Write docs/CODE-STATS.md`).
 
 ## Quickstart
 
