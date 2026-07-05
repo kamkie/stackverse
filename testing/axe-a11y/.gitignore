@@ -1,0 +1,5 @@
+.auth/
+.pnp.*
+.yarn/
+playwright-report/
+test-results/
