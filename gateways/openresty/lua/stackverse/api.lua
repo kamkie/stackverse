@@ -98,7 +98,7 @@ function _M.handle()
     end
   end
 
-  return proxy.request(cfg.backend_url, "backend", access_token, true)
+  return proxy.request(cfg.backend_url, "backend", access_token, true, cfg)
 end
 
 return _M

@@ -18,14 +18,6 @@ local levels = {
   fatal = 50,
 }
 
-local function env(name, default)
-  local value = os.getenv(name)
-  if value == nil or value == "" then
-    return default
-  end
-  return value
-end
-
 local function normalize_level(level)
   level = tostring(level or "info"):lower()
   if levels[level] then

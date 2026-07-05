@@ -79,7 +79,7 @@ end
 function _M.handle()
   local cfg = config.load()
   if cfg.frontend_url then
-    return proxy.request(cfg.frontend_url, "frontend", nil, false)
+    return proxy.request(cfg.frontend_url, "frontend", nil, false, cfg)
   end
   return serve_static(cfg)
 end

@@ -294,30 +294,15 @@ local function test_logging_and_telemetry()
   local telemetry = require("stackverse.telemetry")
   local incoming = "00-11111111111111111111111111111111-2222222222222222-01"
   set_ngx()
-  assert_equal(telemetry.ensure_traceparent({ Traceparent = incoming }), incoming)
+  assert_equal(telemetry.ensure_traceparent({ Traceparent = incoming }, { otel_disabled = "true" }), incoming)
   assert_equal(ngx.ctx.stackverse_trace_id, "11111111111111111111111111111111")
   assert_equal(ngx.ctx.stackverse_span_id, "2222222222222222")
 
-  local old_getenv = os.getenv
-  os.getenv = function(name)
-    if name == "OTEL_SDK_DISABLED" then
-      return "true"
-    end
-    return old_getenv(name)
-  end
   set_ngx()
-  assert_equal(telemetry.ensure_traceparent({ traceparent = "bad" }), nil)
-  os.getenv = old_getenv
+  assert_equal(telemetry.ensure_traceparent({ traceparent = "bad" }, { otel_disabled = "true" }), nil)
 
-  os.getenv = function(name)
-    if name == "OTEL_SDK_DISABLED" then
-      return "false"
-    end
-    return old_getenv(name)
-  end
   set_ngx()
-  local generated = telemetry.ensure_traceparent({})
-  os.getenv = old_getenv
+  local generated = telemetry.ensure_traceparent({}, { otel_disabled = "false" })
   assert_match(generated, "^00%-%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%-01$")
   assert_truthy(ngx.ctx.stackverse_trace_id)
   assert_truthy(ngx.ctx.stackverse_span_id)
@@ -329,6 +314,89 @@ local function test_logging_and_telemetry()
     otel_exporter_otlp_endpoint = "http://collector:4318",
     otel_service_name = "stackverse-gateway",
   })
+end
+
+local function test_readyz_module()
+  local behavior = {
+    config = {
+      redis = {
+        host = "redis",
+        port = 6379,
+        database = 2,
+        username = "user",
+        password = "pass",
+      },
+    },
+  }
+  local function new_redis_client()
+    local client = {}
+    function client:set_timeout(timeout)
+      behavior.timeout = timeout
+    end
+    function client:connect(host, port)
+      behavior.host = host
+      behavior.port = port
+      if behavior.connect_ok == false then
+        return false, "connect failed"
+      end
+      return true
+    end
+    function client:auth(username, password)
+      behavior.auth_username = username
+      behavior.auth_password = password
+      if behavior.auth_ok == false then
+        return false, "auth failed"
+      end
+      return true
+    end
+    function client:select(database)
+      behavior.selected_database = database
+      if behavior.select_ok == false then
+        return false, "select failed"
+      end
+      return true
+    end
+    function client:ping()
+      return behavior.pong or "PONG"
+    end
+    function client:set_keepalive(timeout, pool_size)
+      behavior.keepalive_timeout = timeout
+      behavior.keepalive_pool_size = pool_size
+      return true
+    end
+    return client
+  end
+
+  with_modules({
+    ["resty.redis"] = {
+      new = new_redis_client,
+    },
+    ["stackverse.config"] = {
+      load = function()
+        return behavior.config
+      end,
+    },
+  }, { "stackverse.readyz" }, function()
+    local readyz = require("stackverse.readyz")
+    local _, body = set_ngx()
+    assert_equal(readyz.check(), 200)
+    assert_equal(ngx.header["Content-Type"], "text/plain; charset=utf-8")
+    assert_equal(body(), "ready\n")
+    assert_equal(behavior.timeout, 1000)
+    assert_equal(behavior.host, "redis")
+    assert_equal(behavior.port, 6379)
+    assert_equal(behavior.auth_username, "user")
+    assert_equal(behavior.auth_password, "pass")
+    assert_equal(behavior.selected_database, 2)
+    assert_equal(behavior.keepalive_timeout, 10000)
+    assert_equal(behavior.keepalive_pool_size, 20)
+
+    behavior.connect_ok = false
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(ngx.header["Content-Type"], "application/problem+json")
+    assert_equal(assert(cjson.decode(body())).detail, "Redis is unavailable.")
+  end)
 end
 
 local function test_token_refresh_paths()
@@ -892,6 +960,7 @@ test_config_defaults()
 test_problem_write()
 test_security_contract_checks()
 test_logging_and_telemetry()
+test_readyz_module()
 test_token_refresh_paths()
 test_proxy_request()
 test_spa_static_and_proxy_modes()
