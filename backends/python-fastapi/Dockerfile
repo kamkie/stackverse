@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-python-fastapi:local -f backends/python-fastapi/Dockerfile .
 
-FROM python:3.13-slim AS build
+FROM python:3.14.6-slim AS build
 WORKDIR /build
 RUN python -m venv /venv
 ENV PATH="/venv/bin:${PATH}"
@@ -11,7 +11,7 @@ COPY backends/python-fastapi/pyproject.toml ./
 COPY backends/python-fastapi/stackverse_backend stackverse_backend
 RUN python -m pip install --no-cache-dir .
 
-FROM python:3.13-slim
+FROM python:3.14.6-slim
 RUN addgroup --system app && adduser --system --ingroup app app
 WORKDIR /app
 ENV PATH="/venv/bin:${PATH}"
