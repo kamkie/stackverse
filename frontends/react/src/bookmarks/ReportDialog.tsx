@@ -2,8 +2,8 @@ import { useState, type SubmitEvent } from "react";
 import { ApiError, fieldErrorFor } from "../api/problem";
 import { Dialog } from "../components/Dialog";
 import { Field } from "../components/Field";
-import { useToast } from "../components/Toast";
-import { useI18n } from "../i18n/I18nProvider";
+import { useToast } from "../components/ToastContext";
+import { useI18n } from "../i18n/I18nContext";
 import { useReportBookmark, type Bookmark, type ReportInput } from "./queries";
 
 const REASONS: ReportInput["reason"][] = ["spam", "offensive", "broken-link", "other"];

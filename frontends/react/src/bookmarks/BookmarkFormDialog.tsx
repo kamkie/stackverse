@@ -2,7 +2,7 @@ import { useState, type SubmitEvent } from "react";
 import { ApiError, fieldErrorFor } from "../api/problem";
 import { Dialog } from "../components/Dialog";
 import { Field } from "../components/Field";
-import { useI18n } from "../i18n/I18nProvider";
+import { useI18n } from "../i18n/I18nContext";
 import {
   useCreateBookmark,
   useUpdateBookmark,

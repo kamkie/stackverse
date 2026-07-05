@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pagination } from "../../components/Pagination";
 import { ErrorState, Loading } from "../../components/states";
-import { useI18n } from "../../i18n/I18nProvider";
+import { useI18n } from "../../i18n/I18nContext";
 import { useBookmark, useReports, useResolveReport, type ReportStatus } from "./queries";
 
 const STATUSES: ReportStatus[] = ["open", "dismissed", "actioned"];

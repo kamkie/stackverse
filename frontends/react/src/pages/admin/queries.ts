@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, unwrap } from "../../api/client";
 import type { components, operations } from "../../api/schema";
-import { useI18n } from "../../i18n/I18nProvider";
+import { useI18n } from "../../i18n/I18nContext";
 
 export type Report = components["schemas"]["Report"];
 export type ReportStatus = components["schemas"]["ReportStatus"];

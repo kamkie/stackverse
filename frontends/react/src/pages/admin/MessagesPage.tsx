@@ -5,10 +5,10 @@ import { Dialog } from "../../components/Dialog";
 import { Field } from "../../components/Field";
 import { Pagination } from "../../components/Pagination";
 import { ErrorState, Loading } from "../../components/states";
-import { useToast } from "../../components/Toast";
+import { useToast } from "../../components/ToastContext";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
 import { SUPPORTED_LANGUAGES } from "../../i18n/languages";
-import { useI18n } from "../../i18n/I18nProvider";
+import { useI18n } from "../../i18n/I18nContext";
 import {
   useCreateMessage,
   useDeleteMessage,

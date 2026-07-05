@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router";
 import { isAdmin, isModerator, useMe } from "../../auth/useMe";
 import { useSession } from "../../auth/session";
 import { Loading, LoginPrompt } from "../../components/states";
-import { useI18n } from "../../i18n/I18nProvider";
+import { useI18n } from "../../i18n/I18nContext";
 
 /**
  * Role-gated admin shell: navigation shows only what the caller's roles from

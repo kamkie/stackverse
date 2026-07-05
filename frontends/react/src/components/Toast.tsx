@@ -1,28 +1,22 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
-
-type ToastVariant = "success" | "danger";
+import {
+  ToastContext,
+  type ToastContextValue,
+  type ToastVariant,
+} from "./ToastContext";
 
 interface ToastItem {
   id: number;
   message: string;
   variant: ToastVariant;
 }
-
-interface ToastContextValue {
-  /** Shows a toast that auto-dismisses; `message` is already localized. */
-  push: (message: string, variant?: ToastVariant) => void;
-}
-
-const ToastContext = createContext<ToastContextValue | null>(null);
 
 const TOAST_DURATION_MS = 5000;
 
@@ -69,10 +63,4 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       </div>
     </ToastContext.Provider>
   );
-}
-
-export function useToast(): ToastContextValue {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error("useToast must be used inside <ToastProvider>");
-  return ctx;
 }

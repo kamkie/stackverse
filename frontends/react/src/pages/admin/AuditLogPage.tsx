@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Pagination } from "../../components/Pagination";
 import { ErrorState, Loading } from "../../components/states";
 import { useDebouncedValue } from "../../lib/useDebouncedValue";
-import { useI18n } from "../../i18n/I18nProvider";
+import { useI18n } from "../../i18n/I18nContext";
 import { useAuditLog } from "./queries";
 
 /**
