@@ -4,7 +4,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.testApplication
 import org.slf4j.LoggerFactory
@@ -40,6 +42,25 @@ class ApplicationTest {
             assertEquals("Unauthorized", problem.title)
             assertEquals(401, problem.status)
             assertEquals("Authentication is required.", problem.detail)
+        } finally {
+            context.database.dataSource.close()
+        }
+    }
+
+    @Test
+    fun `deprecated bookmark list headers are added before auth rejection`() = testApplication {
+        val context = testContext()
+        try {
+            application { stackverseModule(context) }
+
+            val response = client.get("/api/v1/bookmarks") {
+                header(HttpHeaders.Authorization, "Bearer not-a-jwt")
+            }
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status)
+            assertEquals(DEPRECATION, response.headers["Deprecation"])
+            assertEquals(SUNSET, response.headers["Sunset"])
+            assertEquals(SUCCESSOR_LINK, response.headers[HttpHeaders.Link])
         } finally {
             context.database.dataSource.close()
         }

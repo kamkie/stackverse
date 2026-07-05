@@ -2,9 +2,11 @@ package dev.stackverse.backend
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.JacksonConverter
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
 import io.ktor.server.application.call
@@ -15,6 +17,8 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
@@ -63,6 +67,7 @@ private val StackverseRequestPlugin = createApplicationPlugin(
 ) {
     val context = pluginConfig.context
     onCall { call ->
+        call.appendDeprecatedBookmarkListHeaders()
         val identity = context.jwtAuthenticator.authenticate(call)
         if (identity != null) {
             val account = context.accounts.recordSeen(identity.username)
@@ -78,6 +83,14 @@ private val StackverseRequestPlugin = createApplicationPlugin(
             }
             call.attributes.put(IDENTITY_KEY, identity)
         }
+    }
+}
+
+private fun ApplicationCall.appendDeprecatedBookmarkListHeaders() {
+    if (request.httpMethod == HttpMethod.Get && request.path() == "/api/v1/bookmarks") {
+        response.headers.append("Deprecation", DEPRECATION)
+        response.headers.append("Sunset", SUNSET)
+        response.headers.append(HttpHeaders.Link, SUCCESSOR_LINK)
     }
 }
 
@@ -173,9 +186,6 @@ fun Application.stackverseModule(context: AppContext) {
 
         route("/api/v1/bookmarks") {
             get {
-                call.response.headers.append("Deprecation", DEPRECATION)
-                call.response.headers.append("Sunset", SUNSET)
-                call.response.headers.append(HttpHeaders.Link, SUCCESSOR_LINK)
                 val page = call.pageParam()
                 val size = call.sizeParam()
                 val query = call.bookmarkQuery()
