@@ -1,6 +1,6 @@
 # Backend - Micronaut (Java)
 
-Micronaut 4.10 · Java 25 · Gradle · Netty · HikariCP/JDBC · Flyway · PostgreSQL.
+Micronaut 5.0 · Java 25 · Gradle · Netty · HikariCP/JDBC · Flyway · PostgreSQL.
 
 Shared behavior (endpoints, env vars, rules) is documented in
 [backends/README.md](../README.md) and [docs/SPEC.md](../../docs/SPEC.md) - this file

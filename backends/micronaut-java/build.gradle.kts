@@ -8,7 +8,7 @@ group = "dev.stackverse"
 version = "0.0.1-SNAPSHOT"
 description = "Stackverse backend - Micronaut + Java"
 
-val micronautVersion = "4.10.16"
+val micronautVersion = "5.0.3"
 
 java {
     toolchain {

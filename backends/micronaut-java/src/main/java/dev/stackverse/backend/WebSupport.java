@@ -1,7 +1,5 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.HttpHeaders;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
@@ -28,6 +26,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 final class WebSupport {
     static final Pattern TAG_PATTERN = Pattern.compile("^[a-z0-9-]{1,30}$");
@@ -146,7 +146,7 @@ final class WebSupport {
                 response.header(HttpHeaders.CONTENT_LANGUAGE, contentLanguage);
             }
             return response;
-        } catch (JsonProcessingException | NoSuchAlgorithmException ex) {
+        } catch (JacksonException | NoSuchAlgorithmException ex) {
             throw new IllegalStateException(ex);
         }
     }

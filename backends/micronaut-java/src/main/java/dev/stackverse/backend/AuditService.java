@@ -1,7 +1,5 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Singleton;
 
 import java.sql.Connection;
@@ -9,6 +7,8 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Singleton
 final class AuditService {
@@ -32,7 +32,7 @@ final class AuditService {
         }
         try {
             return mapper.writeValueAsString(detail);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalStateException(ex);
         }
     }

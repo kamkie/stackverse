@@ -1,6 +1,5 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpResponse;
@@ -19,6 +18,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import tools.jackson.databind.ObjectMapper;
 
 @Controller
 final class MessagesController {
