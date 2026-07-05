@@ -56,4 +56,43 @@ describe("csrf double-submit", () => {
     expect(requests[0]?.headers.get("X-XSRF-TOKEN")).toBeNull();
     expect(requests[1]?.headers.get("X-XSRF-TOKEN")).toBeNull();
   });
+
+  it("retries a rejected state-changing request when the gateway refreshes the token", async () => {
+    document.cookie = "XSRF-TOKEN=old";
+    const requests: Request[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const request = input instanceof Request ? input : new Request(input);
+        requests.push(request);
+        if (requests.length === 1) {
+          document.cookie = "XSRF-TOKEN=fresh";
+          return Response.json({ title: "Forbidden", status: 403 }, { status: 403 });
+        }
+        return Response.json(
+          {
+            id: "00000000-0000-4000-8000-000000000001",
+            owner: "demo",
+            url: "https://example.com",
+            title: "t",
+            tags: [],
+            visibility: "private",
+            status: "active",
+            createdAt: new Date(0).toISOString(),
+            updatedAt: new Date(0).toISOString(),
+          },
+          { status: 201 },
+        );
+      }),
+    );
+
+    const result = await api.POST("/api/v1/bookmarks", {
+      body: { url: "https://example.com", title: "t", tags: [], visibility: "private" },
+    });
+
+    expect(result.response.status).toBe(201);
+    expect(requests).toHaveLength(2);
+    expect(requests[0]?.headers.get("X-XSRF-TOKEN")).toBe("old");
+    expect(requests[1]?.headers.get("X-XSRF-TOKEN")).toBe("fresh");
+  });
 });
