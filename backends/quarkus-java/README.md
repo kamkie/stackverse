@@ -43,6 +43,10 @@ from the repo root:
 docker build -t stackverse/backend-quarkus-java:local -f backends/quarkus-java/Dockerfile .
 ```
 
+The same image definition also lives at Quarkus' conventional generated-project
+location, `src/main/docker/Dockerfile.jvm`, for developers who expect the
+standard Quarkus layout.
+
 ## What this implementation demonstrates
 
 - **Quarkus build-time wiring with explicit JDBC** — REST resources and CDI are

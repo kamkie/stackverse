@@ -1,0 +1,238 @@
+package dev.stackverse.backend;
+
+import io.quarkus.security.AuthenticationFailedException;
+import jakarta.annotation.Priority;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.NotAllowedException;
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
+import org.jboss.logging.Logger;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+record FieldViolation(String field, String messageKey) {
+}
+
+final class StackverseProblem extends RuntimeException {
+    final int status;
+    final String title;
+    final String detail;
+    final String detailKey;
+    final List<FieldViolation> fields;
+
+    StackverseProblem(int status, String title, String detail, String detailKey, List<FieldViolation> fields) {
+        super(detail == null ? title : detail);
+        this.status = status;
+        this.title = title;
+        this.detail = detail;
+        this.detailKey = detailKey;
+        this.fields = fields == null ? List.of() : fields;
+    }
+
+    static StackverseProblem notFound() {
+        return new StackverseProblem(404, "Not Found", null, null, null);
+    }
+
+    static StackverseProblem unauthorized(String detail) {
+        return new StackverseProblem(401, "Unauthorized", detail, null, null);
+    }
+
+    static StackverseProblem forbidden(String detail) {
+        return new StackverseProblem(403, "Forbidden", detail, null, null);
+    }
+
+    static StackverseProblem forbiddenKey(String key) {
+        return new StackverseProblem(403, "Forbidden", null, key, null);
+    }
+
+    static StackverseProblem conflict(String detail) {
+        return new StackverseProblem(409, "Conflict", detail, null, null);
+    }
+
+    static StackverseProblem conflictKey(String key) {
+        return new StackverseProblem(409, "Conflict", null, key, null);
+    }
+
+    static StackverseProblem badRequest(String detail) {
+        return new StackverseProblem(400, "Bad Request", detail, null, null);
+    }
+
+    static StackverseProblem validation(List<FieldViolation> fields) {
+        return new StackverseProblem(400, "Bad Request", "Request validation failed.", null, fields);
+    }
+
+    Response response(Localizer localizer, UriInfo uriInfo, HttpHeaders headers) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("type", "about:blank");
+        body.put("title", title);
+        body.put("status", status);
+        String language = null;
+        String resolvedDetail = detail;
+        if (detailKey != null) {
+            language = localizer.resolveLanguage(uriInfo, headers);
+            resolvedDetail = localizer.localize(detailKey, language);
+        }
+        StackverseResource.putIfPresent(body, "detail", resolvedDetail);
+        if (!fields.isEmpty()) {
+            if (language == null) {
+                language = localizer.resolveLanguage(uriInfo, headers);
+            }
+            List<Map<String, Object>> errors = new ArrayList<>();
+            for (FieldViolation field : fields) {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("field", field.field());
+                item.put("messageKey", field.messageKey());
+                item.put("message", localizer.localize(field.messageKey(), language));
+                errors.add(item);
+            }
+            body.put("errors", errors);
+        }
+        return Response.status(status).type("application/problem+json").entity(body).build();
+    }
+}
+
+final class Validator {
+    private final List<FieldViolation> fields = new ArrayList<>();
+
+    void reject(String field, String messageKey) {
+        fields.add(new FieldViolation(field, messageKey));
+    }
+
+    void check(boolean condition, String field, String messageKey) {
+        if (!condition) {
+            reject(field, messageKey);
+        }
+    }
+
+    void throwIfInvalid() {
+        if (!fields.isEmpty()) {
+            throw StackverseProblem.validation(List.copyOf(fields));
+        }
+    }
+}
+
+final class ResponseContracts {
+    private ResponseContracts() {
+    }
+
+    static Response routeHeaders(ContainerRequestContext request, UriInfo uriInfo, Response response) {
+        String requestPath = request == null ? null : request.getUriInfo().getPath();
+        String uriPath = uriInfo == null ? null : uriInfo.getPath();
+        if (isV1BookmarksPath(requestPath) || isV1BookmarksPath(uriPath)) {
+            return StackverseResource.v1BookmarksDeprecationHeaders(response);
+        }
+        return response;
+    }
+
+    private static boolean isV1BookmarksPath(String path) {
+        return "api/v1/bookmarks".equals(path) || "/api/v1/bookmarks".equals(path);
+    }
+}
+
+@Provider
+@Priority(1)
+class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailedException> {
+    private static final Logger LOG = Logger.getLogger(AuthenticationFailedMapper.class);
+
+    @Inject
+    Localizer localizer;
+
+    @Context
+    UriInfo uriInfo;
+
+    @Context
+    HttpHeaders headers;
+
+    @Context
+    ContainerRequestContext request;
+
+    @Override
+    public Response toResponse(AuthenticationFailedException exception) {
+        StackverseLog.event(LOG, Logger.Level.INFO, "jwt_validation_failed", "failure",
+                "Rejected a bearer token", Map.of("error_code", "invalid_token"));
+        Response response = StackverseProblem.unauthorized("Missing or invalid bearer token.")
+                .response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, response);
+    }
+}
+
+@Provider
+class ProblemMapper implements ExceptionMapper<Throwable> {
+    private static final Logger LOG = Logger.getLogger(ProblemMapper.class);
+
+    @Inject
+    Localizer localizer;
+
+    @Context
+    UriInfo uriInfo;
+
+    @Context
+    HttpHeaders headers;
+
+    @Context
+    ContainerRequestContext request;
+
+    @Override
+    public Response toResponse(Throwable throwable) {
+        StackverseProblem problem = toProblem(throwable);
+        if (!problem.fields.isEmpty()) {
+            StackverseLog.event(LOG, Logger.Level.INFO, "input_validation_failed", "failure",
+                    "Request validation failed",
+                    Map.of("error_code", "validation_failed",
+                            "fields", String.join(",", problem.fields.stream().map(FieldViolation::field).toList())));
+        }
+        if (problem.status >= 500) {
+            LOG.error("Unhandled error serving request", throwable);
+        }
+        return ResponseContracts.routeHeaders(request, uriInfo, problem.response(localizer, uriInfo, headers));
+    }
+
+    private StackverseProblem toProblem(Throwable throwable) {
+        if (throwable instanceof StackverseProblem problem) {
+            return problem;
+        }
+        if (throwable instanceof NotAuthorizedException) {
+            StackverseLog.event(LOG, Logger.Level.INFO, "jwt_validation_failed", "failure",
+                    "Rejected a bearer token", Map.of("error_code", "invalid_token"));
+            return StackverseProblem.unauthorized("Missing or invalid bearer token.");
+        }
+        if (throwable instanceof ForbiddenException) {
+            return StackverseProblem.forbidden("You do not have the role required for this operation.");
+        }
+        if (throwable instanceof NotFoundException) {
+            return StackverseProblem.notFound();
+        }
+        if (throwable instanceof NotAllowedException) {
+            return new StackverseProblem(405, "Method Not Allowed", null, null, null);
+        }
+        if (throwable instanceof BadRequestException) {
+            return StackverseProblem.badRequest("Malformed request body.");
+        }
+        if (throwable instanceof WebApplicationException webApplicationException
+                && webApplicationException.getResponse() != null
+                && webApplicationException.getResponse().getStatus() >= 400
+                && webApplicationException.getResponse().getStatus() < 500) {
+            int status = webApplicationException.getResponse().getStatus();
+            String title = status == 401 ? "Unauthorized"
+                    : status == 403 ? "Forbidden"
+                    : status == 404 ? "Not Found"
+                    : status == 405 ? "Method Not Allowed"
+                    : "Bad Request";
+            return new StackverseProblem(status, title, null, null, null);
+        }
+        return new StackverseProblem(500, "Internal Server Error", null, null, null);
+    }
+}

@@ -9,7 +9,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-class SupportTest {
+class BackendSupportTest {
     @Test
     void parsesAcceptLanguageByQualityAndPrimarySubtag() {
         assertEquals(List.of("pl", "en"),
