@@ -234,6 +234,33 @@ showcase for generated OpenAPI edge cases and response-schema checks. It does
 not replace the semantic conformance suite, which remains the executable form
 of `docs/SPEC.md`.
 
+## OWASP ZAP baseline security smoke
+
+With a full stack running, the optional ZAP showcase in
+[`testing/zap-security/`](../testing/zap-security) runs the OWASP ZAP baseline
+scan against the gateway at `STACKVERSE_URL`:
+
+```sh
+./scripts/zap-security.sh
+```
+
+```powershell
+./scripts/zap-security.ps1
+```
+
+Defaults are `STACKVERSE_URL=http://localhost:8000`,
+`ZAP_SPIDER_MINUTES=1`, and reports under
+`testing/zap-security/reports/` as HTML, Markdown, and JSON. The helper runs
+ZAP in Docker; for localhost targets it converts the in-container URL to
+`host.docker.internal` while keeping `STACKVERSE_URL` as the human-facing
+gateway URL. Set `ZAP_TARGET_URL` to override that target.
+
+This is a passive baseline scan: ZAP spiders the site for a bounded time,
+waits for passive scanners, and reports findings. It does not run active
+attack testing. WARN-only findings do not fail the helper by default
+(`ZAP_FAIL_ON_WARNINGS=false`) but remain visible in the reports; set
+`ZAP_FAIL_ON_WARNINGS=true` when calibrating stricter local runs.
+
 ## Testing-tool showcase suites
 
 Stackverse has two canonical acceptance gates:
@@ -319,6 +346,13 @@ manual accessibility review. CI execution is manual through
 [test-axe-a11y.yml](../.github/workflows/test-axe-a11y.yml), which builds the
 reference stack, runs the suite, and uploads Playwright artifacts on failure.
 It is not part of the merge gate.
+
+The ZAP security showcase lives in
+[testing/zap-security](../testing/zap-security). Its manual workflow,
+[test-zap-security.yml](../.github/workflows/test-zap-security.yml), builds
+the reference stack, runs the passive baseline scan against the gateway, and
+uploads the HTML, Markdown, and JSON reports. It is not triggered by
+`push` or `pull_request`, so it stays non-blocking while it is a showcase.
 
 ## Continuous integration
 
