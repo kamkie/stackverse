@@ -1237,42 +1237,71 @@ function formValues(form: HTMLFormElement): FormValues {
   return values;
 }
 
-function rememberDialogValues(form: HTMLFormElement): void {
+type DialogFormErrorUpdate = { kind: "clear" } | { kind: "set"; error: unknown };
+
+function rememberDialogFormState(
+  form: HTMLFormElement,
+  values: FormValues,
+  errorUpdate: DialogFormErrorUpdate,
+): void {
   if (!state.dialog) return;
-  const values = formValues(form);
 
   switch (form.dataset.form) {
     case "bookmark":
       if (state.dialog.kind === "bookmark-form") {
-        delete state.dialog.error;
-        state.dialog = { ...state.dialog, values };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "report-bookmark":
       if (state.dialog.kind === "report-bookmark") {
-        delete state.dialog.error;
-        state.dialog = { ...state.dialog, values };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "edit-report":
       if (state.dialog.kind === "edit-report") {
-        delete state.dialog.error;
-        state.dialog = { ...state.dialog, values };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "block-user":
       if (state.dialog.kind === "block-user") {
-        delete state.dialog.error;
-        state.dialog = { ...state.dialog, values };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
     case "message":
       if (state.dialog.kind === "message-form") {
-        delete state.dialog.error;
-        state.dialog = { ...state.dialog, values };
+        if (errorUpdate.kind === "set") {
+          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
+        } else {
+          delete state.dialog.error;
+          state.dialog = { ...state.dialog, values };
+        }
       }
       break;
   }
+}
+
+function rememberDialogValues(form: HTMLFormElement): void {
+  rememberDialogFormState(form, formValues(form), { kind: "clear" });
 }
 
 function reportBody(values: FormValues): ReportInput {
@@ -1299,42 +1328,6 @@ function messageBody(values: FormValues): MessageInput {
     text: values.text ?? "",
     ...(values.description ? { description: values.description } : {}),
   };
-}
-
-function rememberDialogError(
-  form: HTMLFormElement,
-  values: FormValues,
-  error: unknown,
-): void {
-  if (!state.dialog) return;
-
-  switch (form.dataset.form) {
-    case "bookmark":
-      if (state.dialog.kind === "bookmark-form") {
-        state.dialog = { ...state.dialog, values, error };
-      }
-      break;
-    case "report-bookmark":
-      if (state.dialog.kind === "report-bookmark") {
-        state.dialog = { ...state.dialog, values, error };
-      }
-      break;
-    case "edit-report":
-      if (state.dialog.kind === "edit-report") {
-        state.dialog = { ...state.dialog, values, error };
-      }
-      break;
-    case "block-user":
-      if (state.dialog.kind === "block-user") {
-        state.dialog = { ...state.dialog, values, error };
-      }
-      break;
-    case "message":
-      if (state.dialog.kind === "message-form") {
-        state.dialog = { ...state.dialog, values, error };
-      }
-      break;
-  }
 }
 
 async function handleForm(form: HTMLFormElement): Promise<void> {
@@ -1417,7 +1410,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
     }
   } catch (error) {
-    rememberDialogError(form, values, error);
+    rememberDialogFormState(form, values, { kind: "set", error });
   }
   await renderApp();
 }
