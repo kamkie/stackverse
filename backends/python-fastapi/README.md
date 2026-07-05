@@ -1,6 +1,6 @@
 # Backend · Python FastAPI
 
-The Stackverse backend in Python 3.13: **FastAPI** with plain `psycopg`
+The Stackverse backend in Python 3.14: **FastAPI** with plain `psycopg`
 queries against PostgreSQL, JWT bearer authentication with PyJWT against
 Keycloak's JWKS, and structured stdout logging. Shared behavior, endpoints,
 and environment variables are documented once in [backends/README.md](../README.md)
@@ -9,7 +9,7 @@ specific to this stack.
 
 ## Run it locally
 
-Prerequisites: Python 3.13, the compose infra (`docker compose up -d` at the
+Prerequisites: Python 3.14, the compose infra (`docker compose up -d` at the
 repo root).
 
 ```sh
