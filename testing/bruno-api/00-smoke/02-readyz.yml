@@ -1,0 +1,26 @@
+info:
+  name: Readyz
+  type: http
+  seq: 2
+  tags:
+    - smoke
+    - public
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/readyz"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("backend readiness is available", function() {
+          expect(res.status).to.equal(200);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

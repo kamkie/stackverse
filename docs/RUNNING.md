@@ -298,6 +298,24 @@ login block. CI execution is manual through
 the reference stack, runs the suite, and uploads Cypress artifacts on failure.
 It is not part of the merge gate.
 
+The Bruno API showcase lives in [testing/bruno-api](../testing/bruno-api) and
+runs directly against a backend at `BACKEND_URL` (default
+`http://localhost:8080`) with dev-realm tokens from `KEYCLOAK_URL` (default
+`http://localhost:8180`):
+
+```sh
+cd testing/bruno-api
+npm install
+npm test
+```
+
+It is a checked-in OpenCollection YAML collection for representative public,
+authenticated, moderation, and admin API workflows. It documents token
+acquisition through the `stackverse-conformance` password-grant client and
+stores tokens only as Bruno runtime variables during a run. There is no CI
+workflow yet, so the suite remains a local API-client showcase and not a merge
+gate.
+
 ## Continuous integration
 
 CI runs on every push to `main` and every pull request, split so that shared

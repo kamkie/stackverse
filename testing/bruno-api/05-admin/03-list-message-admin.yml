@@ -1,0 +1,29 @@
+info:
+  name: Find runtime message
+  type: http
+  seq: 3
+  tags:
+    - admin
+    - messages
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/messages?q={{runId}}&language=en&size=20"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("admin can find the created message", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.items).to.be.an("array");
+          expect(body.items.map((item) => item.id)).to.include(bru.getVar("messageId"));
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

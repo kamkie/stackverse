@@ -1,0 +1,9 @@
+info:
+  name: 06 - Cleanup
+  type: folder
+  seq: 7
+
+request:
+  auth:
+    type: bearer
+    token: "{{demoToken}}"

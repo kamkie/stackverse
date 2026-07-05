@@ -1,0 +1,30 @@
+info:
+  name: List mentor reports
+  type: http
+  seq: 2
+  tags:
+    - moderation
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/reports?status=open&size=20"
+  auth:
+    type: bearer
+    token: "{{mentorToken}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("reporter can see their open report", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.items).to.be.an("array");
+          expect(body.items.map((item) => item.id)).to.include(bru.getVar("reportId"));
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

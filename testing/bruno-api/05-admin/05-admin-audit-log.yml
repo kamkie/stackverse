@@ -1,0 +1,27 @@
+info:
+  name: Read admin audit log
+  type: http
+  seq: 5
+  tags:
+    - admin
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/admin/audit-log?targetType=message&targetId={{messageId}}&size=20"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("admin can inspect audit entries for message mutations", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.items).to.be.an("array");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

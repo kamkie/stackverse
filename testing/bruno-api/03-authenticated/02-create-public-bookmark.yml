@@ -1,0 +1,41 @@
+info:
+  name: Create public bookmark
+  type: http
+  seq: 2
+  tags:
+    - authenticated
+    - bookmarks
+
+http:
+  method: POST
+  url: "{{BACKEND_URL}}/api/v1/bookmarks"
+  body:
+    type: json
+    data: |-
+      {
+        "url": "https://example.com/stackverse/{{runId}}",
+        "title": "Bruno showcase {{runId}}",
+        "notes": "Created by the testing/bruno-api showcase collection.",
+        "tags": ["bruno", "api-showcase"],
+        "visibility": "public"
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("demo can create a public bookmark", function() {
+          expect(res.status).to.equal(201);
+          const body = res.getBody();
+          expect(body.id).to.be.a("string").and.not.empty;
+          expect(body.owner).to.equal("demo");
+          expect(body.visibility).to.equal("public");
+          bru.setVar("bookmarkId", body.id);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

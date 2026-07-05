@@ -1,0 +1,28 @@
+info:
+  name: List public bookmarks v2
+  type: http
+  seq: 1
+  tags:
+    - public
+    - bookmarks
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v2/bookmarks?visibility=public&size=5"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("public cursor feed is anonymous", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.items).to.be.an("array");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

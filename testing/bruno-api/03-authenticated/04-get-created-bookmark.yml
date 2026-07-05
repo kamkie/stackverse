@@ -1,0 +1,29 @@
+info:
+  name: Get created bookmark
+  type: http
+  seq: 4
+  tags:
+    - authenticated
+    - bookmarks
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/bookmarks/{{bookmarkId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("owner can read the created bookmark", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.id).to.equal(bru.getVar("bookmarkId"));
+          expect(body.title).to.contain(bru.getVar("runId"));
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

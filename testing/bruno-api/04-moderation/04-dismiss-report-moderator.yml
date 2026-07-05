@@ -1,0 +1,38 @@
+info:
+  name: Dismiss report as moderator
+  type: http
+  seq: 4
+  tags:
+    - moderation
+
+http:
+  method: PUT
+  url: "{{BACKEND_URL}}/api/v1/admin/reports/{{reportId}}"
+  body:
+    type: json
+    data: |-
+      {
+        "resolution": "dismissed",
+        "note": "Reviewed by Bruno showcase {{runId}}"
+      }
+  auth:
+    type: bearer
+    token: "{{moderatorToken}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("moderator can dismiss the report", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.id).to.equal(bru.getVar("reportId"));
+          expect(body.status).to.equal("dismissed");
+          expect(body.resolvedBy).to.equal("moderator");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

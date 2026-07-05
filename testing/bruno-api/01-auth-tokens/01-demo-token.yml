@@ -1,0 +1,42 @@
+info:
+  name: Get demo token
+  type: http
+  seq: 1
+  tags:
+    - auth
+
+http:
+  method: POST
+  url: "{{KEYCLOAK_URL}}/realms/stackverse/protocol/openid-connect/token"
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: grant_type
+        value: password
+      - name: client_id
+        value: stackverse-conformance
+      - name: username
+        value: demo
+      - name: password
+        value: demo
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("demo token is issued", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.access_token).to.be.a("string").and.not.empty;
+          bru.setVar("demoToken", body.access_token);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

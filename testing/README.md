@@ -14,6 +14,7 @@ canonical acceptance gates.
 | `testing/<tool>-<scope>` | Tool comparison through representative flows | backend or composed stack, depending on scope | showcase unless deliberately promoted |
 | `testing/selenium-e2e` | Selenium WebDriver page-object browser showcase | composed stack, `STACKVERSE_URL` | optional manual workflow |
 | `testing/cypress-e2e` | Cypress browser-runner showcase for representative session, feed, CRUD, and moderation flows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
+| `testing/bruno-api` | Bruno API-client collection for representative public, authenticated, moderation, and admin workflows | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | local showcase |
 
 Showcase suites should demonstrate the tool, not clone every canonical test.
 Pick flows that exercise the tool's strengths while staying anchored to the

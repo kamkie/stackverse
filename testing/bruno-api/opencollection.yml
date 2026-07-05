@@ -1,0 +1,33 @@
+opencollection: 1.0.0
+
+info:
+  name: Stackverse Bruno API Showcase
+  summary: Representative direct-backend API workflows for Stackverse.
+  description: |
+    A curated Bruno collection for exploring the Stackverse backend contract.
+    It uses the local-dev Keycloak password-grant client to fetch runtime
+    bearer tokens and then walks public, authenticated, moderator, and admin
+    flows without changing the product contract.
+
+bundled: false
+
+extensions:
+  ignore:
+    - .env
+    - .bruno
+    - .pnp.*
+    - .yarn
+    - .yarnrc.yml
+    - node_modules
+    - reports
+    - .git
+  bruno:
+    ignore:
+      - .env
+      - .bruno
+      - .pnp.*
+      - .yarn
+      - .yarnrc.yml
+      - node_modules
+      - reports
+      - .git

@@ -80,7 +80,9 @@ suites are the canonical acceptance gates. Additional testing-tool examples live
 under [testing/](testing/README.md) as showcase variants: they compare tools and
 representative workflows without replacing or expanding the canonical gates. The
 Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
-generates bounded OpenAPI property tests against a running backend.
+generates bounded OpenAPI property tests against a running backend, and the
+Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
+API-client collection for direct-backend exploration.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -132,7 +134,9 @@ backend, `./scripts/conformance.sh` (PowerShell: `./scripts/conformance.ps1`)
 checks that backend against the API contract directly. For optional OpenAPI
 property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
-`./scripts/schemathesis-api.ps1`).
+`./scripts/schemathesis-api.ps1`). For a curated API-client walkthrough of the
+same direct-backend surface, run the Bruno showcase from
+`testing/bruno-api`.
 
 To populate a small repeatable local dataset for demos, run the seed against
 the running backend API:
