@@ -79,10 +79,6 @@ export async function setLanguage(lang: string): Promise<void> {
   await loadBundle();
 }
 
-export async function refreshBundle(): Promise<void> {
-  await loadBundle();
-}
-
 export function t(key: string): string {
   return bundle.value?.messages[key] ?? key.slice(key.lastIndexOf(".") + 1);
 }

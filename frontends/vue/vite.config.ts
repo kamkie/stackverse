@@ -13,7 +13,6 @@ function sanitizeLogField(value: unknown): string {
   return String(value)
     .slice(0, MAX_FIELD_CHARS)
     .replace(/\r?\n/g, "\\n")
-    // eslint-disable-next-line no-control-regex
     .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
 }
 

@@ -221,24 +221,71 @@ onMounted(async () => {
     @close="formOpen = false"
   >
     <form class="sv-form" @submit.prevent="saveBookmark">
-      <Field :label="t('ui.field.url')" :error="fieldErrors.url">
-        <input v-model="form.url" class="sv-input" />
-      </Field>
-      <Field :label="t('ui.field.title')" :error="fieldErrors.title">
-        <input v-model="form.title" class="sv-input" />
-      </Field>
-      <Field :label="t('ui.field.notes')" :error="fieldErrors.notes">
-        <textarea v-model="form.notes" class="sv-textarea" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.url')"
+        :error="fieldErrors.url"
+      >
+        <input
+          :id="inputId"
+          v-model="form.url"
+          class="sv-input"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
       <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.title')"
+        :error="fieldErrors.title"
+      >
+        <input
+          :id="inputId"
+          v-model="form.title"
+          class="sv-input"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
+      </Field>
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.notes')"
+        :error="fieldErrors.notes"
+      >
+        <textarea
+          :id="inputId"
+          v-model="form.notes"
+          class="sv-textarea"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
+      </Field>
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
         :label="t('ui.field.tags')"
         :error="fieldErrors.tags"
         :hint="t('ui.field.tags.hint')"
       >
-        <input v-model="form.tags" class="sv-input" />
+        <input
+          :id="inputId"
+          v-model="form.tags"
+          class="sv-input"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
-      <Field :label="t('ui.field.visibility')" :error="fieldErrors.visibility">
-        <select v-model="form.visibility" class="sv-select">
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.visibility')"
+        :error="fieldErrors.visibility"
+      >
+        <select
+          :id="inputId"
+          v-model="form.visibility"
+          class="sv-select"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        >
           <option value="private">{{ t("ui.visibility.private") }}</option>
           <option value="public">{{ t("ui.visibility.public") }}</option>
         </select>

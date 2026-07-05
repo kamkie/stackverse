@@ -4,7 +4,7 @@ import { api, unwrap } from "../../api/client";
 import Pagination from "../../components/Pagination.vue";
 import { formatDateTime } from "../../forms";
 import { t, resolvedLanguage } from "../../i18n/i18n";
-import type { Bookmark, Report, ReportInput, ReportStatus } from "../../types";
+import type { Report, ReportInput, ReportStatus } from "../../types";
 
 const reports = ref<Report[]>([]);
 const bookmarkTitles = ref<Record<string, string>>({});
@@ -29,7 +29,7 @@ async function loadBookmarkTitle(report: Report): Promise<void> {
       await api.GET("/api/v1/bookmarks/{id}", {
         params: { path: { id: report.bookmarkId } },
       }),
-    ) as Bookmark;
+    );
     bookmarkTitles.value = {
       ...bookmarkTitles.value,
       [report.bookmarkId]: bookmark.title,

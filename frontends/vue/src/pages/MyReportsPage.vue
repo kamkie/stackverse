@@ -9,7 +9,7 @@ import { formatDateTime, toFieldErrorMap, type FieldErrorMap } from "../forms";
 import { t, resolvedLanguage } from "../i18n/i18n";
 import { unmarkReported } from "../reportedStore";
 import { showToast } from "../toast";
-import type { Bookmark, Report, ReportInput, ReportStatus } from "../types";
+import type { Report, ReportInput, ReportStatus } from "../types";
 
 const reports = ref<Report[]>([]);
 const bookmarkTitles = ref<Record<string, string>>({});
@@ -57,7 +57,7 @@ async function loadBookmarkTitle(report: Report): Promise<void> {
       await api.GET("/api/v1/bookmarks/{id}", {
         params: { path: { id: report.bookmarkId } },
       }),
-    ) as Bookmark;
+    );
     bookmarkTitles.value = {
       ...bookmarkTitles.value,
       [report.bookmarkId]: bookmark.title,
@@ -223,16 +223,36 @@ onMounted(() => void loadReports());
     @close="editing = null"
   >
     <form class="sv-form" @submit.prevent="saveReport">
-      <Field :label="t('ui.field.reason')" :error="fieldErrors.reason">
-        <select v-model="form.reason" class="sv-select">
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.reason')"
+        :error="fieldErrors.reason"
+      >
+        <select
+          :id="inputId"
+          v-model="form.reason"
+          class="sv-select"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        >
           <option value="spam">{{ t("ui.report.reason.spam") }}</option>
           <option value="offensive">{{ t("ui.report.reason.offensive") }}</option>
           <option value="broken-link">{{ t("ui.report.reason.broken-link") }}</option>
           <option value="other">{{ t("ui.report.reason.other") }}</option>
         </select>
       </Field>
-      <Field :label="t('ui.field.comment')" :error="fieldErrors.comment">
-        <textarea v-model="form.comment" class="sv-textarea" />
+      <Field
+        v-slot="{ inputId, describedBy, invalid }"
+        :label="t('ui.field.comment')"
+        :error="fieldErrors.comment"
+      >
+        <textarea
+          :id="inputId"
+          v-model="form.comment"
+          class="sv-textarea"
+          :aria-describedby="describedBy"
+          :aria-invalid="invalid || undefined"
+        />
       </Field>
       <div class="sv-form-actions">
         <button type="button" class="sv-button sv-button--ghost" @click="editing = null">
