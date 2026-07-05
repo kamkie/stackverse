@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/gateway-go:local gateways/go
 
-FROM golang:1.26-alpine AS build
+FROM golang:1.26.4-alpine AS build
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN go mod download
