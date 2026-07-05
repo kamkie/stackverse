@@ -144,7 +144,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | JUnit 5, @SpringBootTest/MockMvc, Testcontainers, spring-security-test | JUnit 5, @SpringBootTest + MockMvc + Testcontainers Postgres, injected JWTs | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | testApplication from ktor-server-test-host with kotlin.test/JUnit5 | testApplication + kotlin.test/JUnit5; helper/unit tests only, no DB integration | ✅ idiomatic |
-| [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests only (validation, cursor, middleware); Program exposed but no integration tests | 🟡 deliberate |
+| [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests plus no-container WebApplicationFactory tests over the minimal-API pipeline | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for services and support helpers; unit-only, no integration tests | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @MicronautTest with injected HTTP client for integration tests | Plain JUnit 5 + AssertJ unit tests; controllers instantiated directly, no @MicronautTest | 🔴 undocumented |

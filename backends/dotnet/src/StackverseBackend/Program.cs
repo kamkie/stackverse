@@ -104,18 +104,27 @@ MetaEndpoints.Map(app);
 
 // --- Schema migrations and the idempotent message seed run before the service
 // --- accepts traffic (SPEC acceptance checklist; docs/LOGGING.md §5 lifecycle).
+// --- WebApplicationFactory tests replace the provider with an in-memory database;
+// --- that test environment creates its schema without running Npgsql migrations.
 await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
-    await db.Database.MigrateAsync();
-    foreach (var migration in pending)
+    if (app.Environment.IsEnvironment("Testing"))
     {
-        app.Logger.Event(LogLevel.Information, "db_migration_applied", "success",
-            $"Applied database migration {migration}",
-            fields: [("migration", migration)]);
+        await db.Database.EnsureCreatedAsync();
     }
-    await MessageSeeder.SeedAsync(db, options.SeedMessagesDir, app.Logger);
+    else
+    {
+        var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+        await db.Database.MigrateAsync();
+        foreach (var migration in pending)
+        {
+            app.Logger.Event(LogLevel.Information, "db_migration_applied", "success",
+                $"Applied database migration {migration}",
+                fields: [("migration", migration)]);
+        }
+        await MessageSeeder.SeedAsync(db, options.SeedMessagesDir, app.Logger);
+    }
 }
 
 // --- Lifecycle contract events (docs/LOGGING.md §5): `application_start` with the

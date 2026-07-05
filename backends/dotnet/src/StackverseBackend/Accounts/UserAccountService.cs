@@ -13,12 +13,34 @@ public sealed class UserAccountService(AppDbContext db, AuditService auditServic
     public async Task<UserAccount> RecordSeenAsync(string username)
     {
         var now = Clock.UtcNow();
-        // single-statement upsert so concurrent first requests of a new user cannot race
-        await db.Database.ExecuteSqlAsync($"""
-            insert into user_accounts (username, first_seen, last_seen, status)
-            values ({username}, {now}, {now}, 'active')
-            on conflict (username) do update set last_seen = excluded.last_seen
-            """);
+        if (db.Database.IsNpgsql())
+        {
+            // single-statement upsert so concurrent first requests of a new user cannot race
+            await db.Database.ExecuteSqlAsync($"""
+                insert into user_accounts (username, first_seen, last_seen, status)
+                values ({username}, {now}, {now}, 'active')
+                on conflict (username) do update set last_seen = excluded.last_seen
+                """);
+        }
+        else
+        {
+            var account = await db.UserAccounts.SingleOrDefaultAsync(u => u.Username == username);
+            if (account is null)
+            {
+                db.UserAccounts.Add(new UserAccount
+                {
+                    Username = username,
+                    FirstSeen = now,
+                    LastSeen = now,
+                    Status = UserAccountStatus.Active,
+                });
+            }
+            else
+            {
+                account.LastSeen = now;
+            }
+            await db.SaveChangesAsync();
+        }
         return await db.UserAccounts.AsNoTracking().SingleAsync(u => u.Username == username);
     }
 

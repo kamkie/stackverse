@@ -143,7 +143,9 @@ public sealed partial class BookmarkService(AppDbContext db)
     /// and a concurrent hide serialize on the row instead of racing.
     /// </summary>
     private Task<Bookmark?> ForUpdateAsync(Guid id) =>
-        db.Bookmarks.FromSql($"select * from bookmarks where id = {id} for update").SingleOrDefaultAsync();
+        db.Database.IsNpgsql()
+            ? db.Bookmarks.FromSql($"select * from bookmarks where id = {id} for update").SingleOrDefaultAsync()
+            : db.Bookmarks.SingleOrDefaultAsync(b => b.Id == id);
 
     /// <summary>Rule 1: a non-owner never learns the bookmark exists — 404, not 403.</summary>
     private async Task<Bookmark> OwnedByCallerAsync(string caller, Guid id)

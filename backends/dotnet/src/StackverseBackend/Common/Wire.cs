@@ -24,6 +24,11 @@ public static class Wire
         return null;
     }
 
+    /// <summary>Database materialization flavor: bad stored data fails with context.</summary>
+    public static T ParseStored<T>(string? value, string columnName) where T : struct, Enum =>
+        Parse<T>(value) ?? throw new InvalidOperationException(
+            $"Unknown {typeof(T).Name} value '{value ?? "<null>"}' read from {columnName}.");
+
     /// <summary>Query-parameter flavor: absent stays null, an unknown value is a 400 problem.</summary>
     public static T? ParseQuery<T>(string? value, string name) where T : struct, Enum
     {
