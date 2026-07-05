@@ -50,6 +50,9 @@ if [ -z "$ZAP_TARGET_URL" ]; then
 fi
 
 mkdir -p "$ZAP_REPORT_DIR"
+# The ZAP image runs as an unprivileged user; on Linux CI the bind-mounted
+# report directory must be writable by that container user.
+chmod a+rwx "$ZAP_REPORT_DIR" 2>/dev/null || true
 
 docker_args=(
     run

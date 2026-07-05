@@ -50,6 +50,9 @@ Reports are written to `testing/zap-security/reports/`:
 - `zap-baseline.md`
 - `zap-baseline.json`
 
+The helpers create that directory and, on POSIX filesystems, make it writable
+by the unprivileged user inside the ZAP Docker image.
+
 Useful overrides:
 
 | Variable | Default | Purpose |

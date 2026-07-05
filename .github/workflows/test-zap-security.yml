@@ -64,5 +64,5 @@ jobs:
         with:
           name: zap-baseline-reports
           path: testing/zap-security/reports/
-          if-no-files-found: ignore
+          if-no-files-found: warn
           retention-days: 7

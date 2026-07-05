@@ -55,6 +55,9 @@ $zapFailOnWarnings = Test-Truthy ([Environment]::GetEnvironmentVariable("ZAP_FAI
 $zapDockerNetwork = [Environment]::GetEnvironmentVariable("ZAP_DOCKER_NETWORK")
 
 New-Item -ItemType Directory -Force -Path $zapReportDir | Out-Null
+if (-not $IsWindows) {
+    & chmod a+rwx $zapReportDir 2>$null
+}
 
 $dockerArgs = @(
     "run",
