@@ -1,0 +1,30 @@
+type: Test
+spec:
+  id: stackverse-gateway-backend-trace
+  name: Gateway and backend share one trace
+  description: Verifies that a gateway API request propagates trace context to the backend.
+  trigger:
+    type: http
+    httpRequest:
+      method: GET
+      url: http://gateway:8000/api/v1/messages/bundle?lang=en
+      headers:
+        - key: Accept
+          value: application/json
+  specs:
+    - selector: span[tracetest.span.type="general" name="Tracetest trigger"]
+      name: The representative API action succeeds through the gateway
+      assertions:
+        - attr:tracetest.response.status = 200
+    - selector: span[service.name="stackverse-gateway"]
+      name: The gateway emits spans with the expected service identity
+      assertions:
+        - attr:tracetest.selected_spans.count >= 1
+    - selector: span[service.name="stackverse-backend"]
+      name: The backend emits spans with the expected service identity
+      assertions:
+        - attr:tracetest.selected_spans.count >= 1
+    - selector: span[service.name="stackverse-gateway"] span[service.name="stackverse-backend"]
+      name: Backend work is a descendant of gateway work in the same trace
+      assertions:
+        - attr:tracetest.selected_spans.count >= 1

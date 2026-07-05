@@ -128,6 +128,11 @@ all-in-one dev-grade collector behind the `observability` compose profile
 - One browser action is **one trace**: when telemetry is enabled, the gateway
   propagates W3C `traceparent` on proxied `/api/**` requests, so the gateway
   span and the backend span join under a single trace id.
+- The optional Tracetest showcase in
+  [`testing/tracetest-otel/`](../testing/tracetest-otel) is the executable
+  check for that propagation rule. It stays outside the canonical acceptance
+  gates until observability coverage across implementations is intentionally
+  promoted.
 - Logs are part of the same pipeline — exported over OTLP next to traces and
   metrics, correlated by trace id. What and how to log is pinned in
   [LOGGING.md](LOGGING.md); it is a cross-implementation contract like the

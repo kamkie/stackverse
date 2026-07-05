@@ -141,7 +141,10 @@ property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
 `./scripts/schemathesis-api.ps1`). For an optional passive security smoke scan
 against a running gateway, use `./scripts/zap-security.sh` (PowerShell:
-`./scripts/zap-security.ps1`).
+`./scripts/zap-security.ps1`). For optional trace-based observability
+assertions against a composed stack with OpenTelemetry enabled, use
+`./scripts/tracetest-otel.sh` (PowerShell:
+`./scripts/tracetest-otel.ps1`).
 
 To populate a small repeatable local dataset for demos, run the seed against
 the running backend API:
