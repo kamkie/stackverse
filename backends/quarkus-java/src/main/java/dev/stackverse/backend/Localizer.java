@@ -23,8 +23,12 @@ class Localizer {
     private static final Logger LOG = Logger.getLogger(Localizer.class);
     static final String DEFAULT_LANGUAGE = "en";
 
+    private final DataSource dataSource;
+
     @Inject
-    DataSource dataSource;
+    Localizer(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     String resolveLanguage(UriInfo uriInfo, HttpHeaders headers) {
         Set<String> supported = supportedLanguages();
@@ -49,7 +53,7 @@ class Localizer {
             return Map.of();
         }
         try (Connection connection = dataSource.getConnection()) {
-            List<MessageText> rows = StackverseResource.query(connection,
+            List<MessageText> rows = StackverseService.query(connection,
                     "select key, language, text from messages"
                             + " where key = any(?::text[]) and language = any(?::text[])"
                             + " order by key, case when language = ? then 0 else 1 end",
@@ -75,7 +79,7 @@ class Localizer {
 
     Map<String, String> bundle(String language) {
         try (Connection connection = dataSource.getConnection()) {
-            List<MessageText> rows = StackverseResource.query(connection,
+            List<MessageText> rows = StackverseService.query(connection,
                     "select key, language, text from messages where language = any(?::text[]) order by key",
                     List.of(List.of(language, DEFAULT_LANGUAGE)),
                     rs -> new MessageText(rs.getString("key"), rs.getString("language"), rs.getString("text")));
@@ -93,7 +97,7 @@ class Localizer {
 
     Set<String> supportedLanguages() {
         try (Connection connection = dataSource.getConnection()) {
-            return new LinkedHashSet<>(StackverseResource.query(connection,
+            return new LinkedHashSet<>(StackverseService.query(connection,
                     "select distinct language from messages order by language",
                     List.of(),
                     rs -> rs.getString("language")));

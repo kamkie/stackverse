@@ -87,7 +87,7 @@ final class StackverseProblem extends RuntimeException {
             language = localizer.resolveLanguage(uriInfo, headers);
             resolvedDetail = localizer.localize(detailKey, language);
         }
-        StackverseResource.putIfPresent(body, "detail", resolvedDetail);
+        StackverseService.putIfPresent(body, "detail", resolvedDetail);
         if (!fields.isEmpty()) {
             if (language == null) {
                 language = localizer.resolveLanguage(uriInfo, headers);
@@ -142,7 +142,7 @@ final class ResponseContracts {
         String requestPath = request == null ? null : request.getUriInfo().getPath();
         String uriPath = uriInfo == null ? null : uriInfo.getPath();
         if (isV1BookmarksPath(requestPath) || isV1BookmarksPath(uriPath)) {
-            return StackverseResource.v1BookmarksDeprecationHeaders(response);
+            return StackverseService.v1BookmarksDeprecationHeaders(response);
         }
         return response;
     }
@@ -157,8 +157,7 @@ final class ResponseContracts {
 class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailedException> {
     private static final Logger LOG = Logger.getLogger(AuthenticationFailedMapper.class);
 
-    @Inject
-    Localizer localizer;
+    private final Localizer localizer;
 
     @Context
     UriInfo uriInfo;
@@ -168,6 +167,11 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
 
     @Context
     ContainerRequestContext request;
+
+    @Inject
+    AuthenticationFailedMapper(Localizer localizer) {
+        this.localizer = localizer;
+    }
 
     @Override
     public Response toResponse(AuthenticationFailedException exception) {
@@ -183,8 +187,7 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
 class ProblemMapper implements ExceptionMapper<Throwable> {
     private static final Logger LOG = Logger.getLogger(ProblemMapper.class);
 
-    @Inject
-    Localizer localizer;
+    private final Localizer localizer;
 
     @Context
     UriInfo uriInfo;
@@ -194,6 +197,11 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
 
     @Context
     ContainerRequestContext request;
+
+    @Inject
+    ProblemMapper(Localizer localizer) {
+        this.localizer = localizer;
+    }
 
     @Override
     public Response toResponse(Throwable throwable) {

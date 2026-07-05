@@ -44,23 +44,25 @@ final class AuthSupport {
 class AccountRequestFilter implements ContainerRequestFilter {
     private static final Logger LOG = Logger.getLogger(AccountRequestFilter.class);
 
-    @Inject
-    DataSource dataSource;
-
-    @Inject
-    SecurityIdentity securityIdentity;
-
-    @Inject
-    JsonWebToken jwt;
-
-    @Inject
-    Localizer localizer;
+    private final DataSource dataSource;
+    private final SecurityIdentity securityIdentity;
+    private final JsonWebToken jwt;
+    private final Localizer localizer;
 
     @Context
     UriInfo uriInfo;
 
     @Context
     HttpHeaders headers;
+
+    @Inject
+    AccountRequestFilter(DataSource dataSource, SecurityIdentity securityIdentity, JsonWebToken jwt,
+                         Localizer localizer) {
+        this.dataSource = dataSource;
+        this.securityIdentity = securityIdentity;
+        this.jwt = jwt;
+        this.localizer = localizer;
+    }
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
@@ -69,12 +71,12 @@ class AccountRequestFilter implements ContainerRequestFilter {
             return;
         }
         try (Connection connection = dataSource.getConnection()) {
-            String status = StackverseResource.queryOne(connection,
+            String status = StackverseService.queryOne(connection,
                     "insert into user_accounts (username, first_seen, last_seen, status)"
                             + " values (?, ?, ?, 'active')"
                             + " on conflict (username) do update set last_seen = excluded.last_seen"
                             + " returning status",
-                    StackverseResource.params(caller.username(), StackverseResource.now(), StackverseResource.now()),
+                    StackverseService.params(caller.username(), StackverseService.now(), StackverseService.now()),
                     rs -> rs.getString("status")).orElse("active");
             if ("blocked".equals(status)) {
                 StackverseLog.event(LOG, Logger.Level.WARN, "blocked_user_rejected", "denied",

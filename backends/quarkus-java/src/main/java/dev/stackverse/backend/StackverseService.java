@@ -6,15 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.Consumes;
-import jakarta.ws.rs.DELETE;
-import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
-import jakarta.ws.rs.PUT;
-import jakarta.ws.rs.Path;
-import jakarta.ws.rs.PathParam;
-import jakarta.ws.rs.Produces;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.MultivaluedMap;
@@ -53,12 +44,9 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-@Path("/")
 @ApplicationScoped
-@Produces(MediaType.APPLICATION_JSON)
-@Consumes(MediaType.APPLICATION_JSON)
-public class StackverseResource {
-    private static final Logger LOG = Logger.getLogger(StackverseResource.class);
+public class StackverseService {
+    private static final Logger LOG = Logger.getLogger(StackverseService.class);
 
     private static final String V1_BOOKMARKS_DEPRECATION = "@1782864000";
     private static final String V1_BOOKMARKS_SUNSET = "Thu, 01 Jul 2027 00:00:00 GMT";
@@ -68,37 +56,26 @@ public class StackverseResource {
     private static final Pattern KEY_PATTERN = Pattern.compile("^[a-z0-9-]+(\\.[a-z0-9-]+)*$");
     private static final Pattern LANGUAGE_PATTERN = Pattern.compile("^[a-z]{2}$");
 
-    @Inject
-    DataSource dataSource;
+    private final DataSource dataSource;
+    private final JsonWebToken jwt;
+    private final SecurityIdentity securityIdentity;
+    private final ObjectMapper mapper;
+    private final Localizer localizer;
 
     @Inject
-    JsonWebToken jwt;
+    public StackverseService(DataSource dataSource, JsonWebToken jwt, SecurityIdentity securityIdentity,
+                             ObjectMapper mapper, Localizer localizer) {
+        this.dataSource = dataSource;
+        this.jwt = jwt;
+        this.securityIdentity = securityIdentity;
+        this.mapper = mapper;
+        this.localizer = localizer;
+    }
 
-    @Inject
-    SecurityIdentity securityIdentity;
-
-    @Inject
-    ObjectMapper mapper;
-
-    @Inject
-    Localizer localizer;
-
-    @Context
-    UriInfo uriInfo;
-
-    @Context
-    HttpHeaders headers;
-
-    @GET
-    @Path("/healthz")
-    @Produces(MediaType.WILDCARD)
     public Response healthz() {
         return Response.ok().build();
     }
 
-    @GET
-    @Path("/readyz")
-    @Produces(MediaType.WILDCARD)
     public Response readyz() {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement("select 1")) {
@@ -109,12 +86,10 @@ public class StackverseResource {
         }
     }
 
-    @GET
-    @Path("/api/v1/bookmarks")
-    public Response listBookmarksV1() {
-        int page = pagingPage();
-        int size = pageSize();
-        SqlWhere query = parseBookmarkListQuery();
+    public Response listBookmarksV1(RequestContext request) {
+        int page = pagingPage(request);
+        int size = pageSize(request);
+        SqlWhere query = parseBookmarkListQuery(request);
         Page<Bookmark> result = withConnection(connection -> {
             long total = scalarLong(connection, "select count(*) from bookmarks " + query.sql(), query.params());
             List<Object> params = new ArrayList<>(query.params());
@@ -124,20 +99,18 @@ public class StackverseResource {
                     "select * from bookmarks " + query.sql()
                             + " order by created_at desc, id desc limit ? offset ?",
                     params,
-                    StackverseResource::bookmark);
+                    StackverseService::bookmark);
             return new Page<>(items, page, size, total);
         });
-        List<Map<String, Object>> items = result.items().stream().map(StackverseResource::bookmarkResponse).toList();
+        List<Map<String, Object>> items = result.items().stream().map(StackverseService::bookmarkResponse).toList();
         return v1BookmarksDeprecationHeaders(
                 Response.ok(pageResponse(items, result.page(), result.size(), result.totalItems())).build());
     }
 
-    @GET
-    @Path("/api/v2/bookmarks")
-    public Response listBookmarksV2() {
-        int size = pageSize();
-        SqlWhere query = parseBookmarkListQuery();
-        Cursor cursor = Optional.ofNullable(singleParam("cursor")).filter(value -> !value.isBlank())
+    public Response listBookmarksV2(RequestContext request) {
+        int size = pageSize(request);
+        SqlWhere query = parseBookmarkListQuery(request);
+        Cursor cursor = Optional.ofNullable(singleParam(request, "cursor")).filter(value -> !value.isBlank())
                 .map(Cursor::decode).orElse(null);
         List<Bookmark> fetched = withConnection(connection -> {
             String where = query.sql();
@@ -152,11 +125,11 @@ public class StackverseResource {
                     "select * from bookmarks " + where
                             + " order by created_at desc, id desc limit ?",
                     params,
-                    StackverseResource::bookmark);
+                    StackverseService::bookmark);
         });
         List<Bookmark> items = fetched.size() > size ? fetched.subList(0, size) : fetched;
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("items", items.stream().map(StackverseResource::bookmarkResponse).toList());
+        body.put("items", items.stream().map(StackverseService::bookmarkResponse).toList());
         if (fetched.size() > size && !items.isEmpty()) {
             Bookmark last = items.get(items.size() - 1);
             body.put("nextCursor", new Cursor(last.createdAt(), last.id()).encode());
@@ -164,8 +137,6 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    @POST
-    @Path("/api/v1/bookmarks")
     public Response createBookmark(JsonNode body) {
         Caller caller = requireCaller();
         BookmarkInput input = validateBookmarkInput(body);
@@ -177,16 +148,14 @@ public class StackverseResource {
                             + " values (?, ?, ?, ?, ?, ?::text[], ?, 'active', ?, ?) returning *",
                     params(id, caller.username(), input.url(), input.title(), input.notes(), input.tags(),
                             input.visibility(), now, now),
-                    StackverseResource::bookmark).orElseThrow();
+                    StackverseService::bookmark).orElseThrow();
         });
         return Response.created(URI.create("/api/v1/bookmarks/" + created.id()))
                 .entity(bookmarkResponse(created))
                 .build();
     }
 
-    @GET
-    @Path("/api/v1/bookmarks/{id}")
-    public Response getBookmark(@PathParam("id") String rawId) {
+    public Response getBookmark(String rawId) {
         UUID id = parseUuid(rawId);
         Caller caller = currentCaller();
         Bookmark bookmark = withConnection(connection -> findBookmark(connection, id)).orElseThrow(StackverseProblem::notFound);
@@ -196,15 +165,13 @@ public class StackverseResource {
         return Response.ok(bookmarkResponse(bookmark)).build();
     }
 
-    @PUT
-    @Path("/api/v1/bookmarks/{id}")
-    public Response updateBookmark(@PathParam("id") String rawId, JsonNode body) {
+    public Response updateBookmark(String rawId, JsonNode body) {
         Caller caller = requireCaller();
         UUID id = parseUuid(rawId);
         BookmarkInput input = validateBookmarkInput(body);
         Bookmark updated = inTransaction(connection -> {
             Bookmark bookmark = queryOne(connection, "select * from bookmarks where id = ? for update", List.of(id),
-                    StackverseResource::bookmark).orElseThrow(StackverseProblem::notFound);
+                    StackverseService::bookmark).orElseThrow(StackverseProblem::notFound);
             if (!bookmark.owner().equals(caller.username())) {
                 throw StackverseProblem.notFound();
             }
@@ -215,14 +182,12 @@ public class StackverseResource {
                     "update bookmarks set url = ?, title = ?, notes = ?, tags = ?::text[], visibility = ?, updated_at = ?"
                             + " where id = ? returning *",
                     params(input.url(), input.title(), input.notes(), input.tags(), input.visibility(), now(), id),
-                    StackverseResource::bookmark).orElseThrow();
+                    StackverseService::bookmark).orElseThrow();
         });
         return Response.ok(bookmarkResponse(updated)).build();
     }
 
-    @DELETE
-    @Path("/api/v1/bookmarks/{id}")
-    public Response deleteBookmark(@PathParam("id") String rawId) {
+    public Response deleteBookmark(String rawId) {
         Caller caller = requireCaller();
         UUID id = parseUuid(rawId);
         withConnection(connection -> {
@@ -236,8 +201,6 @@ public class StackverseResource {
         return Response.noContent().build();
     }
 
-    @GET
-    @Path("/api/v1/tags")
     public Response listTags() {
         Caller caller = requireCaller();
         List<Map<String, Object>> tags = withConnection(connection -> query(connection,
@@ -253,14 +216,12 @@ public class StackverseResource {
         return Response.ok(Map.of("tags", tags)).build();
     }
 
-    @GET
-    @Path("/api/v1/messages")
-    public Response listMessages() {
-        int page = pagingPage();
-        int size = pageSize();
-        String key = singleParam("key");
-        String language = singleParam("language");
-        String q = singleParam("q");
+    public Response listMessages(RequestContext request) {
+        int page = pagingPage(request);
+        int size = pageSize(request);
+        String key = singleParam(request, "key");
+        String language = singleParam(request, "language");
+        String q = singleParam(request, "q");
         maxLength(q, 200, "q");
         Map<String, Object> response = withConnection(connection -> {
             SqlWhere where = new SqlWhere();
@@ -286,32 +247,26 @@ public class StackverseResource {
                     rs -> messageResponse(message(rs)));
             return pageResponse(items, page, size, total);
         });
-        return etag(response, null);
+        return etag(request, response, null);
     }
 
-    @GET
-    @Path("/api/v1/messages/bundle")
-    public Response messageBundle() {
-        String language = localizer.resolveLanguage(uriInfo, headers);
+    public Response messageBundle(RequestContext request) {
+        String language = localizer.resolveLanguage(request.uriInfo(), request.headers());
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("language", language);
         body.put("messages", localizer.bundle(language));
-        return etag(body, Map.of("Content-Language", language));
+        return etag(request, body, Map.of("Content-Language", language));
     }
 
-    @GET
-    @Path("/api/v1/messages/{id}")
-    public Response getMessage(@PathParam("id") String rawId) {
+    public Response getMessage(RequestContext request, String rawId) {
         UUID id = parseUuid(rawId);
         Map<String, Object> body = withConnection(connection -> queryOne(connection,
                 "select * from messages where id = ?",
                 List.of(id),
                 rs -> messageResponse(message(rs))).orElseThrow(StackverseProblem::notFound));
-        return etag(body, null);
+        return etag(request, body, null);
     }
 
-    @POST
-    @Path("/api/v1/messages")
     public Response createMessage(JsonNode body) {
         Caller caller = requireRole("admin");
         MessageInput input = validateMessageInput(body);
@@ -326,7 +281,7 @@ public class StackverseResource {
                         "insert into messages (id, key, language, text, description, created_at, updated_at)"
                                 + " values (?, ?, ?, ?, ?, ?, ?) returning *",
                         params(UUID.randomUUID(), input.key(), input.language(), input.text(), input.description(), now, now),
-                        StackverseResource::message).orElseThrow();
+                        StackverseService::message).orElseThrow();
             } catch (RuntimeException error) {
                 if (isUniqueViolation(error)) {
                     throw duplicateMessage(input);
@@ -344,9 +299,7 @@ public class StackverseResource {
                 .build();
     }
 
-    @PUT
-    @Path("/api/v1/messages/{id}")
-    public Response updateMessage(@PathParam("id") String rawId, JsonNode body) {
+    public Response updateMessage(String rawId, JsonNode body) {
         Caller caller = requireRole("admin");
         UUID id = parseUuid(rawId);
         MessageInput input = validateMessageInput(body);
@@ -362,7 +315,7 @@ public class StackverseResource {
                         "update messages set key = ?, language = ?, text = ?, description = ?, updated_at = ?"
                                 + " where id = ? returning *",
                         params(input.key(), input.language(), input.text(), input.description(), now(), id),
-                        StackverseResource::message).orElseThrow();
+                        StackverseService::message).orElseThrow();
             } catch (RuntimeException error) {
                 if (isUniqueViolation(error)) {
                     throw duplicateMessage(input);
@@ -378,14 +331,12 @@ public class StackverseResource {
         return Response.ok(messageResponse(updated)).build();
     }
 
-    @DELETE
-    @Path("/api/v1/messages/{id}")
-    public Response deleteMessage(@PathParam("id") String rawId) {
+    public Response deleteMessage(String rawId) {
         Caller caller = requireRole("admin");
         UUID id = parseUuid(rawId);
         Message deleted = inTransaction(connection -> {
             Message row = queryOne(connection, "delete from messages where id = ? returning *", List.of(id),
-                    StackverseResource::message).orElseThrow(StackverseProblem::notFound);
+                    StackverseService::message).orElseThrow(StackverseProblem::notFound);
             recordAudit(connection, caller.username(), "message.deleted", "message", row.id().toString(), snapshot(row));
             return row;
         });
@@ -395,15 +346,13 @@ public class StackverseResource {
         return Response.noContent().build();
     }
 
-    @POST
-    @Path("/api/v1/bookmarks/{id}/reports")
-    public Response reportBookmark(@PathParam("id") String rawId, JsonNode body) {
+    public Response reportBookmark(String rawId, JsonNode body) {
         Caller caller = requireCaller();
         UUID bookmarkId = parseUuid(rawId);
         ReportInput input = validateReportInput(body);
         Report report = inTransaction(connection -> {
             Optional<Bookmark> bookmark = queryOne(connection,
-                    "select * from bookmarks where id = ? for update", List.of(bookmarkId), StackverseResource::bookmark);
+                    "select * from bookmarks where id = ? for update", List.of(bookmarkId), StackverseService::bookmark);
             if (bookmark.isEmpty()
                     || !"public".equals(bookmark.get().visibility())
                     || !"active".equals(bookmark.get().status())) {
@@ -420,7 +369,7 @@ public class StackverseResource {
                         "insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)"
                                 + " values (?, ?, ?, ?, ?, 'open', ?) returning *",
                         params(UUID.randomUUID(), bookmarkId, caller.username(), input.reason(), input.comment(), now()),
-                        StackverseResource::report).orElseThrow();
+                        StackverseService::report).orElseThrow();
             } catch (RuntimeException error) {
                 if (isUniqueViolation(error)) {
                     throw StackverseProblem.conflict("You already have an open report on this bookmark.");
@@ -434,13 +383,11 @@ public class StackverseResource {
         return Response.status(Response.Status.CREATED).entity(reportResponse(report)).build();
     }
 
-    @GET
-    @Path("/api/v1/reports")
-    public Response listMyReports() {
+    public Response listMyReports(RequestContext request) {
         Caller caller = requireCaller();
-        int page = pagingPage();
-        int size = pageSize();
-        String status = singleParam("status");
+        int page = pagingPage(request);
+        int size = pageSize(request);
+        String status = singleParam(request, "status");
         if (status != null && !validReportStatus(status)) {
             throw StackverseProblem.badRequest("status must be one of: open, dismissed, actioned");
         }
@@ -463,9 +410,7 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    @PUT
-    @Path("/api/v1/reports/{id}")
-    public Response updateMyReport(@PathParam("id") String rawId, JsonNode body) {
+    public Response updateMyReport(String rawId, JsonNode body) {
         Caller caller = requireCaller();
         UUID id = parseUuid(rawId);
         ReportInput input = validateReportInput(body);
@@ -477,7 +422,7 @@ public class StackverseResource {
             return queryOne(connection,
                     "update reports set reason = ?, comment = ? where id = ? returning *",
                     params(input.reason(), input.comment(), id),
-                    StackverseResource::report).orElseThrow();
+                    StackverseService::report).orElseThrow();
         });
         StackverseLog.event(LOG, Logger.Level.INFO, "report_updated", "success", "Report updated by its reporter",
                 Map.of("actor", caller.username(), "resource_type", "report", "resource_id", updated.id().toString(),
@@ -485,9 +430,7 @@ public class StackverseResource {
         return Response.ok(reportResponse(updated)).build();
     }
 
-    @DELETE
-    @Path("/api/v1/reports/{id}")
-    public Response withdrawReport(@PathParam("id") String rawId) {
+    public Response withdrawReport(String rawId) {
         Caller caller = requireCaller();
         UUID id = parseUuid(rawId);
         Report withdrawn = inTransaction(connection -> {
@@ -504,13 +447,11 @@ public class StackverseResource {
         return Response.noContent().build();
     }
 
-    @GET
-    @Path("/api/v1/admin/reports")
-    public Response listReportQueue() {
+    public Response listReportQueue(RequestContext request) {
         requireRole("moderator");
-        int page = pagingPage();
-        int size = pageSize();
-        String status = Optional.ofNullable(singleParam("status")).orElse("open");
+        int page = pagingPage(request);
+        int size = pageSize(request);
+        String status = Optional.ofNullable(singleParam(request, "status")).orElse("open");
         if (!validReportStatus(status)) {
             throw StackverseProblem.badRequest("status must be one of: open, dismissed, actioned");
         }
@@ -525,9 +466,7 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    @PUT
-    @Path("/api/v1/admin/reports/{id}")
-    public Response resolveReport(@PathParam("id") String rawId, JsonNode body) {
+    public Response resolveReport(String rawId, JsonNode body) {
         Caller caller = requireRole("moderator");
         UUID id = parseUuid(rawId);
         ResolutionInput input = validateResolutionInput(body);
@@ -540,7 +479,7 @@ public class StackverseResource {
                         rs -> rs.getObject("id")).orElseThrow(StackverseProblem::notFound);
             }
             Report locked = queryOne(connection, "select * from reports where id = ? for update", List.of(id),
-                    StackverseResource::report).orElseThrow(StackverseProblem::notFound);
+                    StackverseService::report).orElseThrow(StackverseProblem::notFound);
             if ("open".equals(input.resolution())) {
                 return reopenReport(connection, caller, locked, events);
             }
@@ -550,7 +489,7 @@ public class StackverseResource {
                 List<Report> siblings = query(connection,
                         "select * from reports where bookmark_id = ? and status = 'open' and id <> ? order by id for update",
                         List.of(locked.bookmarkId(), locked.id()),
-                        StackverseResource::report);
+                        StackverseService::report);
                 for (Report sibling : siblings) {
                     resolveOne(connection, caller, sibling, "actioned", input.note(), true, events);
                 }
@@ -561,19 +500,17 @@ public class StackverseResource {
         return Response.ok(reportResponse(resolved)).build();
     }
 
-    @PUT
-    @Path("/api/v1/admin/bookmarks/{id}/status")
-    public Response setBookmarkStatus(@PathParam("id") String rawId, JsonNode body) {
+    public Response setBookmarkStatus(String rawId, JsonNode body) {
         Caller caller = requireRole("moderator");
         UUID id = parseUuid(rawId);
         BookmarkStatusInput input = validateBookmarkStatusInput(body);
         StatusChange change = inTransaction(connection -> {
             Bookmark bookmark = queryOne(connection, "select * from bookmarks where id = ? for update", List.of(id),
-                    StackverseResource::bookmark).orElseThrow(StackverseProblem::notFound);
+                    StackverseService::bookmark).orElseThrow(StackverseProblem::notFound);
             Bookmark updated = queryOne(connection,
                     "update bookmarks set status = ?, updated_at = ? where id = ? returning *",
                     List.of(input.status(), now(), id),
-                    StackverseResource::bookmark).orElseThrow();
+                    StackverseService::bookmark).orElseThrow();
             recordAudit(connection, caller.username(), "bookmark.status-changed", "bookmark", id.toString(),
                     detail("from", bookmark.status(), "to", input.status(), "note", input.note()));
             return new StatusChange(bookmark.status(), updated);
@@ -585,15 +522,13 @@ public class StackverseResource {
         return Response.ok(bookmarkResponse(change.bookmark())).build();
     }
 
-    @GET
-    @Path("/api/v1/admin/users")
-    public Response listUsers() {
+    public Response listUsers(RequestContext request) {
         requireRole("admin");
-        int page = pagingPage();
-        int size = pageSize();
-        String q = singleParam("q");
+        int page = pagingPage(request);
+        int size = pageSize(request);
+        String q = singleParam(request, "q");
         maxLength(q, 100, "q");
-        String status = singleParam("status");
+        String status = singleParam(request, "status");
         if (status != null && !Set.of("active", "blocked").contains(status)) {
             throw StackverseProblem.badRequest("status must be one of: active, blocked");
         }
@@ -619,18 +554,14 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    @GET
-    @Path("/api/v1/admin/users/{username}")
-    public Response getUser(@PathParam("username") String username) {
+    public Response getUser(String username) {
         requireRole("admin");
         UserAccount account = withConnection(connection -> findUserAccount(connection, username))
                 .orElseThrow(StackverseProblem::notFound);
         return Response.ok(userAccountResponse(account)).build();
     }
 
-    @PUT
-    @Path("/api/v1/admin/users/{username}/status")
-    public Response setUserStatus(@PathParam("username") String username, JsonNode body) {
+    public Response setUserStatus(String username, JsonNode body) {
         Caller caller = requireRole("admin");
         UserStatusInput input = validateUserStatusInput(body);
         if ("blocked".equals(input.status())) {
@@ -671,20 +602,18 @@ public class StackverseResource {
         return Response.ok(userAccountResponse(account)).build();
     }
 
-    @GET
-    @Path("/api/v1/admin/audit-log")
-    public Response auditLog() {
+    public Response auditLog(RequestContext request) {
         requireRole("admin");
-        int page = pagingPage();
-        int size = pageSize();
+        int page = pagingPage(request);
+        int size = pageSize(request);
         Map<String, Object> body = withConnection(connection -> {
             SqlWhere where = new SqlWhere();
-            equalFilter(where, "actor", "actor");
-            equalFilter(where, "action", "action");
-            equalFilter(where, "target_type", "targetType");
-            equalFilter(where, "target_id", "targetId");
-            Instant from = timeParam("from");
-            Instant to = timeParam("to");
+            equalFilter(request, where, "actor", "actor");
+            equalFilter(request, where, "action", "action");
+            equalFilter(request, where, "target_type", "targetType");
+            equalFilter(request, where, "target_id", "targetId");
+            Instant from = timeParam(request, "from");
+            Instant to = timeParam(request, "to");
             if (from != null) {
                 where.and("created_at >= ?", from);
             }
@@ -705,9 +634,7 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    @GET
-    @Path("/api/v1/admin/stats")
-    public Response stats() {
+    public Response stats(RequestContext request) {
         requireRole("moderator");
         Map<String, Object> body = withConnection(connection -> {
             Map<String, Object> totals = new LinkedHashMap<>();
@@ -749,11 +676,9 @@ public class StackverseResource {
             response.put("topTags", topTags);
             return response;
         });
-        return etag(body, null);
+        return etag(request, body, null);
     }
 
-    @GET
-    @Path("/api/v1/me")
     public Response me() {
         Caller caller = requireCaller();
         Map<String, Object> body = new LinkedHashMap<>();
@@ -767,14 +692,14 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    private SqlWhere parseBookmarkListQuery() {
-        String q = singleParam("q");
+    private SqlWhere parseBookmarkListQuery(RequestContext request) {
+        String q = singleParam(request, "q");
         maxLength(q, 200, "q");
-        String visibility = singleParam("visibility");
+        String visibility = singleParam(request, "visibility");
         if (visibility != null && !Set.of("private", "public").contains(visibility)) {
             throw StackverseProblem.badRequest("visibility must be one of: private, public");
         }
-        List<String> tags = normalizeQueryTags(queryParams().getOrDefault("tag", List.of()));
+        List<String> tags = normalizeQueryTags(queryParams(request).getOrDefault("tag", List.of()));
         SqlWhere where = new SqlWhere();
         if (!"public".equals(visibility)) {
             Caller caller = currentCaller();
@@ -902,7 +827,7 @@ public class StackverseResource {
                     "update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null"
                             + " where id = ? returning *",
                     List.of(report.id()),
-                    StackverseResource::report).orElseThrow();
+                    StackverseService::report).orElseThrow();
         } catch (RuntimeException error) {
             if (isUniqueViolation(error)) {
                 throw StackverseProblem.conflict("The reporter already has another open report on this bookmark.");
@@ -924,7 +849,7 @@ public class StackverseResource {
                 "update reports set status = ?, resolved_by = ?, resolved_at = ?, resolution_note = ?"
                         + " where id = ? returning *",
                 params(resolution, caller.username(), resolvedAt, note, report.id()),
-                StackverseResource::report).orElseThrow();
+                StackverseService::report).orElseThrow();
         recordAudit(connection, caller.username(), "report.resolved", "report", report.id().toString(),
                 detail("bookmarkId", report.bookmarkId().toString(),
                         "resolution", resolution,
@@ -940,7 +865,7 @@ public class StackverseResource {
 
     private void hideBookmark(Connection connection, Caller caller, UUID bookmarkId, String note, List<Runnable> events) {
         Bookmark bookmark = queryOne(connection, "select * from bookmarks where id = ?", List.of(bookmarkId),
-                StackverseResource::bookmark).orElseThrow(StackverseProblem::notFound);
+                StackverseService::bookmark).orElseThrow(StackverseProblem::notFound);
         if ("hidden".equals(bookmark.status())) {
             return;
         }
@@ -956,7 +881,7 @@ public class StackverseResource {
 
     private Report ownReportForUpdate(Connection connection, String reporter, UUID id) {
         Report report = queryOne(connection, "select * from reports where id = ? for update", List.of(id),
-                StackverseResource::report).orElseThrow(StackverseProblem::notFound);
+                StackverseService::report).orElseThrow(StackverseProblem::notFound);
         if (!report.reporter().equals(reporter)) {
             throw StackverseProblem.notFound();
         }
@@ -985,13 +910,13 @@ public class StackverseResource {
         return caller;
     }
 
-    private Response etag(Object payload, Map<String, String> extraHeaders) {
+    private Response etag(RequestContext request, Object payload, Map<String, String> extraHeaders) {
         try {
             String body = mapper.writeValueAsString(payload);
             String etag = "\"" + Base64.getUrlEncoder().withoutPadding()
                     .encodeToString(MessageDigest.getInstance("SHA-256").digest(body.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
                     + "\"";
-            Response.ResponseBuilder builder = ifNoneMatch(etag)
+            Response.ResponseBuilder builder = ifNoneMatch(request, etag)
                     ? Response.status(Response.Status.NOT_MODIFIED)
                     : Response.ok(body, MediaType.APPLICATION_JSON_TYPE);
             builder.header("ETag", etag).header("Cache-Control", "no-cache");
@@ -1004,8 +929,8 @@ public class StackverseResource {
         }
     }
 
-    private boolean ifNoneMatch(String etag) {
-        String raw = headers.getHeaderString(HttpHeaders.IF_NONE_MATCH);
+    private boolean ifNoneMatch(RequestContext request, String etag) {
+        String raw = request.headers().getHeaderString(HttpHeaders.IF_NONE_MATCH);
         if (raw == null) {
             return false;
         }
@@ -1017,16 +942,16 @@ public class StackverseResource {
         return false;
     }
 
-    private int pagingPage() {
-        int page = intParam("page", 0);
+    private int pagingPage(RequestContext request) {
+        int page = intParam(request, "page", 0);
         if (page < 0) {
             throw StackverseProblem.badRequest("page must not be negative");
         }
         return page;
     }
 
-    private int pageSize() {
-        int size = intParam("size", 20);
+    private int pageSize(RequestContext request) {
+        int size = intParam(request, "size", 20);
         if (size < 1 || size > 100) {
             throw StackverseProblem.badRequest("size must be between 1 and 100");
         }
@@ -1037,8 +962,8 @@ public class StackverseResource {
         return Math.multiplyFull(page, size);
     }
 
-    private int intParam(String name, int fallback) {
-        String value = singleParam(name);
+    private int intParam(RequestContext request, String name, int fallback) {
+        String value = singleParam(request, name);
         if (value == null || value.isBlank()) {
             return fallback;
         }
@@ -1049,15 +974,15 @@ public class StackverseResource {
         }
     }
 
-    private void equalFilter(SqlWhere where, String column, String parameter) {
-        String value = singleParam(parameter);
+    private void equalFilter(RequestContext request, SqlWhere where, String column, String parameter) {
+        String value = singleParam(request, parameter);
         if (value != null) {
             where.and(column + " = ?", value);
         }
     }
 
-    private Instant timeParam(String name) {
-        String value = singleParam(name);
+    private Instant timeParam(RequestContext request, String name) {
+        String value = singleParam(request, name);
         if (value == null) {
             return null;
         }
@@ -1068,8 +993,8 @@ public class StackverseResource {
         }
     }
 
-    private String singleParam(String name) {
-        List<String> values = queryParams().get(name);
+    private String singleParam(RequestContext request, String name) {
+        List<String> values = queryParams(request).get(name);
         if (values == null || values.isEmpty()) {
             return null;
         }
@@ -1079,8 +1004,8 @@ public class StackverseResource {
         return values.get(0);
     }
 
-    private MultivaluedMap<String, String> queryParams() {
-        return uriInfo.getQueryParameters();
+    private MultivaluedMap<String, String> queryParams(RequestContext request) {
+        return request.uriInfo().getQueryParameters();
     }
 
     private <T> T withConnection(SqlFunction<Connection, T> function) {
@@ -1248,12 +1173,12 @@ public class StackverseResource {
     }
 
     private Optional<Bookmark> findBookmark(Connection connection, UUID id) {
-        return queryOne(connection, "select * from bookmarks where id = ?", List.of(id), StackverseResource::bookmark);
+        return queryOne(connection, "select * from bookmarks where id = ?", List.of(id), StackverseService::bookmark);
     }
 
     private Optional<UserAccount> findUserAccount(Connection connection, String username) {
         return queryOne(connection, userAccountSelect() + " where u.username = ?", List.of(username),
-                StackverseResource::userAccount);
+                StackverseService::userAccount);
     }
 
     private static String userAccountSelect() {

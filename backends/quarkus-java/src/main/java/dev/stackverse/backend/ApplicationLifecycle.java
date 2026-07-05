@@ -31,14 +31,17 @@ import java.util.UUID;
 public class ApplicationLifecycle {
     private static final Logger LOG = Logger.getLogger(ApplicationLifecycle.class);
 
-    @Inject
-    DataSource dataSource;
+    private final DataSource dataSource;
+    private final ObjectMapper mapper;
+    private final String seedMessagesDir;
 
     @Inject
-    ObjectMapper mapper;
-
-    @ConfigProperty(name = "stackverse.seed.messages-dir")
-    String seedMessagesDir;
+    public ApplicationLifecycle(DataSource dataSource, ObjectMapper mapper,
+                                @ConfigProperty(name = "stackverse.seed.messages-dir") String seedMessagesDir) {
+        this.dataSource = dataSource;
+        this.mapper = mapper;
+        this.seedMessagesDir = seedMessagesDir;
+    }
 
     void onStart(@Observes StartupEvent event) {
         seedMessages();
@@ -88,8 +91,8 @@ public class ApplicationLifecycle {
                     statement.setString(2, entry.getKey());
                     statement.setString(3, language);
                     statement.setString(4, entry.getValue());
-                    statement.setTimestamp(5, java.sql.Timestamp.from(StackverseResource.now()));
-                    statement.setTimestamp(6, java.sql.Timestamp.from(StackverseResource.now()));
+                    statement.setTimestamp(5, java.sql.Timestamp.from(StackverseService.now()));
+                    statement.setTimestamp(6, java.sql.Timestamp.from(StackverseService.now()));
                     inserted += statement.executeUpdate();
                 }
             }
