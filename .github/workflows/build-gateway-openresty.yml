@@ -33,5 +33,16 @@ jobs:
         run: docker build -t stackverse/gateway-openresty:local .
       - name: Validate OpenResty config
         run: docker run --rm stackverse/gateway-openresty:local openresty -t -c /usr/local/openresty/nginx/conf/nginx.conf
-      - name: Run Lua smoke tests
-        run: docker run --rm stackverse/gateway-openresty:local resty -I /opt/stackverse/lua /opt/stackverse/test/smoke.lua
+      - name: Run Lua smoke tests with coverage
+        run: |
+          mkdir -p coverage
+          docker run --rm \
+            -v "${{ github.workspace }}/gateways/openresty/coverage:/coverage" \
+            stackverse/gateway-openresty:local \
+            resty -I /opt/stackverse/lua /opt/stackverse/test/coverage.lua /opt/stackverse/test/smoke.lua /coverage/lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: gateways/openresty/coverage/lcov.info
+          flags: gateway-openresty
+          token: ${{ secrets.CODECOV_TOKEN }}

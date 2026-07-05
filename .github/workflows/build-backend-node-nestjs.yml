@@ -47,6 +47,21 @@ jobs:
         run: yarn build
       - name: Test with coverage
         run: yarn test --coverage
+      - name: Normalize coverage paths
+        run: |
+          node --input-type=commonjs - <<'NODE'
+          const fs = require("node:fs");
+          const report = "coverage/lcov.info";
+          const prefix = "backends/node-nestjs/";
+          const normalized = fs.readFileSync(report, "utf8").replace(/^SF:(.+)$/gm, (_line, file) => {
+            const path = file.replace(/\\/g, "/");
+            if (path.startsWith("/") || path.startsWith(prefix)) {
+              return `SF:${path}`;
+            }
+            return `SF:${prefix}${path}`;
+          });
+          fs.writeFileSync(report, normalized);
+          NODE
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:

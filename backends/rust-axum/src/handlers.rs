@@ -2606,3 +2606,116 @@ async fn audit_tx(
     .await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use chrono::{TimeZone, Utc};
+    use uuid::Uuid;
+
+    use super::{
+        BookmarkRequest, Cursor, ReportRequest, encode_cursor, parse_time_param, validate_bookmark,
+        validate_report,
+    };
+
+    #[test]
+    fn validate_bookmark_normalizes_tags_and_defaults_visibility() {
+        let bookmark = validate_bookmark(BookmarkRequest {
+            url: Some("https://example.com/path".to_string()),
+            title: Some(" Example ".to_string()),
+            notes: None,
+            tags: vec![
+                " Rust ".to_string(),
+                "rust".to_string(),
+                "web-dev".to_string(),
+            ],
+            visibility: None,
+        })
+        .unwrap();
+
+        assert_eq!(bookmark.url, "https://example.com/path");
+        assert_eq!(bookmark.title, "Example");
+        assert_eq!(
+            bookmark.tags,
+            vec!["rust".to_string(), "web-dev".to_string()]
+        );
+        assert_eq!(bookmark.visibility, "private");
+    }
+
+    #[test]
+    fn validate_bookmark_collects_field_errors() {
+        let errors = match validate_bookmark(BookmarkRequest {
+            url: Some("ftp://example.com".to_string()),
+            title: Some("".to_string()),
+            notes: Some("n".repeat(4001)),
+            tags: vec!["Bad Tag".to_string()],
+            visibility: Some("shared".to_string()),
+        }) {
+            Ok(_) => panic!("invalid bookmark should be rejected"),
+            Err(errors) => errors,
+        };
+
+        let keys = errors
+            .into_iter()
+            .map(|field| field.message_key)
+            .collect::<Vec<_>>();
+        assert!(keys.contains(&"validation.url.invalid"));
+        assert!(keys.contains(&"validation.title.required"));
+        assert!(keys.contains(&"validation.notes.too-long"));
+        assert!(keys.contains(&"validation.tag.invalid"));
+        assert!(keys.contains(&"validation.visibility.invalid"));
+    }
+
+    #[test]
+    fn cursor_round_trips_created_at_and_id() {
+        let cursor = Cursor {
+            created_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 30, 0).unwrap(),
+            id: Uuid::parse_str("00000000-0000-4000-8000-000000000001").unwrap(),
+        };
+
+        let raw = encode_cursor(Cursor {
+            created_at: cursor.created_at,
+            id: cursor.id,
+        });
+        let decoded = super::decode_cursor(&raw).unwrap();
+
+        assert_eq!(decoded.created_at, cursor.created_at);
+        assert_eq!(decoded.id, cursor.id);
+        assert!(super::decode_cursor("not-base64").is_err());
+    }
+
+    #[test]
+    fn parse_time_param_accepts_rfc3339_and_rejects_invalid_values() {
+        let mut params = std::collections::HashMap::new();
+        params.insert("from".to_string(), vec!["2026-07-05T10:15:00Z".to_string()]);
+        params.insert("to".to_string(), vec!["not-a-time".to_string()]);
+
+        assert!(parse_time_param(&params, "from").unwrap().is_some());
+        assert_eq!(
+            parse_time_param(&params, "to").unwrap_err(),
+            "to must be an RFC 3339 timestamp"
+        );
+        assert_eq!(parse_time_param(&params, "missing").unwrap(), None);
+    }
+
+    #[test]
+    fn validate_report_requires_known_reason_and_limits_comment() {
+        let input = validate_report(&ReportRequest {
+            reason: Some("spam".to_string()),
+            comment: Some("looks automated".to_string()),
+        })
+        .unwrap();
+        assert_eq!(input, "spam");
+
+        let errors = validate_report(&ReportRequest {
+            reason: Some("unknown".to_string()),
+            comment: Some("x".repeat(1001)),
+        })
+        .unwrap_err();
+        let keys = errors
+            .into_iter()
+            .map(|field| field.message_key)
+            .collect::<Vec<_>>();
+        assert!(keys.contains(&"validation.report.reason.invalid"));
+        assert!(keys.contains(&"validation.report.comment.too-long"));
+    }
+}
