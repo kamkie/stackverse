@@ -50,6 +50,10 @@ flags:
     paths:
       - gateways/node-fastify/
     carryforward: true
+  gateway-openresty:
+    paths:
+      - gateways/openresty/
+    carryforward: true
   gateway-spring-cloud-gateway:
     paths:
       - gateways/spring-cloud-gateway/
@@ -103,6 +107,10 @@ component_management:
       name: "gateway · node-fastify"
       paths:
         - gateways/node-fastify/**
+    - component_id: gateway-openresty
+      name: "gateway · openresty"
+      paths:
+        - gateways/openresty/**
     - component_id: gateway-spring-cloud-gateway
       name: "gateway · spring-cloud-gateway"
       paths:

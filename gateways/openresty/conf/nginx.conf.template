@@ -1,0 +1,123 @@
+worker_processes 1;
+error_log /dev/stderr warn;
+pid /tmp/openresty.pid;
+
+env BACKEND_URL;
+env FRONTEND_URL;
+env LOG_FORMAT;
+env LOG_LEVEL;
+env OIDC_CLIENT_ID;
+env OIDC_CLIENT_SECRET;
+env OIDC_INTERNAL_ISSUER_URI;
+env OIDC_ISSUER_URI;
+env OTEL_EXPORTER_OTLP_ENDPOINT;
+env OTEL_EXPORTER_OTLP_LOGS_ENDPOINT;
+env OTEL_SDK_DISABLED;
+env OTEL_SERVICE_NAME;
+env PUBLIC_URL;
+env REDIS_URL;
+env SPA_ROOT;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  access_log off;
+  charset utf-8;
+
+  lua_package_path "/opt/stackverse/lua/?.lua;/opt/stackverse/lua/?/init.lua;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/lualib/?.lua;;";
+  lua_package_cpath "/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;;";
+
+  lua_shared_dict discovery 1m;
+  lua_shared_dict jwks 1m;
+  lua_shared_dict introspection 1m;
+  lua_shared_dict jwt_verification 1m;
+  lua_shared_dict sessions 10m;
+
+  resolver 127.0.0.11 ipv6=off valid=30s;
+  resolver_timeout 5s;
+
+  init_worker_by_lua_block {
+    local config = require("stackverse.config").load()
+    require("resty.session").init(config.session)
+    local logging = require("stackverse.logging")
+    logging.configure(config)
+    logging.event("info", "application_start", "success", "OpenResty gateway started", {
+      port = config.port,
+      backend_url = config.backend_url,
+      frontend_url = config.frontend_url or "",
+      public_url = config.public_url,
+      redis = config.redis_endpoint,
+    })
+  }
+
+  exit_worker_by_lua_block {
+    require("stackverse.logging").event("info", "application_stop", "success", "OpenResty gateway worker stopped")
+  }
+
+  server {
+    listen ${PORT};
+    server_name _;
+    client_body_buffer_size 1m;
+
+    header_filter_by_lua_block {
+      require("stackverse.security").apply_headers()
+    }
+
+    access_by_lua_block {
+      require("stackverse.security").issue_csrf_cookie()
+    }
+
+    location = /healthz {
+      default_type text/plain;
+      return 200 "ok\n";
+    }
+
+    location = /readyz {
+      content_by_lua_file /opt/stackverse/lua/stackverse/readyz.lua;
+    }
+
+    location = /auth/login {
+      content_by_lua_block {
+        require("stackverse.auth").login()
+      }
+    }
+
+    location = /auth/callback {
+      content_by_lua_block {
+        require("stackverse.auth").callback()
+      }
+    }
+
+    location = /auth/session {
+      content_by_lua_block {
+        require("stackverse.auth").session()
+      }
+    }
+
+    location = /auth/logout {
+      content_by_lua_block {
+        require("stackverse.auth").logout()
+      }
+    }
+
+    location /api/ {
+      content_by_lua_block {
+        require("stackverse.api").handle()
+      }
+    }
+
+    location = /api {
+      content_by_lua_block {
+        require("stackverse.api").handle()
+      }
+    }
+
+    location / {
+      content_by_lua_block {
+        require("stackverse.spa").handle()
+      }
+    }
+  }
+}
