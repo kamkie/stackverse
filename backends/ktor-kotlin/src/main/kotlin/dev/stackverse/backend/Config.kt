@@ -12,7 +12,6 @@ import org.slf4j.event.Level
 import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.Connection
-import java.sql.Statement
 import kotlin.io.path.extension
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.nameWithoutExtension

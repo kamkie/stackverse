@@ -3,18 +3,17 @@ package dev.stackverse.backend
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
-import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.security.MessageDigest
 import java.time.Instant
 import java.util.Base64
 import java.util.UUID
+import kotlin.coroutines.cancellation.CancellationException
 
 suspend fun ApplicationCall.respondProblem(context: AppContext, problem: Problem, status: HttpStatusCode) {
     response.status(status)
@@ -62,7 +61,9 @@ fun ApplicationCall.requireRole(role: String, context: AppContext): Identity {
 suspend inline fun <reified T : Any> ApplicationCall.receiveBody(): T =
     try {
         receive<T>()
-    } catch (_: Throwable) {
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Exception) {
         throw ApiProblem(HttpStatusCode.BadRequest, "Bad Request", detail = "Invalid JSON request body.")
     }
 

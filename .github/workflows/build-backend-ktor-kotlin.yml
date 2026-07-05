@@ -36,8 +36,8 @@ jobs:
           distribution: temurin
           java-version: 25
       - uses: gradle/actions/setup-gradle@v6
-      - name: Build and test
-        run: ./gradlew build
+      - name: Style check, build, and test
+        run: ./gradlew ktlintCheck build
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:

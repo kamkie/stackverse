@@ -2,23 +2,19 @@ package dev.stackverse.backend
 
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.jackson.JacksonConverter
 import io.ktor.server.application.Application
-import io.ktor.server.application.ApplicationCallPipeline
-import io.ktor.server.application.call
-import io.ktor.server.application.install
-import io.ktor.server.application.log
 import io.ktor.server.application.ApplicationStarted
 import io.ktor.server.application.ApplicationStopped
+import io.ktor.server.application.call
+import io.ktor.server.application.createApplicationPlugin
+import io.ktor.server.application.install
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
-import io.ktor.server.request.httpMethod
-import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
@@ -27,7 +23,6 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 
@@ -55,6 +50,34 @@ fun main() {
         throw error
     } finally {
         dataSource.close()
+    }
+}
+
+private class StackverseRequestPluginConfig {
+    lateinit var context: AppContext
+}
+
+private val StackverseRequestPlugin = createApplicationPlugin(
+    name = "StackverseRequestPlugin",
+    createConfiguration = ::StackverseRequestPluginConfig,
+) {
+    val context = pluginConfig.context
+    onCall { call ->
+        val identity = context.jwtAuthenticator.authenticate(call)
+        if (identity != null) {
+            val account = context.accounts.recordSeen(identity.username)
+            if (account.status == "blocked") {
+                context.logger.logEvent(
+                    Level.WARN,
+                    "blocked_user_rejected",
+                    "denied",
+                    "Refused a request from a blocked account",
+                    "actor" to identity.username,
+                )
+                throw ApiProblem(HttpStatusCode.Forbidden, "Forbidden", detailKey = "error.account.blocked")
+            }
+            call.attributes.put(IDENTITY_KEY, identity)
+        }
     }
 }
 
@@ -102,28 +125,8 @@ fun Application.stackverseModule(context: AppContext) {
         }
     }
 
-    intercept(ApplicationCallPipeline.Plugins) {
-        if (call.request.httpMethod == HttpMethod.Get && call.request.path() == "/api/v1/bookmarks") {
-            call.response.headers.append("Deprecation", DEPRECATION)
-            call.response.headers.append("Sunset", SUNSET)
-            call.response.headers.append(HttpHeaders.Link, SUCCESSOR_LINK)
-        }
-
-        val identity = context.jwtAuthenticator.authenticate(call)
-        if (identity != null) {
-            val account = context.accounts.recordSeen(identity.username)
-            if (account.status == "blocked") {
-                context.logger.logEvent(
-                    Level.WARN,
-                    "blocked_user_rejected",
-                    "denied",
-                    "Refused a request from a blocked account",
-                    "actor" to identity.username,
-                )
-                throw ApiProblem(HttpStatusCode.Forbidden, "Forbidden", detailKey = "error.account.blocked")
-            }
-            call.attributes.put(IDENTITY_KEY, identity)
-        }
+    install(StackverseRequestPlugin) {
+        this.context = context
     }
 
     monitor.subscribe(ApplicationStarted) {
@@ -170,6 +173,9 @@ fun Application.stackverseModule(context: AppContext) {
 
         route("/api/v1/bookmarks") {
             get {
+                call.response.headers.append("Deprecation", DEPRECATION)
+                call.response.headers.append("Sunset", SUNSET)
+                call.response.headers.append(HttpHeaders.Link, SUCCESSOR_LINK)
                 val page = call.pageParam()
                 val size = call.sizeParam()
                 val query = call.bookmarkQuery()
