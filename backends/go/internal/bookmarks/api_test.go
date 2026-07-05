@@ -3,9 +3,112 @@ package bookmarks
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/google/uuid"
 )
 
 func str(s string) *string { return &s }
+
+func TestBookmarkVisibleTo(t *testing.T) {
+	cases := []struct {
+		name     string
+		bookmark Bookmark
+		caller   string
+		want     bool
+	}{
+		{
+			name:     "owner sees hidden private bookmark",
+			bookmark: Bookmark{Owner: "alice", Visibility: VisibilityPrivate, Status: StatusHidden},
+			caller:   "alice",
+			want:     true,
+		},
+		{
+			name:     "anonymous sees active public bookmark",
+			bookmark: Bookmark{Owner: "alice", Visibility: VisibilityPublic, Status: StatusActive},
+			caller:   "",
+			want:     true,
+		},
+		{
+			name:     "hidden public bookmark is masked from others",
+			bookmark: Bookmark{Owner: "alice", Visibility: VisibilityPublic, Status: StatusHidden},
+			caller:   "bob",
+			want:     false,
+		},
+		{
+			name:     "private bookmark is masked from others",
+			bookmark: Bookmark{Owner: "alice", Visibility: VisibilityPrivate, Status: StatusActive},
+			caller:   "bob",
+			want:     false,
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.bookmark.VisibleTo(tt.caller); got != tt.want {
+				t.Fatalf("VisibleTo(%q) = %v, want %v", tt.caller, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToResponseSortsTagsWithoutMutatingBookmark(t *testing.T) {
+	created := time.Date(2026, 7, 3, 10, 0, 0, 0, time.UTC)
+	bookmark := Bookmark{
+		ID: uuid.New(), Owner: "demo", URL: "https://example.com", Title: "Title",
+		Tags: []string{"z", "a"}, Visibility: VisibilityPublic, Status: StatusActive,
+		CreatedAt: created, UpdatedAt: created,
+	}
+
+	response := ToResponse(bookmark)
+	if len(response.Tags) != 2 || response.Tags[0] != "a" || response.Tags[1] != "z" {
+		t.Fatalf("response tags should be sorted, got %v", response.Tags)
+	}
+	if bookmark.Tags[0] != "z" || bookmark.Tags[1] != "a" {
+		t.Fatalf("ToResponse must not mutate stored tag order, got %v", bookmark.Tags)
+	}
+}
+
+func TestListQueryWhereAppliesPublicScopeAndEscapedFilters(t *testing.T) {
+	where, args := listQuery{
+		caller:     "alice",
+		visibility: VisibilityPublic,
+		tags:       []string{"go", "web"},
+		q:          `50%_off`,
+	}.where()
+
+	if strings.Contains(where, "owner =") {
+		t.Fatalf("public listing must not be owner-scoped: %s", where)
+	}
+	if !strings.Contains(where, "visibility = 'public' and status = 'active'") {
+		t.Fatalf("public listing must exclude hidden bookmarks: %s", where)
+	}
+	if !strings.Contains(where, "tags @> $1") {
+		t.Fatalf("tag AND filter missing from where clause: %s", where)
+	}
+	if !strings.Contains(where, `escape '\'`) {
+		t.Fatalf("q filter must use escaped LIKE patterns: %s", where)
+	}
+	if len(args) != 2 {
+		t.Fatalf("args = %v, want tag array and q pattern", args)
+	}
+	tags, ok := args[0].([]string)
+	if !ok || len(tags) != 2 || tags[0] != "go" || tags[1] != "web" {
+		t.Fatalf("tag args = %#v", args[0])
+	}
+	if got := args[1]; got != `%50\%\_off%` {
+		t.Fatalf("q pattern = %#v", got)
+	}
+}
+
+func TestListQueryWhereDefaultsToCallerOwnedScope(t *testing.T) {
+	where, args := listQuery{caller: "alice"}.where()
+	if where != "where owner = $1" {
+		t.Fatalf("default listing should be caller-owned, got %q", where)
+	}
+	if len(args) != 1 || args[0] != "alice" {
+		t.Fatalf("args = %v, want caller", args)
+	}
+}
 
 func TestValidateBookmark(t *testing.T) {
 	valid := request{URL: "https://example.com/x", Title: "a title"}
