@@ -62,7 +62,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | Nest IoC container: @Injectable providers, @Controller, constructor injection | One empty @Module; module-level singletons, plain function imports, no DI | 🔴 undocumented |
 | [Open Liberty](../backends/open-liberty-java/README.md) | CDI beans with @Inject; beans.xml bean-discovery | beans.xml present but no @Inject; JAX-RS getClasses() + static RuntimeSupport | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | FastAPI Depends() for db sessions, current user, config | No Depends; auth via HTTP middleware + request.state, db via module-global pool | 🟡 deliberate |
-| [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice binds one eager-singleton StackverseBackend that manually news all collaborators | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, and controller components | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | @ApplicationScoped service, constructor @Inject, @Provider filters/mappers | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
 
@@ -116,7 +116,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | async/await handlers; RxJS Observables for streams/interceptors | Plain async/await; SELECT ... FOR UPDATE row locks for moderation races | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Synchronous JAX-RS on container threads; @Suspended for async | Synchronous blocking JDBC on request threads; no async/reactive | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | async handlers with an async driver (asyncpg/psycopg async) | Sync handlers + sync psycopg run on Starlette worker threadpool | 🟡 deliberate |
-| [Play (Scala)](../backends/play-scala/README.md) | Action.async returning Future; non-blocking I/O off the request thread | Synchronous Action with blocking JDBC calls; no Future/Action.async | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | Action.async returning Future; non-blocking I/O off the request thread | Action.async wrappers run blocking JDBC on a bounded database-dispatcher | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Reactive Mutiny/Uni or auto-offloaded blocking on RESTEasy Reactive | Blocking JDBC on quarkus-rest; manual JDBC transactions, no Mutiny | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
 
@@ -355,4 +355,3 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check only as separate typecheck script | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | None configured; stale eslint-disable comment but no ESLint/Prettier | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |
-

@@ -3,25 +3,28 @@ package controllers
 import models._
 import play.api.libs.json._
 import play.api.mvc._
-import repositories.Rows
-import services.StackverseBackend
+import repositories.{Db, Rows}
+import services.{AuthService, DatabaseExecutionContext, EventLogger, I18n}
 import support.{CursorCodec, Responses, Wire}
 
 import java.sql.{Connection, SQLException}
 import java.time.{Instant, LocalDate, ZoneOffset}
 import java.util.UUID
 import javax.inject._
+import scala.concurrent.Future
 import scala.util.Try
 
 @Singleton
-class StackverseController @Inject() (cc: ControllerComponents, backend: StackverseBackend)
+class StackverseController @Inject() (
+    cc: ControllerComponents,
+    db: Db,
+    auth: AuthService,
+    i18n: I18n,
+    logger: EventLogger,
+    databaseExecutionContext: DatabaseExecutionContext
+)
     extends AbstractController(cc) {
   import Wire._
-
-  private val db = backend.db
-  private val auth = backend.auth
-  private val i18n = backend.i18n
-  private val logger = backend.logger
 
   private val TagPattern = "^[a-z0-9-]{1,30}$".r
   private val KeyPattern = "^[a-z0-9-]+(\\.[a-z0-9-]+)*$".r
@@ -32,24 +35,26 @@ class StackverseController @Inject() (cc: ControllerComponents, backend: Stackve
     Ok(Json.obj("status" -> "up"))
   }
 
-  def readyz: Action[AnyContent] = Action {
-    val started = System.nanoTime()
-    try {
-      db.withConnection(conn => db.one(conn, "select 1")(_.getInt(1)))
-      Ok(Json.obj("status" -> "ready"))
-    } catch {
-      case error: Throwable =>
-        logger.event(
-          "warn",
-          "dependency_call_failed",
-          "failure",
-          "Readiness lost: database unreachable",
-          "dependency" -> JsString("postgres"),
-          "duration_ms" -> JsNumber((System.nanoTime() - started) / 1000000),
-          "error_code" -> JsString(sqlState(error).getOrElse("connection_error"))
-        )
-        Status(503)(Json.obj("status" -> "unavailable"))
-    }
+  def readyz: Action[AnyContent] = Action.async {
+    Future {
+      val started = System.nanoTime()
+      try {
+        db.withConnection(conn => db.one(conn, "select 1")(_.getInt(1)))
+        Ok(Json.obj("status" -> "ready"))
+      } catch {
+        case error: Throwable =>
+          logger.event(
+            "warn",
+            "dependency_call_failed",
+            "failure",
+            "Readiness lost: database unreachable",
+            "dependency" -> JsString("postgres"),
+            "duration_ms" -> JsNumber((System.nanoTime() - started) / 1000000),
+            "error_code" -> JsString(sqlState(error).getOrElse("connection_error"))
+          )
+          Status(503)(Json.obj("status" -> "unavailable"))
+      }
+    }(using databaseExecutionContext)
   }
 
   def me: Action[AnyContent] = api { implicit request =>
@@ -654,44 +659,46 @@ class StackverseController @Inject() (cc: ControllerComponents, backend: Stackve
     withEtag(request, payload)
   }
 
-  private def api(block: Request[AnyContent] => Result): Action[AnyContent] = Action { request =>
-    try {
-      block(request)
-    } catch {
-      case problem: ValidationProblem =>
-        logger.event(
-          "info",
-          "input_validation_failed",
-          "failure",
-          "Request validation failed",
-          "error_code" -> JsString("validation_failed"),
-          "fields" -> JsString(problem.violations.map(_.field).mkString(","))
-        )
-        val language = requestLanguage(request)
-        val errors = problem.violations.map { violation =>
-          Json.obj(
-            "field" -> violation.field,
-            "messageKey" -> violation.messageKey,
-            "message" -> i18n.localize(violation.messageKey, language)
-          )
-        }
-        Wire.problem(400, "Bad Request", Some("Request validation failed."), Some(errors))
-      case problem: ApiProblem =>
-        val detail = problem.detailKey.map(key => i18n.localize(key, requestLanguage(request))).orElse(problem.detail)
-        Wire.problem(problem.status, problem.title, detail)
-      case error: Throwable =>
-        sqlState(error).foreach { state =>
+  private def api(block: Request[AnyContent] => Result): Action[AnyContent] = Action.async { request =>
+    Future {
+      try {
+        block(request)
+      } catch {
+        case problem: ValidationProblem =>
           logger.event(
-            "error",
-            "dependency_call_failed",
+            "info",
+            "input_validation_failed",
             "failure",
-            "PostgreSQL call failed during a request",
-            "dependency" -> JsString("postgres"),
-            "error_code" -> JsString(state)
+            "Request validation failed",
+            "error_code" -> JsString("validation_failed"),
+            "fields" -> JsString(problem.violations.map(_.field).mkString(","))
           )
-        }
-        Wire.problem(500, "Internal Server Error", Some("An unexpected error occurred."))
-    }
+          val language = requestLanguage(request)
+          val errors = problem.violations.map { violation =>
+            Json.obj(
+              "field" -> violation.field,
+              "messageKey" -> violation.messageKey,
+              "message" -> i18n.localize(violation.messageKey, language)
+            )
+          }
+          Wire.problem(400, "Bad Request", Some("Request validation failed."), Some(errors))
+        case problem: ApiProblem =>
+          val detail = problem.detailKey.map(key => i18n.localize(key, requestLanguage(request))).orElse(problem.detail)
+          Wire.problem(problem.status, problem.title, detail)
+        case error: Throwable =>
+          sqlState(error).foreach { state =>
+            logger.event(
+              "error",
+              "dependency_call_failed",
+              "failure",
+              "PostgreSQL call failed during a request",
+              "dependency" -> JsString("postgres"),
+              "error_code" -> JsString(state)
+            )
+          }
+          Wire.problem(500, "Internal Server Error", Some("An unexpected error occurred."))
+      }
+    }(using databaseExecutionContext)
   }
 
   private case class BookmarkInput(url: String, title: String, notes: Option[String], tags: Seq[String], visibility: String)

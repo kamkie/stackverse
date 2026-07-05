@@ -7,18 +7,15 @@ import repositories.Db
 
 import java.nio.file.Files
 import javax.inject._
-import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
-import scala.util.Try
 
 @Singleton
-class StackverseBackend @Inject() (lifecycle: ApplicationLifecycle)(implicit ec: ExecutionContext) {
-  val config: BackendConfig = BackendConfig.load()
-  val logger = new EventLogger(config)
-  val db = new Db(config, logger)
-  val i18n = new I18n(db)
-  val auth = new AuthService(config, db, i18n, logger)
-
+class StackverseBackend @Inject() (
+    lifecycle: ApplicationLifecycle,
+    config: BackendConfig,
+    logger: EventLogger,
+    db: Db
+) {
   try {
     db.migrate()
     seedMessages()

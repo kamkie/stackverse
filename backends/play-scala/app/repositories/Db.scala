@@ -11,16 +11,19 @@ import services.EventLogger
 import java.sql.{Connection, PreparedStatement, ResultSet, Timestamp}
 import java.time.{Instant, LocalDate}
 import java.util.UUID
+import javax.inject._
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 import scala.util.Using
 
-class Db(config: BackendConfig, logger: EventLogger) {
+@Singleton
+class Db @Inject() (config: BackendConfig, logger: EventLogger) {
   val dataSource: HikariDataSource = {
     val hikari = new HikariConfig()
     hikari.setJdbcUrl(s"jdbc:postgresql://${config.dbHost}:${config.dbPort}/${config.dbName}")
     hikari.setUsername(config.dbUser)
     hikari.setPassword(config.dbPassword)
+    // Keep in sync with conf/application.conf database-dispatcher fixed-pool-size.
     hikari.setMaximumPoolSize(10)
     hikari.setPoolName("stackverse-play-scala")
     new HikariDataSource(hikari)
