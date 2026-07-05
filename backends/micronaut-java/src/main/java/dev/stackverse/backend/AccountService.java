@@ -44,7 +44,7 @@ final class AccountService {
                   and (? = '' or status = ?)
                 order by last_seen desc
                 limit ? offset ?
-                """, this::mapAccount, qLike, qLike, status, status, size, page * size);
+                """, this::mapAccount, qLike, qLike, status, status, size, WebSupport.offset(page, size));
     }
 
     long countSearch(String q, String status) {

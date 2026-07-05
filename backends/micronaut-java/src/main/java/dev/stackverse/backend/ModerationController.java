@@ -81,7 +81,7 @@ final class ModerationController {
                 where reporter = ? and (? = '' or status = ?)
                 order by created_at desc, id desc
                 limit ? offset ?
-                """, Models::report, reporter.username(), status, status, size, page * size)
+                """, Models::report, reporter.username(), status, status, size, WebSupport.offset(page, size))
                 .stream().map(ReportResponse::from).toList();
         return WebSupport.pageResponse(items, page, size, total);
     }
@@ -147,7 +147,7 @@ final class ModerationController {
                 where status = ?
                 order by created_at, id
                 limit ? offset ?
-                """, Models::report, status, size, page * size).stream().map(ReportResponse::from).toList();
+                """, Models::report, status, size, WebSupport.offset(page, size)).stream().map(ReportResponse::from).toList();
         return WebSupport.pageResponse(items, page, size, total);
     }
 

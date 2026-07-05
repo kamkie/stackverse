@@ -39,7 +39,7 @@ final class BookmarksController {
         long total = db.scalarLong("select count(*) from bookmarks " + where.sql(), where.args().toArray());
         List<Object> args = new ArrayList<>(where.args());
         args.add(size);
-        args.add(page * size);
+        args.add(WebSupport.offset(page, size));
         List<BookmarkResponse> items = db.query("""
                         select id, owner, url, title, notes, tags, visibility, status, created_at, updated_at
                         from bookmarks %s

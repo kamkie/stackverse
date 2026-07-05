@@ -63,7 +63,11 @@ final class Database {
                 connection.commit();
                 return result;
             } catch (RuntimeException | SQLException ex) {
-                connection.rollback();
+                try {
+                    connection.rollback();
+                } catch (SQLException rollbackError) {
+                    ex.addSuppressed(rollbackError);
+                }
                 throw ex;
             } finally {
                 connection.setAutoCommit(autoCommit);

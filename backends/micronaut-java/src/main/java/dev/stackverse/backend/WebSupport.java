@@ -49,6 +49,10 @@ final class WebSupport {
         return intParam(request, "size", 20, 1, 100);
     }
 
+    static long offset(int page, int size) {
+        return (long) page * (long) size;
+    }
+
     static int intParam(HttpRequest<?> request, String name, int defaultValue, int min, int max) {
         Optional<String> raw = request.getParameters().getFirst(name);
         if (raw.isEmpty()) {

@@ -138,7 +138,7 @@ final class MessageCatalog {
                   and (? = '' or lower(key) like ? escape '\\' or lower(text) like ? escape '\\')
                 order by key, language
                 limit ? offset ?
-                """, Models::message, key, key, language, language, qLike, qLike, qLike, size, page * size);
+                """, Models::message, key, key, language, language, qLike, qLike, qLike, size, WebSupport.offset(page, size));
     }
 
     long countSearch(String key, String language, String q) {

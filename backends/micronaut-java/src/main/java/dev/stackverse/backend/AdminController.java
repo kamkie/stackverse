@@ -75,7 +75,8 @@ final class AdminController {
         }
         accounts.get(username);
         String reason = body.reason() == null ? null : body.reason().trim();
-        if (Models.USER_BLOCKED.equals(body.status())) {
+        boolean blocking = Models.USER_BLOCKED.equals(body.status());
+        if (blocking) {
             Validator validator = new Validator();
             validator.check(reason != null && !reason.isBlank(), "reason", "validation.block.reason.required");
             validator.check(WebSupport.length(reason) <= 1000, "reason", "validation.block.reason.too-long");
@@ -83,30 +84,23 @@ final class AdminController {
             if (username.equals(actor.username())) {
                 throw Problems.conflict("Admins cannot block themselves.");
             }
-            db.inTx(connection -> {
-                try {
-                    accounts.setStatus(connection, username, Models.USER_BLOCKED, reason);
-                    audit.record(connection, actor.username(), "user.blocked", "user", username, Map.of("reason", reason));
-                } catch (SQLException ex) {
-                    throw new IllegalStateException(ex);
-                }
-                return null;
-            });
-            EventLog.info(LOG, "user_blocked", "success", "User account blocked",
-                    Map.of("actor", actor.username(), "resource_type", "user", "resource_id", username));
-        } else {
-            db.inTx(connection -> {
-                try {
-                    accounts.setStatus(connection, username, Models.USER_ACTIVE, null);
-                    audit.record(connection, actor.username(), "user.unblocked", "user", username, null);
-                } catch (SQLException ex) {
-                    throw new IllegalStateException(ex);
-                }
-                return null;
-            });
-            EventLog.info(LOG, "user_unblocked", "success", "User account unblocked",
-                    Map.of("actor", actor.username(), "resource_type", "user", "resource_id", username));
         }
+        String status = blocking ? Models.USER_BLOCKED : Models.USER_ACTIVE;
+        String auditAction = blocking ? "user.blocked" : "user.unblocked";
+        String event = blocking ? "user_blocked" : "user_unblocked";
+        String message = blocking ? "User account blocked" : "User account unblocked";
+        db.inTx(connection -> {
+            try {
+                accounts.setStatus(connection, username, status, blocking ? reason : null);
+                audit.record(connection, actor.username(), auditAction, "user", username,
+                        blocking ? Map.of("reason", reason) : null);
+            } catch (SQLException ex) {
+                throw new IllegalStateException(ex);
+            }
+            return null;
+        });
+        EventLog.info(LOG, event, "success", message,
+                Map.of("actor", actor.username(), "resource_type", "user", "resource_id", username));
         return accountResponse(accounts.get(username));
     }
 
@@ -129,23 +123,11 @@ final class AdminController {
                   and (cast(? as timestamptz) is null or created_at >= ?)
                   and (cast(? as timestamptz) is null or created_at <= ?)
                 """;
-        long total = db.scalarLong("select count(*) from audit_entries " + where,
-                actor, actor, action, action, targetType, targetType, targetId, targetId, from, from, to, to);
-        List<Object> queryArgs = new java.util.ArrayList<>();
-        queryArgs.add(actor);
-        queryArgs.add(actor);
-        queryArgs.add(action);
-        queryArgs.add(action);
-        queryArgs.add(targetType);
-        queryArgs.add(targetType);
-        queryArgs.add(targetId);
-        queryArgs.add(targetId);
-        queryArgs.add(from);
-        queryArgs.add(from);
-        queryArgs.add(to);
-        queryArgs.add(to);
+        List<Object> filterArgs = auditFilterArgs(actor, action, targetType, targetId, from, to);
+        long total = db.scalarLong("select count(*) from audit_entries " + where, filterArgs.toArray());
+        List<Object> queryArgs = new java.util.ArrayList<>(filterArgs);
         queryArgs.add(size);
-        queryArgs.add(page * size);
+        queryArgs.add(WebSupport.offset(page, size));
         List<AuditResponse> items = db.query("""
                 select id, actor, action, target_type, target_id, detail, created_at
                 from audit_entries %s
@@ -221,6 +203,23 @@ final class AdminController {
         } catch (Exception ex) {
             return raw;
         }
+    }
+
+    private List<Object> auditFilterArgs(String actor, String action, String targetType, String targetId, Instant from, Instant to) {
+        List<Object> args = new java.util.ArrayList<>();
+        args.add(actor);
+        args.add(actor);
+        args.add(action);
+        args.add(action);
+        args.add(targetType);
+        args.add(targetType);
+        args.add(targetId);
+        args.add(targetId);
+        args.add(from);
+        args.add(from);
+        args.add(to);
+        args.add(to);
+        return args;
     }
 
     private Map<String, Long> countsByDay(String table, String column, LocalDate from) {
