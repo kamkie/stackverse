@@ -3,9 +3,11 @@ package services
 import play.api.libs.json._
 import repositories.Db
 
+import javax.inject._
 import scala.util.Try
 
-class I18n(db: Db) {
+@Singleton
+class I18n @Inject() (db: Db) {
   val DefaultLanguage = "en"
 
   def resolve(queryLang: Option[String], acceptLanguage: Option[String]): String =

@@ -9,9 +9,11 @@ import play.api.libs.json._
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import javax.inject._
 import scala.util.Try
 
-class EventLogger(config: BackendConfig) {
+@Singleton
+class EventLogger @Inject() (config: BackendConfig) {
   private val priorities = Map("debug" -> 10, "info" -> 20, "warn" -> 30, "error" -> 40, "fatal" -> 50)
   private val threshold = priorities.getOrElse(config.logLevel, 20)
   private val otelSdk: Option[OpenTelemetrySdk] =

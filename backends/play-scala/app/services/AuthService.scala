@@ -14,9 +14,11 @@ import support.Wire
 import java.net.URL
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Instant
+import javax.inject._
 import scala.jdk.CollectionConverters._
 
-class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: EventLogger) {
+@Singleton
+class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: EventLogger) {
   private val http = HttpClient.newHttpClient()
   @volatile private var processor: Option[DefaultJWTProcessor[SecurityContext]] = None
   private val Audience = "stackverse-api"

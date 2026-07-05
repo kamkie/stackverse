@@ -1,6 +1,7 @@
 package config
 
 import java.nio.file.{Files, Path, Paths}
+import javax.inject.{Inject, Provider, Singleton}
 import scala.util.Try
 
 case class BackendConfig(
@@ -17,6 +18,13 @@ case class BackendConfig(
     logFormat: String,
     otelEnabled: Boolean
 )
+
+@Singleton
+class BackendConfigProvider @Inject() () extends Provider[BackendConfig] {
+  private val loaded = BackendConfig.load()
+
+  override def get(): BackendConfig = loaded
+}
 
 object BackendConfig {
   private def env(name: String, fallback: String): String =

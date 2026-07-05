@@ -55,6 +55,11 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 - **Environment-owned configuration** — `PORT`, `DB_*`, `OIDC_*`, `LOG_*`, and
   `SEED_MESSAGES_DIR` are read from the environment; Play's config file only wires
   the framework.
+- **Guice-owned component wiring** — configuration, logging, database access,
+  i18n, auth, startup, and controllers are constructor-injected components rather
+  than a hand-built singleton graph.
+- **Dedicated JDBC dispatcher** — controller actions use `Action.async` and run the
+  blocking JDBC work on the bounded `database-dispatcher`, sized to the Hikari pool.
 - **PostgreSQL arrays for tags** — `tags text[]` with a GIN index, matching the
   thin SQL variants and keeping tag filtering as array containment.
 - **Flyway-owned schema** — migrations live under this implementation and run on
@@ -69,7 +74,8 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 
 - The code remains a compact Play/JDBC service rather than package-by-feature:
   the comparison point here is Play's controller and JSON shape, not a custom
-  application framework.
+  application framework. Play/Guice still owns collaborator construction and
+  request offloading.
 - `LOG_FORMAT=json` controls Stackverse contract events emitted by the application
   logger. Play framework startup lines remain framework-owned console output.
 - OpenTelemetry log export uses the Java SDK autoconfiguration path and is active
