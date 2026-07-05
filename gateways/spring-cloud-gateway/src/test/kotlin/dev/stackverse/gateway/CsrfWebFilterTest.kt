@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository
+import org.springframework.security.web.server.csrf.ServerCsrfTokenRepository
 import org.springframework.web.server.WebFilterChain
 import java.net.URI
 
@@ -37,7 +39,10 @@ class CsrfWebFilterTest {
         assertEquals("Lax", cookie.sameSite)
         assertFalse(cookie.isHttpOnly)
         assertFalse(cookie.isSecure)
-        assertTrue(Regex("[0-9A-F]{32}").matches(cookie.value), cookie.value)
+        assertTrue(
+            Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}").matches(cookie.value),
+            cookie.value,
+        )
     }
 
     @Test
@@ -162,7 +167,22 @@ class CsrfWebFilterTest {
     private fun exchange(request: MockServerHttpRequest.BaseBuilder<*>): MockServerWebExchange =
         MockServerWebExchange.from(request.build())
 
-    private fun filter(publicUrl: String = "http://localhost:8000") = CsrfWebFilter(gateway(publicUrl))
+    private fun filter(publicUrl: String = "http://localhost:8000"): CsrfWebFilter {
+        val gateway = gateway(publicUrl)
+        return CsrfWebFilter(gateway, csrfTokenRepository(gateway))
+    }
+
+    private fun csrfTokenRepository(gateway: GatewayProperties): ServerCsrfTokenRepository =
+        CookieServerCsrfTokenRepository.withHttpOnlyFalse().apply {
+            setCookieName(Csrf.COOKIE_NAME)
+            setHeaderName(Csrf.HEADER_NAME)
+            setCookiePath("/")
+            setCookieCustomizer { cookie ->
+                cookie.secure(gateway.cookiesSecure)
+                cookie.sameSite("Lax")
+                cookie.path("/")
+            }
+        }
 
     private fun gateway(publicUrl: String) = GatewayProperties(
         backendUrl = URI("http://localhost:8080"),

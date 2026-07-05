@@ -1,24 +1,33 @@
 package dev.stackverse.gateway.config
 
 import dev.stackverse.gateway.common.logEvent
+import dev.stackverse.gateway.web.Csrf
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpMethod
+import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientManager
+import org.springframework.security.oauth2.client.RefreshTokenReactiveOAuth2AuthorizedClientProvider
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
+import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
+import org.springframework.security.oauth2.client.endpoint.WebClientReactiveRefreshTokenTokenResponseClient
 import org.springframework.security.config.web.server.ServerHttpSecurity
+import org.springframework.security.oauth2.client.registration.ClientRegistrations
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
-import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers
+import org.springframework.security.oauth2.client.web.DefaultReactiveOAuth2AuthorizedClientManager
 import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.client.web.server.WebSessionServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
+import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository
+import org.springframework.security.web.server.csrf.ServerCsrfTokenRepository
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationFailureHandler
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler
@@ -47,12 +56,12 @@ class SecurityConfig {
     private val log = LoggerFactory.getLogger(javaClass)
 
     /**
-     * The Keycloak client registration, built from OIDC discovery by hand instead of
-     * `spring.security.oauth2.*` properties: discovery is fetched from — and the
-     * gateway's own endpoints (token, JWKS, end-session) are re-based onto — the
-     * *internal* issuer base, because the public issuer host may not be dialable
-     * from inside a container network (see [GatewayProperties.Oidc]). The
-     * browser-facing authorization endpoint and issuer validation stay public.
+     * The Keycloak client registration cannot be described with
+     * `spring.security.oauth2.*` properties alone because the gateway's own calls
+     * must dial [GatewayProperties.Oidc.internalIssuerUri] while issuer validation and
+     * the browser-facing authorization redirect stay on the public issuer. Spring
+     * Security still parses OIDC discovery and builds the [ClientRegistration]; this
+     * bean only re-bases the back-channel endpoints the contract needs split.
      * Resolved at startup, so the IdP must be up when the gateway boots.
      */
     @Bean
@@ -65,32 +74,38 @@ class SecurityConfig {
             .block(Duration.ofSeconds(30))
             ?: error("empty OIDC discovery document from ${oidc.internalIssuerUri}")
 
-        fun endpoint(name: String): String =
-            metadata[name] as? String ?: error("OIDC discovery document carries no $name")
-
-        check(endpoint("issuer") == oidc.issuerUri) {
-            "the IdP announces issuer ${endpoint("issuer")} but OIDC_ISSUER_URI is ${oidc.issuerUri}"
+        val metadataIssuer = metadata["issuer"] as? String
+            ?: error("OIDC discovery document carries no issuer")
+        check(metadataIssuer == oidc.issuerUri) {
+            "the IdP announces issuer $metadataIssuer but OIDC_ISSUER_URI is ${oidc.issuerUri}"
         }
 
         fun rebase(url: String): String =
             if (url.startsWith(oidc.issuerUri)) oidc.internalIssuerUri + url.removePrefix(oidc.issuerUri) else url
 
-        val registration = ClientRegistration.withRegistrationId("keycloak")
+        val discovered = ClientRegistrations.fromOidcConfiguration(metadata)
+            .registrationId("keycloak")
             .clientId(oidc.clientId)
             .clientSecret(oidc.clientSecret)
             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             // deterministic, built from PUBLIC_URL — never from the Host header
             .redirectUri(gateway.publicUrl.toString().trimEnd('/') + "/auth/callback")
             .scope("openid", "profile", "email")
-            .authorizationUri(endpoint("authorization_endpoint")) // browser-facing: stays public
-            .tokenUri(rebase(endpoint("token_endpoint")))
-            .jwkSetUri(rebase(endpoint("jwks_uri")))
-            .issuerUri(oidc.issuerUri)
             // the repo's identity claim (docs/LOGGING.md §4): authentication.name
             // becomes preferred_username everywhere — /auth/session, log actor
             .userNameAttributeName("preferred_username")
-            .providerConfigurationMetadata(mapOf("end_session_endpoint" to rebase(endpoint("end_session_endpoint"))))
+            .build()
+        val rebasedMetadata = discovered.providerDetails.configurationMetadata.toMutableMap()
+        for (endpoint in listOf("token_endpoint", "jwks_uri", "end_session_endpoint")) {
+            (rebasedMetadata[endpoint] as? String)?.let { rebasedMetadata[endpoint] = rebase(it) }
+        }
+        require(rebasedMetadata["end_session_endpoint"] is String) {
+            "OIDC discovery document carries no end_session_endpoint"
+        }
+        val registration = ClientRegistration.withClientRegistration(discovered)
+            .tokenUri(rebase(discovered.providerDetails.tokenUri))
+            .jwkSetUri(rebase(discovered.providerDetails.jwkSetUri ?: error("OIDC discovery document carries no jwks_uri")))
+            .providerConfigurationMetadata(rebasedMetadata)
             .build()
         return InMemoryReactiveClientRegistrationRepository(registration)
     }
@@ -103,6 +118,42 @@ class SecurityConfig {
     @Bean
     fun authorizedClientRepository(): ServerOAuth2AuthorizedClientRepository =
         WebSessionServerOAuth2AuthorizedClientRepository()
+
+    @Bean
+    fun refreshTokenResponseClient(): ReactiveOAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest> {
+        val delegate = WebClientReactiveRefreshTokenTokenResponseClient()
+        return ReactiveOAuth2AccessTokenResponseClient { grantRequest ->
+            delegate.getTokenResponse(grantRequest).timeout(IDP_TIMEOUT)
+        }
+    }
+
+    @Bean
+    fun authorizedClientManager(
+        clientRegistrations: ReactiveClientRegistrationRepository,
+        authorizedClients: ServerOAuth2AuthorizedClientRepository,
+        refreshTokenResponseClient: ReactiveOAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest>,
+    ): ReactiveOAuth2AuthorizedClientManager {
+        val refreshProvider = RefreshTokenReactiveOAuth2AuthorizedClientProvider().apply {
+            setAccessTokenResponseClient(refreshTokenResponseClient)
+            setClockSkew(ACCESS_TOKEN_EXPIRY_SKEW)
+        }
+        return DefaultReactiveOAuth2AuthorizedClientManager(clientRegistrations, authorizedClients).apply {
+            setAuthorizedClientProvider(refreshProvider)
+        }
+    }
+
+    @Bean
+    fun csrfTokenRepository(gateway: GatewayProperties): ServerCsrfTokenRepository =
+        CookieServerCsrfTokenRepository.withHttpOnlyFalse().apply {
+            setCookieName(Csrf.COOKIE_NAME)
+            setHeaderName(Csrf.HEADER_NAME)
+            setCookiePath("/")
+            setCookieCustomizer { cookie ->
+                cookie.secure(gateway.cookiesSecure)
+                cookie.sameSite("Lax")
+                cookie.path("/")
+            }
+        }
 
     /** The contract cookie: `stackverse_session`, HttpOnly, SameSite=Lax, Secure outside local dev. */
     @Bean
@@ -211,5 +262,10 @@ class SecurityConfig {
             )
             redirect.onAuthenticationFailure(webFilterExchange, exception)
         }
+    }
+
+    private companion object {
+        val ACCESS_TOKEN_EXPIRY_SKEW: Duration = Duration.ofSeconds(30)
+        val IDP_TIMEOUT: Duration = Duration.ofSeconds(30)
     }
 }

@@ -13,7 +13,7 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 | `GET /auth/callback` | `oauth2Login`'s authentication filter with a custom `authenticationMatcher` |
 | `POST /auth/logout` | controller: server-to-server RP-initiated logout at Keycloak, session invalidated, `204` |
 | `GET /auth/session` | controller reading the session principal (`preferred_username`) |
-| `/api/**` | gateway route to `BACKEND_URL` with a hand-rolled token-relay filter |
+| `/api/**` | gateway route to `BACKEND_URL` with a token-relay filter backed by Spring Security's authorized-client manager |
 | `/**` | gateway route to the `FRONTEND_URL` SPA upstream when set; otherwise static resources + an `index.html` fallback filter |
 
 ## Design notes
@@ -25,13 +25,16 @@ Java 25. Route contract, cookie rules, and the login sequence live in
   the default would cache them in-process). In-flight OIDC state (authorization
   request, PKCE verifier, nonce) is session data too, so two gateways behind a dumb
   load balancer need no affinity.
-- **Token refresh** is a hand-rolled ~50-line call to the token endpoint
-  ([AccessTokenManager.kt](src/main/kotlin/dev/stackverse/gateway/relay/AccessTokenManager.kt))
-  instead of Spring's `ReactiveOAuth2AuthorizedClientManager`: the exchange is one
-  form POST, this repo optimizes for self-contained, readable code, and the
-  contract's two refresh-failure modes need exact, distinct handling. Concurrent
-  requests may refresh twice; Keycloak allows refresh-token reuse by default, so
-  both results are valid.
+- **Token refresh** uses Spring Security's
+  `ReactiveOAuth2AuthorizedClientManager` with the framework refresh-token
+  provider and `WebClientReactiveRefreshTokenTokenResponseClient`
+  ([SecurityConfig.kt](src/main/kotlin/dev/stackverse/gateway/config/SecurityConfig.kt),
+  [AccessTokenManager.kt](src/main/kotlin/dev/stackverse/gateway/relay/AccessTokenManager.kt)).
+  The local adapter only keeps the contract-specific decision that Spring's default
+  failure handler cannot express on its own: rejected grants destroy the session and
+  degrade to anonymous, while IdP outages keep the session and return 503.
+  Concurrent requests may refresh twice; Keycloak allows refresh-token reuse by
+  default, so both results are valid.
 - **Refresh failures are two different animals** (semantics pinned in
   [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)). An IdP that *rejects* the
   refresh — an authoritative `400`/`401` from the token endpoint (RFC 6749 §5.2) —
@@ -57,9 +60,11 @@ Java 25. Route contract, cookie rules, and the login sequence live in
   per-endpoint auth. A session that can no longer refresh is destroyed and the
   request degrades to anonymous. CSRF and same-origin (`Origin` /
   `Sec-Fetch-Site`) violations → `403` problem document (mechanism pinned in
-  [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)), and the browser's cookies,
-  the CSRF header, and any client-supplied `Authorization` header are stripped
-  before proxying.
+  [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)); token generation and cookie
+  persistence use Spring Security's `CookieServerCsrfTokenRepository`, while the
+  contract-specific problem body and same-origin checks stay in the gateway filter.
+  The browser's cookies, the CSRF header, and any client-supplied `Authorization`
+  header are stripped before proxying.
 - **Callback failures redirect, never 500.** `error=access_denied` (the user pressed
   Cancel on the Keycloak form) and stale or replayed state both land in the
   authentication failure handler: log `oidc_callback_completed` outcome=failure at
@@ -120,10 +125,11 @@ boots (compose orders this with a healthcheck; `scripts/dev-stack.*` waits too).
 This gateway honors `OIDC_INTERNAL_ISSUER_URI`: the JVM's HTTP clients dial only
 the first resolved address, so compose's `localhost → host-gateway` alias trick
 (which works for .NET's try-every-address client) cannot reach Keycloak from
-inside the network. Discovery is fetched from — and the token, JWKS, and
-end-session endpoints are re-based onto — the internal base, while issuer
-validation and the browser-facing authorization redirect keep `OIDC_ISSUER_URI`
-(the same escape hatch as the backend's `OIDC_JWKS_URI`).
+inside the network. Spring Security parses the discovery document and builds the
+client registration, then the token, JWKS, and end-session endpoints are re-based
+onto the internal base while issuer validation and the browser-facing
+authorization redirect keep `OIDC_ISSUER_URI` (the same escape hatch as the
+backend's `OIDC_JWKS_URI`).
 
 ## Run
 

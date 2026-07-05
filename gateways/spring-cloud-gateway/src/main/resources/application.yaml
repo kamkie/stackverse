@@ -17,9 +17,10 @@ spring:
     # matches the yarp gateway's 8h sliding session lifetime
     timeout: 8h
 
-# The OIDC client registration is built in SecurityConfig from these values —
-# not via spring.security.oauth2.* — so that the gateway's own IdP calls can be
-# re-based onto OIDC_INTERNAL_ISSUER_URI (see GatewayProperties.Oidc).
+# The OIDC client registration is customized in SecurityConfig from these values —
+# not expressible as plain spring.security.oauth2.* properties — so that the
+# gateway's own IdP calls can be re-based onto OIDC_INTERNAL_ISSUER_URI while
+# the browser-facing issuer stays public (see GatewayProperties.Oidc).
 stackverse:
   backend-url: ${BACKEND_URL:http://localhost:8080}
   frontend-url: ${FRONTEND_URL:}
