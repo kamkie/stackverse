@@ -3,6 +3,8 @@ from __future__ import annotations
 import math
 import re
 from datetime import UTC, datetime, timedelta
+from threading import Lock
+from time import perf_counter
 from typing import Any
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -17,7 +19,7 @@ from .cursor import BookmarkCursor, decode_cursor, encode_cursor
 from .db import execute, one, query, transaction
 from .etag import response_with_etag
 from .i18n import message_bundle, resolve_language
-from .logging_setup import log_event
+from .logging_setup import log_event, logger
 from .problems import (
     BadRequestProblem,
     ConflictProblem,
@@ -44,6 +46,8 @@ LANGUAGE_PATTERN = re.compile(r"^[a-z]{2}$")
 VISIBILITIES = {"private", "public"}
 REPORT_REASONS = {"spam", "offensive", "broken-link", "other"}
 REPORT_STATUSES = {"open", "dismissed", "actioned"}
+_readiness_lock = Lock()
+_was_ready = True
 
 
 def register_routes(app: FastAPI) -> None:
@@ -53,18 +57,23 @@ def register_routes(app: FastAPI) -> None:
 
     @app.get("/readyz")
     def readyz() -> Response:
+        started_at = perf_counter()
         try:
             query("select 1")
+            if swap_readiness(True):
+                logger.info("Readiness restored: database reachable again")
             return Response(status_code=200)
         except Exception as exc:
-            log_event(
-                "error",
-                "dependency_call_failed",
-                "failure",
-                "PostgreSQL readiness check failed",
-                dependency="postgres",
-                error_code=exc.__class__.__name__.lower(),
-            )
+            if swap_readiness(False):
+                log_event(
+                    "warn",
+                    "dependency_call_failed",
+                    "failure",
+                    "Readiness lost: database unreachable",
+                    dependency="postgres",
+                    duration_ms=round((perf_counter() - started_at) * 1000),
+                    error_code=exc.__class__.__name__.lower(),
+                )
             return Response(status_code=503)
 
     @app.get("/api/v1/me")
@@ -562,13 +571,23 @@ def register_routes(app: FastAPI) -> None:
             }
             for offset in range(30)
         ]
+        totals = one(
+            """
+            select
+                (select count(*)::int from user_accounts) as users,
+                (select count(*)::int from bookmarks) as bookmarks,
+                (select count(*)::int from bookmarks where visibility = 'public') as public_bookmarks,
+                (select count(*)::int from bookmarks where status = 'hidden') as hidden_bookmarks,
+                (select count(*)::int from reports where status = 'open') as open_reports
+            """
+        )
         payload = {
             "totals": {
-                "users": count("select count(*)::int as count from user_accounts"),
-                "bookmarks": count("select count(*)::int as count from bookmarks"),
-                "publicBookmarks": count("select count(*)::int as count from bookmarks where visibility = 'public'"),
-                "hiddenBookmarks": count("select count(*)::int as count from bookmarks where status = 'hidden'"),
-                "openReports": count("select count(*)::int as count from reports where status = 'open'"),
+                "users": int(totals["users"]),
+                "bookmarks": int(totals["bookmarks"]),
+                "publicBookmarks": int(totals["public_bookmarks"]),
+                "hiddenBookmarks": int(totals["hidden_bookmarks"]),
+                "openReports": int(totals["open_reports"]),
             },
             "daily": daily,
             "topTags": query(
@@ -1028,8 +1047,14 @@ def date_param(value: str | None, name: str) -> datetime | None:
         raise BadRequestProblem(f"{name} must be an RFC 3339 date-time") from exc
 
 
-def count(sql: str) -> int:
-    return int(one(sql)["count"])
+def swap_readiness(ready: bool) -> bool:
+    global _was_ready
+    with _readiness_lock:
+        previous = _was_ready
+        if previous == ready:
+            return False
+        _was_ready = ready
+        return True
 
 
 def count_per_day(table: str, column: str, start: datetime) -> dict[str, int]:
