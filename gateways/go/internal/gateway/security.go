@@ -15,19 +15,29 @@ const (
 func withSecurityHeaders(secure bool, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		headers := w.Header()
-		headers.Set("X-Content-Type-Options", "nosniff")
-		if secure {
-			headers.Set("Strict-Transport-Security", strictTransportSecurity)
+		if isAPIPath(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
 		}
-		if !isAPIPath(r.URL.Path) {
-			headers.Set("Referrer-Policy", "same-origin")
-			headers.Set("Content-Security-Policy", contentSecurityPolicy)
-			headers.Set("X-Frame-Options", "DENY")
-			headers.Set("Cross-Origin-Opener-Policy", "same-origin")
-			headers.Set("Cross-Origin-Resource-Policy", "same-origin")
-		}
+		applyDocumentSecurityHeaders(headers, secure)
 		next.ServeHTTP(w, r)
 	})
+}
+
+func applyAPISecurityHeaders(headers http.Header, secure bool) {
+	headers.Set("X-Content-Type-Options", "nosniff")
+	if secure {
+		headers.Set("Strict-Transport-Security", strictTransportSecurity)
+	}
+}
+
+func applyDocumentSecurityHeaders(headers http.Header, secure bool) {
+	applyAPISecurityHeaders(headers, secure)
+	headers.Set("Referrer-Policy", "same-origin")
+	headers.Set("Content-Security-Policy", contentSecurityPolicy)
+	headers.Set("X-Frame-Options", "DENY")
+	headers.Set("Cross-Origin-Opener-Policy", "same-origin")
+	headers.Set("Cross-Origin-Resource-Policy", "same-origin")
 }
 
 func canonicalOrigin(publicURL *url.URL) string {

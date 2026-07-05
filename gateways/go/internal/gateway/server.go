@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"context"
+	"crypto/subtle"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -23,8 +24,9 @@ import (
 )
 
 const (
-	sessionCookieName = "stackverse_session"
-	refreshSkew       = 30 * time.Second
+	sessionCookieName    = "stackverse_session"
+	loginStateCookieName = "stackverse_login_state"
+	refreshSkew          = 30 * time.Second
 )
 
 //go:embed static/index.html
@@ -96,12 +98,14 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Session storage is temporarily unavailable.")
 		return
 	}
+	http.SetCookie(w, s.loginStateCookie(state, int(session.StateTTL.Seconds())))
 	http.Redirect(w, r, s.oidc.authCodeURL(state, verifier), http.StatusFound)
 }
 
 func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if r.URL.Query().Get("error") != "" || r.URL.Query().Get("code") == "" || r.URL.Query().Get("state") == "" {
+		http.SetCookie(w, s.clearLoginStateCookie())
 		logx.Event(ctx, s.logger, slog.LevelInfo, "oidc_callback_completed", "failure",
 			"Authorization code flow failed",
 			slog.String("error_code", "remote_failure"))
@@ -109,7 +113,18 @@ func (s *Server) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state, ok, err := s.store.ConsumeOAuthState(ctx, r.URL.Query().Get("state"))
+	queryState := r.URL.Query().Get("state")
+	if !s.loginStateMatches(r, queryState) {
+		http.SetCookie(w, s.clearLoginStateCookie())
+		logx.Event(ctx, s.logger, slog.LevelInfo, "oidc_callback_completed", "failure",
+			"Authorization code flow failed",
+			slog.String("error_code", "invalid_state"))
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+
+	state, ok, err := s.store.ConsumeOAuthState(ctx, queryState)
+	http.SetCookie(w, s.clearLoginStateCookie())
 	if err != nil {
 		s.logDependencyFailure(ctx, "redis", "redis_read_failed", err)
 		logx.Event(ctx, s.logger, slog.LevelInfo, "oidc_callback_completed", "failure",
@@ -201,7 +216,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 			"Rejected a cross-origin state-changing /api request",
 			slog.String("method", logx.Sanitize(r.Method, 32)),
 			slog.String("path", logx.Sanitize(r.URL.Path, 200)))
-		writeProblem(w, http.StatusForbidden, "Forbidden", "Cross-origin state-changing requests are not supported.")
+		s.writeAPIProblem(w, http.StatusForbidden, "Forbidden", "Cross-origin state-changing requests are not supported.")
 		return
 	}
 	if !validCSRF(r) {
@@ -209,7 +224,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 			"Rejected a state-changing /api request without a matching CSRF header",
 			slog.String("method", logx.Sanitize(r.Method, 32)),
 			slog.String("path", logx.Sanitize(r.URL.Path, 200)))
-		writeProblem(w, http.StatusForbidden, "Forbidden", "Missing or mismatched X-XSRF-TOKEN header.")
+		s.writeAPIProblem(w, http.StatusForbidden, "Forbidden", "Missing or mismatched X-XSRF-TOKEN header.")
 		return
 	}
 
@@ -218,13 +233,13 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 		data, ok, err := s.store.LoadSession(ctx, cookie.Value)
 		if err != nil {
 			s.logDependencyFailure(ctx, "redis", "redis_read_failed", err)
-			writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Session storage is temporarily unavailable.")
+			s.writeAPIProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Session storage is temporarily unavailable.")
 			return
 		}
 		if ok {
 			accessToken, refreshed, err := s.ensureAccessToken(ctx, cookie.Value, data)
 			if errors.Is(err, errIDPUnavailable) {
-				writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Authentication is temporarily unavailable; please retry.")
+				s.writeAPIProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Authentication is temporarily unavailable; please retry.")
 				return
 			}
 			if errors.Is(err, errRefreshRejected) {
@@ -238,7 +253,7 @@ func (s *Server) api(w http.ResponseWriter, r *http.Request) {
 					slog.String("actor", data.Username))
 			} else if err != nil {
 				s.logDependencyFailure(ctx, "redis", "redis_write_failed", err)
-				writeProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Session storage is temporarily unavailable.")
+				s.writeAPIProblem(w, http.StatusServiceUnavailable, "Service Unavailable", "Session storage is temporarily unavailable.")
 				return
 			} else {
 				token = accessToken
@@ -300,10 +315,16 @@ func (s *Server) newProxy(target *url.URL, dependency string, api bool, transpor
 		}
 	}
 	proxy.Transport = transport
+	proxy.ModifyResponse = func(response *http.Response) error {
+		if api {
+			applyAPISecurityHeaders(response.Header, s.cfg.CookiesSecure())
+		}
+		return nil
+	}
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		s.logDependencyFailure(r.Context(), dependency, dependency+"_unavailable", err)
 		if api {
-			writeProblem(w, http.StatusBadGateway, "Bad Gateway", "The upstream API is temporarily unavailable.")
+			s.writeAPIProblem(w, http.StatusBadGateway, "Bad Gateway", "The upstream API is temporarily unavailable.")
 			return
 		}
 		http.Error(w, "Bad Gateway", http.StatusBadGateway)
@@ -323,10 +344,41 @@ func (s *Server) sessionCookie(value string, maxAge int) *http.Cookie {
 	}
 }
 
+func (s *Server) loginStateCookie(value string, maxAge int) *http.Cookie {
+	return &http.Cookie{
+		Name:     loginStateCookieName,
+		Value:    value,
+		Path:     "/auth/callback",
+		MaxAge:   maxAge,
+		Secure:   s.cfg.CookiesSecure(),
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	}
+}
+
+func (s *Server) clearLoginStateCookie() *http.Cookie {
+	cookie := s.loginStateCookie("", -1)
+	cookie.Expires = time.Unix(0, 0)
+	return cookie
+}
+
 func (s *Server) clearSessionCookie() *http.Cookie {
 	cookie := s.sessionCookie("", -1)
 	cookie.Expires = time.Unix(0, 0)
 	return cookie
+}
+
+func (s *Server) loginStateMatches(r *http.Request, queryState string) bool {
+	cookie, err := r.Cookie(loginStateCookieName)
+	if err != nil || cookie.Value == "" || queryState == "" || len(cookie.Value) != len(queryState) {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(queryState)) == 1
+}
+
+func (s *Server) writeAPIProblem(w http.ResponseWriter, status int, title, detail string) {
+	applyAPISecurityHeaders(w.Header(), s.cfg.CookiesSecure())
+	writeProblem(w, status, title, detail)
 }
 
 func (s *Server) logDependencyFailure(ctx context.Context, dependency, code string, err error) {

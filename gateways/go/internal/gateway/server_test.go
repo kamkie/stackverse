@@ -150,6 +150,30 @@ func TestFailedCallbackRedirectsHomeWithoutSession(t *testing.T) {
 	}
 }
 
+func TestCallbackRequiresLoginStateCookie(t *testing.T) {
+	app := newHarness(t, nil)
+
+	login := app.get("/auth/login")
+	state := mustParseLocation(t, login).Query().Get("state")
+	jar, _ := cookiejar.New(nil)
+	app.client.Jar = jar
+
+	callback := app.get("/auth/callback?code=ok&state=" + url.QueryEscape(state))
+	if callback.StatusCode != http.StatusFound {
+		t.Fatalf("callback status = %d", callback.StatusCode)
+	}
+	if cookie := findSetCookie(callback, sessionCookieName); cookie != nil {
+		t.Fatalf("session cookie should not be set: %#v", cookie)
+	}
+
+	sessionResponse := app.get("/auth/session")
+	var body map[string]any
+	decodeJSON(t, sessionResponse, &body)
+	if body["authenticated"] != false {
+		t.Fatalf("session body = %#v", body)
+	}
+}
+
 func TestSuccessfulCallbackCreatesRedisBackedSession(t *testing.T) {
 	app := newHarness(t, nil)
 
@@ -384,6 +408,7 @@ func (b *backendRecorder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b.lastAuthorization = r.Header.Get("Authorization")
 	b.lastCookie = r.Header.Get("Cookie")
 	b.lastCSRFHeader = r.Header.Get(csrfHeaderName)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if r.URL.Path == "/api/v1/messages/bundle" {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("ETag", `"bundle-v1"`)

@@ -24,7 +24,9 @@ The Stackverse BFF in Go 1.26 using `net/http`, chi, go-redis, `oauth2`, and
 - **OIDC code flow with PKCE.** The authorization redirect uses
   `OIDC_ISSUER_URI`; server-side token/JWKS/logout calls use
   `OIDC_INTERNAL_ISSUER_URI` when set, while ID token issuer validation still uses
-  the public issuer.
+  the public issuer. The one-time state and PKCE verifier live in Redis, and a
+  short-lived HttpOnly `stackverse_login_state` cookie binds the callback to the
+  browser that initiated login.
 - **Refresh failure split.** A refresh rejected by Keycloak (`400`/`401`) logs
   `token_refresh_failed`, destroys the session, clears the cookie, and relays the
   original API request anonymously. A transient IdP outage (`5xx`, `429`,
