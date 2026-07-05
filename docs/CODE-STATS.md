@@ -4,7 +4,8 @@
 
 One product, the same contract, implemented across many stacks. Files come
 from `git ls-files` (tracked files only — no generated output, lockfiles git
-ignores, or vendored caches); line counts and languages come from
+ignores, or vendored caches; hidden dotfiles and dot-directories such as
+`.yarn/` are excluded); line counts and languages come from
 [`tokei`](https://github.com/XAMPPRocky/tokei), split by role:
 
 | Role | What it counts |

@@ -8,7 +8,7 @@ Requires Node.js 18+ and tokei on PATH.
 Examples:
   ./scripts/code-stats.ps1
   ./scripts/code-stats.ps1 -Format markdown -Write docs/CODE-STATS.md
-  ./scripts/code-stats.ps1 -Component backend -Component frontend
+  ./scripts/code-stats.ps1 -Component backend,frontend
 #>
 #Requires -Version 7
 [CmdletBinding()]
