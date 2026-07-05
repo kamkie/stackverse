@@ -2,14 +2,11 @@ package dev.stackverse.backend.auth
 
 import dev.stackverse.backend.config.EventLogger
 import dev.stackverse.backend.support.ApiError
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
-import org.springframework.stereotype.Service
 
-@Service
 class AuthService {
-    @Autowired EventLogger eventLogger
+    EventLogger eventLogger
 
     Map currentUser() {
         def authentication = SecurityContextHolder.context.authentication

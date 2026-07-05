@@ -9,12 +9,10 @@ import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.json.JsonSlurper
 import groovy.transform.CompileDynamic
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 import java.nio.file.Files
@@ -22,16 +20,15 @@ import java.nio.file.Path
 import java.sql.Timestamp
 import java.util.regex.Pattern
 
-@Service
 @CompileDynamic
 class MessageService implements ApplicationRunner {
     private static final Pattern KEY = ~/^[a-z0-9-]+(\.[a-z0-9-]+)*$/
     private static final Pattern LANG = ~/^[a-z]{2}$/
 
-    @Autowired JdbcTemplate jdbcTemplate
-    @Autowired TimeSource timeSource
-    @Autowired AuditService auditService
-    @Autowired EventLogger eventLogger
+    JdbcTemplate jdbcTemplate
+    TimeSource timeSource
+    AuditService auditService
+    EventLogger eventLogger
 
     @Value('${stackverse.seed.messages-dir}')
     String messagesDir

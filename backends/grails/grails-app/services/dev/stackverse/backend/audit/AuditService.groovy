@@ -5,17 +5,14 @@ import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.json.JsonOutput
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 import java.sql.Timestamp
 
-@Service
 class AuditService {
-    @Autowired JdbcTemplate jdbcTemplate
-    @Autowired TimeSource timeSource
+    JdbcTemplate jdbcTemplate
+    TimeSource timeSource
 
     @Transactional
     void record(String actor, String action, String targetType, String targetId, Map detail = null) {

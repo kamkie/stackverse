@@ -1,16 +1,13 @@
 package dev.stackverse.backend.stats
 
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Service
 
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.sql.Timestamp
 
-@Service
 class StatsService {
-    @Autowired JdbcTemplate jdbcTemplate
+    JdbcTemplate jdbcTemplate
 
     Map snapshot() {
         LocalDate today = LocalDate.now(ZoneOffset.UTC)

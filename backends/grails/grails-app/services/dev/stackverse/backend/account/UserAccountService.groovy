@@ -8,20 +8,17 @@ import dev.stackverse.backend.support.TimeSource
 import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.config.EventLogger
 import groovy.transform.CompileDynamic
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 import java.sql.Timestamp
 
-@Service
 @CompileDynamic
 class UserAccountService {
-    @Autowired JdbcTemplate jdbcTemplate
-    @Autowired TimeSource timeSource
-    @Autowired AuditService auditService
-    @Autowired EventLogger eventLogger
+    JdbcTemplate jdbcTemplate
+    TimeSource timeSource
+    AuditService auditService
+    EventLogger eventLogger
 
     @Transactional
     Map touch(String username) {

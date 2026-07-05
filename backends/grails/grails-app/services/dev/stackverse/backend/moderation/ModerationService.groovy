@@ -9,22 +9,19 @@ import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.transform.CompileDynamic
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 import java.sql.Timestamp
 
-@Service
 @CompileDynamic
 class ModerationService {
-    @Autowired JdbcTemplate jdbcTemplate
-    @Autowired TimeSource timeSource
-    @Autowired MessageService messageService
-    @Autowired BookmarkService bookmarkService
-    @Autowired AuditService auditService
-    @Autowired EventLogger eventLogger
+    JdbcTemplate jdbcTemplate
+    TimeSource timeSource
+    MessageService messageService
+    BookmarkService bookmarkService
+    AuditService auditService
+    EventLogger eventLogger
 
     Map listMine(String username, Map params) {
         int page = Paging.page(params.page)

@@ -10,24 +10,21 @@ import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.transform.CompileDynamic
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 import java.sql.Timestamp
 import java.util.regex.Pattern
 
-@Service
 @CompileDynamic
 class BookmarkService {
     private static final Pattern TAG = ~/^[a-z0-9-]{1,30}$/
 
-    @Autowired JdbcTemplate jdbcTemplate
-    @Autowired TimeSource timeSource
-    @Autowired MessageService messageService
-    @Autowired EventLogger eventLogger
+    JdbcTemplate jdbcTemplate
+    TimeSource timeSource
+    MessageService messageService
+    EventLogger eventLogger
 
     Map getVisible(UUID id, String username) {
         Map bookmark = find(id)
