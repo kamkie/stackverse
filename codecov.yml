@@ -50,6 +50,10 @@ flags:
     paths:
       - backends/play-scala/
     carryforward: true
+  backend-python-fastapi:
+    paths:
+      - backends/python-fastapi/
+    carryforward: true
   backend-quarkus-java:
     paths:
       - backends/quarkus-java/
@@ -147,6 +151,10 @@ component_management:
       name: "backend · play-scala"
       paths:
         - backends/play-scala/**
+    - component_id: backend-python-fastapi
+      name: "backend · python-fastapi"
+      paths:
+        - backends/python-fastapi/**
     - component_id: backend-quarkus-java
       name: "backend · quarkus-java"
       paths:
