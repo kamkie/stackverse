@@ -1,10 +1,9 @@
 package dev.stackverse.backend;
 
-import org.eclipse.microprofile.config.spi.ConfigSource;
-
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import org.eclipse.microprofile.config.spi.ConfigSource;
 
 public class EnvConfigSource implements ConfigSource {
     private final Map<String, String> properties;

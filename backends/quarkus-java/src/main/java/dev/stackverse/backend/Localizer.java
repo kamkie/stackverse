@@ -4,9 +4,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.UriInfo;
-import org.jboss.logging.Logger;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -17,6 +14,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import javax.sql.DataSource;
+import org.jboss.logging.Logger;
 
 @ApplicationScoped
 class Localizer {
@@ -36,7 +35,8 @@ class Localizer {
         if (explicit != null && supported.contains(explicit)) {
             return explicit;
         }
-        for (String language : parseAcceptLanguage(headers.getHeaderString(HttpHeaders.ACCEPT_LANGUAGE))) {
+        for (String language :
+                parseAcceptLanguage(headers.getHeaderString(HttpHeaders.ACCEPT_LANGUAGE))) {
             if (supported.contains(language)) {
                 return language;
             }
@@ -53,12 +53,21 @@ class Localizer {
             return Map.of();
         }
         try (Connection connection = dataSource.getConnection()) {
-            List<MessageText> rows = StackverseService.query(connection,
-                    "select key, language, text from messages"
-                            + " where key = any(?::text[]) and language = any(?::text[])"
-                            + " order by key, case when language = ? then 0 else 1 end",
-                    List.of(new ArrayList<>(keys), List.of(language, DEFAULT_LANGUAGE), language),
-                    rs -> new MessageText(rs.getString("key"), rs.getString("language"), rs.getString("text")));
+            List<MessageText> rows =
+                    StackverseService.query(
+                            connection,
+                            "select key, language, text from messages"
+                                    + " where key = any(?::text[]) and language = any(?::text[])"
+                                    + " order by key, case when language = ? then 0 else 1 end",
+                            List.of(
+                                    new ArrayList<>(keys),
+                                    List.of(language, DEFAULT_LANGUAGE),
+                                    language),
+                            rs ->
+                                    new MessageText(
+                                            rs.getString("key"),
+                                            rs.getString("language"),
+                                            rs.getString("text")));
             Map<String, String> messages = new LinkedHashMap<>();
             for (MessageText row : rows) {
                 messages.putIfAbsent(row.key(), row.text());
@@ -79,10 +88,16 @@ class Localizer {
 
     Map<String, String> bundle(String language) {
         try (Connection connection = dataSource.getConnection()) {
-            List<MessageText> rows = StackverseService.query(connection,
-                    "select key, language, text from messages where language = any(?::text[]) order by key",
-                    List.of(List.of(language, DEFAULT_LANGUAGE)),
-                    rs -> new MessageText(rs.getString("key"), rs.getString("language"), rs.getString("text")));
+            List<MessageText> rows =
+                    StackverseService.query(
+                            connection,
+                            "select key, language, text from messages where language = any(?::text[]) order by key",
+                            List.of(List.of(language, DEFAULT_LANGUAGE)),
+                            rs ->
+                                    new MessageText(
+                                            rs.getString("key"),
+                                            rs.getString("language"),
+                                            rs.getString("text")));
             Map<String, String> messages = new LinkedHashMap<>();
             for (MessageText row : rows) {
                 if (row.language().equals(language) || !messages.containsKey(row.key())) {
@@ -97,10 +112,12 @@ class Localizer {
 
     Set<String> supportedLanguages() {
         try (Connection connection = dataSource.getConnection()) {
-            return new LinkedHashSet<>(StackverseService.query(connection,
-                    "select distinct language from messages order by language",
-                    List.of(),
-                    rs -> rs.getString("language")));
+            return new LinkedHashSet<>(
+                    StackverseService.query(
+                            connection,
+                            "select distinct language from messages order by language",
+                            List.of(),
+                            rs -> rs.getString("language")));
         } catch (SQLException | DbException error) {
             LOG.error("Failed to load supported message languages", error);
             return Set.of(DEFAULT_LANGUAGE);
@@ -143,8 +160,10 @@ class Localizer {
             }
             preferences.add(new LanguagePreference(code, quality, i));
         }
-        preferences.sort(Comparator.comparingDouble(LanguagePreference::quality).reversed()
-                .thenComparingInt(LanguagePreference::index));
+        preferences.sort(
+                Comparator.comparingDouble(LanguagePreference::quality)
+                        .reversed()
+                        .thenComparingInt(LanguagePreference::index));
         return preferences.stream().map(LanguagePreference::code).toList();
     }
 
@@ -153,8 +172,6 @@ class Localizer {
     }
 }
 
-record MessageText(String key, String language, String text) {
-}
+record MessageText(String key, String language, String text) {}
 
-record LanguagePreference(String code, double quality, int index) {
-}
+record LanguagePreference(String code, double quality, int index) {}

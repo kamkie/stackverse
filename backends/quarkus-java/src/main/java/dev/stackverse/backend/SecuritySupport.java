@@ -8,19 +8,17 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.UriInfo;
 import jakarta.ws.rs.ext.Provider;
-import org.eclipse.microprofile.jwt.JsonWebToken;
-import org.jboss.logging.Logger;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import javax.sql.DataSource;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.jboss.logging.Logger;
 
 final class AuthSupport {
-    private AuthSupport() {
-    }
+    private AuthSupport() {}
 
     static Caller currentCaller(SecurityIdentity identity, JsonWebToken jwt) {
         if (identity == null || identity.isAnonymous()) {
@@ -30,8 +28,11 @@ final class AuthSupport {
         if (username == null || username.isBlank()) {
             username = identity.getPrincipal().getName();
         }
-        return new Caller(username, new ArrayList<>(new LinkedHashSet<>(identity.getRoles())),
-                claimString(jwt, "name"), claimString(jwt, "email"));
+        return new Caller(
+                username,
+                new ArrayList<>(new LinkedHashSet<>(identity.getRoles())),
+                claimString(jwt, "name"),
+                claimString(jwt, "email"));
     }
 
     private static String claimString(JsonWebToken jwt, String claim) {
@@ -49,15 +50,16 @@ class AccountRequestFilter implements ContainerRequestFilter {
     private final JsonWebToken jwt;
     private final Localizer localizer;
 
-    @Context
-    UriInfo uriInfo;
+    @Context UriInfo uriInfo;
 
-    @Context
-    HttpHeaders headers;
+    @Context HttpHeaders headers;
 
     @Inject
-    AccountRequestFilter(DataSource dataSource, SecurityIdentity securityIdentity, JsonWebToken jwt,
-                         Localizer localizer) {
+    AccountRequestFilter(
+            DataSource dataSource,
+            SecurityIdentity securityIdentity,
+            JsonWebToken jwt,
+            Localizer localizer) {
         this.dataSource = dataSource;
         this.securityIdentity = securityIdentity;
         this.jwt = jwt;
@@ -71,18 +73,30 @@ class AccountRequestFilter implements ContainerRequestFilter {
             return;
         }
         try (Connection connection = dataSource.getConnection()) {
-            String status = StackverseService.queryOne(connection,
-                    "insert into user_accounts (username, first_seen, last_seen, status)"
-                            + " values (?, ?, ?, 'active')"
-                            + " on conflict (username) do update set last_seen = excluded.last_seen"
-                            + " returning status",
-                    StackverseService.params(caller.username(), StackverseService.now(), StackverseService.now()),
-                    rs -> rs.getString("status")).orElse("active");
+            String status =
+                    StackverseService.queryOne(
+                                    connection,
+                                    "insert into user_accounts (username, first_seen, last_seen, status)"
+                                            + " values (?, ?, ?, 'active')"
+                                            + " on conflict (username) do update set last_seen = excluded.last_seen"
+                                            + " returning status",
+                                    StackverseService.params(
+                                            caller.username(),
+                                            StackverseService.now(),
+                                            StackverseService.now()),
+                                    rs -> rs.getString("status"))
+                            .orElse("active");
             if ("blocked".equals(status)) {
-                StackverseLog.event(LOG, Logger.Level.WARN, "blocked_user_rejected", "denied",
-                        "Refused a request from a blocked account", Map.of("actor", caller.username()));
-                requestContext.abortWith(StackverseProblem.forbiddenKey("error.account.blocked")
-                        .response(localizer, uriInfo, headers));
+                StackverseLog.event(
+                        LOG,
+                        Logger.Level.WARN,
+                        "blocked_user_rejected",
+                        "denied",
+                        "Refused a request from a blocked account",
+                        Map.of("actor", caller.username()));
+                requestContext.abortWith(
+                        StackverseProblem.forbiddenKey("error.account.blocked")
+                                .response(localizer, uriInfo, headers));
             }
         } catch (SQLException error) {
             throw new DbException(error);

@@ -1,30 +1,29 @@
 package dev.stackverse.backend;
 
-import io.quarkus.security.identity.SecurityIdentity;
-import jakarta.ws.rs.container.ContainerRequestContext;
-import jakarta.ws.rs.core.HttpHeaders;
-import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriInfo;
-import org.eclipse.microprofile.jwt.JsonWebToken;
-import org.junit.jupiter.api.Test;
-
-import java.lang.reflect.Proxy;
-import java.security.Principal;
-import java.time.Instant;
-import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.quarkus.security.identity.SecurityIdentity;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
+import java.lang.reflect.Proxy;
+import java.security.Principal;
+import java.sql.SQLException;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import org.eclipse.microprofile.jwt.JsonWebToken;
+import org.junit.jupiter.api.Test;
 
 class BackendSupportTest {
     private static final Instant CREATED = Instant.parse("2026-07-01T12:00:00Z");
@@ -34,29 +33,33 @@ class BackendSupportTest {
 
     @Test
     void parsesAcceptLanguageByQualityAndPrimarySubtag() {
-        assertEquals(List.of("pl", "en"),
+        assertEquals(
+                List.of("pl", "en"),
                 Localizer.parseAcceptLanguage("en-US;q=0.5, pl-PL;q=0.9, *;q=1, de;q=0"));
     }
 
     @Test
     void parsesAcceptLanguageIgnoringInvalidAndZeroQualityEntries() {
-        assertEquals(List.of(),
-                Localizer.parseAcceptLanguage(null));
-        assertEquals(List.of("en", "pl"),
+        assertEquals(List.of(), Localizer.parseAcceptLanguage(null));
+        assertEquals(
+                List.of("en", "pl"),
                 Localizer.parseAcceptLanguage("fr;q=bad, en-US;q=0.8, pl;q=0.8, *;q=1, de;q=0"));
     }
 
     @Test
     void cursorRoundTripsAsOpaqueBase64Url() {
-        Cursor cursor = new Cursor(Instant.parse("2026-07-01T12:34:56.123456Z"),
-                UUID.fromString("11111111-2222-3333-4444-555555555555"));
+        Cursor cursor =
+                new Cursor(
+                        Instant.parse("2026-07-01T12:34:56.123456Z"),
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"));
 
         assertEquals(cursor, Cursor.decode(cursor.encode()));
     }
 
     @Test
     void malformedCursorIsBadRequestProblem() {
-        StackverseProblem problem = assertThrows(StackverseProblem.class, () -> Cursor.decode("not-a-cursor"));
+        StackverseProblem problem =
+                assertThrows(StackverseProblem.class, () -> Cursor.decode("not-a-cursor"));
 
         assertEquals(400, problem.status);
     }
@@ -77,9 +80,19 @@ class BackendSupportTest {
 
     @Test
     void bookmarkResponseSortsTagsAndOmitsMissingOptionalFields() {
-        Map<String, Object> response = StackverseService.bookmarkResponse(new Bookmark(BOOKMARK_ID, "alice",
-                "https://example.com", "Example", null, List.of("java", "api"),
-                "public", "active", CREATED, UPDATED));
+        Map<String, Object> response =
+                StackverseService.bookmarkResponse(
+                        new Bookmark(
+                                BOOKMARK_ID,
+                                "alice",
+                                "https://example.com",
+                                "Example",
+                                null,
+                                List.of("java", "api"),
+                                "public",
+                                "active",
+                                CREATED,
+                                UPDATED));
 
         assertEquals(BOOKMARK_ID.toString(), response.get("id"));
         assertEquals(List.of("api", "java"), response.get("tags"));
@@ -89,10 +102,30 @@ class BackendSupportTest {
 
     @Test
     void reportResponseIncludesResolutionFieldsOnlyWhenPresent() {
-        Report open = new Report(REPORT_ID, BOOKMARK_ID, "bob", "spam", null, "open",
-                null, null, null, CREATED);
-        Report actioned = new Report(REPORT_ID, BOOKMARK_ID, "bob", "spam", "duplicate",
-                "actioned", "moderator", UPDATED, "hidden", CREATED);
+        Report open =
+                new Report(
+                        REPORT_ID,
+                        BOOKMARK_ID,
+                        "bob",
+                        "spam",
+                        null,
+                        "open",
+                        null,
+                        null,
+                        null,
+                        CREATED);
+        Report actioned =
+                new Report(
+                        REPORT_ID,
+                        BOOKMARK_ID,
+                        "bob",
+                        "spam",
+                        "duplicate",
+                        "actioned",
+                        "moderator",
+                        UPDATED,
+                        "hidden",
+                        CREATED);
 
         Map<String, Object> openResponse = StackverseService.reportResponse(open);
         Map<String, Object> actionedResponse = StackverseService.reportResponse(actioned);
@@ -111,22 +144,28 @@ class BackendSupportTest {
         validator.reject("url", "validation.url.invalid");
         validator.check(false, "title", "validation.title.required");
 
-        StackverseProblem problem = assertThrows(StackverseProblem.class, validator::throwIfInvalid);
+        StackverseProblem problem =
+                assertThrows(StackverseProblem.class, validator::throwIfInvalid);
 
         assertEquals(400, problem.status);
-        assertEquals(List.of(
-                new FieldViolation("url", "validation.url.invalid"),
-                new FieldViolation("title", "validation.title.required")), problem.fields);
+        assertEquals(
+                List.of(
+                        new FieldViolation("url", "validation.url.invalid"),
+                        new FieldViolation("title", "validation.title.required")),
+                problem.fields);
     }
 
     @Test
     void problemResponseLocalizesDetailAndFieldErrors() {
-        Response conflict = StackverseProblem.conflictKey("error.bookmark.hidden-publish")
-                .response(new StubLocalizer(), null, null);
-        Response validation = StackverseProblem.validation(List.of(
-                        new FieldViolation("url", "validation.url.invalid"),
-                        new FieldViolation("title", "validation.title.required")))
-                .response(new StubLocalizer(), null, null);
+        Response conflict =
+                StackverseProblem.conflictKey("error.bookmark.hidden-publish")
+                        .response(new StubLocalizer(), null, null);
+        Response validation =
+                StackverseProblem.validation(
+                                List.of(
+                                        new FieldViolation("url", "validation.url.invalid"),
+                                        new FieldViolation("title", "validation.title.required")))
+                        .response(new StubLocalizer(), null, null);
 
         Map<?, ?> conflictBody = assertInstanceOf(Map.class, conflict.getEntity());
         Map<?, ?> validationBody = assertInstanceOf(Map.class, validation.getEntity());
@@ -157,9 +196,20 @@ class BackendSupportTest {
 
     @Test
     void authSupportDerivesCallerFromJwtClaimsAndIdentityRoles() {
-        Caller caller = AuthSupport.currentCaller(
-                identity(false, "subject-123", new LinkedHashSet<>(List.of("moderator", "admin"))),
-                jwt(Map.of("preferred_username", "alice", "name", "Alice Doe", "email", "alice@example.com")));
+        Caller caller =
+                AuthSupport.currentCaller(
+                        identity(
+                                false,
+                                "subject-123",
+                                new LinkedHashSet<>(List.of("moderator", "admin"))),
+                        jwt(
+                                Map.of(
+                                        "preferred_username",
+                                        "alice",
+                                        "name",
+                                        "Alice Doe",
+                                        "email",
+                                        "alice@example.com")));
 
         assertEquals("alice", caller.username());
         assertEquals(List.of("moderator", "admin"), caller.roles());
@@ -169,9 +219,10 @@ class BackendSupportTest {
 
     @Test
     void authSupportFallsBackToPrincipalNameAndIgnoresAnonymousIdentity() {
-        Caller fallback = AuthSupport.currentCaller(
-                identity(false, "subject-123", Set.of()),
-                jwt(Map.of("preferred_username", "   ")));
+        Caller fallback =
+                AuthSupport.currentCaller(
+                        identity(false, "subject-123", Set.of()),
+                        jwt(Map.of("preferred_username", "   ")));
 
         assertEquals("subject-123", fallback.username());
         assertNull(AuthSupport.currentCaller(identity(true, "anonymous", Set.of()), jwt(Map.of())));
@@ -179,16 +230,20 @@ class BackendSupportTest {
 
     @Test
     void routeHeadersAddDeprecationOnlyForGetV1BookmarksRoute() {
-        Response routed = ResponseContracts.routeHeaders(
-                request("GET", "api/v1/bookmarks"), null, Response.status(400).build());
-        Response post = ResponseContracts.routeHeaders(
-                request("POST", "api/v1/bookmarks"), null, Response.status(400).build());
-        Response v2 = ResponseContracts.routeHeaders(
-                request("GET", "api/v2/bookmarks"), null, Response.status(400).build());
+        Response routed =
+                ResponseContracts.routeHeaders(
+                        request("GET", "api/v1/bookmarks"), null, Response.status(400).build());
+        Response post =
+                ResponseContracts.routeHeaders(
+                        request("POST", "api/v1/bookmarks"), null, Response.status(400).build());
+        Response v2 =
+                ResponseContracts.routeHeaders(
+                        request("GET", "api/v2/bookmarks"), null, Response.status(400).build());
 
         assertEquals("@1782864000", routed.getHeaderString("Deprecation"));
         assertEquals("Thu, 01 Jul 2027 00:00:00 GMT", routed.getHeaderString("Sunset"));
-        assertEquals("</api/v2/bookmarks>; rel=\"successor-version\"", routed.getHeaderString("Link"));
+        assertEquals(
+                "</api/v2/bookmarks>; rel=\"successor-version\"", routed.getHeaderString("Link"));
         assertNull(post.getHeaderString("Deprecation"));
         assertNull(v2.getHeaderString("Deprecation"));
     }
@@ -205,57 +260,83 @@ class BackendSupportTest {
     }
 
     private static Bookmark bookmark(String owner, String visibility, String status) {
-        return new Bookmark(BOOKMARK_ID, owner, "https://example.com", "Example", "notes",
-                List.of(), visibility, status, CREATED, UPDATED);
+        return new Bookmark(
+                BOOKMARK_ID,
+                owner,
+                "https://example.com",
+                "Example",
+                "notes",
+                List.of(),
+                visibility,
+                status,
+                CREATED,
+                UPDATED);
     }
 
-    private static SecurityIdentity identity(boolean anonymous, String principalName, Set<String> roles) {
-        return proxy(SecurityIdentity.class, (method, args) -> switch (method.getName()) {
-            case "isAnonymous" -> anonymous;
-            case "getPrincipal" -> (Principal) () -> principalName;
-            case "getRoles" -> roles;
-            default -> defaultValue(method.getReturnType());
-        });
+    private static SecurityIdentity identity(
+            boolean anonymous, String principalName, Set<String> roles) {
+        return proxy(
+                SecurityIdentity.class,
+                (method, args) ->
+                        switch (method.getName()) {
+                            case "isAnonymous" -> anonymous;
+                            case "getPrincipal" -> (Principal) () -> principalName;
+                            case "getRoles" -> roles;
+                            default -> defaultValue(method.getReturnType());
+                        });
     }
 
     private static JsonWebToken jwt(Map<String, Object> claims) {
-        return proxy(JsonWebToken.class, (method, args) -> switch (method.getName()) {
-            case "getClaim" -> claims.get(String.valueOf(args[0]));
-            case "getName" -> claims.getOrDefault("preferred_username", "subject");
-            default -> defaultValue(method.getReturnType());
-        });
+        return proxy(
+                JsonWebToken.class,
+                (method, args) ->
+                        switch (method.getName()) {
+                            case "getClaim" -> claims.get(String.valueOf(args[0]));
+                            case "getName" -> claims.getOrDefault("preferred_username", "subject");
+                            default -> defaultValue(method.getReturnType());
+                        });
     }
 
     private static ContainerRequestContext request(String methodName, String path) {
         UriInfo uriInfo = uriInfo(path);
-        return proxy(ContainerRequestContext.class, (method, args) -> switch (method.getName()) {
-            case "getMethod" -> methodName;
-            case "getUriInfo" -> uriInfo;
-            default -> defaultValue(method.getReturnType());
-        });
+        return proxy(
+                ContainerRequestContext.class,
+                (method, args) ->
+                        switch (method.getName()) {
+                            case "getMethod" -> methodName;
+                            case "getUriInfo" -> uriInfo;
+                            default -> defaultValue(method.getReturnType());
+                        });
     }
 
     private static UriInfo uriInfo(String path) {
-        return proxy(UriInfo.class, (method, args) -> switch (method.getName()) {
-            case "getPath" -> path;
-            default -> defaultValue(method.getReturnType());
-        });
+        return proxy(
+                UriInfo.class,
+                (method, args) ->
+                        switch (method.getName()) {
+                            case "getPath" -> path;
+                            default -> defaultValue(method.getReturnType());
+                        });
     }
 
     @SuppressWarnings("unchecked")
     private static <T> T proxy(Class<T> type, Invocation invocation) {
-        return (T) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type}, (proxy, method, args) -> {
-            if ("toString".equals(method.getName())) {
-                return type.getSimpleName() + " test proxy";
-            }
-            if ("hashCode".equals(method.getName())) {
-                return System.identityHashCode(proxy);
-            }
-            if ("equals".equals(method.getName())) {
-                return proxy == args[0];
-            }
-            return invocation.invoke(method, args == null ? new Object[0] : args);
-        });
+        return (T)
+                Proxy.newProxyInstance(
+                        type.getClassLoader(),
+                        new Class<?>[] {type},
+                        (proxy, method, args) -> {
+                            if ("toString".equals(method.getName())) {
+                                return type.getSimpleName() + " test proxy";
+                            }
+                            if ("hashCode".equals(method.getName())) {
+                                return System.identityHashCode(proxy);
+                            }
+                            if ("equals".equals(method.getName())) {
+                                return proxy == args[0];
+                            }
+                            return invocation.invoke(method, args == null ? new Object[0] : args);
+                        });
     }
 
     private static Object defaultValue(Class<?> returnType) {

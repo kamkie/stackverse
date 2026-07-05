@@ -24,10 +24,16 @@ override with `SEED_MESSAGES_DIR` when running from anywhere else. Migrations
 apply on startup, so wipe the compose database volume when switching from
 another backend implementation.
 
-Tests:
+Tests and style checks:
 
 ```sh
 mvn verify
+```
+
+`verify` includes the Spotless/google-java-format gate. To reformat locally:
+
+```sh
+mvn spotless:apply
 ```
 
 Conformance (the acceptance gate), with the backend running:
