@@ -17,6 +17,15 @@ updates:
       actions-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: cargo
+    directories:
+      - /backends/rust-axum
+    schedule:
+      interval: weekly
+    groups:
+      cargo-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: gomod
     directories:
       - /backends/go
@@ -110,6 +119,7 @@ updates:
       - /backends/node-nestjs
       - /backends/node-ts
       - /backends/play-scala
+      - /backends/rust-axum
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react

@@ -42,6 +42,10 @@ flags:
     paths:
       - backends/play-scala/
     carryforward: true
+  backend-rust-axum:
+    paths:
+      - backends/rust-axum/
+    carryforward: true
   backend-spring-kotlin:
     paths:
       - backends/spring-kotlin/
@@ -123,6 +127,10 @@ component_management:
       name: "backend · play-scala"
       paths:
         - backends/play-scala/**
+    - component_id: backend-rust-axum
+      name: "backend · rust-axum"
+      paths:
+        - backends/rust-axum/**
     - component_id: backend-spring-kotlin
       name: "backend · spring-kotlin"
       paths:
