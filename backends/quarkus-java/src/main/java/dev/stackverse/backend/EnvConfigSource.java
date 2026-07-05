@@ -16,6 +16,12 @@ public class EnvConfigSource implements ConfigSource {
         if (logLevel != null && !logLevel.isBlank()) {
             properties.put("quarkus.log.level", logLevel.toUpperCase(Locale.ROOT));
         }
+        String otelDisabled = otelSdkDisabled();
+        properties.put("quarkus.otel.sdk.disabled", otelDisabled);
+        if ("false".equals(otelDisabled)) {
+            properties.put("quarkus.otel.logs.enabled", "true");
+            properties.put("quarkus.otel.metrics.enabled", "true");
+        }
         return properties;
     }
 
@@ -42,5 +48,10 @@ public class EnvConfigSource implements ConfigSource {
     private static String jsonConsoleEnabled() {
         String format = System.getenv().getOrDefault("LOG_FORMAT", "json");
         return Boolean.toString(!"text".equalsIgnoreCase(format));
+    }
+
+    private static String otelSdkDisabled() {
+        String value = System.getenv().getOrDefault("OTEL_SDK_DISABLED", "true").trim();
+        return Boolean.toString(!"false".equalsIgnoreCase(value));
     }
 }

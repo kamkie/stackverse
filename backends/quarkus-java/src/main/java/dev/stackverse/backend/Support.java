@@ -101,15 +101,23 @@ final class StackverseProblem extends RuntimeException {
         body.put("type", "about:blank");
         body.put("title", title);
         body.put("status", status);
-        String resolvedDetail = detailKey == null ? detail : localizer.localize(detailKey, uriInfo, headers);
+        String language = null;
+        String resolvedDetail = detail;
+        if (detailKey != null) {
+            language = localizer.resolveLanguage(uriInfo, headers);
+            resolvedDetail = localizer.localize(detailKey, language);
+        }
         StackverseResource.putIfPresent(body, "detail", resolvedDetail);
         if (!fields.isEmpty()) {
+            if (language == null) {
+                language = localizer.resolveLanguage(uriInfo, headers);
+            }
             List<Map<String, Object>> errors = new ArrayList<>();
             for (FieldViolation field : fields) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("field", field.field());
                 item.put("messageKey", field.messageKey());
-                item.put("message", localizer.localize(field.messageKey(), uriInfo, headers));
+                item.put("message", localizer.localize(field.messageKey(), language));
                 errors.add(item);
             }
             body.put("errors", errors);
@@ -208,8 +216,7 @@ class Localizer {
         return DEFAULT_LANGUAGE;
     }
 
-    String localize(String key, UriInfo uriInfo, HttpHeaders headers) {
-        String language = resolveLanguage(uriInfo, headers);
+    String localize(String key, String language) {
         try (Connection connection = dataSource.getConnection()) {
             return StackverseResource.queryOne(connection,
                     "select text from messages where key = ? and language = any(?::text[])"

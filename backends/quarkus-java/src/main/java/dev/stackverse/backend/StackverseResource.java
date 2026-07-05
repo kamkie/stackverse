@@ -114,15 +114,14 @@ public class StackverseResource {
     public Response listBookmarksV1() {
         int page = pagingPage();
         int size = pageSize();
-        ListQuery query = parseBookmarkListQuery();
+        SqlWhere query = parseBookmarkListQuery();
         Page<Bookmark> result = withConnection(connection -> {
-            String where = query.where();
-            long total = scalarLong(connection, "select count(*) from bookmarks " + where, query.params());
+            long total = scalarLong(connection, "select count(*) from bookmarks " + query.sql(), query.params());
             List<Object> params = new ArrayList<>(query.params());
             params.add(size);
-            params.add(page * size);
+            params.add(offset(page, size));
             List<Bookmark> items = query(connection,
-                    "select * from bookmarks " + where
+                    "select * from bookmarks " + query.sql()
                             + " order by created_at desc, id desc limit ? offset ?",
                     params,
                     StackverseResource::bookmark);
@@ -140,11 +139,11 @@ public class StackverseResource {
     @Path("/api/v2/bookmarks")
     public Response listBookmarksV2() {
         int size = pageSize();
-        ListQuery query = parseBookmarkListQuery();
+        SqlWhere query = parseBookmarkListQuery();
         Cursor cursor = Optional.ofNullable(singleParam("cursor")).filter(value -> !value.isBlank())
                 .map(Cursor::decode).orElse(null);
         List<Bookmark> fetched = withConnection(connection -> {
-            String where = query.where();
+            String where = query.sql();
             List<Object> params = new ArrayList<>(query.params());
             if (cursor != null) {
                 where += " and (created_at, id) < (?, ?)";
@@ -282,7 +281,7 @@ public class StackverseResource {
             long total = scalarLong(connection, "select count(*) from messages " + where.sql(), where.params());
             List<Object> params = new ArrayList<>(where.params());
             params.add(size);
-            params.add(page * size);
+            params.add(offset(page, size));
             List<Map<String, Object>> items = query(connection,
                     "select * from messages " + where.sql()
                             + " order by key, language limit ? offset ?",
@@ -457,7 +456,7 @@ public class StackverseResource {
             long total = scalarLong(connection, "select count(*) from reports " + where.sql(), where.params());
             List<Object> params = new ArrayList<>(where.params());
             params.add(size);
-            params.add(page * size);
+            params.add(offset(page, size));
             List<Map<String, Object>> items = query(connection,
                     "select * from reports " + where.sql() + " order by created_at desc, id desc limit ? offset ?",
                     params,
@@ -522,7 +521,7 @@ public class StackverseResource {
             long total = scalarLong(connection, "select count(*) from reports where status = ?", List.of(status));
             List<Map<String, Object>> items = query(connection,
                     "select * from reports where status = ? order by created_at asc, id asc limit ? offset ?",
-                    List.of(status, size, page * size),
+                    List.of(status, size, offset(page, size)),
                     rs -> reportResponse(report(rs)));
             return pageResponse(items, page, size, total);
         });
@@ -612,7 +611,7 @@ public class StackverseResource {
             long total = scalarLong(connection, "select count(*) from user_accounts u " + where.sql(), where.params());
             List<Object> params = new ArrayList<>(where.params());
             params.add(size);
-            params.add(page * size);
+            params.add(offset(page, size));
             List<Map<String, Object>> items = query(connection,
                     userAccountSelect() + " " + where.sql()
                             + " order by u.last_seen desc, u.username asc limit ? offset ?",
@@ -698,7 +697,7 @@ public class StackverseResource {
             long total = scalarLong(connection, "select count(*) from audit_entries " + where.sql(), where.params());
             List<Object> params = new ArrayList<>(where.params());
             params.add(size);
-            params.add(page * size);
+            params.add(offset(page, size));
             List<Map<String, Object>> items = query(connection,
                     "select * from audit_entries " + where.sql()
                             + " order by created_at desc, id desc limit ? offset ?",
@@ -771,7 +770,7 @@ public class StackverseResource {
         return Response.ok(body).build();
     }
 
-    private ListQuery parseBookmarkListQuery() {
+    private SqlWhere parseBookmarkListQuery() {
         String q = singleParam("q");
         maxLength(q, 200, "q");
         String visibility = singleParam("visibility");
@@ -779,14 +778,27 @@ public class StackverseResource {
             throw StackverseProblem.badRequest("visibility must be one of: private, public");
         }
         List<String> tags = normalizeQueryTags(queryParams().getOrDefault("tag", List.of()));
-        Caller caller = currentCaller();
+        SqlWhere where = new SqlWhere();
         if (!"public".equals(visibility)) {
+            Caller caller = currentCaller();
             if (caller == null) {
                 throw StackverseProblem.unauthorized("Authentication is required.");
             }
-            return new ListQuery(caller.username(), visibility, tags, q);
+            where.and("owner = ?", caller.username());
+            if (visibility != null) {
+                where.and("visibility = ?", visibility);
+            }
+        } else {
+            where.and("visibility = 'public' and status = 'active'");
         }
-        return new ListQuery(null, visibility, tags, q);
+        if (!tags.isEmpty()) {
+            where.and("tags @> ?::text[]", tags);
+        }
+        if (q != null && !q.isBlank()) {
+            String pattern = "%" + escapeLike(q) + "%";
+            where.and("(title ilike ? escape '\\' or notes ilike ? escape '\\')", pattern, pattern);
+        }
+        return where;
     }
 
     private BookmarkInput validateBookmarkInput(JsonNode raw) {
@@ -1018,6 +1030,10 @@ public class StackverseResource {
             throw StackverseProblem.badRequest("size must be between 1 and 100");
         }
         return size;
+    }
+
+    private long offset(int page, int size) {
+        return Math.multiplyFull(page, size);
     }
 
     private int intParam(String name, int fallback) {
@@ -1598,46 +1614,6 @@ final class SqlWhere {
     }
 
     List<Object> params() {
-        return params;
-    }
-}
-
-record ListQuery(String caller, String visibility, List<String> tags, String q) {
-    String where() {
-        List<String> conditions = new ArrayList<>();
-        if ("public".equals(visibility)) {
-            conditions.add("visibility = 'public' and status = 'active'");
-        } else {
-            conditions.add("owner = ?");
-            if (visibility != null) {
-                conditions.add("visibility = ?");
-            }
-        }
-        if (!tags.isEmpty()) {
-            conditions.add("tags @> ?::text[]");
-        }
-        if (q != null && !q.isBlank()) {
-            conditions.add("(title ilike ? escape '\\' or notes ilike ? escape '\\')");
-        }
-        return "where " + String.join(" and ", conditions);
-    }
-
-    List<Object> params() {
-        List<Object> params = new ArrayList<>();
-        if (!"public".equals(visibility)) {
-            params.add(caller);
-            if (visibility != null) {
-                params.add(visibility);
-            }
-        }
-        if (!tags.isEmpty()) {
-            params.add(tags);
-        }
-        if (q != null && !q.isBlank()) {
-            String pattern = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            params.add(pattern);
-            params.add(pattern);
-        }
         return params;
     }
 }
