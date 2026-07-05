@@ -2,9 +2,6 @@ package dev.stackverse.backend;
 
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.inject.Inject;
-import jakarta.json.JsonArray;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.container.ContainerRequestFilter;
 import jakarta.ws.rs.core.Context;
@@ -19,9 +16,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 final class AuthSupport {
     private AuthSupport() {
@@ -35,40 +30,13 @@ final class AuthSupport {
         if (username == null || username.isBlank()) {
             username = identity.getPrincipal().getName();
         }
-        Set<String> roles = new LinkedHashSet<>(identity.getRoles());
-        roles.addAll(realmRoles(jwt));
-        return new Caller(username, new ArrayList<>(roles),
+        return new Caller(username, new ArrayList<>(new LinkedHashSet<>(identity.getRoles())),
                 claimString(jwt, "name"), claimString(jwt, "email"));
     }
 
     private static String claimString(JsonWebToken jwt, String claim) {
         Object value = jwt == null ? null : jwt.getClaim(claim);
         return value instanceof String string ? string : null;
-    }
-
-    private static List<String> realmRoles(JsonWebToken jwt) {
-        Object realmAccess = jwt == null ? null : jwt.getClaim("realm_access");
-        Object roles = null;
-        if (realmAccess instanceof Map<?, ?> map) {
-            roles = map.get("roles");
-        } else if (realmAccess instanceof JsonObject object) {
-            roles = object.getJsonArray("roles");
-        }
-        List<String> result = new ArrayList<>();
-        if (roles instanceof Iterable<?> iterable) {
-            for (Object role : iterable) {
-                if (role instanceof String string) {
-                    result.add(string);
-                } else if (role instanceof JsonString jsonString) {
-                    result.add(jsonString.getString());
-                } else if (role != null) {
-                    result.add(String.valueOf(role));
-                }
-            }
-        } else if (roles instanceof JsonArray array) {
-            array.forEach(role -> result.add(role.toString().replace("\"", "")));
-        }
-        return result;
     }
 }
 

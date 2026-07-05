@@ -4,6 +4,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.UriInfo;
+import org.jboss.logging.Logger;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -19,6 +20,7 @@ import java.util.Set;
 
 @ApplicationScoped
 class Localizer {
+    private static final Logger LOG = Logger.getLogger(Localizer.class);
     static final String DEFAULT_LANGUAGE = "en";
 
     @Inject
@@ -39,14 +41,35 @@ class Localizer {
     }
 
     String localize(String key, String language) {
+        return localizeAll(Set.of(key), language).getOrDefault(key, key);
+    }
+
+    Map<String, String> localizeAll(Set<String> keys, String language) {
+        if (keys.isEmpty()) {
+            return Map.of();
+        }
         try (Connection connection = dataSource.getConnection()) {
-            return StackverseResource.queryOne(connection,
-                    "select text from messages where key = ? and language = any(?::text[])"
-                            + " order by case when language = ? then 0 else 1 end limit 1",
-                    List.of(key, List.of(language, DEFAULT_LANGUAGE), language),
-                    rs -> rs.getString("text")).orElse(key);
-        } catch (Exception error) {
-            return key;
+            List<MessageText> rows = StackverseResource.query(connection,
+                    "select key, language, text from messages"
+                            + " where key = any(?::text[]) and language = any(?::text[])"
+                            + " order by key, case when language = ? then 0 else 1 end",
+                    List.of(new ArrayList<>(keys), List.of(language, DEFAULT_LANGUAGE), language),
+                    rs -> new MessageText(rs.getString("key"), rs.getString("language"), rs.getString("text")));
+            Map<String, String> messages = new LinkedHashMap<>();
+            for (MessageText row : rows) {
+                messages.putIfAbsent(row.key(), row.text());
+            }
+            for (String key : keys) {
+                messages.putIfAbsent(key, key);
+            }
+            return messages;
+        } catch (SQLException | DbException error) {
+            LOG.error("Failed to localize message keys", error);
+            Map<String, String> fallback = new LinkedHashMap<>();
+            for (String key : keys) {
+                fallback.put(key, key);
+            }
+            return fallback;
         }
     }
 
@@ -74,7 +97,8 @@ class Localizer {
                     "select distinct language from messages order by language",
                     List.of(),
                     rs -> rs.getString("language")));
-        } catch (Exception error) {
+        } catch (SQLException | DbException error) {
+            LOG.error("Failed to load supported message languages", error);
             return Set.of(DEFAULT_LANGUAGE);
         }
     }

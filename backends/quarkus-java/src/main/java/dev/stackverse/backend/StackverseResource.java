@@ -815,7 +815,11 @@ public class StackverseResource {
         List<String> tags = normalizeBodyTags(body.get("tags"));
         validator.check(tags.size() <= 10, "tags", "validation.tags.too-many");
         validator.check(tags.stream().allMatch(tag -> TAG_PATTERN.matcher(tag).matches()), "tags", "validation.tag.invalid");
-        String visibility = body.has("visibility") ? text(body, "visibility", null) : "private";
+        JsonNode visibilityNode = body.get("visibility");
+        String visibility = "private";
+        if (visibilityNode != null && !visibilityNode.isNull()) {
+            visibility = visibilityNode.isTextual() ? visibilityNode.asText() : null;
+        }
         if (!Set.of("private", "public").contains(visibility)) {
             throw StackverseProblem.badRequest("visibility must be one of: private, public");
         }

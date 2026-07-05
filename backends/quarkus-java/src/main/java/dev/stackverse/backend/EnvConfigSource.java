@@ -3,7 +3,6 @@ package dev.stackverse.backend;
 import org.eclipse.microprofile.config.spi.ConfigSource;
 
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -12,10 +11,6 @@ public class EnvConfigSource implements ConfigSource {
     public Map<String, String> getProperties() {
         Map<String, String> properties = new LinkedHashMap<>();
         properties.put("quarkus.log.console.json.enabled", jsonConsoleEnabled());
-        String logLevel = System.getenv("LOG_LEVEL");
-        if (logLevel != null && !logLevel.isBlank()) {
-            properties.put("quarkus.log.level", logLevel.toUpperCase(Locale.ROOT));
-        }
         String otelDisabled = otelSdkDisabled();
         properties.put("quarkus.otel.sdk.disabled", otelDisabled);
         if ("false".equals(otelDisabled)) {

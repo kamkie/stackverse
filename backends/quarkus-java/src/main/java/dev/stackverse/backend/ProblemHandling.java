@@ -19,9 +19,11 @@ import jakarta.ws.rs.ext.Provider;
 import org.jboss.logging.Logger;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 record FieldViolation(String field, String messageKey) {
 }
@@ -90,12 +92,17 @@ final class StackverseProblem extends RuntimeException {
             if (language == null) {
                 language = localizer.resolveLanguage(uriInfo, headers);
             }
+            Set<String> messageKeys = new LinkedHashSet<>();
+            for (FieldViolation field : fields) {
+                messageKeys.add(field.messageKey());
+            }
+            Map<String, String> messages = localizer.localizeAll(messageKeys, language);
             List<Map<String, Object>> errors = new ArrayList<>();
             for (FieldViolation field : fields) {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("field", field.field());
                 item.put("messageKey", field.messageKey());
-                item.put("message", localizer.localize(field.messageKey(), language));
+                item.put("message", messages.getOrDefault(field.messageKey(), field.messageKey()));
                 errors.add(item);
             }
             body.put("errors", errors);
@@ -129,6 +136,9 @@ final class ResponseContracts {
     }
 
     static Response routeHeaders(ContainerRequestContext request, UriInfo uriInfo, Response response) {
+        if (request == null || !"GET".equals(request.getMethod())) {
+            return response;
+        }
         String requestPath = request == null ? null : request.getUriInfo().getPath();
         String uriPath = uriInfo == null ? null : uriInfo.getPath();
         if (isV1BookmarksPath(requestPath) || isV1BookmarksPath(uriPath)) {
