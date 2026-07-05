@@ -42,6 +42,10 @@ flags:
     paths:
       - frontends/react/
     carryforward: true
+  frontend-vue:
+    paths:
+      - frontends/vue/
+    carryforward: true
   gateway-go:
     paths:
       - gateways/go/
@@ -99,6 +103,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-vue
+      name: "frontend · vue"
+      paths:
+        - frontends/vue/**
     - component_id: gateway-go
       name: "gateway · go"
       paths:

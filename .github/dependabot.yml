@@ -59,6 +59,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /frontends/vue
       - /gateways/node-fastify
       - /testing/axe-a11y
       - /testing/cypress-e2e
@@ -96,6 +97,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /frontends/vue
       - /gateways/go
       - /gateways/node-fastify
       - /gateways/openresty

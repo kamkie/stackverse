@@ -1,0 +1,62 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-frontend-vue
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-vue:
+    name: Frontend · Vue
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/vue
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      # Yarn Berry PnP: archives live in the global cache, not node_modules
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-vue-${{ hashFiles('frontends/vue/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-vue-
+      - name: Install dependencies
+        run: yarn install --immutable
+      # the committed src/api/schema.ts must match spec/openapi.yaml
+      - name: Check generated API types are current
+        run: yarn generate:api:check
+      # `yarn build` runs vue-tsc before vite build
+      - name: Typecheck and build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test --coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: frontends/vue/coverage/lcov.info
+          flags: frontend-vue
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: frontends/vue/test-results/junit.xml
+          flags: frontend-vue
+          token: ${{ secrets.CODECOV_TOKEN }}
