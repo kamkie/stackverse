@@ -6,7 +6,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 **Status legend:** ✅ idiomatic · 🟡 deliberate deviation (documented in the variant's README) · 🔴 undocumented deviation · — not applicable.
 
-> Authoritative source: the per-variant issues (#163–#183, #197–#198) are the verified, adversarially-checked record behind each status tag; this table is a quick-reference synthesis of them. Where a cell and its issue disagree, trust the issue.
+> Source trail: the per-variant issues (#163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind this snapshot. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
 >
 > Maintenance note: unlike most shared docs this file is O(N) in the number of implementations — a new variant adds one row to each table in its layer section. Keep cells terse; put the *why* in the variant README, not here.
 
@@ -23,7 +23,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Grails](../backends/grails/README.md) | grails-app/{controllers,services,domain,conf} convention dirs; src/main/groovy for beans | Standard grails-app dirs; src/main/groovy holds Spring config and support | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Gradle Micronaut app, package-by-feature/layer under src/main/java | Standard Gradle layout; single flat dev.stackverse.backend package | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | src/ with app/server split, routes as Fastify plugins, ESM + tsc build | src/ app.ts + server.ts split; feature routes in src/routes/*.ts; ESM, tsc to dist/ | ✅ idiomatic |
-| [NestJS](../backends/node-nestjs/README.md) | Nest CLI feature modules: *.module/*.controller/*.service per domain | Flat src/ with per-feature Fastify route registrars, no Nest modules | 🟡 deliberate |
+| [NestJS](../backends/node-nestjs/README.md) | Nest CLI feature modules: *.module/*.controller/*.service per domain | Nest CLI app with feature modules, controllers, and injectable services | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Maven WAR: src/main/java, webapp/WEB-INF, liberty server.xml config | Standard Maven WAR; single flat package, src/main/liberty/config/server.xml | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | APIRouter per resource module, routers included on the app | `routers/` APIRouter modules by resource area, included from app setup | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to app/controllers, models, services in standard app/* packages | Conventional Play layout: conf/routes, app/{controllers,services,repositories,models,support} | ✅ idiomatic |
@@ -41,12 +41,12 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Grails](../backends/grails/README.md) | GORM/Hibernate domain classes with dynamic finders | Raw Spring JdbcTemplate + hand-written SQL, Flyway migrations, no GORM | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | Micronaut Data (JDBC/JPA) repositories with derived queries | Hand-rolled Database helper over HikariCP DataSource, raw SQL + Flyway | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Prisma/Drizzle/TypeORM, or plain pg with a query layer | plain pg, hand-written parameterized SQL, withTransaction helper, node-pg-migrate | 🟡 deliberate |
-| [NestJS](../backends/node-nestjs/README.md) | TypeORM/Prisma via @nestjs/typeorm with injected repositories | Raw pg pool, hand-written parameterized SQL, tiny withTransaction | 🟡 deliberate |
+| [NestJS](../backends/node-nestjs/README.md) | TypeORM/Prisma via @nestjs/typeorm with injected repositories | Injectable feature services use raw pg, hand-written SQL, tiny withTransaction | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JPA/Hibernate entities via a Liberty JDBC dataSource | Explicit JDBC + HikariCP + Flyway migrations; tags as text[] with GIN index | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | SQLAlchemy ORM (often async) with Alembic migrations | Plain psycopg3 raw SQL, dict_row, pool; hand-rolled SQL migration runner | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Slick (or Anorm/Quill) with Play DB pool for typed/async queries | Hand-written JDBC via thin Db helper on HikariCP + Flyway; raw SQL strings | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate ORM with Panache active-record/repository entities | Plain JDBC + hand-written SQL, custom RowMapper helpers, Flyway migrations | 🟡 deliberate |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | SQLx/Diesel/SeaORM with explicit migrations | SQLx runtime-checked queries, FromRow structs, embedded SQL migrations | ✅ idiomatic |
 
 ### Dependency injection
 
@@ -59,30 +59,30 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Grails](../backends/grails/README.md) | By-name Spring bean injection of services into controllers/services | Convention property injection for services; Spring @Configuration/@Bean for security | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Compile-time DI: constructor injection, @Singleton/@Controller, annotation processing | Constructor injection with @Singleton/@Controller/@Filter and annotation processors | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Fastify decorate/register plugin model; no container (or tsyringe/Nest if used) | Fastify decorate/hook/register + module-level singletons (pool, config, logger) | ✅ idiomatic |
-| [NestJS](../backends/node-nestjs/README.md) | Nest IoC container: @Injectable providers, @Controller, constructor injection | One empty @Module; module-level singletons, plain function imports, no DI | 🔴 undocumented |
+| [NestJS](../backends/node-nestjs/README.md) | Nest IoC container: @Injectable providers, @Controller, constructor injection | Feature modules with @Controller classes and @Injectable services; global guard/filter providers | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | CDI beans with @Inject; beans.xml bean-discovery | beans.xml present but no @Inject; JAX-RS getClasses() + static RuntimeSupport | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | FastAPI Depends() for db sessions, current user, config | Depends for optional/current/role callers; db remains module-global pool | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, and controller components | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | @ApplicationScoped service, constructor @Inject, @Provider filters/mappers | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Axum/Tower state extractors; no DI container | Cloned AppState injected through State and middleware state | ✅ idiomatic |
 
 ### Security / auth
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Spring Security OAuth2 resource server, stateless JWT, @PreAuthorize roles | OAuth2 resource server, STATELESS JWT, @EnableMethodSecurity + @PreAuthorize, custom filter | ✅ idiomatic |
-| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Authentication plugin with jwt {} verifier + authenticate {} routes | Custom JwtAuthenticator (Nimbus JWKS) run in a pipeline interceptor | 🔴 undocumented |
+| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Authentication plugin or named application plugin for auth context | Custom Nimbus JwtAuthenticator in a named application plugin; routes require identity/roles explicitly | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | JwtBearer against JWKS, authorization policies, fallback auth policy | JwtBearer vs Keycloak JWKS, fallback RequireAuthenticatedUser, per-endpoint role policies | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | golang-jwt for JWT, net/http middleware; JWKS via a library | golang-jwt/jwt validates iss/aud/exp; hand-rolled cached JWKS fetch; chi middleware | 🟡 deliberate |
 | [Grails](../backends/grails/README.md) | grails-spring-security-core plugin with annotations/interceptors | Raw Spring Security OAuth2 resource-server SecurityFilterChain, manual role checks | 🟡 deliberate |
-| [Micronaut](../backends/micronaut-java/README.md) | micronaut-security with JWT/JWKS validation and @Secured role rules | Custom HttpServerFilter + Nimbus JwtVerifier, manual JWKS/OIDC and role checks | 🟡 deliberate |
+| [Micronaut](../backends/micronaut-java/README.md) | micronaut-security with JWT/JWKS validation and @Secured role rules | @ServerFilter/@RequestFilter + custom Nimbus JwtVerifier, manual JWKS/OIDC and role checks | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | JWT verify via jose/JWKS in an onRequest/preHandler hook, role guards | jose jwtVerify against Keycloak JWKS in one onRequest hook; requireCaller/requireRole | ✅ idiomatic |
-| [NestJS](../backends/node-nestjs/README.md) | Passport guards / @UseGuards, AuthGuard, @Roles decorators | Fastify onRequest hook verifies JWT via jose; requireCaller/requireRole helpers | 🟡 deliberate |
+| [NestJS](../backends/node-nestjs/README.md) | Passport guards / @UseGuards, AuthGuard, @Roles decorators | Global CanActivate guard verifies JWT via jose; services use requireCaller/requireRole helpers | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | MicroProfile JWT / Jakarta Security declarative role checks | Manual Nimbus JWT validation in a ContainerRequestFilter | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | JWT/OAuth2 via a Security() dependency (e.g. OAuth2, HTTPBearer) | JWKS/PyJWT verified through FastAPI dependencies; role aliases wrap require_role | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Play filters/action-builders or Silhouette/pac4j for auth | Nimbus JOSE JWT verified against Keycloak JWKS in AuthService; filters disabled | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | SmallRye JWT bearer with @RolesAllowed/@Authenticated annotation RBAC | SmallRye JWT config-driven; proactive auth off; roles enforced manually via requireRole | 🔴 undocumented |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Tower/Axum middleware validating JWT and attaching request state | Axum middleware validates JWKS/JWT, provisions accounts, and exposes Identity in request extensions | ✅ idiomatic |
 
 ### Error handling → HTTP
 
@@ -95,12 +95,12 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Grails](../backends/grails/README.md) | respond with errors, or UrlMappings error controllers | Spring @ControllerAdvice + ApiError to RFC7807 problem+json; UrlMappings 404/500 | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @Produces ExceptionHandler beans mapping exceptions to responses | ExceptionHandler&lt;ProblemException&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | central setErrorHandler mapping typed errors to responses | setErrorHandler maps ApiProblem subclasses to RFC 9457 problem+json | ✅ idiomatic |
-| [NestJS](../backends/node-nestjs/README.md) | Throw HttpException subclasses; Nest exception filters render responses | Custom ApiProblem → RFC 9457 via Fastify setErrorHandler; dead Nest @Catch filter | 🔴 undocumented |
+| [NestJS](../backends/node-nestjs/README.md) | Throw HttpException subclasses; Nest exception filters render responses | Global ProblemFilter renders ApiProblem/ValidationProblem and unexpected errors as RFC 9457 | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JAX-RS ExceptionMapper translating exceptions to responses | ExceptionMapper&lt;Throwable&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | Raise HTTPException; FastAPI serializes the detail body | Custom AppProblem hierarchy + exception_handlers emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Custom ApiProblem hierarchy caught in controller api() wrapper, emits RFC 7807 problem+json | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | JAX-RS ExceptionMapper providers translating exceptions to responses | ExceptionMapper providers emit RFC 9457 application/problem+json | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Implement IntoResponse for app errors and use Result<T, E> handlers | AppError implements IntoResponse; handlers short-circuit with Result<Response, AppError> | ✅ idiomatic |
 
 ### Concurrency / async
 
@@ -111,14 +111,14 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [ASP.NET Core](../backends/dotnet/README.md) | async/await end-to-end; DB races handled explicitly | async/await throughout; explicit FOR UPDATE transaction for the publish race | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | server goroutine, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Synchronous servlet request handling; Promise/async only when needed | Synchronous JdbcTemplate calls under @Transactional; nothing async | ✅ idiomatic |
-| [Micronaut](../backends/micronaut-java/README.md) | Blocking controllers offloaded via @ExecuteOn(TaskExecutors.BLOCKING) | Synchronous blocking JDBC controllers, no @ExecuteOn offload from event loop | 🔴 undocumented |
+| [Micronaut](../backends/micronaut-java/README.md) | Blocking work offloaded via @ExecuteOn(TaskExecutors.BLOCKING) where needed | @RequestFilter offloads JWT/account JDBC; controller JDBC remains synchronous | 🔴 undocumented |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | async/await, pooled connections, explicit locking for critical sections | async/await, pg.Pool, SELECT ... FOR UPDATE with documented lock ordering | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | async/await handlers; RxJS Observables for streams/interceptors | Plain async/await; SELECT ... FOR UPDATE row locks for moderation races | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Synchronous JAX-RS on container threads; @Suspended for async | Synchronous blocking JDBC on request threads; no async/reactive | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | async handlers with an async driver (asyncpg/psycopg async) | Sync handlers + sync psycopg run on Starlette worker threadpool | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Action.async returning Future; non-blocking I/O off the request thread | Action.async wrappers run blocking JDBC on a bounded database-dispatcher | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Reactive Mutiny/Uni or auto-offloaded blocking on RESTEasy Reactive | Blocking JDBC on quarkus-rest; manual JDBC transactions, no Mutiny | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Tokio async handlers, SQLx futures, graceful shutdown | async Axum handlers over SQLx pool; shared state cloned per route/middleware | ✅ idiomatic |
 
 ### Validation
 
@@ -136,7 +136,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [FastAPI](../backends/python-fastapi/README.md) | Pydantic models bind and validate request bodies | Bodies bound as `Annotated[Any, Body()]`; hand-rolled Validator functions | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Manual Validator accumulator over Play-JSON asOpt lookups with message keys | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Manual Validator over raw Jackson JsonNode collecting FieldViolations | 🔴 undocumented |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | validator crate or explicit domain validation | Hand-written Validator collecting localized FieldViolations | 🟡 deliberate |
 
 ### Testing
 
@@ -154,25 +154,25 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [FastAPI](../backends/python-fastapi/README.md) | pytest with TestClient/httpx exercising the ASGI app end-to-end | pytest unit tests of helpers plus a small TestClient route smoke; no DB integration | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | ScalaTest AnyFunSuite unit tests of helpers; ResultSet faked via JDK dynamic proxies | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | Plain JUnit 5 unit tests with JDK dynamic-proxy mocks; contract via external conformance suite | 🔴 undocumented |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | cargo test covers helpers, validation, pagination, language, and AppError rendering | ✅ idiomatic |
 
 ### Formatter / linter
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | ktlint or detekt wired into the Gradle build | No ktlint/detekt/spotless; only shared root .editorconfig | 🔴 undocumented |
-| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | None configured; no ktlint/detekt/spotless/.editorconfig | 🔴 undocumented |
+| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .editorconfig only (whitespace); no dotnet format or analyzer gate in CI | 🔴 undocumented |
 | [Go (chi)](../backends/go/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | gofmt + go vet in CI; no golangci-lint config | 🔴 undocumented |
 | [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | No CodeNarc or any linter/formatter configured | 🔴 undocumented |
 | [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | tsc --noEmit (strict) only; no ESLint/Prettier/Biome config anywhere | 🔴 undocumented |
-| [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | No linter/formatter config; only tsc strict typecheck | 🔴 undocumented |
+| [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | ESLint + Prettier scripts alongside Nest CLI build/dev flow | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Spotless/Checkstyle or google-java-format via Maven plugin | No formatter or linter plugin configured in pom.xml | 🔴 undocumented |
 | [FastAPI](../backends/python-fastapi/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
 
 ### API & domain-type modeling
 
@@ -190,7 +190,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [FastAPI](../backends/python-fastapi/README.md) | Pydantic models as request/response schemas with response_model | Plain dict[str, Any] in/out; dataclasses only for Caller and Config | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Case-class rows plus manual JsObject builders (Wire.obj/Responses); string-typed enums | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Records/POJOs as request and response DTOs, framework-serialized | Records for domain/inputs; responses hand-built as LinkedHashMap, requests read from JsonNode | 🔴 undocumented |
-| [Rust (Axum)](../backends/rust-axum/README.md) | — | — | — |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Serde DTO structs, enums for closed sets, typed IDs | Serde request/response structs and FromRow rows; wire values kept as strings | ✅ idiomatic |
 
 ## Gateways
 
@@ -228,7 +228,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
-| [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Spring Security CsrfWebFilter and built-in header writers | Both disabled; hand-rolled double-submit CsrfWebFilter + SecurityHeadersWebFilter | 🟡 deliberate |
+| [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Spring Security CsrfWebFilter and built-in header writers | CookieServerCsrfTokenRepository plus custom same-origin checks and contract problem responses | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | double-submit XSRF token, constant-time compare, hardening header middleware | XSRF-TOKEN/X-XSRF-TOKEN via subtle.ConstantTimeCompare plus Origin/Sec-Fetch checks | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/helmet plus @fastify/csrf-protection for headers and tokens | Hand-rolled double-submit CSRF + Origin/Sec-Fetch-Site checks and manual header set in security.ts | 🟡 deliberate |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | No nginx built-in; hand-roll in Lua for a BFF | Double-submit XSRF token (constant-time), Origin/Sec-Fetch-Site, headers via header_filter | ✅ idiomatic |
@@ -342,7 +342,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
-| [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom on lib/*.ts only; no component tests | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom for lib stores/helpers; no component tests | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Vitest + jsdom with @vue/test-utils for mounting | Vitest + jsdom, manual createApp mount helper, no @vue/test-utils | 🔴 undocumented |
 
@@ -350,8 +350,8 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
-| [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | No ESLint/Prettier/Biome; only tsc strict + root .editorconfig | 🔴 undocumented |
+| [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
-| [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check only as separate typecheck script | 🔴 undocumented |
-| [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | None configured; stale eslint-disable comment but no ESLint/Prettier | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check plus shared EditorConfig coverage | 🔴 undocumented |
+| [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |
