@@ -341,6 +341,38 @@ Reports are written under `testing/tracetest-otel/reports/`. Expect roughly
 manual-only (`workflow_dispatch`) so trace assertions remain opt-in and
 non-blocking while the observability surface matures.
 
+## Postman API showcase
+
+With just infra and one backend running, the optional Postman collection in
+[`testing/postman-api/`](../testing/postman-api) runs representative public,
+authenticated, moderator, and admin API workflows directly against
+`BACKEND_URL`:
+
+```sh
+cd testing/postman-api
+corepack enable
+yarn install --immutable
+yarn test
+```
+
+Defaults are `BACKEND_URL=http://localhost:8080` and
+`KEYCLOAK_URL=http://localhost:8180`. The collection acquires dev-user tokens
+from the `stackverse-conformance` Keycloak client, creates unique per-run
+data, and writes Newman JSON/JUnit reports under
+`testing/postman-api/newman-report/`.
+
+The same collection can be run with the Postman CLI:
+
+```sh
+postman collection run stackverse-api-showcase.postman_collection.json \
+  --environment stackverse-local.postman_environment.json \
+  --env-var "BACKEND_URL=http://localhost:8080" \
+  --env-var "KEYCLOAK_URL=http://localhost:8180"
+```
+
+The suite is a testing-tool showcase for API exploration and team handoff. It
+does not replace the semantic conformance suite.
+
 ## Testing-tool showcase suites
 
 Stackverse has two canonical acceptance gates:
@@ -353,11 +385,11 @@ Stackverse has two canonical acceptance gates:
   frontend screen from [frontends/README.md](../frontends/README.md).
 
 Additional suites under [testing/](../testing/README.md) are showcase variants
-for comparing testing tools such as Selenium, Cypress, Schemathesis, Hurl,
-Robot Framework, API collections, k6, ZAP, axe-core, or trace assertions. They
-should choose representative public, authenticated, moderator, and admin flows
-that show the tool's style. They are not a way to add new product requirements
-or to replace the canonical gates.
+for comparing testing tools such as Selenium, Cypress, Schemathesis, Postman,
+Hurl, Robot Framework, API collections, k6, ZAP, axe-core, or trace assertions.
+They should choose representative public, authenticated, moderator, and admin
+flows that show the tool's style. They are not a way to add new product
+requirements or to replace the canonical gates.
 
 The Schemathesis API showcase has a manual CI workflow,
 [`test-schemathesis-api.yml`](../.github/workflows/test-schemathesis-api.yml),
@@ -463,6 +495,25 @@ The Hurl API showcase lives in [testing/hurl-api](../testing/hurl-api), uses
 `BACKEND_URL` plus `KEYCLOAK_URL`, and runs through `./scripts/hurl-api.sh` or
 `./scripts/hurl-api.ps1`. It has no CI workflow yet and remains a local
 optional showcase.
+
+The Postman API showcase lives in
+[testing/postman-api](../testing/postman-api) and runs directly against a
+backend at `BACKEND_URL` (default `http://localhost:8080`) with Keycloak at
+`KEYCLOAK_URL` (default `http://localhost:8180`):
+
+```sh
+cd testing/postman-api
+corepack enable
+yarn install --immutable
+yarn test
+```
+
+The collection acquires dev-realm tokens, exercises representative public,
+authenticated, moderator, and admin workflows, and writes Newman reports.
+CI execution is manual through
+[test-postman-api.yml](../.github/workflows/test-postman-api.yml), which builds
+one selected backend, runs the suite, and uploads the reports. It is not part
+of the merge gate.
 
 ## Continuous integration
 

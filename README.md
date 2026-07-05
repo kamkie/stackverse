@@ -88,7 +88,9 @@ accessibility checks against representative browser states, the OWASP ZAP
 showcase in [testing/zap-security/](testing/zap-security) runs a passive
 baseline security smoke scan against a running gateway, and the Hurl showcase
 in [testing/hurl-api/](testing/hurl-api) documents representative HTTP API
-flows as executable plain text.
+flows as executable plain text, and the Postman showcase in
+[testing/postman-api/](testing/postman-api) provides a Newman/Postman CLI
+collection for representative API workflows.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -157,7 +159,9 @@ optional passive security smoke scan against a running gateway, use
 `./scripts/zap-security.ps1`). For optional trace-based observability
 assertions against a composed stack with OpenTelemetry enabled, use
 `./scripts/tracetest-otel.sh` (PowerShell:
-`./scripts/tracetest-otel.ps1`).
+`./scripts/tracetest-otel.ps1`). For an optional Postman/Newman API showcase,
+run `yarn test` from `testing/postman-api` against the same direct backend
+target.
 
 To populate a small repeatable local dataset for demos, run the seed against
 the running backend API:

@@ -67,6 +67,7 @@ updates:
       - /gateways/node-fastify
       - /testing/axe-a11y
       - /testing/cypress-e2e
+      - /testing/postman-api
     schedule:
       interval: weekly
     groups:

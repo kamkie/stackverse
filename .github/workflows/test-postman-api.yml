@@ -1,0 +1,67 @@
+name: Postman API Showcase
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend implementation directory name
+        required: true
+        default: spring-kotlin
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.backend }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  postman-api:
+    name: Postman API - ${{ inputs.backend }} backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKEND_IMAGE: stackverse/backend-${{ inputs.backend }}:local
+      BACKEND_URL: http://localhost:8080
+      KEYCLOAK_URL: http://localhost:8180
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build backend image
+        run: docker build -t "$BACKEND_IMAGE" -f "backends/${{ inputs.backend }}/Dockerfile" .
+      - name: Start infra + backend
+        run: docker compose --profile app up -d backend
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-postman-api-${{ hashFiles('testing/postman-api/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-postman-api-
+      - name: Install dependencies
+        working-directory: testing/postman-api
+        run: yarn install --immutable
+      - name: Wait for the backend to be ready
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "backend never became ready" >&2
+          exit 1
+      - name: Run Postman API showcase
+        working-directory: testing/postman-api
+        run: yarn test
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload Newman reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: postman-api-newman-${{ inputs.backend }}
+          path: testing/postman-api/newman-report/
+          if-no-files-found: ignore
+          retention-days: 7
