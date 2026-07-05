@@ -1,31 +1,34 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from "svelte";
+  import { onMount, type Snippet } from "svelte";
 
-  export let title: string;
-  export let ctx: string | undefined = undefined;
+  interface Props {
+    title: string;
+    ctx?: string;
+    onClose: () => void;
+    children: Snippet;
+  }
 
-  const dispatch = createEventDispatcher<{ close: void }>();
-  let dialog: HTMLDialogElement;
+  let { title, ctx = undefined, onClose, children }: Props = $props();
+  let dialog: HTMLDialogElement | undefined = $state();
 
   onMount(() => {
-    dialog.showModal();
+    dialog?.showModal();
     return () => {
-      if (dialog.open) dialog.close();
+      if (dialog?.open) dialog.close();
     };
   });
-
-  function close() {
-    dispatch("close");
-  }
 </script>
 
 <dialog
   bind:this={dialog}
   class="sv-dialog"
   data-ctx={ctx}
-  on:cancel|preventDefault={close}
-  on:close={close}
+  oncancel={(event) => {
+    event.preventDefault();
+    onClose();
+  }}
+  onclose={onClose}
 >
   <h2 class="sv-dialog-title">{title}</h2>
-  <slot />
+  {@render children()}
 </dialog>

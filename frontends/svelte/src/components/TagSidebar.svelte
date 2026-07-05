@@ -3,11 +3,16 @@
   import { api } from "../lib/api";
   import { i18n, m } from "../lib/i18n";
   import type { TagCount } from "../lib/types";
+  import { fromStore } from "svelte/store";
 
-  export let selected = "";
-  export let onSelect: (tag: string) => void;
+  interface Props {
+    selected?: string;
+    onSelect: (tag: string) => void;
+  }
 
-  let tags: TagCount[] = [];
+  let { selected = "", onSelect }: Props = $props();
+  let tags: TagCount[] = $state([]);
+  const i18nState = fromStore(i18n);
 
   export async function reload() {
     try {
@@ -24,14 +29,14 @@
 </script>
 
 <aside class="sv-sidebar">
-  <h2 class="sv-sidebar-title">{m($i18n, "ui.nav.tags")}</h2>
+  <h2 class="sv-sidebar-title">{m(i18nState.current, "ui.nav.tags")}</h2>
   <ul class="sv-tag-list">
     {#each tags as item}
       <li>
         <button
           type="button"
           class={`sv-tag${selected === item.tag ? " is-active" : ""}`}
-          on:click={() => onSelect(selected === item.tag ? "" : item.tag)}
+          onclick={() => onSelect(selected === item.tag ? "" : item.tag)}
         >
           {item.tag}
           <span class="sv-tag-count">{item.count}</span>

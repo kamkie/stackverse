@@ -8,18 +8,20 @@
   import BookmarkFormDialog from "../components/BookmarkFormDialog.svelte";
   import ConfirmDialog from "../components/ConfirmDialog.svelte";
   import TagSidebar from "../components/TagSidebar.svelte";
+  import { fromStore } from "svelte/store";
 
-  export let toast: (message: string, tone?: "success" | "danger") => void;
+  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
 
-  let bookmarks: Bookmark[] = [];
-  let nextCursor: string | undefined = undefined;
-  let loading = true;
-  let error: Error | null = null;
-  let q = "";
-  let selectedTag = "";
-  let dialog: { mode: "create" } | { mode: "edit"; bookmark: Bookmark } | null = null;
-  let deleting: Bookmark | null = null;
-  let tagSidebar: TagSidebar;
+  let bookmarks: Bookmark[] = $state([]);
+  let nextCursor: string | undefined = $state(undefined);
+  let loading = $state(true);
+  let error: Error | null = $state(null);
+  let q = $state("");
+  let selectedTag = $state("");
+  let dialog: { mode: "create" } | { mode: "edit"; bookmark: Bookmark } | null = $state(null);
+  let deleting: Bookmark | null = $state(null);
+  let tagSidebar: TagSidebar | undefined = $state();
+  const i18nState = fromStore(i18n);
 
   async function load(reset = true) {
     loading = true;
@@ -46,7 +48,7 @@
   async function remove(bookmark: Bookmark) {
     try {
       await api<void>(`/api/v1/bookmarks/${bookmark.id}`, { method: "DELETE" });
-      toast(m($i18n, "ui.toast.bookmark-deleted"));
+      toast(m(i18nState.current, "ui.toast.bookmark-deleted"));
       deleting = null;
       await load();
       await tagSidebar?.reload();
@@ -68,17 +70,17 @@
 <div class="sv-layout">
   <TagSidebar bind:this={tagSidebar} selected={selectedTag} onSelect={selectTag} />
   <section class="sv-content">
-    <h1 class="sv-page-title">{m($i18n, "ui.nav.my-bookmarks")}</h1>
+    <h1 class="sv-page-title">{m(i18nState.current, "ui.nav.my-bookmarks")}</h1>
     <div class="sv-toolbar">
       <input
         type="search"
         class="sv-input"
-        placeholder={m($i18n, "ui.bookmarks.search.placeholder")}
+        placeholder={m(i18nState.current, "ui.bookmarks.search.placeholder")}
         bind:value={q}
-        on:change={() => load()}
+        onchange={() => load()}
       />
-      <button type="button" class="sv-button sv-button--primary" on:click={() => (dialog = { mode: "create" })}>
-        {m($i18n, "ui.action.add")}
+      <button type="button" class="sv-button sv-button--primary" onclick={() => (dialog = { mode: "create" })}>
+        {m(i18nState.current, "ui.action.add")}
       </button>
     </div>
 
@@ -88,7 +90,7 @@
       <div class="sv-alert sv-alert--danger" role="alert">{error.message}</div>
     {:else if bookmarks.length === 0}
       <div class="sv-empty">
-        {q || selectedTag ? m($i18n, "ui.bookmarks.no-matches") : m($i18n, "ui.bookmarks.empty")}
+        {q || selectedTag ? m(i18nState.current, "ui.bookmarks.no-matches") : m(i18nState.current, "ui.bookmarks.empty")}
       </div>
     {:else}
       <ul class="sv-card-list">
@@ -103,8 +105,8 @@
       </ul>
       {#if nextCursor}
         <div class="sv-load-more">
-          <button type="button" class="sv-button" disabled={loading} on:click={() => load(false)}>
-            {m($i18n, "ui.action.load-more")}
+          <button type="button" class="sv-button" disabled={loading} onclick={() => load(false)}>
+            {m(i18nState.current, "ui.action.load-more")}
           </button>
         </div>
       {/if}
@@ -125,11 +127,11 @@
 
 {#if deleting}
   <ConfirmDialog
-    title={`${m($i18n, "ui.action.delete")} - ${deleting.title}`}
-    body={m($i18n, "ui.confirm.delete-bookmark")}
+    title={`${m(i18nState.current, "ui.action.delete")} - ${deleting.title}`}
+    body={m(i18nState.current, "ui.confirm.delete-bookmark")}
     ctx={`bookmark:${deleting.id}`}
-    confirmLabel={m($i18n, "ui.action.delete")}
-    cancelLabel={m($i18n, "ui.action.cancel")}
+    confirmLabel={m(i18nState.current, "ui.action.delete")}
+    cancelLabel={m(i18nState.current, "ui.action.cancel")}
     onConfirm={() => remove(deleting as Bookmark)}
     onClose={() => (deleting = null)}
   />

@@ -282,7 +282,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
-| [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Svelte 5 runtime + mount(), but legacy `export let` props and `on:click` directives | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Runes-based components with $props, snippets, and mount() bootstrap | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | No framework; DOM/template functions, manual escaping, imperative rendering | Functions returning HTML template-literal strings, set via root.innerHTML + escapeHtml() | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | SFCs with &lt;script setup lang="ts"&gt;, typed defineProps/defineEmits | SFCs with &lt;script setup lang="ts"&gt;, generic defineProps/defineEmits macros | ✅ idiomatic |
 
@@ -292,7 +292,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | TanStack Query for server state; Context/hooks for local | TanStack Query + Context (i18n/toast) + web-storage helpers; no global store | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Signals (signal/computed/effect) with zoneless change detection | Plain signal stores + effect/untracked; zoneless; RxJS only at HttpClient | ✅ idiomatic |
-| [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | svelte/store writable stores plus component-local `let`; zero runes | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | $state/$derived/$effect for component state; stores retained for shared route/session/i18n state | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Plain mutable object; manual re-render, no reactive runtime | Single `state` object, full renderApp() re-render on every change | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Composition API refs; Pinia for shared/global stores | Module-level ref() singletons in plain .ts files; no Pinia | 🔴 undocumented |
 
@@ -355,4 +355,3 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check only as separate typecheck script | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | None configured; stale eslint-disable comment but no ESLint/Prettier | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |
-

@@ -5,7 +5,7 @@
     tone: "success" | "danger";
   }
 
-  export let toasts: Toast[] = [];
+  let { toasts = [] }: { toasts?: Toast[] } = $props();
 </script>
 
 <div class="sv-toast-region" role="status" aria-live="polite">

@@ -11,23 +11,25 @@
   import Dialog from "../components/Dialog.svelte";
   import Field from "../components/Field.svelte";
   import Pagination from "../components/Pagination.svelte";
+  import { fromStore } from "svelte/store";
 
-  export let toast: (message: string, tone?: "success" | "danger") => void;
+  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
 
   const statuses = REPORT_STATUSES;
   const reasons = REPORT_REASONS;
 
-  let status: ReportStatus | "" = "";
-  let page = 0;
-  let reports: Page<Report> | null = null;
-  let loading = true;
-  let error: Error | null = null;
-  let editing: Report | null = null;
-  let withdrawing: Report | null = null;
-  let editReason: ReportReason = reasons[0];
-  let editComment = "";
-  let editError: unknown = undefined;
-  let editPending = false;
+  let status: ReportStatus | "" = $state("");
+  let page = $state(0);
+  let reports: Page<Report> | null = $state(null);
+  let loading = $state(true);
+  let error: Error | null = $state(null);
+  let editing: Report | null = $state(null);
+  let withdrawing: Report | null = $state(null);
+  let editReason: ReportReason = $state(reasons[0]);
+  let editComment = $state("");
+  let editError: unknown = $state(undefined);
+  let editPending = $state(false);
+  const i18nState = fromStore(i18n);
 
   async function load() {
     loading = true;
@@ -50,7 +52,8 @@
     editError = undefined;
   }
 
-  async function saveEdit() {
+  async function saveEdit(event: SubmitEvent) {
+    event.preventDefault();
     if (!editing) return;
     editPending = true;
     editError = undefined;
@@ -64,7 +67,7 @@
         ...jsonBody(body),
       });
       editing = null;
-      toast(m($i18n, "ui.toast.report-updated"));
+      toast(m(i18nState.current, "ui.toast.report-updated"));
       await load();
     } catch (caught) {
       editError = caught;
@@ -78,7 +81,7 @@
       await api<void>(`/api/v1/reports/${report.id}`, { method: "DELETE" });
       removeReported(report.bookmarkId);
       withdrawing = null;
-      toast(m($i18n, "ui.toast.report-withdrawn"));
+      toast(m(i18nState.current, "ui.toast.report-withdrawn"));
       await load();
     } catch (caught) {
       toast(caught instanceof Error ? caught.message : String(caught), "danger");
@@ -91,20 +94,20 @@
 </script>
 
 <section class="sv-content">
-  <h1 class="sv-page-title">{m($i18n, "ui.nav.my-reports")}</h1>
+  <h1 class="sv-page-title">{m(i18nState.current, "ui.nav.my-reports")}</h1>
   <div class="sv-toolbar">
     <select
       class="sv-select"
-      aria-label={m($i18n, "ui.field.status")}
+      aria-label={m(i18nState.current, "ui.field.status")}
       bind:value={status}
-      on:change={() => {
+      onchange={() => {
         page = 0;
         void load();
       }}
     >
-      <option value="">{m($i18n, "ui.my-reports.filter.all-statuses")}</option>
+      <option value="">{m(i18nState.current, "ui.my-reports.filter.all-statuses")}</option>
       {#each statuses as option}
-        <option value={option}>{m($i18n, `ui.report.status.${option}`)}</option>
+        <option value={option}>{m(i18nState.current, `ui.report.status.${option}`)}</option>
       {/each}
     </select>
   </div>
@@ -114,30 +117,30 @@
   {:else if error}
     <div class="sv-alert sv-alert--danger" role="alert">{error.message}</div>
   {:else if !reports || reports.items.length === 0}
-    <div class="sv-empty">{m($i18n, "ui.my-reports.empty")}</div>
+    <div class="sv-empty">{m(i18nState.current, "ui.my-reports.empty")}</div>
   {:else}
     <div class="sv-table-wrap">
       <table class="sv-table">
         <thead>
           <tr>
-            <th scope="col">{m($i18n, "ui.field.created-at")}</th>
-            <th scope="col">{m($i18n, "ui.field.bookmark")}</th>
-            <th scope="col">{m($i18n, "ui.field.reason")}</th>
-            <th scope="col">{m($i18n, "ui.field.comment")}</th>
-            <th scope="col">{m($i18n, "ui.field.status")}</th>
-            <th scope="col"><span class="sv-visually-hidden">{m($i18n, "ui.field.actions")}</span></th>
+            <th scope="col">{m(i18nState.current, "ui.field.created-at")}</th>
+            <th scope="col">{m(i18nState.current, "ui.field.bookmark")}</th>
+            <th scope="col">{m(i18nState.current, "ui.field.reason")}</th>
+            <th scope="col">{m(i18nState.current, "ui.field.comment")}</th>
+            <th scope="col">{m(i18nState.current, "ui.field.status")}</th>
+            <th scope="col"><span class="sv-visually-hidden">{m(i18nState.current, "ui.field.actions")}</span></th>
           </tr>
         </thead>
         <tbody>
           {#each reports.items as report (report.id)}
             <tr data-ctx={`report:${report.id}`}>
-              <td><time dateTime={report.createdAt}>{formatDate(report.createdAt, $i18n.resolvedLanguage)}</time></td>
+              <td><time dateTime={report.createdAt}>{formatDate(report.createdAt, i18nState.current.resolvedLanguage)}</time></td>
               <td><BookmarkContext bookmarkId={report.bookmarkId} /></td>
-              <td><span class="sv-badge">{m($i18n, `ui.report.reason.${report.reason}`)}</span></td>
+              <td><span class="sv-badge">{m(i18nState.current, `ui.report.reason.${report.reason}`)}</span></td>
               <td>{report.comment}</td>
               <td>
                 <span class={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}>
-                  {m($i18n, `ui.report.status.${report.status}`)}
+                  {m(i18nState.current, `ui.report.status.${report.status}`)}
                 </span>
                 {#if report.resolutionNote}
                   <div class="sv-field-hint">{report.resolutionNote}</div>
@@ -145,11 +148,11 @@
               </td>
               <td class="sv-cell-actions">
                 {#if report.status === "open"}
-                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" on:click={() => openEdit(report)}>
-                    {m($i18n, "ui.action.edit")}
+                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={() => openEdit(report)}>
+                    {m(i18nState.current, "ui.action.edit")}
                   </button>
-                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" on:click={() => (withdrawing = report)}>
-                    {m($i18n, "ui.action.withdraw")}
+                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={() => (withdrawing = report)}>
+                    {m(i18nState.current, "ui.action.withdraw")}
                   </button>
                 {/if}
               </td>
@@ -170,27 +173,27 @@
 </section>
 
 {#if editing}
-  <Dialog title={m($i18n, "ui.my-reports.dialog.edit")} ctx={`report:${editing.id}`} on:close={() => (editing = null)}>
-    <form class="sv-form" on:submit|preventDefault={saveEdit}>
-      <Field label={m($i18n, "ui.field.reason")} error={fieldErrorFor(editError, "reason")}>
+  <Dialog title={m(i18nState.current, "ui.my-reports.dialog.edit")} ctx={`report:${editing.id}`} onClose={() => (editing = null)}>
+    <form class="sv-form" onsubmit={saveEdit}>
+      <Field label={m(i18nState.current, "ui.field.reason")} error={fieldErrorFor(editError, "reason")}>
         <select class="sv-select" bind:value={editReason}>
           {#each reasons as option}
-            <option value={option}>{m($i18n, `ui.report.reason.${option}`)}</option>
+            <option value={option}>{m(i18nState.current, `ui.report.reason.${option}`)}</option>
           {/each}
         </select>
       </Field>
-      <Field label={m($i18n, "ui.field.comment")} error={fieldErrorFor(editError, "comment")}>
+      <Field label={m(i18nState.current, "ui.field.comment")} error={fieldErrorFor(editError, "comment")}>
         <textarea class="sv-textarea" bind:value={editComment}></textarea>
       </Field>
       {#if editError instanceof ApiError && editError.status === 409}
         <div class="sv-alert sv-alert--warning" role="alert">{editError.message}</div>
       {/if}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" on:click={() => (editing = null)}>
-          {m($i18n, "ui.action.cancel")}
+        <button type="button" class="sv-button" onclick={() => (editing = null)}>
+          {m(i18nState.current, "ui.action.cancel")}
         </button>
         <button type="submit" class="sv-button sv-button--primary" disabled={editPending}>
-          {m($i18n, "ui.action.save")}
+          {m(i18nState.current, "ui.action.save")}
         </button>
       </div>
     </form>
@@ -199,11 +202,11 @@
 
 {#if withdrawing}
   <ConfirmDialog
-    title={m($i18n, "ui.action.withdraw")}
-    body={m($i18n, "ui.confirm.withdraw-report")}
+    title={m(i18nState.current, "ui.action.withdraw")}
+    body={m(i18nState.current, "ui.confirm.withdraw-report")}
     ctx={`report:${withdrawing.id}`}
-    confirmLabel={m($i18n, "ui.action.withdraw")}
-    cancelLabel={m($i18n, "ui.action.cancel")}
+    confirmLabel={m(i18nState.current, "ui.action.withdraw")}
+    cancelLabel={m(i18nState.current, "ui.action.cancel")}
     onConfirm={() => withdraw(withdrawing as Report)}
     onClose={() => (withdrawing = null)}
   />

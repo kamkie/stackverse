@@ -5,17 +5,20 @@
   import { isReported } from "../lib/reportedStore";
   import { session } from "../lib/session";
   import type { Bookmark } from "../lib/types";
+  import { fromStore } from "svelte/store";
   import BookmarkCard from "../components/BookmarkCard.svelte";
   import ReportDialog from "../components/ReportDialog.svelte";
 
-  export let toast: (message: string, tone?: "success" | "danger") => void;
+  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
 
-  let bookmarks: Bookmark[] = [];
-  let nextCursor: string | undefined = undefined;
-  let loading = true;
-  let error: Error | null = null;
-  let q = "";
-  let reporting: Bookmark | null = null;
+  let bookmarks: Bookmark[] = $state([]);
+  let nextCursor: string | undefined = $state(undefined);
+  let loading = $state(true);
+  let error: Error | null = $state(null);
+  let q = $state("");
+  let reporting: Bookmark | null = $state(null);
+  const i18nState = fromStore(i18n);
+  const sessionState = fromStore(session);
 
   async function load(reset = true) {
     loading = true;
@@ -45,14 +48,14 @@
 </script>
 
 <section class="sv-content">
-  <h1 class="sv-page-title">{m($i18n, "ui.nav.public-feed")}</h1>
+  <h1 class="sv-page-title">{m(i18nState.current, "ui.nav.public-feed")}</h1>
   <div class="sv-toolbar">
     <input
       type="search"
       class="sv-input"
-      placeholder={m($i18n, "ui.bookmarks.search.placeholder")}
+      placeholder={m(i18nState.current, "ui.bookmarks.search.placeholder")}
       bind:value={q}
-      on:change={() => load()}
+      onchange={() => load()}
     />
   </div>
 
@@ -61,7 +64,7 @@
   {:else if error}
     <div class="sv-alert sv-alert--danger" role="alert">{error.message}</div>
   {:else if bookmarks.length === 0}
-    <div class="sv-empty">{m($i18n, "ui.bookmarks.no-matches")}</div>
+    <div class="sv-empty">{m(i18nState.current, "ui.bookmarks.no-matches")}</div>
   {:else}
     <ul class="sv-card-list">
       {#each bookmarks as bookmark (bookmark.id)}
@@ -69,14 +72,14 @@
           {bookmark}
           mode="feed"
           reported={isReported(bookmark.id)}
-          onReport={$session?.authenticated ? (item) => (reporting = item) : undefined}
+          onReport={sessionState.current?.authenticated ? (item) => (reporting = item) : undefined}
         />
       {/each}
     </ul>
     {#if nextCursor}
       <div class="sv-load-more">
-        <button type="button" class="sv-button" disabled={loading} on:click={() => load(false)}>
-          {m($i18n, "ui.action.load-more")}
+        <button type="button" class="sv-button" disabled={loading} onclick={() => load(false)}>
+          {m(i18nState.current, "ui.action.load-more")}
         </button>
       </div>
     {/if}

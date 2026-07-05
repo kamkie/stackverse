@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { fromStore } from "svelte/store";
   import ToastRegion, { type Toast } from "./components/ToastRegion.svelte";
   import { i18n, loadBundle, m, setLanguage, SUPPORTED_LANGUAGES } from "./lib/i18n";
   import { goto, installRouteListener, route } from "./lib/route";
@@ -22,17 +23,29 @@
   import ReportsPage from "./pages/admin/ReportsPage.svelte";
   import UsersPage from "./pages/admin/UsersPage.svelte";
 
-  let theme: ThemeOption = readStoredTheme();
-  let toasts: Toast[] = [];
+  let theme: ThemeOption = $state(readStoredTheme());
+  let toasts: Toast[] = $state([]);
   let toastId = 0;
+  const i18nState = fromStore(i18n);
+  const routeState = fromStore(route);
+  const sessionState = fromStore(session);
+  const meState = fromStore(me);
 
   function navClass(path: string, exact = true): string {
-    const active = exact ? $route === path : $route === path || $route.startsWith(`${path}/`);
+    const currentRoute = routeState.current;
+    const active = exact ? currentRoute === path : currentRoute === path || currentRoute.startsWith(`${path}/`);
     return `sv-nav-link${active ? " is-active" : ""}`;
   }
 
-  function navigate(path: string) {
+  function navigate(path: string): void {
     goto(path);
+  }
+
+  function navigateClick(path: string) {
+    return (event: MouseEvent) => {
+      event.preventDefault();
+      navigate(path);
+    };
   }
 
   function changeTheme(next: ThemeOption) {
@@ -61,7 +74,7 @@
   });
 </script>
 
-{#if !$i18n.ready || $session === null}
+{#if !i18nState.current.ready || sessionState.current === null}
   <div class="sv-loading"><span class="sv-spinner"></span></div>
 {:else}
   <div class="sv-app">
@@ -69,53 +82,53 @@
       <a
         href="/"
         class="sv-brand"
-        on:click|preventDefault={() => navigate("/feed")}
+        onclick={navigateClick("/feed")}
       >
-        {m($i18n, "ui.app.title")}
+        {m(i18nState.current, "ui.app.title")}
       </a>
       <nav class="sv-nav">
-        {#if $session.authenticated}
+        {#if sessionState.current.authenticated}
           <a
             href="/bookmarks"
             class={navClass("/bookmarks")}
-            on:click|preventDefault={() => navigate("/bookmarks")}
+            onclick={navigateClick("/bookmarks")}
           >
-            {m($i18n, "ui.nav.my-bookmarks")}
+            {m(i18nState.current, "ui.nav.my-bookmarks")}
           </a>
           <a
             href="/reports"
             class={navClass("/reports")}
-            on:click|preventDefault={() => navigate("/reports")}
+            onclick={navigateClick("/reports")}
           >
-            {m($i18n, "ui.nav.my-reports")}
+            {m(i18nState.current, "ui.nav.my-reports")}
           </a>
         {/if}
         <a
           href="/feed"
           class={navClass("/feed")}
-          on:click|preventDefault={() => navigate("/feed")}
+          onclick={navigateClick("/feed")}
         >
-          {m($i18n, "ui.nav.public-feed")}
+          {m(i18nState.current, "ui.nav.public-feed")}
         </a>
-        {#if isModerator($me)}
+        {#if isModerator(meState.current)}
           <a
             href="/admin"
             class={navClass("/admin", false)}
-            on:click|preventDefault={() => navigate("/admin")}
+            onclick={navigateClick("/admin")}
           >
-            {m($i18n, "ui.nav.admin")}
+            {m(i18nState.current, "ui.nav.admin")}
           </a>
         {/if}
       </nav>
       <div class="sv-header-actions">
-        <div class="sv-theme-switch" role="group" aria-label={m($i18n, "ui.theme.label")}>
+        <div class="sv-theme-switch" role="group" aria-label={m(i18nState.current, "ui.theme.label")}>
           {#each THEME_OPTIONS as option}
             <button
               type="button"
               class={`sv-theme-option${theme === option ? " is-active" : ""}`}
-              on:click={() => changeTheme(option)}
+              onclick={() => changeTheme(option)}
             >
-              {m($i18n, `ui.theme.${option}`)}
+              {m(i18nState.current, `ui.theme.${option}`)}
             </button>
           {/each}
         </div>
@@ -124,76 +137,76 @@
             <button
               type="button"
               lang={code}
-              class={`sv-lang-option${($i18n.lang ?? $i18n.resolvedLanguage) === code ? " is-active" : ""}`}
-              on:click={() => setLanguage(code)}
+              class={`sv-lang-option${(i18nState.current.lang ?? i18nState.current.resolvedLanguage) === code ? " is-active" : ""}`}
+              onclick={() => setLanguage(code)}
             >
               {code.toUpperCase()}
             </button>
           {/each}
         </div>
-        {#if $session.authenticated}
-          <span class="sv-username">{$session.username}</span>
-          <button type="button" class="sv-button sv-button--ghost sv-button--sm" on:click={doLogout}>
-            {m($i18n, "ui.action.logout")}
+        {#if sessionState.current.authenticated}
+          <span class="sv-username">{sessionState.current.username}</span>
+          <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={doLogout}>
+            {m(i18nState.current, "ui.action.logout")}
           </button>
         {:else}
           <a class="sv-button sv-button--primary sv-button--sm" href={LOGIN_URL}>
-            {m($i18n, "ui.action.login")}
+            {m(i18nState.current, "ui.action.login")}
           </a>
         {/if}
       </div>
     </header>
 
     <main class="sv-main">
-      {#if $route === "/bookmarks"}
-        {#if $session.authenticated}
+      {#if routeState.current === "/bookmarks"}
+        {#if sessionState.current.authenticated}
           <MyBookmarksPage toast={showToast} />
         {:else}
           <PublicFeedPage toast={showToast} />
         {/if}
-      {:else if $route === "/reports"}
-        {#if $session.authenticated}
+      {:else if routeState.current === "/reports"}
+        {#if sessionState.current.authenticated}
           <MyReportsPage toast={showToast} />
         {:else}
           <PublicFeedPage toast={showToast} />
         {/if}
-      {:else if $route.startsWith("/admin")}
-        {#if !isModerator($me)}
+      {:else if routeState.current.startsWith("/admin")}
+        {#if !isModerator(meState.current)}
           <div class="sv-alert sv-alert--danger" role="alert">403</div>
         {:else}
           <div class="sv-layout">
             <aside class="sv-sidebar">
-              <h2 class="sv-sidebar-title">{m($i18n, "ui.nav.admin")}</h2>
+              <h2 class="sv-sidebar-title">{m(i18nState.current, "ui.nav.admin")}</h2>
               <nav class="sv-nav sv-nav--vertical" aria-label="Admin">
-                <a href="/admin" class={navClass("/admin")} on:click|preventDefault={() => navigate("/admin")}>
-                  {m($i18n, "ui.admin.dashboard")}
+                <a href="/admin" class={navClass("/admin")} onclick={navigateClick("/admin")}>
+                  {m(i18nState.current, "ui.admin.dashboard")}
                 </a>
-                <a href="/admin/reports" class={navClass("/admin/reports")} on:click|preventDefault={() => navigate("/admin/reports")}>
-                  {m($i18n, "ui.admin.reports")}
+                <a href="/admin/reports" class={navClass("/admin/reports")} onclick={navigateClick("/admin/reports")}>
+                  {m(i18nState.current, "ui.admin.reports")}
                 </a>
-                {#if isAdmin($me)}
-                  <a href="/admin/users" class={navClass("/admin/users")} on:click|preventDefault={() => navigate("/admin/users")}>
-                    {m($i18n, "ui.admin.users")}
+                {#if isAdmin(meState.current)}
+                  <a href="/admin/users" class={navClass("/admin/users")} onclick={navigateClick("/admin/users")}>
+                    {m(i18nState.current, "ui.admin.users")}
                   </a>
-                  <a href="/admin/audit" class={navClass("/admin/audit")} on:click|preventDefault={() => navigate("/admin/audit")}>
-                    {m($i18n, "ui.admin.audit")}
+                  <a href="/admin/audit" class={navClass("/admin/audit")} onclick={navigateClick("/admin/audit")}>
+                    {m(i18nState.current, "ui.admin.audit")}
                   </a>
-                  <a href="/admin/messages" class={navClass("/admin/messages")} on:click|preventDefault={() => navigate("/admin/messages")}>
-                    {m($i18n, "ui.admin.messages")}
+                  <a href="/admin/messages" class={navClass("/admin/messages")} onclick={navigateClick("/admin/messages")}>
+                    {m(i18nState.current, "ui.admin.messages")}
                   </a>
                 {/if}
               </nav>
             </aside>
             <section class="sv-content">
-              {#if $route === "/admin/reports"}
+              {#if routeState.current === "/admin/reports"}
                 <ReportsPage />
-              {:else if $route === "/admin/users" && isAdmin($me)}
+              {:else if routeState.current === "/admin/users" && isAdmin(meState.current)}
                 <UsersPage />
-              {:else if $route === "/admin/audit" && isAdmin($me)}
+              {:else if routeState.current === "/admin/audit" && isAdmin(meState.current)}
                 <AuditLogPage />
-              {:else if $route === "/admin/messages" && isAdmin($me)}
+              {:else if routeState.current === "/admin/messages" && isAdmin(meState.current)}
                 <MessagesPage toast={showToast} />
-              {:else if $route === "/admin" || $route === "/admin/"}
+              {:else if routeState.current === "/admin" || routeState.current === "/admin/"}
                 <DashboardPage />
               {:else}
                 <div class="sv-alert sv-alert--danger" role="alert">403</div>
