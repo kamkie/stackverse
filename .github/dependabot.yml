@@ -63,6 +63,15 @@ updates:
       - dependency-name: "plugin.jpa"
         versions: ["[2.4,)"]
 
+  - package-ecosystem: maven
+    directories:
+      - /backends/quarkus-java
+    schedule:
+      interval: weekly
+    groups:
+      maven-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: npm
     directories:
       - /backends/node-nestjs
@@ -123,6 +132,7 @@ updates:
       - /backends/node-nestjs
       - /backends/node-ts
       - /backends/play-scala
+      - /backends/quarkus-java
       - /backends/rust-axum
       - /backends/spring-kotlin
       - /frontends/angular
