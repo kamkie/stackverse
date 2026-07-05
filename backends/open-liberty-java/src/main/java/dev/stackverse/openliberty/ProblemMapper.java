@@ -33,7 +33,9 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
     if (ex instanceof ValidationProblem validation) {
       Caller caller = (Caller) request.getAttribute(AuthFilter.CALLER_ATTRIBUTE);
       Map<String, Object> fields = new LinkedHashMap<>();
-      if (caller != null) fields.put("actor", caller.username());
+      if (caller != null) {
+        fields.put("actor", caller.username());
+      }
       fields.put("error_code", "validation_failed");
       Log.event("info", "input_validation_failed", "failure", "Input validation failed", fields);
       String language = StackverseResource.resolveLanguage(

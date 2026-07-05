@@ -3,7 +3,11 @@ package dev.stackverse.openliberty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -12,12 +16,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
-import io.opentelemetry.api.trace.Span;
-import io.opentelemetry.api.trace.SpanContext;
 import org.flywaydb.core.Flyway;
 
 final class RuntimeSupport {
@@ -233,7 +236,7 @@ final class Log {
     if (!enabled(level)) {
       return;
     }
-    Map<String, Object> line = new java.util.LinkedHashMap<>();
+    Map<String, Object> line = new LinkedHashMap<>();
     line.put("timestamp", Instant.now().toString());
     line.put("level", level.toUpperCase());
     line.put("logger", "stackverse.open-liberty-java");
@@ -254,7 +257,7 @@ final class Log {
   }
 
   static void error(String event, String outcome, String message, Throwable throwable, Map<String, ?> fields) {
-    Map<String, Object> withError = new java.util.LinkedHashMap<>(fields);
+    Map<String, Object> withError = new LinkedHashMap<>(fields);
     withError.put("stack_trace", stackTrace(throwable));
     event("error", event, outcome, message, withError);
   }
@@ -273,8 +276,8 @@ final class Log {
   }
 
   private static String stackTrace(Throwable throwable) {
-    java.io.StringWriter writer = new java.io.StringWriter();
-    throwable.printStackTrace(new java.io.PrintWriter(writer));
+    StringWriter writer = new StringWriter();
+    throwable.printStackTrace(new PrintWriter(writer));
     return writer.toString();
   }
 }

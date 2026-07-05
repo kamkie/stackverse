@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -131,7 +132,7 @@ public class AuthFilter implements ContainerRequestFilter {
       return URI.create(discovery.get("jwks_uri").asText()).toURL();
     } catch (Exception ex) {
       Log.event("error", "dependency_call_failed", "failure", "OIDC discovery failed",
-          Map.of("dependency", "keycloak", "duration_ms", java.time.Duration.between(started, Instant.now()).toMillis(),
+          Map.of("dependency", "keycloak", "duration_ms", Duration.between(started, Instant.now()).toMillis(),
               "error_code", "oidc_discovery_failed"));
       throw ex;
     }
