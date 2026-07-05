@@ -73,8 +73,8 @@ func NewHandler(cfg config.Config, store session.Store, logger *slog.Logger, htt
 	router.Get("/auth/callback", server.callback)
 	router.Post("/auth/logout", server.logout)
 	router.Get("/auth/session", server.authSession)
-	router.Handle("/api", http.HandlerFunc(server.api))
-	router.Handle("/api/*", http.HandlerFunc(server.api))
+	router.HandleFunc("/api", server.api)
+	router.HandleFunc("/api/*", server.api)
 	router.NotFound(server.frontend)
 	return router, nil
 }
