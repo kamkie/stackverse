@@ -637,7 +637,9 @@ Two more automations live in `.github/`:
   builds every Kotlin project; the rest scan buildless. On `main`, an
   `advanced-security/dismiss-alerts` step honors inline `// codeql[query-id]`
   suppression comments by dismissing the matching code-scanning alerts from each
-  language's SARIF.
+  language's SARIF. The workflow maps matrix language IDs to CodeQL's actual
+  SARIF filenames explicitly, because `java-kotlin` writes `java.sarif` and
+  `javascript-typescript` writes `javascript.sarif`.
 - [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
   every ecosystem (Gradle, NuGet, npm, pip, GitHub Actions, Dockerfiles, and
   the compose infra images), with minor/patch bumps grouped per ecosystem.

@@ -28,14 +28,19 @@ jobs:
       matrix:
         include:
           - language: actions
+            sarif-language: actions
             build-mode: none
           - language: csharp
+            sarif-language: csharp
             build-mode: none
           - language: go
+            sarif-language: go
             build-mode: manual
           - language: java-kotlin
+            sarif-language: java
             build-mode: manual
           - language: javascript-typescript
+            sarif-language: javascript
             build-mode: none
     steps:
       - uses: actions/checkout@v7
@@ -90,12 +95,14 @@ jobs:
       # Honor inline `// codeql[query-id]` suppression comments: dismiss the
       # code-scanning alerts each language's SARIF marks as suppressed. Gated to
       # main so a PR branch's suppression comments can't dismiss alerts before
-      # they merge; per-language SARIF paths keep each analysis isolated (the
-      # action only reopens its own "Suppressed via SARIF" dismissals).
+      # they merge. Keep SARIF filenames explicit because CodeQL writes grouped
+      # language IDs under their base language names, such as java.sarif and
+      # javascript.sarif. Per-language SARIF paths keep each analysis isolated
+      # (the action only reopens its own "Suppressed via SARIF" dismissals).
       - uses: advanced-security/dismiss-alerts@v2
         if: github.ref == 'refs/heads/main'
         with:
           sarif-id: ${{ steps.analyze.outputs.sarif-id }}
-          sarif-file: sarif-results/${{ matrix.language }}.sarif
+          sarif-file: sarif-results/${{ matrix.sarif-language }}.sarif
         env:
           GITHUB_TOKEN: ${{ github.token }}
