@@ -79,7 +79,7 @@ public class AdminResource extends ResourceSupport {
 
   @PUT
   @Path("/api/v1/admin/users/{username}/status")
-  public Response setUserStatus(@PathParam("username") String username, String body) {
+  public Response setUserStatus(@PathParam("username") String username, String body) throws SQLException {
     Caller caller = requireRole("admin");
     JsonNode node = JsonSupport.objectNode(body);
     String status = text(node, "status", null);
@@ -111,11 +111,7 @@ public class AdminResource extends ResourceSupport {
     });
     Log.event("info", "blocked".equals(status) ? "user_blocked" : "user_unblocked", "success", "User account status changed",
         Map.of("actor", caller.username(), "resource_type", "user", "resource_id", username));
-    try {
-      return JsonSupport.json(findUser(username));
-    } catch (SQLException ex) {
-      throw new RuntimeException(ex);
-    }
+    return JsonSupport.json(findUser(username));
   }
 
   @GET
