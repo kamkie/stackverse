@@ -1,6 +1,8 @@
 package dev.stackverse.backend.account
 
 import dev.stackverse.backend.support.ApiError
+import dev.stackverse.backend.support.Paging
+import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import dev.stackverse.backend.audit.AuditService
@@ -55,7 +57,7 @@ class UserAccountService {
         List clauses = []
         if (filters.q) {
             clauses << "lower(u.username) like ? escape '\\'"
-            args << "%${escapeLike(filters.q.toString().toLowerCase(Locale.ROOT))}%"
+            args << "%${SqlLike.escape(filters.q.toString().toLowerCase(Locale.ROOT))}%"
         }
         if (filters.status) {
             clauses << "u.status = ?"
@@ -72,13 +74,7 @@ class UserAccountService {
             order by u.last_seen desc, u.username asc
             limit ? offset ?
         """, { rs, rowNum -> accountRow(rs) }, pageArgs as Object[])
-        [
-            items     : items,
-            page      : page,
-            size      : size,
-            totalItems: total,
-            totalPages: total == 0 ? 0 : Math.ceil(total / (double) size) as int
-        ]
+        Paging.resultPage(items, page, size, total)
     }
 
     @Transactional
@@ -123,9 +119,5 @@ class UserAccountService {
 
     private static ApiError validation(String field, String key, String message) {
         ApiError.badRequest("Validation failed.", [[field: field, messageKey: key, message: message]])
-    }
-
-    private static String escapeLike(String value) {
-        value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     }
 }

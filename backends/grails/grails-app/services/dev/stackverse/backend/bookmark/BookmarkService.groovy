@@ -5,6 +5,8 @@ import dev.stackverse.backend.message.MessageService
 import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.BookmarkCursor
 import dev.stackverse.backend.support.Paging
+import dev.stackverse.backend.support.ReportRows
+import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.transform.CompileDynamic
@@ -51,13 +53,7 @@ class BookmarkService {
             order by b.created_at desc, b.id desc
             limit ? offset ?
         """, { rs, rowNum -> bookmarkRow(rs) }, args as Object[])
-        [
-            items     : items,
-            page      : page,
-            size      : size,
-            totalItems: total,
-            totalPages: total == 0 ? 0 : Math.ceil(total / (double) size) as int
-        ]
+        Paging.resultPage(items, page, size, total)
     }
 
     Map listCursor(Map params, String username, String explicitLang, String acceptLanguage) {
@@ -184,18 +180,7 @@ class BookmarkService {
         List rows = jdbcTemplate.query("""
             select id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at
             from reports where id = ?
-        """, { rs, rowNum -> [
-            id            : SqlRows.uuid(rs, "id").toString(),
-            bookmarkId    : SqlRows.uuid(rs, "bookmark_id").toString(),
-            reporter      : rs.getString("reporter"),
-            reason        : rs.getString("reason"),
-            comment       : rs.getString("comment"),
-            status        : rs.getString("status"),
-            resolvedBy    : rs.getString("resolved_by"),
-            resolvedAt    : SqlRows.rfc3339(SqlRows.instant(rs, "resolved_at")),
-            resolutionNote: rs.getString("resolution_note"),
-            createdAt     : SqlRows.rfc3339(SqlRows.instant(rs, "created_at"))
-        ] }, id)
+        """, { rs, rowNum -> ReportRows.row(rs) }, id)
         rows ? rows[0] : null
     }
 
@@ -222,8 +207,8 @@ class BookmarkService {
         }
         if (params.q) {
             parts.add("(lower(b.title) like ? escape '\\' or lower(coalesce(b.notes, '')) like ? escape '\\')",
-                "%${escapeLike(params.q.toString().toLowerCase(Locale.ROOT))}%",
-                "%${escapeLike(params.q.toString().toLowerCase(Locale.ROOT))}%")
+                "%${SqlLike.escape(params.q.toString().toLowerCase(Locale.ROOT))}%",
+                "%${SqlLike.escape(params.q.toString().toLowerCase(Locale.ROOT))}%")
         }
         tags.eachWithIndex { tag, index ->
             parts.add("exists (select 1 from bookmark_tags bt${index} where bt${index}.bookmark_id = b.id and bt${index}.tag = ?)", tag)
@@ -253,7 +238,7 @@ class BookmarkService {
             errors << messageService.validationError("notes", "validation.notes.too-long", explicitLang, acceptLanguage)
         }
         if (!(visibility in ["private", "public"])) {
-            errors << [field: "visibility", messageKey: "validation.visibility.invalid", message: "Visibility is invalid."]
+            errors << messageService.validationError("visibility", "validation.visibility.invalid", explicitLang, acceptLanguage)
         }
         if (tags.size() > 10) {
             errors << messageService.validationError("tags", "validation.tags.too-many", explicitLang, acceptLanguage)
@@ -315,11 +300,6 @@ class BookmarkService {
     private List<String> tagsFor(UUID id) {
         jdbcTemplate.queryForList("select tag from bookmark_tags where bookmark_id = ? order by tag asc", String, id)
     }
-
-    private static String escapeLike(String value) {
-        value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    }
-
     private static class QueryParts {
         final List<String> clauses = []
         final List args = []

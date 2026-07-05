@@ -4,6 +4,7 @@ import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.config.EventLogger
 import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
+import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.json.JsonSlurper
@@ -42,23 +43,25 @@ class MessageService implements ApplicationRunner {
         if (!Files.isDirectory(dir)) {
             throw new IllegalStateException("Message seed directory not found: ${dir.toAbsolutePath()}")
         }
-        Files.list(dir).filter { it.fileName.toString().endsWith(".json") }.sorted().forEach { Path file ->
-            String language = file.fileName.toString().replaceFirst(/\.json$/, "")
-            Map entries = new JsonSlurper().parse(file.toFile()) as Map
-            int inserted = 0
-            def now = timeSource.now()
-            entries.each { key, text ->
-                inserted += jdbcTemplate.update("""
-                    insert into messages (id, key, language, text, description, created_at, updated_at)
-                    values (?, ?, ?, ?, null, ?, ?)
-                    on conflict (key, language) do nothing
-                """, UUID.randomUUID(), key.toString(), language, text.toString(), Timestamp.from(now), Timestamp.from(now))
+        Files.list(dir).withCloseable { stream ->
+            stream.filter { it.fileName.toString().endsWith(".json") }.sorted().forEach { Path file ->
+                String language = file.fileName.toString().replaceFirst(/\.json$/, "")
+                Map entries = new JsonSlurper().parse(file.toFile()) as Map
+                int inserted = 0
+                def now = timeSource.now()
+                entries.each { key, text ->
+                    inserted += jdbcTemplate.update("""
+                        insert into messages (id, key, language, text, description, created_at, updated_at)
+                        values (?, ?, ?, ?, null, ?, ?)
+                        on conflict (key, language) do nothing
+                    """, UUID.randomUUID(), key.toString(), language, text.toString(), Timestamp.from(now), Timestamp.from(now))
+                }
+                eventLogger.info("message_seed_imported", "success", "Message seed imported", [
+                    language: language,
+                    inserted: inserted,
+                    skipped : entries.size() - inserted
+                ])
             }
-            eventLogger.info("message_seed_imported", "success", "Message seed imported", [
-                language: language,
-                inserted: inserted,
-                skipped : entries.size() - inserted
-            ])
         }
     }
 
@@ -95,7 +98,7 @@ class MessageService implements ApplicationRunner {
         }
         if (params.q) {
             clauses << "(lower(key) like ? escape '\\' or lower(text) like ? escape '\\')"
-            String q = "%${escapeLike(params.q.toString().toLowerCase(Locale.ROOT))}%"
+            String q = "%${SqlLike.escape(params.q.toString().toLowerCase(Locale.ROOT))}%"
             args << q
             args << q
         }
@@ -109,13 +112,7 @@ class MessageService implements ApplicationRunner {
             order by key asc, language asc
             limit ? offset ?
         """, { rs, rowNum -> messageRow(rs) }, pageArgs as Object[])
-        [
-            items     : items,
-            page      : page,
-            size      : size,
-            totalItems: total,
-            totalPages: total == 0 ? 0 : Math.ceil(total / (double) size) as int
-        ]
+        Paging.resultPage(items, page, size, total)
     }
 
     Map bundle(String explicitLang, String acceptLanguage) {
@@ -254,9 +251,5 @@ class MessageService implements ApplicationRunner {
             createdAt  : SqlRows.rfc3339(SqlRows.instant(rs, "created_at")),
             updatedAt  : SqlRows.rfc3339(SqlRows.instant(rs, "updated_at"))
         ]
-    }
-
-    private static String escapeLike(String value) {
-        value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     }
 }

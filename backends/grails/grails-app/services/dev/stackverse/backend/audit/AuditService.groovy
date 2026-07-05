@@ -1,5 +1,6 @@
 package dev.stackverse.backend.audit
 
+import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
@@ -49,11 +50,11 @@ class AuditService {
         }
         if (params.from) {
             clauses << "created_at >= ?"
-            args << Timestamp.from(java.time.Instant.parse(params.from.toString()))
+            args << timestampParam(params.from, "from")
         }
         if (params.to) {
             clauses << "created_at <= ?"
-            args << Timestamp.from(java.time.Instant.parse(params.to.toString()))
+            args << timestampParam(params.to, "to")
         }
         String where = clauses ? "where ${clauses.join(' and ')}" : ""
         Long total = jdbcTemplate.queryForObject("select count(*) from audit_entries ${where}", Long, args as Object[])
@@ -75,12 +76,14 @@ class AuditService {
                 createdAt : SqlRows.rfc3339(SqlRows.instant(rs, "created_at"))
             ]
         }, pageArgs as Object[])
-        [
-            items     : items,
-            page      : page,
-            size      : size,
-            totalItems: total,
-            totalPages: total == 0 ? 0 : Math.ceil(total / (double) size) as int
-        ]
+        Paging.resultPage(items, page, size, total)
+    }
+
+    private static Timestamp timestampParam(Object value, String field) {
+        try {
+            return Timestamp.from(java.time.Instant.parse(value.toString()))
+        } catch (Exception ignored) {
+            throw ApiError.badRequest("Validation failed.", [[field: field, messageKey: "validation.${field}.invalid", message: "${field} is invalid."]])
+        }
     }
 }

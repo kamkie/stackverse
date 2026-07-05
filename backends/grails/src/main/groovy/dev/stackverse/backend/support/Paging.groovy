@@ -1,6 +1,16 @@
 package dev.stackverse.backend.support
 
 class Paging {
+    static Map resultPage(List items, int page, int size, Long total) {
+        [
+            items     : items,
+            page      : page,
+            size      : size,
+            totalItems: total,
+            totalPages: total == 0 ? 0 : Math.ceil(total / (double) size) as int
+        ]
+    }
+
     static int size(Object value, int defaultValue = 20) {
         int parsed = positiveInt(value, defaultValue, "size")
         if (parsed > 100) {

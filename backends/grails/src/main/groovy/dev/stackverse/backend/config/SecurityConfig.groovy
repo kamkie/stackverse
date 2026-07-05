@@ -8,7 +8,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
@@ -45,9 +44,6 @@ class SecurityConfig {
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests {
-                it.requestMatchers("/healthz", "/readyz").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/v1/bookmarks", "/api/v2/bookmarks", "/api/v1/bookmarks/*").permitAll()
-                it.requestMatchers(HttpMethod.GET, "/api/v1/messages", "/api/v1/messages/**").permitAll()
                 it.anyRequest().permitAll()
             }
             .oauth2ResourceServer { resourceServer ->

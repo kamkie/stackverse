@@ -6,7 +6,7 @@ import dev.stackverse.backend.config.EventLogger
 import dev.stackverse.backend.message.MessageService
 import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
-import dev.stackverse.backend.support.SqlRows
+import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.TimeSource
 import groovy.transform.CompileDynamic
 import org.springframework.beans.factory.annotation.Autowired
@@ -43,8 +43,8 @@ class ModerationService {
             where reporter = ? ${statusClause}
             order by created_at desc, id desc
             limit ? offset ?
-        """, { rs, rowNum -> reportRow(rs) }, pageArgs as Object[])
-        resultPage(items, page, size, total)
+        """, { rs, rowNum -> ReportRows.row(rs) }, pageArgs as Object[])
+        Paging.resultPage(items, page, size, total)
     }
 
     @Transactional
@@ -94,8 +94,8 @@ class ModerationService {
             ${where}
             order by ${order}
             limit ? offset ?
-        """, { rs, rowNum -> reportRow(rs) }, pageArgs as Object[])
-        resultPage(items, page, size, total)
+        """, { rs, rowNum -> ReportRows.row(rs) }, pageArgs as Object[])
+        Paging.resultPage(items, page, size, total)
     }
 
     @Transactional
@@ -169,7 +169,7 @@ class ModerationService {
         List rows = jdbcTemplate.query("""
             select id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at
             from reports where id = ?
-        """, { rs, rowNum -> reportRow(rs) }, id)
+        """, { rs, rowNum -> ReportRows.row(rs) }, id)
         rows ? rows[0] : null
     }
 
@@ -184,30 +184,5 @@ class ModerationService {
         if (errors) {
             throw ApiError.badRequest("Validation failed.", errors)
         }
-    }
-
-    private static Map resultPage(List items, int page, int size, Long total) {
-        [
-            items     : items,
-            page      : page,
-            size      : size,
-            totalItems: total,
-            totalPages: total == 0 ? 0 : Math.ceil(total / (double) size) as int
-        ]
-    }
-
-    private static Map reportRow(rs) {
-        [
-            id            : SqlRows.uuid(rs, "id").toString(),
-            bookmarkId    : SqlRows.uuid(rs, "bookmark_id").toString(),
-            reporter      : rs.getString("reporter"),
-            reason        : rs.getString("reason"),
-            comment       : rs.getString("comment"),
-            status        : rs.getString("status"),
-            resolvedBy    : rs.getString("resolved_by"),
-            resolvedAt    : SqlRows.rfc3339(SqlRows.instant(rs, "resolved_at")),
-            resolutionNote: rs.getString("resolution_note"),
-            createdAt     : SqlRows.rfc3339(SqlRows.instant(rs, "created_at"))
-        ]
     }
 }
