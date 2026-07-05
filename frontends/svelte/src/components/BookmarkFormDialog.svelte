@@ -13,22 +13,25 @@
   }
 
   let { bookmark = undefined, onSaved, onClose }: Props = $props();
-  let url = $state("");
-  let title = $state("");
-  let notes = $state("");
-  let tags = $state("");
-  let visibility: Visibility = $state("private");
+  const initial = initialFields();
+  let url = $state(initial.url);
+  let title = $state(initial.title);
+  let notes = $state(initial.notes);
+  let tags = $state(initial.tags);
+  let visibility: Visibility = $state(initial.visibility);
   let error: unknown = $state(undefined);
   let pending = $state(false);
   const i18nState = fromStore(i18n);
 
-  $effect(() => {
-    url = bookmark?.url ?? "";
-    title = bookmark?.title ?? "";
-    notes = bookmark?.notes ?? "";
-    tags = bookmark?.tags.join(" ") ?? "";
-    visibility = bookmark?.visibility ?? "private";
-  });
+  function initialFields() {
+    return {
+      url: bookmark?.url ?? "",
+      title: bookmark?.title ?? "",
+      notes: bookmark?.notes ?? "",
+      tags: bookmark?.tags.join(" ") ?? "",
+      visibility: bookmark?.visibility ?? "private",
+    };
+  }
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
