@@ -107,6 +107,9 @@ function _M.valid_csrf(headers)
   end
   local cookie = cookie_value(XSRF_COOKIE)
   local header = header_value(headers, XSRF_HEADER)
+  if not cookie or cookie == "" or not header or header == "" then
+    return false
+  end
   return constant_time_equal(cookie, header)
 end
 

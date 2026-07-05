@@ -29,13 +29,21 @@ local function has_session_cookie()
   return (ngx.var.http_cookie or ""):find("stackverse_session=", 1, true) ~= nil
 end
 
+local function anonymous_session_error(err)
+  local message = tostring(err or ""):lower()
+  return message:find("missing session cookie", 1, true)
+    or message:find("invalid session", 1, true)
+    or message:find("timeout exceeded", 1, true)
+    or message:find("expired", 1, true)
+end
+
 local function load_session(cfg)
   local session, err, exists = session_lib.open(cfg.session)
   if exists then
     return session, nil
   end
   close_session(session)
-  if err and has_session_cookie() and tostring(err):lower():find("redis", 1, true) then
+  if err and has_session_cookie() and not anonymous_session_error(err) then
     logging.event("error", "dependency_call_failed", "failure", "Redis session read failed", {
       dependency = "redis",
       error_code = "redis_read_failed",

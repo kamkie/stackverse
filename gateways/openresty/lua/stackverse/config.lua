@@ -1,4 +1,5 @@
 local _M = {}
+local cached_config = nil
 
 local function env(name, default)
   local value = os.getenv(name)
@@ -194,6 +195,10 @@ function _M.join_url(base, request_uri)
 end
 
 function _M.load()
+  if cached_config then
+    return cached_config
+  end
+
   local backend = parse_http_url(env("BACKEND_URL", "http://localhost:8080"), "BACKEND_URL")
   local public = parse_http_url(env("PUBLIC_URL", "http://localhost:8000"), "PUBLIC_URL")
   local frontend_raw = env("FRONTEND_URL", "")
@@ -209,7 +214,7 @@ function _M.load()
   local redis = parse_redis_url(env("REDIS_URL", "redis://localhost:6379"))
 
   local secure = public.scheme == "https"
-  return {
+  cached_config = {
     port = env("PORT", "8000"),
     backend_url = backend.raw,
     frontend_url = frontend and frontend.raw or nil,
@@ -244,6 +249,7 @@ function _M.load()
     otel_exporter_otlp_endpoint = env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318"),
     otel_exporter_otlp_logs_endpoint = env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", ""),
   }
+  return cached_config
 end
 
 return _M
