@@ -46,10 +46,16 @@ jobs:
           restore-keys: sbt-${{ runner.os }}-backend-play-scala-
       - name: Test with coverage
         run: sbt clean coverage test coverageReport
+      - name: Normalize coverage report path
+        run: |
+          report="$(find target -path '*/scoverage-report/scoverage.xml' -print -quit)"
+          test -n "$report"
+          mkdir -p target/scoverage-report
+          cp "$report" target/scoverage-report/scoverage.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
-          files: backends/play-scala/target/scala-2.13/scoverage-report/scoverage.xml
+          files: backends/play-scala/target/scoverage-report/scoverage.xml
           flags: backend-play-scala
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov

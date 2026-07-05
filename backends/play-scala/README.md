@@ -1,6 +1,6 @@
 # Backend · Play Framework (Scala)
 
-The Stackverse backend in Scala 2.13 on Play Framework 2.9: Play routes/controllers,
+The Stackverse backend in Scala 3 on Play Framework 2.9: Play routes/controllers,
 Play JSON, plain JDBC through HikariCP, Flyway migrations, PostgreSQL, and Nimbus
 JWT validation against Keycloak's JWKS.
 
@@ -24,6 +24,9 @@ run from a different working directory. `APPLICATION_SECRET` can override Play's
 local-development application secret for deployed runs. Migrations apply on startup,
 so the database must be one this backend owns. When switching from another backend,
 reset the compose database volume first.
+
+Keep this implementation on sbt 1.12.x while it uses Play Framework 2.9; the Play 2.9
+sbt plugin is published for sbt 1, not sbt 2.
 
 Tests:
 
