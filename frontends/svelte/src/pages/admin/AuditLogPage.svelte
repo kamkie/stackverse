@@ -5,6 +5,7 @@
   import { i18n, m } from "../../lib/i18n";
   import type { AuditEntry, Page } from "../../lib/types";
   import Pagination from "../../components/Pagination.svelte";
+  import { fromStore } from "svelte/store";
 
   const knownActions = [
     "message.created",
@@ -16,16 +17,17 @@
     "user.unblocked",
   ];
 
-  let actor = "";
-  let action = "";
-  let from = "";
-  let to = "";
-  let page = 0;
-  let audit: Page<AuditEntry> | null = null;
-  let loading = true;
-  let error: Error | null = null;
+  let actor = $state("");
+  let action = $state("");
+  let from = $state("");
+  let to = $state("");
+  let page = $state(0);
+  let audit: Page<AuditEntry> | null = $state(null);
+  let loading = $state(true);
+  let error: Error | null = $state(null);
   let loadRequest = 0;
   let filterTimer: number | undefined = undefined;
+  const i18nState = fromStore(i18n);
 
   function clearPendingFilterReload() {
     if (filterTimer !== undefined) {
@@ -102,24 +104,24 @@
   onDestroy(clearPendingFilterReload);
 </script>
 
-<h1 class="sv-page-title">{m($i18n, "ui.admin.audit")}</h1>
+<h1 class="sv-page-title">{m(i18nState.current, "ui.admin.audit")}</h1>
 <div class="sv-toolbar">
   <input
     class="sv-input"
-    placeholder={m($i18n, "ui.field.actor")}
+    placeholder={m(i18nState.current, "ui.field.actor")}
     value={actor}
-    on:input={(event) => {
+    oninput={(event) => {
       actor = filterValue(event);
       scheduleFilterReload();
     }}
   />
   <input
     class="sv-input"
-    placeholder={m($i18n, "ui.audit.action.placeholder")}
-    aria-label={m($i18n, "ui.audit.action.placeholder")}
+    placeholder={m(i18nState.current, "ui.audit.action.placeholder")}
+    aria-label={m(i18nState.current, "ui.audit.action.placeholder")}
     list="audit-log-known-actions"
     value={action}
-    on:input={(event) => {
+    oninput={(event) => {
       action = filterValue(event);
       scheduleFilterReload();
     }}
@@ -130,31 +132,31 @@
     {/each}
   </datalist>
   <label class="sv-toolbar-field">
-    <span class="sv-label">{m($i18n, "ui.field.from")}</span>
+    <span class="sv-label">{m(i18nState.current, "ui.field.from")}</span>
     <input
       type="date"
       class="sv-input"
       value={from}
-      on:change={(event) => {
+      onchange={(event) => {
         from = filterValue(event);
         reloadFirstPage();
       }}
     />
   </label>
   <label class="sv-toolbar-field">
-    <span class="sv-label">{m($i18n, "ui.field.to")}</span>
+    <span class="sv-label">{m(i18nState.current, "ui.field.to")}</span>
     <input
       type="date"
       class="sv-input"
       value={to}
-      on:change={(event) => {
+      onchange={(event) => {
         to = filterValue(event);
         reloadFirstPage();
       }}
     />
   </label>
-  <button type="button" class="sv-button sv-button--ghost" on:click={clearFilters}>
-    {m($i18n, "ui.action.clear-filters")}
+  <button type="button" class="sv-button sv-button--ghost" onclick={clearFilters}>
+    {m(i18nState.current, "ui.action.clear-filters")}
   </button>
 </div>
 
@@ -167,16 +169,16 @@
     <table class="sv-table">
       <thead>
         <tr>
-          <th scope="col">{m($i18n, "ui.field.created-at")}</th>
-          <th scope="col">{m($i18n, "ui.field.actor")}</th>
-          <th scope="col">{m($i18n, "ui.field.action")}</th>
-          <th scope="col">{m($i18n, "ui.field.target")}</th>
+          <th scope="col">{m(i18nState.current, "ui.field.created-at")}</th>
+          <th scope="col">{m(i18nState.current, "ui.field.actor")}</th>
+          <th scope="col">{m(i18nState.current, "ui.field.action")}</th>
+          <th scope="col">{m(i18nState.current, "ui.field.target")}</th>
         </tr>
       </thead>
       <tbody>
         {#each audit.items as entry (entry.id)}
           <tr>
-            <td><time dateTime={entry.createdAt}>{formatDate(entry.createdAt, $i18n.resolvedLanguage)}</time></td>
+            <td><time dateTime={entry.createdAt}>{formatDate(entry.createdAt, i18nState.current.resolvedLanguage)}</time></td>
             <td>{entry.actor}</td>
             <td><span class="sv-badge">{entry.action}</span></td>
             <td class="sv-cell-mono">{entry.targetType}/{entry.targetId.slice(0, 8)}</td>

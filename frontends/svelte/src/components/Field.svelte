@@ -1,12 +1,19 @@
 <script lang="ts">
-  export let label: string;
-  export let hint: string | undefined = undefined;
-  export let error: string | undefined = undefined;
+  import type { Snippet } from "svelte";
+
+  interface Props {
+    label: string;
+    hint?: string;
+    error?: string;
+    children: Snippet;
+  }
+
+  let { label, hint = undefined, error = undefined, children }: Props = $props();
 </script>
 
 <label class={`sv-field${error ? " is-invalid" : ""}`}>
   <span class="sv-label">{label}</span>
-  <slot />
+  {@render children()}
   {#if hint}
     <span class="sv-field-hint">{hint}</span>
   {/if}

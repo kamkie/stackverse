@@ -3,11 +3,13 @@
   import { api } from "../lib/api";
   import { i18n, m } from "../lib/i18n";
   import type { Bookmark } from "../lib/types";
+  import { fromStore } from "svelte/store";
 
-  export let bookmarkId: string;
+  let { bookmarkId }: { bookmarkId: string } = $props();
 
-  let bookmark: Bookmark | null = null;
-  let failed = false;
+  let bookmark: Bookmark | null = $state(null);
+  let failed = $state(false);
+  const i18nState = fromStore(i18n);
 
   onMount(() => {
     let cancelled = false;
@@ -34,6 +36,6 @@
 {:else}
   <span class="sv-cell-mono">{bookmarkId}</span>
   {#if failed}
-    <div class="sv-field-hint">{m($i18n, "ui.reports.bookmark-unavailable")}</div>
+    <div class="sv-field-hint">{m(i18nState.current, "ui.reports.bookmark-unavailable")}</div>
   {/if}
 {/if}

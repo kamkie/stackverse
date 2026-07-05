@@ -1,27 +1,41 @@
 <script lang="ts">
   import Dialog from "./Dialog.svelte";
 
-  export let title: string;
-  export let body: string;
-  export let confirmLabel: string;
-  export let cancelLabel: string;
-  export let pending = false;
-  export let ctx: string | undefined = undefined;
-  export let danger = true;
-  export let onConfirm: () => void | Promise<void>;
-  export let onClose: () => void;
+  interface Props {
+    title: string;
+    body: string;
+    confirmLabel: string;
+    cancelLabel: string;
+    pending?: boolean;
+    ctx?: string;
+    danger?: boolean;
+    onConfirm: () => void | Promise<void>;
+    onClose: () => void;
+  }
+
+  let {
+    title,
+    body,
+    confirmLabel,
+    cancelLabel,
+    pending = false,
+    ctx = undefined,
+    danger = true,
+    onConfirm,
+    onClose,
+  }: Props = $props();
+
+  function submit(event: SubmitEvent) {
+    event.preventDefault();
+    void onConfirm();
+  }
 </script>
 
-<Dialog {title} {ctx} on:close={onClose}>
-  <form
-    class="sv-form"
-    on:submit|preventDefault={() => {
-      void onConfirm();
-    }}
-  >
+<Dialog {title} {ctx} {onClose}>
+  <form class="sv-form" onsubmit={submit}>
     <p>{body}</p>
     <div class="sv-form-actions">
-      <button type="button" class="sv-button" on:click={onClose}>{cancelLabel}</button>
+      <button type="button" class="sv-button" onclick={onClose}>{cancelLabel}</button>
       <button
         type="submit"
         class={`sv-button ${danger ? "sv-button--danger" : "sv-button--primary"}`}
