@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace StackverseGateway;
 
 /// <summary>
@@ -44,7 +46,7 @@ public static class EventLog
             return null;
         }
         value = value.Replace("\r\n", "\n"); // one newline, one escape
-        var builder = new System.Text.StringBuilder(Math.Min(value.Length, maxLength));
+        var builder = new StringBuilder(Math.Min(value.Length, maxLength));
         foreach (var ch in value)
         {
             if (builder.Length >= maxLength)

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Text.Json;
@@ -72,7 +73,7 @@ public sealed class AccessTokenManager(
         // while the session stays.
         string newAccessToken, newRefreshToken;
         int expiresIn;
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             var metadata = await options.ConfigurationManager!.GetConfigurationAsync(cancellationToken);
