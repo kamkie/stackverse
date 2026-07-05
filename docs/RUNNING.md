@@ -298,6 +298,29 @@ login block. CI execution is manual through
 the reference stack, runs the suite, and uploads Cypress artifacts on failure.
 It is not part of the merge gate.
 
+The Robot Framework acceptance showcase lives in
+[testing/robot-acceptance](../testing/robot-acceptance) and runs through the
+gateway at `STACKVERSE_URL` (default `http://localhost:8000`), including the
+real Keycloak login flow:
+
+```sh
+cd testing/robot-acceptance
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m robot --outputdir results tests
+```
+
+PowerShell uses the same suite-local command with
+`.\.venv\Scripts\Activate.ps1`. The suite demonstrates Robot's
+keyword-driven style for representative login/session, bookmark CRUD,
+reporting, moderation, and admin-navigation checks. Standard Robot artifacts
+(`output.xml`, `log.html`, `report.html`, plus failure screenshots) are written
+under `testing/robot-acceptance/results/`. CI execution is manual through
+[test-robot-acceptance.yml](../.github/workflows/test-robot-acceptance.yml),
+which builds the reference stack, runs the suite, and uploads Robot artifacts.
+It is not part of the merge gate.
+
 ## Continuous integration
 
 CI runs on every push to `main` and every pull request, split so that shared

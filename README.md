@@ -80,7 +80,10 @@ suites are the canonical acceptance gates. Additional testing-tool examples live
 under [testing/](testing/README.md) as showcase variants: they compare tools and
 representative workflows without replacing or expanding the canonical gates. The
 Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
-generates bounded OpenAPI property tests against a running backend.
+generates bounded OpenAPI property tests against a running backend, and the
+Robot Framework showcase in
+[testing/robot-acceptance/](testing/robot-acceptance) demonstrates
+keyword-driven UI acceptance tests against a running stack.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
