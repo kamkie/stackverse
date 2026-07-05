@@ -141,9 +141,13 @@ describe("shared components", () => {
       import("../auth"),
       import("../reportedStore"),
     ]);
-    auth.session.value = { authenticated: true, username: "demo" };
     const reported: Bookmark[] = [];
 
+    const loggedOut = mountComponent(BookmarkCard, { bookmark, mode: "feed" });
+    expect(loggedOut.host.querySelector("button")).toBeNull();
+    loggedOut.unmount();
+
+    auth.session.value = { authenticated: true, username: "demo" };
     const active = mountComponent(BookmarkCard, {
       bookmark,
       mode: "feed",
