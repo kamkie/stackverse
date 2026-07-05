@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
 use axum::Router;
-use axum::body::Body;
 use axum::extract::rejection::JsonRejection;
 use axum::extract::{Extension, Json, Path, State};
-use axum::http::{HeaderMap, Response, StatusCode, Uri};
+use axum::http::{HeaderMap, StatusCode, Uri};
 use axum::middleware;
+use axum::response::Response;
 use axum::routing::{get, post, put};
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
@@ -27,6 +27,8 @@ const BOOKMARK_COLUMNS: &str =
     "id, owner, url, title, notes, tags, visibility, status, created_at, updated_at";
 const MESSAGE_COLUMNS: &str = "id, key, language, text, description, created_at, updated_at";
 const REPORT_COLUMNS: &str = "id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at";
+
+type HandlerResult = Result<Response, error::AppError>;
 
 static TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-z0-9-]{1,30}$").unwrap());
 static MESSAGE_KEY_RE: LazyLock<Regex> =
@@ -93,8 +95,8 @@ async fn readyz(State(state): State<AppState>) -> StatusCode {
     }
 }
 
-async fn fallback(State(state): State<AppState>, headers: HeaderMap, uri: Uri) -> Response<Body> {
-    error::not_found(&state, &headers, &uri).await
+async fn fallback(State(state): State<AppState>, headers: HeaderMap, uri: Uri) -> HandlerResult {
+    Err(error::not_found(&state, &headers, &uri))
 }
 
 async fn require_identity(
@@ -102,10 +104,10 @@ async fn require_identity(
     headers: &HeaderMap,
     uri: &Uri,
     identity: Option<Extension<Identity>>,
-) -> Result<Identity, Response<Body>> {
+) -> Result<Identity, error::AppError> {
     match identity {
         Some(Extension(identity)) => Ok(identity),
-        None => Err(error::unauthorized(state, headers, uri).await),
+        None => Err(error::unauthorized(state, headers, uri)),
     }
 }
 
@@ -115,10 +117,10 @@ async fn require_role(
     uri: &Uri,
     identity: Option<Extension<Identity>>,
     role: &str,
-) -> Result<Identity, Response<Body>> {
+) -> Result<Identity, error::AppError> {
     let identity = match identity {
         Some(Extension(identity)) => identity,
-        None => return Err(error::unauthorized(state, headers, uri).await),
+        None => return Err(error::unauthorized(state, headers, uri)),
     };
     if identity.has_role(role) {
         Ok(identity)
@@ -129,55 +131,38 @@ async fn require_role(
             actor = %identity.username,
             "Denied a request lacking the required role"
         );
-        Err(error::forbidden(state, headers, uri).await)
+        Err(error::forbidden(state, headers, uri))
     }
 }
 
 async fn json_body<T>(
-    state: &AppState,
-    headers: &HeaderMap,
-    uri: &Uri,
+    _state: &AppState,
+    _headers: &HeaderMap,
+    _uri: &Uri,
     body: Result<Json<T>, JsonRejection>,
-) -> Result<T, Response<Body>> {
+) -> Result<T, error::AppError> {
     match body {
         Ok(Json(value)) => Ok(value),
         Err(_) => Err(error::problem(
-            state,
-            headers,
-            uri,
             StatusCode::BAD_REQUEST,
             "Bad Request",
             Some("Invalid JSON request body.".to_string()),
-        )
-        .await),
+        )),
     }
 }
 
-async fn bad_request(
-    state: &AppState,
-    headers: &HeaderMap,
-    uri: &Uri,
+fn bad_request(
+    _state: &AppState,
+    _headers: &HeaderMap,
+    _uri: &Uri,
     detail: impl Into<String>,
-) -> Response<Body> {
-    error::problem(
-        state,
-        headers,
-        uri,
-        StatusCode::BAD_REQUEST,
-        "Bad Request",
-        Some(detail.into()),
-    )
-    .await
+) -> error::AppError {
+    error::problem(StatusCode::BAD_REQUEST, "Bad Request", Some(detail.into()))
 }
 
-async fn db_error(
-    state: &AppState,
-    headers: &HeaderMap,
-    uri: &Uri,
-    err: sqlx::Error,
-) -> Response<Body> {
+fn db_error(state: &AppState, headers: &HeaderMap, uri: &Uri, err: sqlx::Error) -> error::AppError {
     if db::pg_not_found(&err) {
-        error::not_found(state, headers, uri).await
+        error::not_found(state, headers, uri)
     } else {
         tracing::error!(
             event = "dependency_call_failed",
@@ -189,7 +174,28 @@ async fn db_error(
                 .unwrap_or(std::borrow::Cow::Borrowed("query_failed")),
             "Database call failed"
         );
-        error::internal_error(state, headers, uri, anyhow::Error::new(err)).await
+        error::internal_error(state, headers, uri, anyhow::Error::new(err))
+    }
+}
+
+fn db_result<T>(
+    state: &AppState,
+    headers: &HeaderMap,
+    uri: &Uri,
+    result: Result<T, sqlx::Error>,
+) -> Result<T, error::AppError> {
+    result.map_err(|err| db_error(state, headers, uri, err))
+}
+
+async fn validation_result<T>(
+    state: &AppState,
+    headers: &HeaderMap,
+    uri: &Uri,
+    result: Result<T, Vec<FieldViolation>>,
+) -> Result<T, error::AppError> {
+    match result {
+        Ok(value) => Ok(value),
+        Err(fields) => Err(error::validation_problem(state, headers, uri, fields).await),
     }
 }
 
@@ -334,11 +340,16 @@ async fn parse_bookmark_list_query(
     headers: &HeaderMap,
     uri: &Uri,
     identity: Option<Extension<Identity>>,
-) -> Result<BookmarkListQuery, Response<Body>> {
+) -> Result<BookmarkListQuery, error::AppError> {
     let params = error::parse_query(uri);
     let q = error::first(&params, "q");
     if q.chars().count() > 200 {
-        return Err(bad_request(state, headers, uri, "q must be at most 200 characters").await);
+        return Err(bad_request(
+            state,
+            headers,
+            uri,
+            "q must be at most 200 characters",
+        ));
     }
     let visibility = error::first(&params, "visibility");
     if !visibility.is_empty() && visibility != "private" && visibility != "public" {
@@ -347,8 +358,7 @@ async fn parse_bookmark_list_query(
             headers,
             uri,
             "visibility must be one of: private, public",
-        )
-        .await);
+        ));
     }
     let mut tags = Vec::new();
     for raw in params.get("tag").into_iter().flatten() {
@@ -417,22 +427,23 @@ async fn list_bookmarks_v1(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
+) -> HandlerResult {
     let params = error::parse_query(&uri);
     let (page, size) = match error::parse_page(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
-    let query = match parse_bookmark_list_query(&state, &headers, &uri, identity).await {
-        Ok(value) => value,
-        Err(response) => return response,
-    };
+    let query = parse_bookmark_list_query(&state, &headers, &uri, identity).await?;
     let mut count = QueryBuilder::<Postgres>::new("select count(*) from bookmarks");
     push_bookmark_where(&mut count, &query);
-    let total = match count.build().fetch_one(&state.pool).await {
-        Ok(row) => row.try_get::<i64, _>(0).unwrap_or(0),
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let total = db_result(
+        &state,
+        &headers,
+        &uri,
+        count.build().fetch_one(&state.pool).await,
+    )?
+    .try_get::<i64, _>(0)
+    .unwrap_or(0);
     let mut list =
         QueryBuilder::<Postgres>::new(format!("select {BOOKMARK_COLUMNS} from bookmarks"));
     push_bookmark_where(&mut list, &query);
@@ -440,20 +451,20 @@ async fn list_bookmarks_v1(
     list.push_bind(size);
     list.push(" offset ");
     list.push_bind(page * size);
-    let rows = match list
-        .build_query_as::<Bookmark>()
-        .fetch_all(&state.pool)
-        .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let rows = db_result(
+        &state,
+        &headers,
+        &uri,
+        list.build_query_as::<Bookmark>()
+            .fetch_all(&state.pool)
+            .await,
+    )?;
     let items = rows
         .into_iter()
         .map(BookmarkResponse::from)
         .collect::<Vec<_>>();
     let page = error::page_response(items, page, size, total);
-    error::json_with_headers(
+    Ok(error::json_with_headers(
         StatusCode::OK,
         &page,
         &[
@@ -464,7 +475,7 @@ async fn list_bookmarks_v1(
                 "</api/v2/bookmarks>; rel=\"successor-version\"".to_string(),
             ),
         ],
-    )
+    ))
 }
 
 #[derive(Debug)]
@@ -484,15 +495,15 @@ fn encode_cursor(cursor: Cursor) -> String {
     URL_SAFE_NO_PAD.encode(raw)
 }
 
-fn decode_cursor(raw: &str) -> Result<Cursor, ()> {
-    let decoded = URL_SAFE_NO_PAD.decode(raw).map_err(|_| ())?;
-    let decoded = String::from_utf8(decoded).map_err(|_| ())?;
-    let (created_at, id) = decoded.split_once('|').ok_or(())?;
+fn decode_cursor(raw: &str) -> Option<Cursor> {
+    let decoded = URL_SAFE_NO_PAD.decode(raw).ok()?;
+    let decoded = String::from_utf8(decoded).ok()?;
+    let (created_at, id) = decoded.split_once('|')?;
     let created_at = DateTime::parse_from_rfc3339(created_at)
-        .map_err(|_| ())?
+        .ok()?
         .with_timezone(&Utc);
-    let id = Uuid::parse_str(id).map_err(|_| ())?;
-    Ok(Cursor { created_at, id })
+    let id = Uuid::parse_str(id).ok()?;
+    Some(Cursor { created_at, id })
 }
 
 #[derive(Serialize)]
@@ -508,31 +519,27 @@ async fn list_bookmarks_v2(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
+) -> HandlerResult {
     let params = error::parse_query(&uri);
     let size = match error::parse_size(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let cursor = match error::first(&params, "cursor") {
         raw if raw.is_empty() => None,
         raw => match decode_cursor(&raw) {
-            Ok(cursor) => Some(cursor),
-            Err(_) => {
-                return bad_request(
+            Some(cursor) => Some(cursor),
+            None => {
+                return Err(bad_request(
                     &state,
                     &headers,
                     &uri,
                     "The cursor is malformed or unresolvable.",
-                )
-                .await;
+                ));
             }
         },
     };
-    let query = match parse_bookmark_list_query(&state, &headers, &uri, identity).await {
-        Ok(value) => value,
-        Err(response) => return response,
-    };
+    let query = parse_bookmark_list_query(&state, &headers, &uri, identity).await?;
     let mut list =
         QueryBuilder::<Postgres>::new(format!("select {BOOKMARK_COLUMNS} from bookmarks"));
     push_bookmark_where(&mut list, &query);
@@ -545,14 +552,14 @@ async fn list_bookmarks_v2(
     }
     list.push(" order by created_at desc, id desc limit ");
     list.push_bind(size + 1);
-    let mut rows = match list
-        .build_query_as::<Bookmark>()
-        .fetch_all(&state.pool)
-        .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let mut rows = db_result(
+        &state,
+        &headers,
+        &uri,
+        list.build_query_as::<Bookmark>()
+            .fetch_all(&state.pool)
+            .await,
+    )?;
     let next_cursor = if rows.len() as i64 > size {
         rows.truncate(size as usize);
         rows.last().map(|last| {
@@ -568,7 +575,10 @@ async fn list_bookmarks_v2(
         .into_iter()
         .map(BookmarkResponse::from)
         .collect::<Vec<_>>();
-    error::json(StatusCode::OK, &CursorPage { items, next_cursor })
+    Ok(error::json(
+        StatusCode::OK,
+        &CursorPage { items, next_cursor },
+    ))
 }
 
 async fn create_bookmark(
@@ -577,19 +587,10 @@ async fn create_bookmark(
     uri: Uri,
     identity: Option<Extension<Identity>>,
     body: Result<Json<BookmarkRequest>, JsonRejection>,
-) -> Response<Body> {
-    let identity = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
-    let input = match validate_bookmark(body) {
-        Ok(input) => input,
-        Err(fields) => return error::validation_problem(&state, &headers, &uri, fields).await,
-    };
+) -> HandlerResult {
+    let identity = require_identity(&state, &headers, &uri, identity).await?;
+    let body = json_body(&state, &headers, &uri, body).await?;
+    let input = validation_result(&state, &headers, &uri, validate_bookmark(body)).await?;
     let now = error::now_utc();
     let bookmark = Bookmark {
         id: Uuid::new_v4(),
@@ -603,7 +604,7 @@ async fn create_bookmark(
         created_at: now,
         updated_at: now,
     };
-    let result = sqlx::query(AssertSqlSafe(format!(
+    db_result(&state, &headers, &uri, sqlx::query(AssertSqlSafe(format!(
         "insert into bookmarks ({BOOKMARK_COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)"
     )))
     .bind(bookmark.id)
@@ -617,15 +618,12 @@ async fn create_bookmark(
     .bind(bookmark.created_at)
     .bind(bookmark.updated_at)
     .execute(&state.pool)
-    .await;
-    if let Err(err) = result {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    error::json_with_headers(
+    .await)?;
+    Ok(error::json_with_headers(
         StatusCode::CREATED,
         &BookmarkResponse::from(bookmark.clone()),
         &[("Location", format!("/api/v1/bookmarks/{}", bookmark.id))],
-    )
+    ))
 }
 
 async fn get_bookmark(
@@ -634,18 +632,23 @@ async fn get_bookmark(
     uri: Uri,
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let bookmark = match bookmark_by_id(&state.pool, id).await {
-        Ok(bookmark) => bookmark,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+) -> HandlerResult {
+    let bookmark = db_result(
+        &state,
+        &headers,
+        &uri,
+        bookmark_by_id(&state.pool, id).await,
+    )?;
     let caller = identity
         .map(|Extension(identity)| identity.username)
         .unwrap_or_default();
     if !bookmark_visible_to(&bookmark, &caller) {
-        return error::not_found(&state, &headers, &uri).await;
+        return Err(error::not_found(&state, &headers, &uri));
     }
-    error::json(StatusCode::OK, &BookmarkResponse::from(bookmark))
+    Ok(error::json(
+        StatusCode::OK,
+        &BookmarkResponse::from(bookmark),
+    ))
 }
 
 async fn update_bookmark(
@@ -655,38 +658,27 @@ async fn update_bookmark(
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<BookmarkRequest>, JsonRejection>,
-) -> Response<Body> {
-    let identity = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
-    let input = match validate_bookmark(body) {
-        Ok(input) => input,
-        Err(fields) => return error::validation_problem(&state, &headers, &uri, fields).await,
-    };
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let mut bookmark = match bookmark_by_id_tx(&mut tx, id, true).await {
-        Ok(bookmark) => bookmark,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+) -> HandlerResult {
+    let identity = require_identity(&state, &headers, &uri, identity).await?;
+    let body = json_body(&state, &headers, &uri, body).await?;
+    let input = validation_result(&state, &headers, &uri, validate_bookmark(body)).await?;
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
+    let mut bookmark = db_result(
+        &state,
+        &headers,
+        &uri,
+        bookmark_by_id_tx(&mut tx, id, true).await,
+    )?;
     if bookmark.owner != identity.username {
-        return error::not_found(&state, &headers, &uri).await;
+        return Err(error::not_found(&state, &headers, &uri));
     }
     if bookmark.status == "hidden" && input.visibility == "public" {
-        return error::conflict(
+        return Err(error::conflict(
             &state,
             &headers,
             &uri,
             "A hidden bookmark cannot be made public.",
-        )
-        .await;
+        ));
     }
     bookmark.url = input.url;
     bookmark.title = input.title;
@@ -694,7 +686,7 @@ async fn update_bookmark(
     bookmark.tags = input.tags;
     bookmark.visibility = input.visibility;
     bookmark.updated_at = error::now_utc();
-    if let Err(err) = sqlx::query(
+    db_result(&state, &headers, &uri, sqlx::query(
         "update bookmarks set url = $2, title = $3, notes = $4, tags = $5, visibility = $6, updated_at = $7 where id = $1",
     )
     .bind(bookmark.id)
@@ -705,14 +697,12 @@ async fn update_bookmark(
     .bind(&bookmark.visibility)
     .bind(bookmark.updated_at)
     .execute(&mut *tx)
-    .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    error::json(StatusCode::OK, &BookmarkResponse::from(bookmark))
+    .await)?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
+    Ok(error::json(
+        StatusCode::OK,
+        &BookmarkResponse::from(bookmark),
+    ))
 }
 
 async fn delete_bookmark(
@@ -721,26 +711,27 @@ async fn delete_bookmark(
     uri: Uri,
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let identity = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity,
-        Err(response) => return response,
-    };
-    let bookmark = match bookmark_by_id(&state.pool, id).await {
-        Ok(bookmark) => bookmark,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+) -> HandlerResult {
+    let identity = require_identity(&state, &headers, &uri, identity).await?;
+    let bookmark = db_result(
+        &state,
+        &headers,
+        &uri,
+        bookmark_by_id(&state.pool, id).await,
+    )?;
     if bookmark.owner != identity.username {
-        return error::not_found(&state, &headers, &uri).await;
+        return Err(error::not_found(&state, &headers, &uri));
     }
-    if let Err(err) = sqlx::query("delete from bookmarks where id = $1")
-        .bind(id)
-        .execute(&state.pool)
-        .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    error::empty(StatusCode::NO_CONTENT)
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query("delete from bookmarks where id = $1")
+            .bind(id)
+            .execute(&state.pool)
+            .await,
+    )?;
+    Ok(error::empty(StatusCode::NO_CONTENT))
 }
 
 async fn bookmark_by_id(pool: &PgPool, id: Uuid) -> Result<Bookmark, sqlx::Error> {
@@ -786,26 +777,24 @@ async fn list_tags(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let identity = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity,
-        Err(response) => return response,
-    };
-    let rows = match sqlx::query_as::<_, TagCount>(
-        r#"select t.tag, count(*)::bigint as count
+) -> HandlerResult {
+    let identity = require_identity(&state, &headers, &uri, identity).await?;
+    let rows = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_as::<_, TagCount>(
+            r#"select t.tag, count(*)::bigint as count
            from bookmarks b cross join unnest(b.tags) as t(tag)
            where b.owner = $1
            group by t.tag
            order by count(*) desc, t.tag"#,
-    )
-    .bind(&identity.username)
-    .fetch_all(&state.pool)
-    .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    error::json(StatusCode::OK, &TagsResponse { tags: rows })
+        )
+        .bind(&identity.username)
+        .fetch_all(&state.pool)
+        .await,
+    )?;
+    Ok(error::json(StatusCode::OK, &TagsResponse { tags: rows }))
 }
 
 #[derive(Debug, FromRow, Clone)]
@@ -903,15 +892,20 @@ async fn list_messages(
     State(state): State<AppState>,
     headers: HeaderMap,
     uri: Uri,
-) -> Response<Body> {
+) -> HandlerResult {
     let params = error::parse_query(&uri);
     let (page, size) = match error::parse_page(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let q = error::first(&params, "q");
     if q.chars().count() > 200 {
-        return bad_request(&state, &headers, &uri, "q must be at most 200 characters").await;
+        return Err(bad_request(
+            &state,
+            &headers,
+            &uri,
+            "q must be at most 200 characters",
+        ));
     }
     let key = error::first(&params, "key");
     let language = error::first(&params, "language");
@@ -921,19 +915,20 @@ async fn list_messages(
         format!("%{}%", error::escape_like(&q.to_ascii_lowercase()))
     };
     let where_sql = "where ($1 = '' or key = $1) and ($2 = '' or language = $2) and ($3 = '' or lower(key) like $3 escape '\\' or lower(text) like $3 escape '\\')";
-    let total = match sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
-        "select count(*) from messages {where_sql}"
-    )))
-    .bind(&key)
-    .bind(&language)
-    .bind(&q_like)
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(total) => total,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let rows = match sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
+    let total = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
+            "select count(*) from messages {where_sql}"
+        )))
+        .bind(&key)
+        .bind(&language)
+        .bind(&q_like)
+        .fetch_one(&state.pool)
+        .await,
+    )?;
+    let rows = db_result(&state, &headers, &uri, sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
         "select {MESSAGE_COLUMNS} from messages {where_sql} order by key, language limit $4 offset $5"
     )))
     .bind(&key)
@@ -942,17 +937,13 @@ async fn list_messages(
     .bind(size)
     .bind(page * size)
     .fetch_all(&state.pool)
-    .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    .await)?;
     let items = rows
         .into_iter()
         .map(MessageResponse::from)
         .collect::<Vec<_>>();
     let page = error::page_response(items, page, size, total);
-    error::etag_json(&headers, StatusCode::OK, &page, &[])
+    Ok(error::etag_json(&headers, StatusCode::OK, &page, &[]))
 }
 
 #[derive(Serialize)]
@@ -965,17 +956,17 @@ async fn message_bundle(
     State(state): State<AppState>,
     headers: HeaderMap,
     uri: Uri,
-) -> Response<Body> {
+) -> HandlerResult {
     let language = error::resolve_language(&state.pool, &headers, &uri).await;
-    let rows =
-        match sqlx::query("select key, language, text from messages where language = any($1)")
+    let rows = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query("select key, language, text from messages where language = any($1)")
             .bind(vec!["en".to_string(), language.clone()])
             .fetch_all(&state.pool)
-            .await
-        {
-            Ok(rows) => rows,
-            Err(err) => return db_error(&state, &headers, &uri, err).await,
-        };
+            .await,
+    )?;
     let mut messages = BTreeMap::<String, String>::new();
     for row in rows {
         let key: String = row.try_get("key").unwrap_or_default();
@@ -985,7 +976,7 @@ async fn message_bundle(
             messages.insert(key, text);
         }
     }
-    error::etag_json(
+    Ok(error::etag_json(
         &headers,
         StatusCode::OK,
         &BundleResponse {
@@ -993,7 +984,7 @@ async fn message_bundle(
             messages,
         },
         &[("Content-Language", language)],
-    )
+    ))
 }
 
 async fn get_message(
@@ -1001,23 +992,24 @@ async fn get_message(
     headers: HeaderMap,
     uri: Uri,
     Path(id): Path<Uuid>,
-) -> Response<Body> {
-    let message = match sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
-        "select {MESSAGE_COLUMNS} from messages where id = $1"
-    )))
-    .bind(id)
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(message) => message,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    error::etag_json(
+) -> HandlerResult {
+    let message = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
+            "select {MESSAGE_COLUMNS} from messages where id = $1"
+        )))
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await,
+    )?;
+    Ok(error::etag_json(
         &headers,
         StatusCode::OK,
         &MessageResponse::from(message),
         &[],
-    )
+    ))
 }
 
 async fn create_message(
@@ -1026,21 +1018,14 @@ async fn create_message(
     uri: Uri,
     identity: Option<Extension<Identity>>,
     body: Result<Json<MessageRequest>, JsonRejection>,
-) -> Response<Body> {
-    let actor = match require_role(&state, &headers, &uri, identity, "admin").await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
-    let input = match validate_message(body) {
-        Ok(input) => input,
-        Err(fields) => return error::validation_problem(&state, &headers, &uri, fields).await,
-    };
+) -> HandlerResult {
+    let actor = require_role(&state, &headers, &uri, identity, "admin")
+        .await?
+        .username;
+    let body = json_body(&state, &headers, &uri, body).await?;
+    let input = validation_result(&state, &headers, &uri, validate_message(body)).await?;
     if message_conflict(&state.pool, &input.key, &input.language, Uuid::nil()).await {
-        return error::conflict(
+        return Err(error::conflict(
             &state,
             &headers,
             &uri,
@@ -1048,8 +1033,7 @@ async fn create_message(
                 "A message with key '{}' and language '{}' already exists.",
                 input.key, input.language
             ),
-        )
-        .await;
+        ));
     }
     let now = error::now_utc();
     let message = Message {
@@ -1061,10 +1045,7 @@ async fn create_message(
         created_at: now,
         updated_at: now,
     };
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
     let inserted = sqlx::query(AssertSqlSafe(format!(
         "insert into messages ({MESSAGE_COLUMNS}) values ($1, $2, $3, $4, $5, $6, $7)"
     )))
@@ -1079,36 +1060,35 @@ async fn create_message(
     .await;
     if let Err(err) = inserted {
         if db::pg_unique_violation(&err) {
-            return error::conflict(
+            return Err(error::conflict(
                 &state,
                 &headers,
                 &uri,
                 "A message with that key and language already exists.",
-            )
-            .await;
+            ));
         }
-        return db_error(&state, &headers, &uri, err).await;
+        return Err(db_error(&state, &headers, &uri, err));
     }
-    if let Err(err) = audit_tx(
-        &mut tx,
-        &actor,
-        "message.created",
-        "message",
-        &message.id.to_string(),
-        Some(json!({
-            "key": message.key,
-            "language": message.language,
-            "text": message.text,
-            "description": message.description
-        })),
-    )
-    .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        audit_tx(
+            &mut tx,
+            &actor,
+            "message.created",
+            "message",
+            &message.id.to_string(),
+            Some(json!({
+                "key": message.key,
+                "language": message.language,
+                "text": message.text,
+                "description": message.description
+            })),
+        )
+        .await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = "message_created",
         outcome = "success",
@@ -1119,11 +1099,11 @@ async fn create_message(
         language = %message.language,
         "Message created"
     );
-    error::json_with_headers(
+    Ok(error::json_with_headers(
         StatusCode::CREATED,
         &MessageResponse::from(message.clone()),
         &[("Location", format!("/api/v1/messages/{}", message.id))],
-    )
+    ))
 }
 
 async fn update_message(
@@ -1133,31 +1113,25 @@ async fn update_message(
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<MessageRequest>, JsonRejection>,
-) -> Response<Body> {
-    let actor = match require_role(&state, &headers, &uri, identity, "admin").await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let existing = match sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
-        "select {MESSAGE_COLUMNS} from messages where id = $1"
-    )))
-    .bind(id)
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(message) => message,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
-    let input = match validate_message(body) {
-        Ok(input) => input,
-        Err(fields) => return error::validation_problem(&state, &headers, &uri, fields).await,
-    };
+) -> HandlerResult {
+    let actor = require_role(&state, &headers, &uri, identity, "admin")
+        .await?
+        .username;
+    let existing = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
+            "select {MESSAGE_COLUMNS} from messages where id = $1"
+        )))
+        .bind(id)
+        .fetch_one(&state.pool)
+        .await,
+    )?;
+    let body = json_body(&state, &headers, &uri, body).await?;
+    let input = validation_result(&state, &headers, &uri, validate_message(body)).await?;
     if message_conflict(&state.pool, &input.key, &input.language, id).await {
-        return error::conflict(
+        return Err(error::conflict(
             &state,
             &headers,
             &uri,
@@ -1165,8 +1139,7 @@ async fn update_message(
                 "A message with key '{}' and language '{}' already exists.",
                 input.key, input.language
             ),
-        )
-        .await;
+        ));
     }
     let message = Message {
         id,
@@ -1177,10 +1150,7 @@ async fn update_message(
         created_at: existing.created_at,
         updated_at: error::now_utc(),
     };
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
     if let Err(err) = sqlx::query(
         "update messages set key = $2, language = $3, text = $4, description = $5, updated_at = $6 where id = $1",
     )
@@ -1194,30 +1164,35 @@ async fn update_message(
     .await
     {
         if db::pg_unique_violation(&err) {
-            return error::conflict(&state, &headers, &uri, "A message with that key and language already exists.").await;
+            return Err(error::conflict(
+                &state,
+                &headers,
+                &uri,
+                "A message with that key and language already exists.",
+            ));
         }
-        return db_error(&state, &headers, &uri, err).await;
+        return Err(db_error(&state, &headers, &uri, err));
     }
-    if let Err(err) = audit_tx(
-        &mut tx,
-        &actor,
-        "message.updated",
-        "message",
-        &message.id.to_string(),
-        Some(json!({
-            "key": message.key,
-            "language": message.language,
-            "text": message.text,
-            "description": message.description
-        })),
-    )
-    .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        audit_tx(
+            &mut tx,
+            &actor,
+            "message.updated",
+            "message",
+            &message.id.to_string(),
+            Some(json!({
+                "key": message.key,
+                "language": message.language,
+                "text": message.text,
+                "description": message.description
+            })),
+        )
+        .await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = "message_updated",
         outcome = "success",
@@ -1228,7 +1203,7 @@ async fn update_message(
         language = %message.language,
         "Message updated"
     );
-    error::json(StatusCode::OK, &MessageResponse::from(message))
+    Ok(error::json(StatusCode::OK, &MessageResponse::from(message)))
 }
 
 async fn delete_message(
@@ -1237,52 +1212,51 @@ async fn delete_message(
     uri: Uri,
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let actor = match require_role(&state, &headers, &uri, identity, "admin").await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let message = match sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
-        "select {MESSAGE_COLUMNS} from messages where id = $1"
-    )))
-    .bind(id)
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(message) => message,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    if let Err(err) = sqlx::query("delete from messages where id = $1")
+) -> HandlerResult {
+    let actor = require_role(&state, &headers, &uri, identity, "admin")
+        .await?
+        .username;
+    let message = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_as::<_, Message>(AssertSqlSafe(format!(
+            "select {MESSAGE_COLUMNS} from messages where id = $1"
+        )))
         .bind(id)
-        .execute(&mut *tx)
-        .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = audit_tx(
-        &mut tx,
-        &actor,
-        "message.deleted",
-        "message",
-        &id.to_string(),
-        Some(json!({
-            "key": message.key,
-            "language": message.language,
-            "text": message.text,
-            "description": message.description
-        })),
-    )
-    .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+        .fetch_one(&state.pool)
+        .await,
+    )?;
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query("delete from messages where id = $1")
+            .bind(id)
+            .execute(&mut *tx)
+            .await,
+    )?;
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        audit_tx(
+            &mut tx,
+            &actor,
+            "message.deleted",
+            "message",
+            &id.to_string(),
+            Some(json!({
+                "key": message.key,
+                "language": message.language,
+                "text": message.text,
+                "description": message.description
+            })),
+        )
+        .await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = "message_deleted",
         outcome = "success",
@@ -1291,7 +1265,7 @@ async fn delete_message(
         resource_id = %id,
         "Message deleted"
     );
-    error::empty(StatusCode::NO_CONTENT)
+    Ok(error::empty(StatusCode::NO_CONTENT))
 }
 
 async fn message_conflict(pool: &PgPool, key: &str, language: &str, excluding: Uuid) -> bool {
@@ -1321,12 +1295,9 @@ async fn me(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let identity = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity,
-        Err(response) => return response,
-    };
-    error::json(
+) -> HandlerResult {
+    let identity = require_identity(&state, &headers, &uri, identity).await?;
+    Ok(error::json(
         StatusCode::OK,
         &MeResponse {
             username: identity.username,
@@ -1334,7 +1305,7 @@ async fn me(
             email: identity.email,
             roles: identity.roles,
         },
-    )
+    ))
 }
 
 #[derive(Debug, FromRow, Clone)]
@@ -1440,26 +1411,21 @@ async fn report_bookmark(
     Path(bookmark_id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<ReportRequest>, JsonRejection>,
-) -> Response<Body> {
-    let reporter = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let bookmark = match bookmark_by_id(&state.pool, bookmark_id).await {
-        Ok(bookmark) => bookmark,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+) -> HandlerResult {
+    let reporter = require_identity(&state, &headers, &uri, identity)
+        .await?
+        .username;
+    let bookmark = db_result(
+        &state,
+        &headers,
+        &uri,
+        bookmark_by_id(&state.pool, bookmark_id).await,
+    )?;
     if bookmark.visibility != "public" || bookmark.status != "active" {
-        return error::not_found(&state, &headers, &uri).await;
+        return Err(error::not_found(&state, &headers, &uri));
     }
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
-    let reason = match validate_report(&body) {
-        Ok(reason) => reason,
-        Err(fields) => return error::validation_problem(&state, &headers, &uri, fields).await,
-    };
+    let body = json_body(&state, &headers, &uri, body).await?;
+    let reason = validation_result(&state, &headers, &uri, validate_report(&body)).await?;
     let exists = sqlx::query_scalar::<_, bool>(
         "select exists (select 1 from reports where bookmark_id = $1 and reporter = $2 and status = 'open')",
     )
@@ -1469,13 +1435,12 @@ async fn report_bookmark(
     .await
     .unwrap_or(false);
     if exists {
-        return error::conflict(
+        return Err(error::conflict(
             &state,
             &headers,
             &uri,
             "You already have an open report on this bookmark.",
-        )
-        .await;
+        ));
     }
     let report = ReportRow {
         id: Uuid::new_v4(),
@@ -1503,15 +1468,14 @@ async fn report_bookmark(
     .await;
     if let Err(err) = inserted {
         if db::pg_unique_violation(&err) {
-            return error::conflict(
+            return Err(error::conflict(
                 &state,
                 &headers,
                 &uri,
                 "You already have an open report on this bookmark.",
-            )
-            .await;
+            ));
         }
-        return db_error(&state, &headers, &uri, err).await;
+        return Err(db_error(&state, &headers, &uri, err));
     }
     tracing::info!(
         event = "report_created",
@@ -1523,7 +1487,10 @@ async fn report_bookmark(
         reason = %report.reason,
         "Report created"
     );
-    error::json(StatusCode::CREATED, &ReportResponse::from(report))
+    Ok(error::json(
+        StatusCode::CREATED,
+        &ReportResponse::from(report),
+    ))
 }
 
 async fn list_my_reports(
@@ -1531,25 +1498,23 @@ async fn list_my_reports(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let reporter = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
+) -> HandlerResult {
+    let reporter = require_identity(&state, &headers, &uri, identity)
+        .await?
+        .username;
     let params = error::parse_query(&uri);
     let (page, size) = match error::parse_page(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let status = error::first(&params, "status");
     if !status.is_empty() && !valid_report_status(&status) {
-        return bad_request(
+        return Err(bad_request(
             &state,
             &headers,
             &uri,
             "status must be one of: open, dismissed, actioned",
-        )
-        .await;
+        ));
     }
     let query = ReportPageQuery {
         where_sql: "where reporter = $1 and ($2 = '' or status = $2)",
@@ -1568,53 +1533,44 @@ async fn update_my_report(
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<ReportRequest>, JsonRejection>,
-) -> Response<Body> {
-    let reporter = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
-    let reason = match validate_report(&body) {
-        Ok(reason) => reason,
-        Err(fields) => return error::validation_problem(&state, &headers, &uri, fields).await,
-    };
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let mut report = match report_by_id_tx(&mut tx, id, true).await {
-        Ok(report) => report,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+) -> HandlerResult {
+    let reporter = require_identity(&state, &headers, &uri, identity)
+        .await?
+        .username;
+    let body = json_body(&state, &headers, &uri, body).await?;
+    let reason = validation_result(&state, &headers, &uri, validate_report(&body)).await?;
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
+    let mut report = db_result(
+        &state,
+        &headers,
+        &uri,
+        report_by_id_tx(&mut tx, id, true).await,
+    )?;
     if report.reporter != reporter {
-        return error::not_found(&state, &headers, &uri).await;
+        return Err(error::not_found(&state, &headers, &uri));
     }
     if report.status != "open" {
-        return error::conflict(
+        return Err(error::conflict(
             &state,
             &headers,
             &uri,
             "The report has already been resolved.",
-        )
-        .await;
+        ));
     }
     report.reason = reason;
     report.comment = body.comment;
-    if let Err(err) = sqlx::query("update reports set reason = $2, comment = $3 where id = $1")
-        .bind(report.id)
-        .bind(&report.reason)
-        .bind(&report.comment)
-        .execute(&mut *tx)
-        .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query("update reports set reason = $2, comment = $3 where id = $1")
+            .bind(report.id)
+            .bind(&report.reason)
+            .bind(&report.comment)
+            .execute(&mut *tx)
+            .await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = "report_updated",
         outcome = "success",
@@ -1625,7 +1581,7 @@ async fn update_my_report(
         reason = %report.reason,
         "Report updated by its reporter"
     );
-    error::json(StatusCode::OK, &ReportResponse::from(report))
+    Ok(error::json(StatusCode::OK, &ReportResponse::from(report)))
 }
 
 async fn withdraw_report(
@@ -1634,41 +1590,38 @@ async fn withdraw_report(
     uri: Uri,
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    let reporter = match require_identity(&state, &headers, &uri, identity).await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let report = match report_by_id_tx(&mut tx, id, true).await {
-        Ok(report) => report,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+) -> HandlerResult {
+    let reporter = require_identity(&state, &headers, &uri, identity)
+        .await?
+        .username;
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
+    let report = db_result(
+        &state,
+        &headers,
+        &uri,
+        report_by_id_tx(&mut tx, id, true).await,
+    )?;
     if report.reporter != reporter {
-        return error::not_found(&state, &headers, &uri).await;
+        return Err(error::not_found(&state, &headers, &uri));
     }
     if report.status != "open" {
-        return error::conflict(
+        return Err(error::conflict(
             &state,
             &headers,
             &uri,
             "The report has already been resolved.",
-        )
-        .await;
+        ));
     }
-    if let Err(err) = sqlx::query("delete from reports where id = $1")
-        .bind(report.id)
-        .execute(&mut *tx)
-        .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query("delete from reports where id = $1")
+            .bind(report.id)
+            .execute(&mut *tx)
+            .await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = "report_withdrawn",
         outcome = "success",
@@ -1678,7 +1631,7 @@ async fn withdraw_report(
         bookmark_id = %report.bookmark_id,
         "Report withdrawn by its reporter"
     );
-    error::empty(StatusCode::NO_CONTENT)
+    Ok(error::empty(StatusCode::NO_CONTENT))
 }
 
 async fn list_report_queue(
@@ -1686,27 +1639,24 @@ async fn list_report_queue(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    if let Err(response) = require_role(&state, &headers, &uri, identity, "moderator").await {
-        return response;
-    }
+) -> HandlerResult {
+    require_role(&state, &headers, &uri, identity, "moderator").await?;
     let params = error::parse_query(&uri);
     let (page, size) = match error::parse_page(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let mut status = error::first(&params, "status");
     if status.is_empty() {
         status = "open".to_string();
     }
     if !valid_report_status(&status) {
-        return bad_request(
+        return Err(bad_request(
             &state,
             &headers,
             &uri,
             "status must be one of: open, dismissed, actioned",
-        )
-        .await;
+        ));
     }
     let query = ReportPageQuery {
         where_sql: "where status = $1",
@@ -1731,7 +1681,7 @@ async fn report_page(
     headers: &HeaderMap,
     uri: &Uri,
     query: ReportPageQuery,
-) -> Response<Body> {
+) -> HandlerResult {
     let ReportPageQuery {
         where_sql,
         args,
@@ -1745,10 +1695,7 @@ async fn report_page(
     for arg in &args {
         count = count.bind(arg);
     }
-    let total = match count.fetch_one(&state.pool).await {
-        Ok(total) => total,
-        Err(err) => return db_error(state, headers, uri, err).await,
-    };
+    let total = db_result(state, headers, uri, count.fetch_one(&state.pool).await)?;
     let mut query = sqlx::query_as::<_, ReportRow>(AssertSqlSafe(format!(
         "select {REPORT_COLUMNS} from reports {where_sql} {order_sql} limit ${} offset ${}",
         args.len() + 1,
@@ -1757,23 +1704,24 @@ async fn report_page(
     for arg in &args {
         query = query.bind(arg);
     }
-    let rows = match query
-        .bind(size)
-        .bind(page * size)
-        .fetch_all(&state.pool)
-        .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(state, headers, uri, err).await,
-    };
+    let rows = db_result(
+        state,
+        headers,
+        uri,
+        query
+            .bind(size)
+            .bind(page * size)
+            .fetch_all(&state.pool)
+            .await,
+    )?;
     let items = rows
         .into_iter()
         .map(ReportResponse::from)
         .collect::<Vec<_>>();
-    error::json(
+    Ok(error::json(
         StatusCode::OK,
         &error::page_response(items, page, size, total),
-    )
+    ))
 }
 
 async fn report_by_id_tx(
@@ -1797,15 +1745,11 @@ async fn resolve_report(
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<ResolutionRequest>, JsonRejection>,
-) -> Response<Body> {
-    let actor = match require_role(&state, &headers, &uri, identity, "moderator").await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
+) -> HandlerResult {
+    let actor = require_role(&state, &headers, &uri, identity, "moderator")
+        .await?
+        .username;
+    let body = json_body(&state, &headers, &uri, body).await?;
     let resolution = body.resolution.unwrap_or_default();
     let mut validator = Validator::default();
     validator.check(
@@ -1819,101 +1763,104 @@ async fn resolve_report(
         "validation.resolution.note.too-long",
     );
     if !validator.is_empty() {
-        return error::validation_problem(&state, &headers, &uri, validator.into_fields()).await;
+        return Err(
+            error::validation_problem(&state, &headers, &uri, validator.into_fields()).await,
+        );
     }
 
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
     if resolution == "actioned" {
-        let bookmark_id =
-            match sqlx::query_scalar::<_, Uuid>("select bookmark_id from reports where id = $1")
+        let bookmark_id = db_result(
+            &state,
+            &headers,
+            &uri,
+            sqlx::query_scalar::<_, Uuid>("select bookmark_id from reports where id = $1")
                 .bind(id)
                 .fetch_one(&mut *tx)
-                .await
-            {
-                Ok(bookmark_id) => bookmark_id,
-                Err(err) => return db_error(&state, &headers, &uri, err).await,
-            };
-        if let Err(err) = sqlx::query("select id from bookmarks where id = $1 for update")
-            .bind(bookmark_id)
-            .execute(&mut *tx)
-            .await
-        {
-            return db_error(&state, &headers, &uri, err).await;
-        }
+                .await,
+        )?;
+        db_result(
+            &state,
+            &headers,
+            &uri,
+            sqlx::query("select id from bookmarks where id = $1 for update")
+                .bind(bookmark_id)
+                .execute(&mut *tx)
+                .await,
+        )?;
     }
-    let locked = match report_by_id_tx(&mut tx, id, true).await {
-        Ok(report) => report,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let locked = db_result(
+        &state,
+        &headers,
+        &uri,
+        report_by_id_tx(&mut tx, id, true).await,
+    )?;
     let resolved = if resolution == "open" {
-        match reopen_report(&mut tx, &actor, locked).await {
-            Ok(Some(report)) => report,
-            Ok(None) => {
-                return error::conflict(
-                    &state,
-                    &headers,
-                    &uri,
-                    "The reporter already has another open report on this bookmark.",
-                )
-                .await;
-            }
-            Err(err) => return db_error(&state, &headers, &uri, err).await,
-        }
-    } else {
-        let primary = match resolve_one_report(
-            &mut tx,
-            &actor,
-            locked,
-            &resolution,
-            body.note.clone(),
-            false,
-        )
-        .await
-        {
-            Ok(report) => report,
-            Err(err) => return db_error(&state, &headers, &uri, err).await,
+        let Some(report) = db_result(
+            &state,
+            &headers,
+            &uri,
+            reopen_report(&mut tx, &actor, locked).await,
+        )?
+        else {
+            return Err(error::conflict(
+                &state,
+                &headers,
+                &uri,
+                "The reporter already has another open report on this bookmark.",
+            ));
         };
+        report
+    } else {
+        let primary = db_result(
+            &state,
+            &headers,
+            &uri,
+            resolve_one_report(
+                &mut tx,
+                &actor,
+                locked,
+                &resolution,
+                body.note.clone(),
+                false,
+            )
+            .await,
+        )?;
         if resolution == "actioned" {
-            if let Err(err) =
-                hide_bookmark_tx(&mut tx, &actor, primary.bookmark_id, body.note.clone()).await
-            {
-                return db_error(&state, &headers, &uri, err).await;
-            }
-            let siblings = match sqlx::query_as::<_, ReportRow>(AssertSqlSafe(format!(
+            db_result(
+                &state,
+                &headers,
+                &uri,
+                hide_bookmark_tx(&mut tx, &actor, primary.bookmark_id, body.note.clone()).await,
+            )?;
+            let siblings = db_result(&state, &headers, &uri, sqlx::query_as::<_, ReportRow>(AssertSqlSafe(format!(
                 "select {REPORT_COLUMNS} from reports where bookmark_id = $1 and status = 'open' and id <> $2 order by id for update"
             )))
             .bind(primary.bookmark_id)
             .bind(primary.id)
             .fetch_all(&mut *tx)
-            .await
-            {
-                Ok(rows) => rows,
-                Err(err) => return db_error(&state, &headers, &uri, err).await,
-            };
+            .await)?;
             for sibling in siblings {
-                if let Err(err) = resolve_one_report(
-                    &mut tx,
-                    &actor,
-                    sibling,
-                    "actioned",
-                    body.note.clone(),
-                    true,
-                )
-                .await
-                {
-                    return db_error(&state, &headers, &uri, err).await;
-                }
+                db_result(
+                    &state,
+                    &headers,
+                    &uri,
+                    resolve_one_report(
+                        &mut tx,
+                        &actor,
+                        sibling,
+                        "actioned",
+                        body.note.clone(),
+                        true,
+                    )
+                    .await,
+                )?;
             }
         }
         primary
     };
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    error::json(StatusCode::OK, &ReportResponse::from(resolved))
+    db_result(&state, &headers, &uri, tx.commit().await)?;
+    Ok(error::json(StatusCode::OK, &ReportResponse::from(resolved)))
 }
 
 async fn reopen_report(
@@ -2058,15 +2005,11 @@ async fn set_bookmark_status(
     Path(id): Path<Uuid>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<BookmarkStatusRequest>, JsonRejection>,
-) -> Response<Body> {
-    let actor = match require_role(&state, &headers, &uri, identity, "moderator").await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
+) -> HandlerResult {
+    let actor = require_role(&state, &headers, &uri, identity, "moderator")
+        .await?
+        .username;
+    let body = json_body(&state, &headers, &uri, body).await?;
     let mut validator = Validator::default();
     let status = body.status.unwrap_or_default();
     validator.check(
@@ -2080,43 +2023,46 @@ async fn set_bookmark_status(
         "validation.bookmark-status.note.too-long",
     );
     if !validator.is_empty() {
-        return error::validation_problem(&state, &headers, &uri, validator.into_fields()).await;
+        return Err(
+            error::validation_problem(&state, &headers, &uri, validator.into_fields()).await,
+        );
     }
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let mut bookmark = match bookmark_by_id_tx(&mut tx, id, true).await {
-        Ok(bookmark) => bookmark,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
+    let mut bookmark = db_result(
+        &state,
+        &headers,
+        &uri,
+        bookmark_by_id_tx(&mut tx, id, true).await,
+    )?;
     let previous = bookmark.status.clone();
     bookmark.status = status;
     bookmark.updated_at = error::now_utc();
-    if let Err(err) = sqlx::query("update bookmarks set status = $2, updated_at = $3 where id = $1")
-        .bind(bookmark.id)
-        .bind(&bookmark.status)
-        .bind(bookmark.updated_at)
-        .execute(&mut *tx)
-        .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = audit_tx(
-        &mut tx,
-        &actor,
-        "bookmark.status-changed",
-        "bookmark",
-        &bookmark.id.to_string(),
-        Some(json!({ "from": previous, "to": bookmark.status, "note": body.note })),
-    )
-    .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query("update bookmarks set status = $2, updated_at = $3 where id = $1")
+            .bind(bookmark.id)
+            .bind(&bookmark.status)
+            .bind(bookmark.updated_at)
+            .execute(&mut *tx)
+            .await,
+    )?;
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        audit_tx(
+            &mut tx,
+            &actor,
+            "bookmark.status-changed",
+            "bookmark",
+            &bookmark.id.to_string(),
+            Some(json!({ "from": previous, "to": bookmark.status, "note": body.note })),
+        )
+        .await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = "bookmark_status_changed",
         outcome = "success",
@@ -2127,7 +2073,10 @@ async fn set_bookmark_status(
         to = %bookmark.status,
         "Bookmark moderation status changed"
     );
-    error::json(StatusCode::OK, &BookmarkResponse::from(bookmark))
+    Ok(error::json(
+        StatusCode::OK,
+        &BookmarkResponse::from(bookmark),
+    ))
 }
 
 #[derive(Debug, FromRow)]
@@ -2170,28 +2119,30 @@ async fn list_users(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    if let Err(response) = require_role(&state, &headers, &uri, identity, "admin").await {
-        return response;
-    }
+) -> HandlerResult {
+    require_role(&state, &headers, &uri, identity, "admin").await?;
     let params = error::parse_query(&uri);
     let (page, size) = match error::parse_page(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let q = error::first(&params, "q");
     if q.chars().count() > 100 {
-        return bad_request(&state, &headers, &uri, "q must be at most 100 characters").await;
+        return Err(bad_request(
+            &state,
+            &headers,
+            &uri,
+            "q must be at most 100 characters",
+        ));
     }
     let status = error::first(&params, "status");
     if !status.is_empty() && status != "active" && status != "blocked" {
-        return bad_request(
+        return Err(bad_request(
             &state,
             &headers,
             &uri,
             "status must be one of: active, blocked",
-        )
-        .await;
+        ));
     }
     let q_like = if q.is_empty() {
         String::new()
@@ -2200,18 +2151,19 @@ async fn list_users(
     };
     let where_sql =
         "where ($1 = '' or lower(username) like $1 escape '\\') and ($2 = '' or status = $2)";
-    let total = match sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
-        "select count(*) from user_accounts {where_sql}"
-    )))
-    .bind(&q_like)
-    .bind(&status)
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(total) => total,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let rows = match sqlx::query_as::<_, UserAccountRow>(AssertSqlSafe(format!(
+    let total = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
+            "select count(*) from user_accounts {where_sql}"
+        )))
+        .bind(&q_like)
+        .bind(&status)
+        .fetch_one(&state.pool)
+        .await,
+    )?;
+    let rows = db_result(&state, &headers, &uri, sqlx::query_as::<_, UserAccountRow>(AssertSqlSafe(format!(
         "select username, first_seen, last_seen, status, blocked_reason, (select count(*) from bookmarks b where b.owner = u.username)::bigint as bookmark_count from user_accounts u {where_sql} order by last_seen desc limit $3 offset $4"
     )))
     .bind(&q_like)
@@ -2219,19 +2171,15 @@ async fn list_users(
     .bind(size)
     .bind(page * size)
     .fetch_all(&state.pool)
-    .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    .await)?;
     let items = rows
         .into_iter()
         .map(UserAccountResponse::from)
         .collect::<Vec<_>>();
-    error::json(
+    Ok(error::json(
         StatusCode::OK,
         &error::page_response(items, page, size, total),
-    )
+    ))
 }
 
 async fn get_user(
@@ -2240,15 +2188,15 @@ async fn get_user(
     uri: Uri,
     Path(username): Path<String>,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    if let Err(response) = require_role(&state, &headers, &uri, identity, "admin").await {
-        return response;
-    }
-    let row = match user_account(&state.pool, &username).await {
-        Ok(row) => row,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    error::json(StatusCode::OK, &UserAccountResponse::from(row))
+) -> HandlerResult {
+    require_role(&state, &headers, &uri, identity, "admin").await?;
+    let row = db_result(
+        &state,
+        &headers,
+        &uri,
+        user_account(&state.pool, &username).await,
+    )?;
+    Ok(error::json(StatusCode::OK, &UserAccountResponse::from(row)))
 }
 
 #[derive(Deserialize)]
@@ -2264,28 +2212,26 @@ async fn set_user_status(
     Path(username): Path<String>,
     identity: Option<Extension<Identity>>,
     body: Result<Json<UserStatusRequest>, JsonRejection>,
-) -> Response<Body> {
-    let actor = match require_role(&state, &headers, &uri, identity, "admin").await {
-        Ok(identity) => identity.username,
-        Err(response) => return response,
-    };
-    let body = match json_body(&state, &headers, &uri, body).await {
-        Ok(body) => body,
-        Err(response) => return response,
-    };
+) -> HandlerResult {
+    let actor = require_role(&state, &headers, &uri, identity, "admin")
+        .await?
+        .username;
+    let body = json_body(&state, &headers, &uri, body).await?;
     let status = body.status.unwrap_or_default();
     if status != "active" && status != "blocked" {
-        return bad_request(
+        return Err(bad_request(
             &state,
             &headers,
             &uri,
             "status must be one of: active, blocked",
-        )
-        .await;
+        ));
     }
-    if let Err(err) = user_account(&state.pool, &username).await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        user_account(&state.pool, &username).await,
+    )?;
     let reason = body.reason.map(|reason| reason.trim().to_string());
     if status == "blocked" {
         let mut validator = Validator::default();
@@ -2300,32 +2246,37 @@ async fn set_user_status(
             "validation.block.reason.too-long",
         );
         if !validator.is_empty() {
-            return error::validation_problem(&state, &headers, &uri, validator.into_fields())
-                .await;
+            return Err(
+                error::validation_problem(&state, &headers, &uri, validator.into_fields()).await,
+            );
         }
         if username == actor {
-            return error::conflict(&state, &headers, &uri, "Admins cannot block themselves.")
-                .await;
+            return Err(error::conflict(
+                &state,
+                &headers,
+                &uri,
+                "Admins cannot block themselves.",
+            ));
         }
     }
-    let mut tx = match state.pool.begin().await {
-        Ok(tx) => tx,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    if let Err(err) =
-        sqlx::query("update user_accounts set status = $2, blocked_reason = $3 where username = $1")
-            .bind(&username)
-            .bind(&status)
-            .bind(if status == "blocked" {
-                reason.as_ref()
-            } else {
-                None
-            })
-            .execute(&mut *tx)
-            .await
-    {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    let mut tx = db_result(&state, &headers, &uri, state.pool.begin().await)?;
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query(
+            "update user_accounts set status = $2, blocked_reason = $3 where username = $1",
+        )
+        .bind(&username)
+        .bind(&status)
+        .bind(if status == "blocked" {
+            reason.as_ref()
+        } else {
+            None
+        })
+        .execute(&mut *tx)
+        .await,
+    )?;
     let action = if status == "blocked" {
         "user.blocked"
     } else {
@@ -2336,12 +2287,13 @@ async fn set_user_status(
     } else {
         None
     };
-    if let Err(err) = audit_tx(&mut tx, &actor, action, "user", &username, detail).await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
-    if let Err(err) = tx.commit().await {
-        return db_error(&state, &headers, &uri, err).await;
-    }
+    db_result(
+        &state,
+        &headers,
+        &uri,
+        audit_tx(&mut tx, &actor, action, "user", &username, detail).await,
+    )?;
+    db_result(&state, &headers, &uri, tx.commit().await)?;
     tracing::info!(
         event = if status == "blocked" { "user_blocked" } else { "user_unblocked" },
         outcome = "success",
@@ -2350,11 +2302,13 @@ async fn set_user_status(
         resource_id = %username,
         "User account status changed"
     );
-    let row = match user_account(&state.pool, &username).await {
-        Ok(row) => row,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    error::json(StatusCode::OK, &UserAccountResponse::from(row))
+    let row = db_result(
+        &state,
+        &headers,
+        &uri,
+        user_account(&state.pool, &username).await,
+    )?;
+    Ok(error::json(StatusCode::OK, &UserAccountResponse::from(row)))
 }
 
 async fn user_account(pool: &PgPool, username: &str) -> Result<UserAccountRow, sqlx::Error> {
@@ -2384,22 +2338,20 @@ async fn list_audit_log(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    if let Err(response) = require_role(&state, &headers, &uri, identity, "admin").await {
-        return response;
-    }
+) -> HandlerResult {
+    require_role(&state, &headers, &uri, identity, "admin").await?;
     let params = error::parse_query(&uri);
     let (page, size) = match error::parse_page(&params) {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let from = match parse_time_param(&params, "from") {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let to = match parse_time_param(&params, "to") {
         Ok(value) => value,
-        Err(detail) => return bad_request(&state, &headers, &uri, detail).await,
+        Err(detail) => return Err(bad_request(&state, &headers, &uri, detail)),
     };
     let actor = error::first(&params, "actor");
     let action = error::first(&params, "action");
@@ -2407,22 +2359,23 @@ async fn list_audit_log(
     let target_id = error::first(&params, "targetId");
 
     let where_sql = "where ($1 = '' or actor = $1) and ($2 = '' or action = $2) and ($3 = '' or target_type = $3) and ($4 = '' or target_id = $4) and ($5::timestamptz is null or created_at >= $5) and ($6::timestamptz is null or created_at <= $6)";
-    let total = match sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
-        "select count(*) from audit_entries {where_sql}"
-    )))
-    .bind(&actor)
-    .bind(&action)
-    .bind(&target_type)
-    .bind(&target_id)
-    .bind(from)
-    .bind(to)
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(total) => total,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let rows = match sqlx::query_as::<_, AuditEntryResponse>(AssertSqlSafe(format!(
+    let total = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_scalar::<_, i64>(AssertSqlSafe(format!(
+            "select count(*) from audit_entries {where_sql}"
+        )))
+        .bind(&actor)
+        .bind(&action)
+        .bind(&target_type)
+        .bind(&target_id)
+        .bind(from)
+        .bind(to)
+        .fetch_one(&state.pool)
+        .await,
+    )?;
+    let rows = db_result(&state, &headers, &uri, sqlx::query_as::<_, AuditEntryResponse>(AssertSqlSafe(format!(
         "select id, actor, action, target_type, target_id, detail, created_at from audit_entries {where_sql} order by created_at desc, id desc limit $7 offset $8"
     )))
     .bind(&actor)
@@ -2434,15 +2387,11 @@ async fn list_audit_log(
     .bind(size)
     .bind(page * size)
     .fetch_all(&state.pool)
-    .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    error::json(
+    .await)?;
+    Ok(error::json(
         StatusCode::OK,
         &error::page_response(rows, page, size, total),
-    )
+    ))
 }
 
 fn parse_time_param(
@@ -2489,24 +2438,23 @@ async fn get_stats(
     headers: HeaderMap,
     uri: Uri,
     identity: Option<Extension<Identity>>,
-) -> Response<Body> {
-    if let Err(response) = require_role(&state, &headers, &uri, identity, "moderator").await {
-        return response;
-    }
-    let row = match sqlx::query(
-        r#"select
+) -> HandlerResult {
+    require_role(&state, &headers, &uri, identity, "moderator").await?;
+    let row = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query(
+            r#"select
            (select count(*) from user_accounts)::bigint as users,
            (select count(*) from bookmarks)::bigint as bookmarks,
            (select count(*) from bookmarks where visibility = 'public')::bigint as public_bookmarks,
            (select count(*) from bookmarks where status = 'hidden')::bigint as hidden_bookmarks,
            (select count(*) from reports where status = 'open')::bigint as open_reports"#,
-    )
-    .fetch_one(&state.pool)
-    .await
-    {
-        Ok(row) => row,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+        )
+        .fetch_one(&state.pool)
+        .await,
+    )?;
     let totals = StatsTotals {
         users: row.try_get("users").unwrap_or(0),
         bookmarks: row.try_get("bookmarks").unwrap_or(0),
@@ -2517,14 +2465,18 @@ async fn get_stats(
     let today = Utc::now().date_naive();
     let from_date = today.checked_sub_days(Days::new(29)).unwrap_or(today);
     let from = Utc.from_utc_datetime(&from_date.and_hms_opt(0, 0, 0).unwrap());
-    let bookmark_counts = match count_per_day(&state.pool, "bookmarks", "created_at", from).await {
-        Ok(counts) => counts,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    let active_counts = match count_per_day(&state.pool, "user_accounts", "last_seen", from).await {
-        Ok(counts) => counts,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
+    let bookmark_counts = db_result(
+        &state,
+        &headers,
+        &uri,
+        count_per_day(&state.pool, "bookmarks", "created_at", from).await,
+    )?;
+    let active_counts = db_result(
+        &state,
+        &headers,
+        &uri,
+        count_per_day(&state.pool, "user_accounts", "last_seen", from).await,
+    )?;
     let mut daily = Vec::with_capacity(30);
     for offset in 0..30 {
         let day = from_date
@@ -2537,20 +2489,21 @@ async fn get_stats(
             active_users: active_counts.get(&key).copied().unwrap_or(0),
         });
     }
-    let top_tags = match sqlx::query_as::<_, TagCount>(
-        r#"select t.tag, count(*)::bigint as count
+    let top_tags = db_result(
+        &state,
+        &headers,
+        &uri,
+        sqlx::query_as::<_, TagCount>(
+            r#"select t.tag, count(*)::bigint as count
            from bookmarks b cross join unnest(b.tags) as t(tag)
            group by t.tag
            order by count(*) desc, t.tag
            limit 10"#,
-    )
-    .fetch_all(&state.pool)
-    .await
-    {
-        Ok(rows) => rows,
-        Err(err) => return db_error(&state, &headers, &uri, err).await,
-    };
-    error::etag_json(
+        )
+        .fetch_all(&state.pool)
+        .await,
+    )?;
+    Ok(error::etag_json(
         &headers,
         StatusCode::OK,
         &StatsResponse {
@@ -2559,7 +2512,7 @@ async fn get_stats(
             top_tags,
         },
         &[],
-    )
+    ))
 }
 
 async fn count_per_day(
@@ -2726,18 +2679,18 @@ mod tests {
 
         assert_eq!(decoded.created_at, cursor.created_at);
         assert_eq!(decoded.id, cursor.id);
-        assert!(super::decode_cursor("not-base64").is_err());
+        assert!(super::decode_cursor("not-base64").is_none());
     }
 
     #[test]
     fn decode_cursor_rejects_wrong_shape_and_invalid_uuid() {
         let missing_separator =
             base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("2026-07-05T12:30:00Z");
-        assert!(super::decode_cursor(&missing_separator).is_err());
+        assert!(super::decode_cursor(&missing_separator).is_none());
 
         let invalid_uuid = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode("2026-07-05T12:30:00Z|not-a-uuid");
-        assert!(super::decode_cursor(&invalid_uuid).is_err());
+        assert!(super::decode_cursor(&invalid_uuid).is_none());
     }
 
     #[test]

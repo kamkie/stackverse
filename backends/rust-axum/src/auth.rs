@@ -7,7 +7,7 @@ use axum::body::Body;
 use axum::extract::State;
 use axum::http::{HeaderMap, Request, StatusCode, header};
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
 use sqlx::Row;
@@ -232,13 +232,14 @@ pub async fn authenticate(
                     "Forbidden",
                     "error.account.blocked",
                 )
-                .await;
+                .await
+                .into_response();
             }
             Ok(_) => {
                 request.extensions_mut().insert(identity);
                 next.run(request).await
             }
-            Err(err) => error::internal_error(&state, &headers, &uri, err).await,
+            Err(err) => error::internal_error(&state, &headers, &uri, err).into_response(),
         },
         Err(_) => {
             tracing::info!(
@@ -248,14 +249,11 @@ pub async fn authenticate(
                 "Rejected a bearer token"
             );
             error::problem(
-                &state,
-                &headers,
-                &uri,
                 StatusCode::UNAUTHORIZED,
                 "Unauthorized",
                 Some("Missing or invalid bearer token.".to_string()),
             )
-            .await
+            .into_response()
         }
     }
 }

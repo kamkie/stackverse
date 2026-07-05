@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
 
+use axum::Json;
 use axum::body::Body;
-use axum::http::{HeaderMap, HeaderValue, Response, StatusCode, Uri, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri, header};
+use axum::response::{IntoResponse, Response};
 use chrono::{DateTime, Timelike, Utc};
 use serde::Serialize;
 use sqlx::{PgPool, Row};
@@ -40,7 +42,44 @@ impl Validator {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug)]
+pub struct AppError {
+    status: StatusCode,
+    body: ProblemBody,
+}
+
+impl AppError {
+    fn new(
+        status: StatusCode,
+        title: &'static str,
+        detail: impl Into<Option<String>>,
+        errors: Vec<ProblemField>,
+    ) -> Self {
+        Self {
+            status,
+            body: ProblemBody {
+                kind: "about:blank",
+                title,
+                status: status.as_u16(),
+                detail: detail.into(),
+                errors,
+            },
+        }
+    }
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let mut response = (self.status, Json(self.body)).into_response();
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/problem+json"),
+        );
+        response
+    }
+}
+
+#[derive(Debug, Serialize)]
 struct ProblemBody {
     #[serde(rename = "type")]
     kind: &'static str,
@@ -52,7 +91,7 @@ struct ProblemBody {
     errors: Vec<ProblemField>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct ProblemField {
     field: &'static str,
     #[serde(rename = "messageKey")]
@@ -60,15 +99,12 @@ struct ProblemField {
     message: String,
 }
 
-pub async fn problem(
-    state: &AppState,
-    headers: &HeaderMap,
-    uri: &Uri,
+pub fn problem(
     status: StatusCode,
     title: &'static str,
     detail: impl Into<Option<String>>,
-) -> Response<Body> {
-    problem_with_fields(state, headers, uri, status, title, detail, Vec::new()).await
+) -> AppError {
+    AppError::new(status, title, detail, Vec::new())
 }
 
 pub async fn problem_key(
@@ -78,9 +114,9 @@ pub async fn problem_key(
     status: StatusCode,
     title: &'static str,
     detail_key: &'static str,
-) -> Response<Body> {
+) -> AppError {
     let detail = localize(state, headers, uri, detail_key).await;
-    problem(state, headers, uri, status, title, Some(detail)).await
+    problem(status, title, Some(detail))
 }
 
 pub async fn validation_problem(
@@ -88,7 +124,7 @@ pub async fn validation_problem(
     headers: &HeaderMap,
     uri: &Uri,
     fields: Vec<FieldViolation>,
-) -> Response<Body> {
+) -> AppError {
     if !fields.is_empty() {
         let names = fields
             .iter()
@@ -103,27 +139,6 @@ pub async fn validation_problem(
             "Request validation failed"
         );
     }
-    problem_with_fields(
-        state,
-        headers,
-        uri,
-        StatusCode::BAD_REQUEST,
-        "Bad Request",
-        Some("Request validation failed.".to_string()),
-        fields,
-    )
-    .await
-}
-
-async fn problem_with_fields(
-    state: &AppState,
-    headers: &HeaderMap,
-    uri: &Uri,
-    status: StatusCode,
-    title: &'static str,
-    detail: impl Into<Option<String>>,
-    fields: Vec<FieldViolation>,
-) -> Response<Body> {
     let mut errors = Vec::with_capacity(fields.len());
     for field in fields {
         errors.push(ProblemField {
@@ -132,25 +147,23 @@ async fn problem_with_fields(
             message: localize(state, headers, uri, field.message_key).await,
         });
     }
-    let body = ProblemBody {
-        kind: "about:blank",
-        title,
-        status: status.as_u16(),
-        detail: detail.into(),
+    AppError::new(
+        StatusCode::BAD_REQUEST,
+        "Bad Request",
+        Some("Request validation failed.".to_string()),
         errors,
-    };
-    json_with_content_type(status, "application/problem+json", &body)
+    )
 }
 
-pub fn json<T: Serialize>(status: StatusCode, value: &T) -> Response<Body> {
-    json_with_content_type(status, "application/json", value)
+pub fn json<T: Serialize>(status: StatusCode, value: &T) -> Response {
+    (status, Json(value)).into_response()
 }
 
 pub fn json_with_headers<T: Serialize>(
     status: StatusCode,
     value: &T,
     headers: &[(&'static str, String)],
-) -> Response<Body> {
+) -> Response {
     let mut response = json(status, value);
     for (name, value) in headers {
         if let Ok(header_value) = HeaderValue::from_str(value) {
@@ -160,11 +173,10 @@ pub fn json_with_headers<T: Serialize>(
     response
 }
 
-pub fn empty(status: StatusCode) -> Response<Body> {
-    Response::builder()
-        .status(status)
-        .body(Body::empty())
-        .unwrap()
+pub fn empty(status: StatusCode) -> Response {
+    let mut response = Response::new(Body::empty());
+    *response.status_mut() = status;
+    response
 }
 
 pub fn etag_json<T: Serialize>(
@@ -172,42 +184,42 @@ pub fn etag_json<T: Serialize>(
     status: StatusCode,
     value: &T,
     extra_headers: &[(&'static str, String)],
-) -> Response<Body> {
-    let bytes = serde_json::to_vec(value).expect("serialize response");
+) -> Response {
+    let bytes = match serde_json::to_vec(value) {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            tracing::error!(
+                error = %err,
+                "Failed to serialize a JSON response"
+            );
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
     let etag = format!("\"{:x}\"", md5::compute(&bytes));
     let not_modified = if_none_match(request_headers, &etag);
-    let mut builder = Response::builder()
-        .status(if not_modified {
-            StatusCode::NOT_MODIFIED
-        } else {
-            status
-        })
-        .header(header::ETAG, etag)
-        .header(header::CACHE_CONTROL, "no-cache");
-    for (name, value) in extra_headers {
-        builder = builder.header(*name, value);
-    }
-    if not_modified {
-        builder.body(Body::empty()).unwrap()
+    let mut response = if not_modified {
+        empty(StatusCode::NOT_MODIFIED)
     } else {
-        builder
-            .header(header::CONTENT_TYPE, "application/json")
-            .body(Body::from(bytes))
-            .unwrap()
+        let mut response = Response::new(Body::from(bytes));
+        *response.status_mut() = status;
+        response.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        );
+        response
+    };
+    if let Ok(etag_value) = HeaderValue::from_str(&etag) {
+        response.headers_mut().insert(header::ETAG, etag_value);
     }
-}
-
-fn json_with_content_type<T: Serialize>(
-    status: StatusCode,
-    content_type: &'static str,
-    value: &T,
-) -> Response<Body> {
-    let body = serde_json::to_vec(value).expect("serialize response");
-    Response::builder()
-        .status(status)
-        .header(header::CONTENT_TYPE, content_type)
-        .body(Body::from(body))
-        .unwrap()
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    for (name, value) in extra_headers {
+        if let Ok(header_value) = HeaderValue::from_str(value) {
+            response.headers_mut().insert(*name, header_value);
+        }
+    }
+    response
 }
 
 fn if_none_match(headers: &HeaderMap, etag: &str) -> bool {
@@ -222,79 +234,51 @@ fn if_none_match(headers: &HeaderMap, etag: &str) -> bool {
         })
 }
 
-pub async fn internal_error(
-    state: &AppState,
-    headers: &HeaderMap,
+pub fn internal_error(
+    _state: &AppState,
+    _headers: &HeaderMap,
     uri: &Uri,
     err: anyhow::Error,
-) -> Response<Body> {
+) -> AppError {
     tracing::error!(
         error = %err,
         path = %uri.path(),
         "Unhandled error serving request"
     );
     problem(
-        state,
-        headers,
-        uri,
         StatusCode::INTERNAL_SERVER_ERROR,
         "Internal Server Error",
         None,
     )
-    .await
 }
 
-pub async fn not_found(state: &AppState, headers: &HeaderMap, uri: &Uri) -> Response<Body> {
-    problem(
-        state,
-        headers,
-        uri,
-        StatusCode::NOT_FOUND,
-        "Not Found",
-        None,
-    )
-    .await
+pub fn not_found(_state: &AppState, _headers: &HeaderMap, _uri: &Uri) -> AppError {
+    problem(StatusCode::NOT_FOUND, "Not Found", None)
 }
 
-pub async fn unauthorized(state: &AppState, headers: &HeaderMap, uri: &Uri) -> Response<Body> {
+pub fn unauthorized(_state: &AppState, _headers: &HeaderMap, _uri: &Uri) -> AppError {
     problem(
-        state,
-        headers,
-        uri,
         StatusCode::UNAUTHORIZED,
         "Unauthorized",
         Some("Authentication is required.".to_string()),
     )
-    .await
 }
 
-pub async fn forbidden(state: &AppState, headers: &HeaderMap, uri: &Uri) -> Response<Body> {
+pub fn forbidden(_state: &AppState, _headers: &HeaderMap, _uri: &Uri) -> AppError {
     problem(
-        state,
-        headers,
-        uri,
         StatusCode::FORBIDDEN,
         "Forbidden",
         Some("You do not have the role required for this operation.".to_string()),
     )
-    .await
 }
 
-pub async fn conflict(
-    state: &AppState,
-    headers: &HeaderMap,
-    uri: &Uri,
+pub fn conflict(
+    _state: &AppState,
+    _headers: &HeaderMap,
+    _uri: &Uri,
     detail: impl Into<String>,
-) -> Response<Body> {
-    problem(
-        state,
-        headers,
-        uri,
-        StatusCode::CONFLICT,
-        "Conflict",
-        Some(detail.into()),
-    )
-    .await
+) -> AppError {
+    problem(StatusCode::CONFLICT, "Conflict", Some(detail.into()))
 }
 
 pub fn parse_query(uri: &Uri) -> HashMap<String, Vec<String>> {
@@ -500,11 +484,12 @@ fn accepted_languages(header: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use axum::http::{HeaderMap, HeaderValue, StatusCode, Uri, header};
+    use axum::response::IntoResponse;
     use serde_json::json;
 
     use super::{
         accepted_languages, escape_like, etag_json, first, page_response, parse_page, parse_query,
-        parse_size, rune_len,
+        parse_size, problem, rune_len,
     };
 
     #[test]
@@ -587,6 +572,22 @@ mod tests {
     fn rune_len_counts_characters_not_bytes_and_treats_none_as_zero() {
         assert_eq!(rune_len(&Some("a\u{1f600}".to_string())), 2);
         assert_eq!(rune_len(&None), 0);
+    }
+
+    #[test]
+    fn app_error_renders_problem_json_response() {
+        let response = problem(
+            StatusCode::BAD_REQUEST,
+            "Bad Request",
+            Some("Invalid request.".to_string()),
+        )
+        .into_response();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            response.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/problem+json"
+        );
     }
 
     #[test]
