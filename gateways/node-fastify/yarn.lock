@@ -570,7 +570,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@opentelemetry/sdk-metrics@npm:2.9.0, @opentelemetry/sdk-metrics@npm:^2.8.0":
+"@opentelemetry/sdk-metrics@npm:2.9.0, @opentelemetry/sdk-metrics@npm:^2.9.0":
   version: 2.9.0
   resolution: "@opentelemetry/sdk-metrics@npm:2.9.0"
   dependencies:
@@ -874,12 +874,12 @@ __metadata:
     "@opentelemetry/exporter-trace-otlp-grpc": "npm:^0.220.0"
     "@opentelemetry/instrumentation-http": "npm:^0.220.0"
     "@opentelemetry/sdk-logs": "npm:^0.220.0"
-    "@opentelemetry/sdk-metrics": "npm:^2.8.0"
+    "@opentelemetry/sdk-metrics": "npm:^2.9.0"
     "@opentelemetry/sdk-node": "npm:^0.220.0"
     "@types/node": "npm:^26.1.0"
     "@vitest/coverage-v8": "npm:^4.1.9"
     fastify: "npm:^5.9.0"
-    ioredis: "npm:^5.8.2"
+    ioredis: "npm:^5.11.1"
     jose: "npm:^6.2.3"
     pino: "npm:^10.3.1"
     pino-pretty: "npm:^13.1.3"
@@ -1509,7 +1509,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ioredis@npm:^5.8.2":
+"ioredis@npm:^5.11.1":
   version: 5.11.1
   resolution: "ioredis@npm:5.11.1"
   dependencies:
