@@ -9,8 +9,8 @@ import org.slf4j.event.Level
 import org.springframework.core.Ordered
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
-import org.springframework.http.ResponseCookie
 import org.springframework.http.server.reactive.ServerHttpRequest
+import org.springframework.security.web.server.csrf.ServerCsrfTokenRepository
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
@@ -18,8 +18,6 @@ import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
 import java.net.URI
 import java.security.MessageDigest
-import java.security.SecureRandom
-import java.util.HexFormat
 import java.util.Locale
 
 /** Cookie and header names of the contract's CSRF mechanism (docs/ARCHITECTURE.md). */
@@ -35,10 +33,12 @@ object Csrf {
  * the cookie but cannot read it, so it cannot forge the header.
  */
 @Component
-class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered {
+class CsrfWebFilter(
+    private val gateway: GatewayProperties,
+    private val csrfTokens: ServerCsrfTokenRepository,
+) : WebFilter, Ordered {
 
     private val log = LoggerFactory.getLogger(javaClass)
-    private val random = SecureRandom()
     private val expectedOrigin = canonicalOrigin(gateway.publicUrl)
 
     /**
@@ -49,53 +49,52 @@ class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered
     override fun getOrder(): Int = -150
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
-        issueToken(exchange)
-        if (!isSameOrigin(exchange.request)) {
-            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
-            log.logEvent(
-                Level.INFO, "csrf_validation_failed", "denied",
-                "Rejected a cross-origin state-changing /api request",
-                "method" to sanitizeForLog(exchange.request.method.name()),
-                // the decoded path is client-controlled input (§6)
-                "path" to sanitizeForLog(exchange.request.path.value()),
-            )
-            return Problems.write(
-                exchange, HttpStatus.FORBIDDEN,
-                "Forbidden", "Cross-origin state-changing requests are not supported.",
-            )
-        }
-        if (!hasValidCsrfToken(exchange.request)) {
-            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
-            log.logEvent(
-                Level.INFO, "csrf_validation_failed", "denied",
-                "Rejected a state-changing /api request without a matching CSRF header",
-                "method" to sanitizeForLog(exchange.request.method.name()),
-                // the decoded path is client-controlled input (§6)
-                "path" to sanitizeForLog(exchange.request.path.value()),
-            )
-            return Problems.write(
-                exchange, HttpStatus.FORBIDDEN,
-                "Forbidden", "Missing or mismatched ${Csrf.HEADER_NAME} header.",
-            )
-        }
-        return chain.filter(exchange)
+        return issueToken(exchange)
+            .then(Mono.defer {
+                if (!isSameOrigin(exchange.request)) {
+                    // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+                    log.logEvent(
+                        Level.INFO, "csrf_validation_failed", "denied",
+                        "Rejected a cross-origin state-changing /api request",
+                        "method" to sanitizeForLog(exchange.request.method.name()),
+                        // the decoded path is client-controlled input (§6)
+                        "path" to sanitizeForLog(exchange.request.path.value()),
+                    )
+                    return@defer Problems.write(
+                        exchange, HttpStatus.FORBIDDEN,
+                        "Forbidden", "Cross-origin state-changing requests are not supported.",
+                    )
+                }
+                hasValidCsrfToken(exchange)
+                    .flatMap { valid ->
+                        if (valid) {
+                            chain.filter(exchange)
+                        } else {
+                            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+                            log.logEvent(
+                                Level.INFO, "csrf_validation_failed", "denied",
+                                "Rejected a state-changing /api request without a matching CSRF header",
+                                "method" to sanitizeForLog(exchange.request.method.name()),
+                                // the decoded path is client-controlled input (§6)
+                                "path" to sanitizeForLog(exchange.request.path.value()),
+                            )
+                            Problems.write(
+                                exchange, HttpStatus.FORBIDDEN,
+                                "Forbidden", "Missing or mismatched ${Csrf.HEADER_NAME} header.",
+                            )
+                        }
+                    }
+            })
     }
 
     /** Issues the readable double-submit cookie to any browser that lacks one. */
-    private fun issueToken(exchange: ServerWebExchange) {
-        if (exchange.request.cookies.getFirst(Csrf.COOKIE_NAME) != null) {
-            return
-        }
-        val token = HexFormat.of().withUpperCase().formatHex(ByteArray(16).also(random::nextBytes))
-        exchange.response.addCookie(
-            ResponseCookie.from(Csrf.COOKIE_NAME, token)
-                .httpOnly(false) // the SPA must be able to read it
-                .secure(gateway.cookiesSecure)
-                .sameSite("Lax")
-                .path("/")
-                .build(),
-        )
-    }
+    private fun issueToken(exchange: ServerWebExchange): Mono<Void> =
+        csrfTokens.loadToken(exchange)
+            .switchIfEmpty(
+                csrfTokens.generateToken(exchange)
+                    .delayUntil { token -> csrfTokens.saveToken(exchange, token) },
+            )
+            .then()
 
     /**
      * State-changing browser API calls must be same-origin. Missing browser-only
@@ -115,15 +114,22 @@ class CsrfWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered
     }
 
     /** Safe methods and non-API paths pass; everything else must echo the cookie in the header. */
-    private fun hasValidCsrfToken(request: ServerHttpRequest): Boolean {
-        if (!isStateChangingApiRequest(request)) {
-            return true
+    private fun hasValidCsrfToken(exchange: ServerWebExchange): Mono<Boolean> {
+        if (!isStateChangingApiRequest(exchange.request)) {
+            return Mono.just(true)
         }
-        val cookie = request.cookies.getFirst(Csrf.COOKIE_NAME)?.value
-        val header = request.headers.getFirst(Csrf.HEADER_NAME)
-        return !cookie.isNullOrEmpty() &&
-            !header.isNullOrEmpty() &&
-            MessageDigest.isEqual(cookie.toByteArray(), header.toByteArray())
+        val header = exchange.request.headers.getFirst(Csrf.HEADER_NAME)
+        if (header.isNullOrEmpty()) {
+            return Mono.just(false)
+        }
+        return csrfTokens.loadToken(exchange)
+            .map { token ->
+                MessageDigest.isEqual(
+                    token.token.toByteArray(Charsets.UTF_8),
+                    header.toByteArray(Charsets.UTF_8),
+                )
+            }
+            .defaultIfEmpty(false)
     }
 
     private fun isStateChangingApiRequest(request: ServerHttpRequest): Boolean {
