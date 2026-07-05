@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 
 ARG SBT_VERSION=1.12.13
 
@@ -16,7 +16,7 @@ RUN curl -fsSL "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt
 WORKDIR /workspace/backends/play-scala
 RUN sbt clean stage
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 
 RUN groupadd -r stackverse \
     && useradd -r -g stackverse -u 10001 stackverse
