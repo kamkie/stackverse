@@ -16,7 +16,11 @@ param(
     [ValidateSet('table', 'markdown', 'json')]
     [string]$Format,
 
-    [ValidateSet('backend', 'gateway', 'frontend')]
+    # Not [ValidateSet]: with `pwsh -File`, `-Component backend,frontend` arrives as
+    # the single string "backend,frontend" (the -File host does not parse PowerShell
+    # array syntax), which a ValidateSet would reject. Each element is re-split on
+    # comma below and validated by the helper, so both a session array
+    # (-Component a,b) and a -File literal (-Component a,b) work.
     [string[]]$Component,
 
     [string]$Write,
@@ -51,7 +55,12 @@ if (-not [int]::TryParse($nodeMajorText, [ref]$nodeMajor) -or $nodeMajor -lt 18)
 $helperArgs = @()
 if ($Help) { $helperArgs += '--help' }
 if ($Format) { $helperArgs += @('--format', $Format) }
-foreach ($c in $Component) { $helperArgs += @('--component', $c) }
+foreach ($c in $Component) {
+    foreach ($one in ($c -split ',')) {
+        $one = $one.Trim()
+        if ($one) { $helperArgs += @('--component', $one) }
+    }
+}
 if ($Write) { $helperArgs += @('--write', $Write) }
 
 & $nodeBin (Join-Path $repoRoot 'tools\code-stats.mjs') @helperArgs
