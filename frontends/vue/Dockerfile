@@ -6,7 +6,7 @@
 # The final image is a long-running static-file server on port 8080. It stays
 # internal to compose; the gateway proxies browser traffic to it.
 
-FROM node:26-alpine AS build
+FROM node:26.4.0-alpine AS build
 # node 25+ no longer bundles corepack - install it before enabling the yarn shim
 RUN npm install -g corepack && corepack enable
 WORKDIR /build/frontends/vue
@@ -18,7 +18,7 @@ COPY spec /build/spec
 COPY frontends/vue ./
 RUN yarn build
 
-FROM nginx:1.31-alpine
+FROM nginx:1.31.2-alpine
 COPY frontends/vue/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/frontends/vue/dist /usr/share/nginx/html
 EXPOSE 8080
