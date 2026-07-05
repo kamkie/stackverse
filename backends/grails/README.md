@@ -1,6 +1,6 @@
 # Backend - Grails (Groovy)
 
-Grails 7.1 · Groovy · Java 25 · Spring Security resource server · JDBC ·
+Grails 7.2 · Groovy · Java 25 · Spring Security resource server · JDBC ·
 Flyway · PostgreSQL.
 
 Shared behavior, endpoints, and environment variables are documented in
