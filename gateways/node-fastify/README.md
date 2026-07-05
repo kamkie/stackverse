@@ -49,6 +49,8 @@ Route contract, cookie rules, and the login sequence live in
   browser-hardening set from `docs/ARCHITECTURE.md`; proxied `/api/**` responses
   get only `X-Content-Type-Options: nosniff` plus HTTPS-only HSTS, preserving
   backend `Cache-Control`, `ETag`, `Content-Language`, `304`, and bodies.
+  Upstream API response streams, including compression framing such as
+  `Content-Encoding`, pass through without gateway decoding or replay.
 - **Observability** uses the OpenTelemetry Node SDK with HTTP instrumentation and
   OTLP traces/metrics/logs, enabled only when `OTEL_SDK_DISABLED=false`.
 - **Logging** uses Pino: JSON console output by default, `pino-pretty` for

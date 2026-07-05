@@ -6,6 +6,12 @@ import { logEvent } from "./logging.js";
 const STRIPPED_REQUEST_HEADERS = new Set([
   "authorization",
   "cookie",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "upgrade",
   "x-xsrf-token",
 ]);
 

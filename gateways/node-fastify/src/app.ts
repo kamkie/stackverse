@@ -64,6 +64,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   app.setErrorHandler((error, _request, reply) => {
+    if (isRateLimitError(error)) {
+      return reply.code(429).send({
+        statusCode: 429,
+        error: "Too Many Requests",
+        message: error.message,
+      });
+    }
     logger.error({ err: error }, "Unhandled gateway error");
     sendProblem(reply, 500, "Internal Server Error", "The gateway failed to handle the request.");
   });
@@ -204,18 +211,25 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   return app;
 }
 
+function isRateLimitError(error: unknown): error is Error & { statusCode: 429 } {
+  return error instanceof Error && "statusCode" in error && error.statusCode === 429;
+}
+
 async function registerStaticSpa(app: FastifyInstance, root: string): Promise<void> {
-  await app.register(fastifyStatic, {
-    root,
-    prefix: "/",
-    redirect: false,
-    wildcard: true,
-  });
-  app.setNotFoundHandler(async (request, reply) => {
-    if (request.method !== "GET" && request.method !== "HEAD") {
-      return sendProblem(reply, 404, "Not Found", "No route matched the request.");
-    }
-    return reply.sendFile("index.html", root);
+  await app.register(async (spa) => {
+    spa.addHook("preHandler", spa.rateLimit(SPA_RATE_LIMIT));
+    await spa.register(fastifyStatic, {
+      root,
+      prefix: "/",
+      redirect: false,
+      wildcard: true,
+    });
+    spa.setNotFoundHandler(async (request, reply) => {
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        return sendProblem(reply, 404, "Not Found", "No route matched the request.");
+      }
+      return reply.sendFile("index.html", root);
+    });
   });
 }
 

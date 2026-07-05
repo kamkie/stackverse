@@ -262,6 +262,9 @@ describe("node-fastify gateway", () => {
         headers: {
           authorization: "Bearer forged",
           cookie: "stackverse_session=missing; XSRF-TOKEN=token",
+          "proxy-authorization": "Basic forged",
+          te: "trailers",
+          upgrade: "websocket",
         },
       });
 
@@ -270,6 +273,9 @@ describe("node-fastify gateway", () => {
       expect(backend?.url).toBe("http://backend.test/api/v2/bookmarks?visibility=public");
       expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
       expect(header(backend?.init?.headers as Headers, "cookie")).toBeNull();
+      expect(header(backend?.init?.headers as Headers, "proxy-authorization")).toBeNull();
+      expect(header(backend?.init?.headers as Headers, "te")).toBeNull();
+      expect(header(backend?.init?.headers as Headers, "upgrade")).toBeNull();
     });
   });
 
@@ -569,6 +575,27 @@ describe("node-fastify gateway", () => {
         const unsupportedMethod = await app.inject({ method: "POST", url: "/admin/users" });
         expect(unsupportedMethod.statusCode).toBe(404);
         expect(unsupportedMethod.headers["content-type"]).toContain("application/problem+json");
+      }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("rate limits static SPA traffic", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "stackverse-node-fastify-spa-"));
+    await mkdir(path.join(root, "assets"));
+    await writeFile(path.join(root, "index.html"), "<main>fallback shell</main>");
+    await writeFile(path.join(root, "assets", "app.js"), "window.stackverse = true;");
+
+    try {
+      await withApp(async (app) => {
+        for (let attempt = 0; attempt < 600; attempt += 1) {
+          const response = await app.inject({ method: "GET", url: "/assets/app.js" });
+          expect(response.statusCode).toBe(200);
+        }
+
+        const limited = await app.inject({ method: "GET", url: "/assets/app.js" });
+        expect(limited.statusCode).toBe(429);
       }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
     } finally {
       await rm(root, { force: true, recursive: true });
