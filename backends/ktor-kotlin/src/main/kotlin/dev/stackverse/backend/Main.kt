@@ -142,13 +142,14 @@ fun Application.stackverseModule(context: AppContext) {
     install(StatusPages) {
         exception<ValidationProblem> { call, cause ->
             context.logger.logEvent(Level.INFO, "input_validation_failed", "failure", "Input validation failed")
+            val localized = context.localizer.localizeAll(cause.violations.map { it.messageKey }, call)
             call.respondProblem(
                 context,
                 Problem(
                     title = "Bad Request",
                     status = 400,
                     errors = cause.violations.map {
-                        FieldError(it.field, it.messageKey, context.localizer.localize(it.messageKey, call))
+                        FieldError(it.field, it.messageKey, localized[it.messageKey] ?: it.messageKey)
                     },
                 ),
                 HttpStatusCode.BadRequest,
@@ -940,6 +941,18 @@ class MessageRepository(
         query("select text from messages where key = ? and language = ?", listOf(key, language)) { it.getString("text") }.firstOrNull()
     }
 
+    suspend fun texts(keys: Set<String>, languages: Set<String>): Map<Pair<String, String>, String> = db.read {
+        if (keys.isEmpty() || languages.isEmpty()) {
+            return@read emptyMap()
+        }
+        val keyPlaceholders = keys.joinToString(", ") { "?" }
+        val languagePlaceholders = languages.joinToString(", ") { "?" }
+        query(
+            "select key, language, text from messages where key in ($keyPlaceholders) and language in ($languagePlaceholders)",
+            keys.toList() + languages.toList(),
+        ) { (it.getString("key") to it.getString("language")) to it.getString("text") }.toMap()
+    }
+
     private fun Connection.exists(key: String, language: String): Boolean =
         queryLong("select count(*) from messages where key = ? and language = ?", listOf(key, language)) > 0
 
@@ -1515,6 +1528,16 @@ class MessageLocalizer(private val messages: MessageRepository) {
         return messages.text(key, language) ?: messages.text(key, DEFAULT_LANGUAGE) ?: key
     }
 
+    suspend fun localizeAll(keys: List<String>, call: ApplicationCall): Map<String, String> {
+        val uniqueKeys = keys.toSet()
+        val language = resolve(call.request.queryParameters["lang"], call.request.headers[HttpHeaders.AcceptLanguage])
+        val languages = if (language == DEFAULT_LANGUAGE) setOf(DEFAULT_LANGUAGE) else setOf(language, DEFAULT_LANGUAGE)
+        val texts = messages.texts(uniqueKeys, languages)
+        return uniqueKeys.associateWith { key ->
+            texts[key to language] ?: texts[key to DEFAULT_LANGUAGE] ?: key
+        }
+    }
+
     private fun parseAcceptLanguage(header: String?): List<String> {
         if (header.isNullOrBlank()) return emptyList()
         return runCatching {
@@ -1536,7 +1559,7 @@ class JwtAuthenticator(private val config: Config, private val mapper: ObjectMap
         val raw = header.removePrefix("Bearer ").takeIf { header.startsWith("Bearer ") && it.isNotBlank() }
             ?: throwRejected()
         return try {
-            validate(raw)
+            withContext(Dispatchers.IO) { validate(raw) }
         } catch (_: Exception) {
             throwRejected()
         }
