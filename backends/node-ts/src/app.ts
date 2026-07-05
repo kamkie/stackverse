@@ -1,4 +1,11 @@
-import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import Fastify, {
+  type FastifyInstance,
+  type FastifyReply,
+  type FastifyRequest,
+  type RawReplyDefaultExpression,
+  type RawRequestDefaultExpression,
+  type RawServerDefault,
+} from "fastify";
 import pg from "pg";
 import { logger, logEvent } from "./logging.js";
 import { registerAuth } from "./auth.js";
@@ -55,8 +62,12 @@ function dbErrorCode(error: unknown): string | undefined {
 }
 
 export function buildApp(): FastifyInstance {
-  // the cast erases the pino-specific logger generic — routes only need the base instance
-  const app = Fastify({
+  const app = Fastify<
+    RawServerDefault,
+    RawRequestDefaultExpression<RawServerDefault>,
+    RawReplyDefaultExpression<RawServerDefault>,
+    typeof logger
+  >({
     loggerInstance: logger,
     // OTEL server spans are the per-request record; access logs would only add
     // probe noise (docs/LOGGING.md §5)
