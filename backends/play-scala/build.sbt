@@ -1,6 +1,6 @@
 import play.sbt.PlayImport._
 
-ThisBuild / scalaVersion := "2.13.18"
+ThisBuild / scalaVersion := "3.8.4"
 
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
