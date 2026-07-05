@@ -1234,6 +1234,39 @@ function formValues(form: HTMLFormElement): FormValues {
   return values;
 }
 
+function rememberDialogValues(form: HTMLFormElement): void {
+  if (!state.dialog) return;
+  const values = formValues(form);
+
+  switch (form.dataset.form) {
+    case "bookmark":
+      if (state.dialog.kind === "bookmark-form") {
+        state.dialog = { ...state.dialog, values, error: undefined };
+      }
+      break;
+    case "report-bookmark":
+      if (state.dialog.kind === "report-bookmark") {
+        state.dialog = { ...state.dialog, values, error: undefined };
+      }
+      break;
+    case "edit-report":
+      if (state.dialog.kind === "edit-report") {
+        state.dialog = { ...state.dialog, values, error: undefined };
+      }
+      break;
+    case "block-user":
+      if (state.dialog.kind === "block-user") {
+        state.dialog = { ...state.dialog, values, error: undefined };
+      }
+      break;
+    case "message":
+      if (state.dialog.kind === "message-form") {
+        state.dialog = { ...state.dialog, values, error: undefined };
+      }
+      break;
+  }
+}
+
 function reportBody(values: FormValues): ReportInput {
   return {
     reason: (values.reason || "spam") as ReportReason,
@@ -1363,7 +1396,8 @@ async function handleAction(element: HTMLElement): Promise<void> {
       state.session = { authenticated: false };
       state.me = null;
       state.dialog = null;
-      navigate("/feed");
+      if (currentPath() === "/feed") await renderApp();
+      else navigate("/feed");
       break;
     case "close-dialog":
       state.dialog = null;
@@ -1541,6 +1575,7 @@ document.addEventListener("click", (event) => {
 
 document.addEventListener("input", (event) => {
   const input = event.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+  if (input.form?.dataset.form) rememberDialogValues(input.form);
   const bind = input.dataset.bind;
   if (!bind) return;
   const immediate = input.tagName === "SELECT" || input.getAttribute("type") === "date";
@@ -1549,6 +1584,7 @@ document.addEventListener("input", (event) => {
 
 document.addEventListener("change", (event) => {
   const input = event.target as HTMLInputElement | HTMLSelectElement;
+  if (input.form?.dataset.form) rememberDialogValues(input.form);
   const bind = input.dataset.bind;
   if (!bind) return;
   if (input.tagName === "SELECT" || input.getAttribute("type") === "date") {
