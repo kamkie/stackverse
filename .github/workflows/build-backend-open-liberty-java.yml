@@ -72,5 +72,5 @@ jobs:
       - name: Submit Maven dependency graph
         uses: advanced-security/maven-dependency-submission-action@v5
         with:
-          directory: backends/open-liberty-java
+          directory: ${{ github.workspace }}/backends/open-liberty-java
           correlator: backend-open-liberty-java
