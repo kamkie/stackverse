@@ -22,6 +22,10 @@ flags:
     paths:
       - backends/go/
     carryforward: true
+  backend-node-nestjs:
+    paths:
+      - backends/node-nestjs/
+    carryforward: true
   backend-node-ts:
     paths:
       - backends/node-ts/
@@ -63,6 +67,10 @@ component_management:
       name: "backend · go"
       paths:
         - backends/go/**
+    - component_id: backend-node-nestjs
+      name: "backend · node-nestjs"
+      paths:
+        - backends/node-nestjs/**
     - component_id: backend-node-ts
       name: "backend · node-ts"
       paths:

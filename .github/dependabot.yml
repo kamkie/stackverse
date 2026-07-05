@@ -51,6 +51,7 @@ updates:
 
   - package-ecosystem: npm
     directories:
+      - /backends/node-nestjs
       - /backends/node-ts
       - /conformance
       - /e2e
@@ -77,6 +78,7 @@ updates:
     directories:
       - /backends/dotnet
       - /backends/go
+      - /backends/node-nestjs
       - /backends/node-ts
       - /backends/spring-kotlin
       - /frontends/angular
