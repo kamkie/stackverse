@@ -202,6 +202,38 @@ realm import — infra created before the client existed needs a one-time
 `docker compose up -d --force-recreate keycloak` (dev Keycloak has no
 persistent volume, so recreating re-imports the realm).
 
+## OpenAPI property tests
+
+With just infra and one backend running, the optional Schemathesis showcase in
+[`testing/schemathesis-api/`](../testing/schemathesis-api) generates property
+tests from [`spec/openapi.yaml`](../spec/openapi.yaml) and runs them directly
+against `BACKEND_URL`:
+
+```sh
+./scripts/schemathesis-api.sh
+```
+
+```powershell
+./scripts/schemathesis-api.ps1
+```
+
+Defaults are `BACKEND_URL=http://localhost:8080`,
+`KEYCLOAK_URL=http://localhost:8180`, `SCHEMATHESIS_AUTH_ROLE=admin`,
+`SCHEMATHESIS_MAX_EXAMPLES=20`, positive fuzzing only, and one worker. Extra
+arguments are passed through to `st run`, so local exploration can raise the
+example count or select checks:
+
+```sh
+SCHEMATHESIS_MAX_EXAMPLES=50 ./scripts/schemathesis-api.sh --checks not_a_server_error,status_code_conformance
+```
+
+Schemathesis failures include reproducible cases in the CLI output and crash
+files under `testing/schemathesis-api/.schemathesis/`; reports are written to
+`testing/schemathesis-api/schemathesis-report/`. The suite is a testing-tool
+showcase for generated OpenAPI edge cases and response-schema checks. It does
+not replace the semantic conformance suite, which remains the executable form
+of `docs/SPEC.md`.
+
 ## Testing-tool showcase suites
 
 Stackverse has two canonical acceptance gates:
@@ -219,6 +251,12 @@ Robot Framework, API collections, k6, ZAP, axe-core, or trace assertions. They
 should choose representative public, authenticated, moderator, and admin flows
 that show the tool's style. They are not a way to add new product requirements
 or to replace the canonical gates.
+
+The Schemathesis API showcase has a manual CI workflow,
+[`test-schemathesis-api.yml`](../.github/workflows/test-schemathesis-api.yml),
+with a selected backend input and bounded example count. It is deliberately
+`workflow_dispatch` only, so it does not become an accidental merge gate through
+`ci-ok`.
 
 New showcase suites use `testing/<tool>-<scope>` and carry their own README,
 default local command, and `.github/workflows/test-<tool>-<scope>.yml` when
@@ -284,8 +322,8 @@ Two more automations live in `.github/`:
   on every push/PR and weekly. Kotlin needs a real compile, so that matrix leg
   builds every Kotlin project; the rest scan buildless.
 - [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
-  every ecosystem (Gradle, NuGet, npm, GitHub Actions, Dockerfiles, and the
-  compose infra images), with minor/patch bumps grouped per ecosystem.
+  every ecosystem (Gradle, NuGet, npm, pip, GitHub Actions, Dockerfiles, and
+  the compose infra images), with minor/patch bumps grouped per ecosystem.
 
 ## Observability
 
