@@ -57,7 +57,7 @@ export interface Report extends ReportInput {
 }
 
 export interface ReportResolutionInput {
-  resolution: 'open' | 'dismissed' | 'actioned';
+  resolution: ReportStatus;
   note?: string;
 }
 

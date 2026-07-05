@@ -7,6 +7,7 @@ interface CachedBundle {
 }
 
 const LANG_STORAGE_KEY = 'stackverse.lang';
+const BUNDLE_FETCH_TIMEOUT_MS = 10_000;
 const bundleStorageKey = (lang: string | null) => `stackverse.bundle.${lang ?? 'auto'}`;
 
 function readCachedBundle(lang: string | null): CachedBundle | null {
@@ -32,14 +33,14 @@ function writeCachedBundle(lang: string | null, cached: CachedBundle): void {
  * fetch, not HttpClient — the ETag handshake needs the raw response and none
  * of the app's interceptors apply to this read.
  */
-async function fetchBundle(lang: string | null): Promise<CachedBundle> {
+async function fetchBundle(lang: string | null, signal: AbortSignal): Promise<CachedBundle> {
   const cached = readCachedBundle(lang);
   const headers = new Headers();
   if (cached?.etag) headers.set('If-None-Match', cached.etag);
 
   const url = new URL('/api/v1/messages/bundle', location.origin);
   if (lang !== null) url.searchParams.set('lang', lang);
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, { headers, signal });
 
   if (response.status === 304 && cached) return cached;
   if (!response.ok) throw new Error(`Failed to load message bundle: ${response.status}`);
@@ -72,19 +73,31 @@ export class I18n {
   readonly resolvedLanguage = computed(() => this.bundle()?.language ?? 'en');
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const lang = this.langState();
       this.reloadTick();
       const generation = ++this.generation;
-      fetchBundle(lang)
+      const controller = new AbortController();
+      let cancelled = false;
+      const timeoutId = window.setTimeout(() => controller.abort(), BUNDLE_FETCH_TIMEOUT_MS);
+      onCleanup(() => {
+        cancelled = true;
+        window.clearTimeout(timeoutId);
+        controller.abort();
+      });
+
+      fetchBundle(lang, controller.signal)
         .then((cached) => {
           if (generation === this.generation) this.bundle.set(cached.bundle);
         })
         .catch(() => {
           // Leave the previous bundle (or key fallbacks) in place.
-          if (generation === this.generation) {
+          if (!cancelled && generation === this.generation) {
             this.bundle.update((prev) => prev ?? { language: 'en', messages: {} });
           }
+        })
+        .finally(() => {
+          window.clearTimeout(timeoutId);
         });
     });
 

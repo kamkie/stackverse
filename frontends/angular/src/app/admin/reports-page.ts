@@ -162,7 +162,7 @@ export class ReportsPage {
     return new Date(value).toLocaleString(this.i18n.resolvedLanguage());
   }
 
-  protected async resolve(report: Report, resolution: 'open' | 'dismissed' | 'actioned') {
+  protected async resolve(report: Report, resolution: ReportStatus) {
     this.resolving.set(true);
     try {
       await this.api.resolveReport(report.id, { resolution });
