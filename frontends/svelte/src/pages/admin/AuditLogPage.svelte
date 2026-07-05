@@ -24,12 +24,14 @@
   let audit: Page<AuditEntry> | null = null;
   let loading = true;
   let error: Error | null = null;
+  let loadRequest = 0;
 
   async function load() {
+    const request = ++loadRequest;
     loading = true;
     error = null;
     try {
-      audit = await api<Page<AuditEntry>>(
+      const nextAudit = await api<Page<AuditEntry>>(
         `/api/v1/admin/audit-log${queryString({
           actor,
           action,
@@ -38,11 +40,27 @@
           page,
         })}`,
       );
+      if (request === loadRequest) {
+        audit = nextAudit;
+      }
     } catch (caught) {
-      error = caught instanceof Error ? caught : new Error(String(caught));
+      if (request === loadRequest) {
+        error = caught instanceof Error ? caught : new Error(String(caught));
+      }
     } finally {
-      loading = false;
+      if (request === loadRequest) {
+        loading = false;
+      }
     }
+  }
+
+  function filterValue(event: Event) {
+    return (event.currentTarget as HTMLInputElement).value;
+  }
+
+  function reloadFirstPage() {
+    page = 0;
+    void load();
   }
 
   function clearFilters() {
@@ -61,16 +79,24 @@
 
 <h1 class="sv-page-title">{m($i18n, "ui.admin.audit")}</h1>
 <div class="sv-toolbar">
-  <input class="sv-input" placeholder={m($i18n, "ui.field.actor")} bind:value={actor} on:input={() => { page = 0; void load(); }} />
+  <input
+    class="sv-input"
+    placeholder={m($i18n, "ui.field.actor")}
+    value={actor}
+    on:input={(event) => {
+      actor = filterValue(event);
+      reloadFirstPage();
+    }}
+  />
   <input
     class="sv-input"
     placeholder={m($i18n, "ui.audit.action.placeholder")}
     aria-label={m($i18n, "ui.audit.action.placeholder")}
     list="audit-log-known-actions"
-    bind:value={action}
-    on:input={() => {
-      page = 0;
-      void load();
+    value={action}
+    on:input={(event) => {
+      action = filterValue(event);
+      reloadFirstPage();
     }}
   />
   <datalist id="audit-log-known-actions">
@@ -80,11 +106,27 @@
   </datalist>
   <label class="sv-toolbar-field">
     <span class="sv-label">{m($i18n, "ui.field.from")}</span>
-    <input type="date" class="sv-input" bind:value={from} on:change={() => { page = 0; void load(); }} />
+    <input
+      type="date"
+      class="sv-input"
+      value={from}
+      on:change={(event) => {
+        from = filterValue(event);
+        reloadFirstPage();
+      }}
+    />
   </label>
   <label class="sv-toolbar-field">
     <span class="sv-label">{m($i18n, "ui.field.to")}</span>
-    <input type="date" class="sv-input" bind:value={to} on:change={() => { page = 0; void load(); }} />
+    <input
+      type="date"
+      class="sv-input"
+      value={to}
+      on:change={(event) => {
+        to = filterValue(event);
+        reloadFirstPage();
+      }}
+    />
   </label>
   <button type="button" class="sv-button sv-button--ghost" on:click={clearFilters}>
     {m($i18n, "ui.action.clear-filters")}

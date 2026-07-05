@@ -103,7 +103,9 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: pip
-    directory: /testing/schemathesis-api
+    directories:
+      - /testing/robot-acceptance
+      - /testing/schemathesis-api
     schedule:
       interval: weekly
     groups:

@@ -81,6 +81,9 @@ under [testing/](testing/README.md) as showcase variants: they compare tools and
 representative workflows without replacing or expanding the canonical gates.
 The Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
 generates bounded OpenAPI property tests against a running backend, the
+Robot Framework showcase in
+[testing/robot-acceptance/](testing/robot-acceptance) demonstrates
+keyword-driven UI acceptance tests against a running stack, the
 Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
 API-client collection for direct-backend exploration, the
 axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated

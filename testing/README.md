@@ -13,10 +13,11 @@ canonical acceptance gates.
 | `testing/schemathesis-api` | Generated OpenAPI property tests for edge cases and response/schema checks | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | manual showcase |
 | `testing/hurl-api` | Plain-text executable HTTP scenarios for representative API flows | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | local showcase |
 | `testing/postman-api` | Postman collection/Newman showcase for representative API workflows | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | manual showcase |
+| `testing/bruno-api` | Bruno API-client collection for representative public, authenticated, moderation, and admin workflows | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | local showcase |
 | `testing/<tool>-<scope>` | Tool comparison through representative flows | backend or composed stack, depending on scope | showcase unless deliberately promoted |
 | `testing/selenium-e2e` | Selenium WebDriver page-object browser showcase | composed stack, `STACKVERSE_URL` | optional manual workflow |
 | `testing/cypress-e2e` | Cypress browser-runner showcase for representative session, feed, CRUD, and moderation flows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
-| `testing/bruno-api` | Bruno API-client collection for representative public, authenticated, moderation, and admin workflows | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | local showcase |
+| `testing/robot-acceptance` | Robot Framework keyword-driven acceptance showcase for representative UI workflows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/axe-a11y` | Axe-core automated accessibility checks for representative browser states | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/zap-security` | OWASP ZAP passive baseline security smoke scan | composed stack gateway, `STACKVERSE_URL` | manual showcase workflow |
 | `testing/tracetest-otel` | Tracetest assertions that one gateway API action produces one trace spanning gateway and backend spans | composed stack with observability enabled | manual showcase workflow |
