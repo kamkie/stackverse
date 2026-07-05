@@ -2609,13 +2609,31 @@ async fn audit_tx(
 
 #[cfg(test)]
 mod tests {
+    use base64::Engine;
     use chrono::{TimeZone, Utc};
+    use serde_json::json;
     use uuid::Uuid;
 
     use super::{
-        BookmarkRequest, Cursor, ReportRequest, encode_cursor, parse_time_param, validate_bookmark,
+        Bookmark, BookmarkRequest, BookmarkResponse, Cursor, MessageRequest, ReportRequest,
+        bookmark_visible_to, encode_cursor, parse_time_param, validate_bookmark, validate_message,
         validate_report,
     };
+
+    fn bookmark(owner: &str, visibility: &str, status: &str, tags: Vec<&str>) -> Bookmark {
+        Bookmark {
+            id: Uuid::parse_str("00000000-0000-4000-8000-000000000010").unwrap(),
+            owner: owner.to_string(),
+            url: "https://example.com".to_string(),
+            title: "Example".to_string(),
+            notes: None,
+            tags: tags.into_iter().map(ToString::to_string).collect(),
+            visibility: visibility.to_string(),
+            status: status.to_string(),
+            created_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 0, 0).unwrap(),
+            updated_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 0, 0).unwrap(),
+        }
+    }
 
     #[test]
     fn validate_bookmark_normalizes_tags_and_defaults_visibility() {
@@ -2666,6 +2684,34 @@ mod tests {
     }
 
     #[test]
+    fn bookmark_response_sorts_tags_and_omits_absent_notes() {
+        let value = serde_json::to_value(BookmarkResponse::from(bookmark(
+            "alice",
+            "public",
+            "active",
+            vec!["zeta", "alpha"],
+        )))
+        .unwrap();
+
+        assert_eq!(value["tags"], json!(["alpha", "zeta"]));
+        assert!(value.get("notes").is_none());
+    }
+
+    #[test]
+    fn bookmark_visibility_masks_private_and_hidden_bookmarks_from_non_owners() {
+        let private = bookmark("alice", "private", "active", vec![]);
+        assert!(bookmark_visible_to(&private, "alice"));
+        assert!(!bookmark_visible_to(&private, "bob"));
+
+        let public = bookmark("alice", "public", "active", vec![]);
+        assert!(bookmark_visible_to(&public, "bob"));
+
+        let hidden = bookmark("alice", "public", "hidden", vec![]);
+        assert!(bookmark_visible_to(&hidden, "alice"));
+        assert!(!bookmark_visible_to(&hidden, "bob"));
+    }
+
+    #[test]
     fn cursor_round_trips_created_at_and_id() {
         let cursor = Cursor {
             created_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 30, 0).unwrap(),
@@ -2684,6 +2730,17 @@ mod tests {
     }
 
     #[test]
+    fn decode_cursor_rejects_wrong_shape_and_invalid_uuid() {
+        let missing_separator =
+            base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("2026-07-05T12:30:00Z");
+        assert!(super::decode_cursor(&missing_separator).is_err());
+
+        let invalid_uuid = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode("2026-07-05T12:30:00Z|not-a-uuid");
+        assert!(super::decode_cursor(&invalid_uuid).is_err());
+    }
+
+    #[test]
     fn parse_time_param_accepts_rfc3339_and_rejects_invalid_values() {
         let mut params = std::collections::HashMap::new();
         params.insert("from".to_string(), vec!["2026-07-05T10:15:00Z".to_string()]);
@@ -2695,6 +2752,44 @@ mod tests {
             "to must be an RFC 3339 timestamp"
         );
         assert_eq!(parse_time_param(&params, "missing").unwrap(), None);
+    }
+
+    #[test]
+    fn validate_message_trims_key_and_language() {
+        let message = validate_message(MessageRequest {
+            key: Some(" ui.nav.title ".to_string()),
+            language: Some(" en ".to_string()),
+            text: Some("Welcome".to_string()),
+            description: Some("Navigation title".to_string()),
+        })
+        .unwrap();
+
+        assert_eq!(message.key, "ui.nav.title");
+        assert_eq!(message.language, "en");
+        assert_eq!(message.text, "Welcome");
+        assert_eq!(message.description.as_deref(), Some("Navigation title"));
+    }
+
+    #[test]
+    fn validate_message_collects_contract_field_errors() {
+        let errors = match validate_message(MessageRequest {
+            key: Some("Bad Key".to_string()),
+            language: Some("eng".to_string()),
+            text: Some(String::new()),
+            description: Some("x".repeat(1001)),
+        }) {
+            Ok(_) => panic!("invalid message should be rejected"),
+            Err(errors) => errors,
+        };
+
+        let keys = errors
+            .into_iter()
+            .map(|field| field.message_key)
+            .collect::<Vec<_>>();
+        assert!(keys.contains(&"validation.message.key.invalid"));
+        assert!(keys.contains(&"validation.message.language.invalid"));
+        assert!(keys.contains(&"validation.message.text.required"));
+        assert!(keys.contains(&"validation.message.description.too-long"));
     }
 
     #[test]
