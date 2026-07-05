@@ -42,6 +42,10 @@ flags:
     paths:
       - backends/node-ts/
     carryforward: true
+  backend-open-liberty-java:
+    paths:
+      - backends/open-liberty-java/
+    carryforward: true
   backend-play-scala:
     paths:
       - backends/play-scala/
@@ -135,6 +139,10 @@ component_management:
       name: "backend · node-ts"
       paths:
         - backends/node-ts/**
+    - component_id: backend-open-liberty-java
+      name: "backend · open-liberty-java"
+      paths:
+        - backends/open-liberty-java/**
     - component_id: backend-play-scala
       name: "backend · play-scala"
       paths:
