@@ -7,13 +7,11 @@ import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.config.EventLogger
-import groovy.transform.CompileDynamic
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Transactional
 
 import java.sql.Timestamp
 
-@CompileDynamic
 class UserAccountService {
     JdbcTemplate jdbcTemplate
     TimeSource timeSource

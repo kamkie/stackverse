@@ -9,7 +9,6 @@ import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
-import groovy.transform.CompileDynamic
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Transactional
@@ -17,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional
 import java.sql.Timestamp
 import java.util.regex.Pattern
 
-@CompileDynamic
 class BookmarkService {
     private static final Pattern TAG = ~/^[a-z0-9-]{1,30}$/
 
@@ -50,7 +48,7 @@ class BookmarkService {
             order by b.created_at desc, b.id desc
             limit ? offset ?
         """, { rs, rowNum -> bookmarkRow(rs) }, args as Object[])
-        Paging.resultPage(items, page, size, total)
+        Paging.resultPage(withTags(items), page, size, total)
     }
 
     Map listCursor(Map params, String username, String explicitLang, String acceptLanguage) {
@@ -76,7 +74,7 @@ class BookmarkService {
             nextCursor = new BookmarkCursor(java.time.Instant.parse(last.createdAt), UUID.fromString(last.id)).encode()
             items = items.take(size)
         }
-        [items: items, nextCursor: nextCursor]
+        [items: withTags(items), nextCursor: nextCursor]
     }
 
     @Transactional
@@ -170,6 +168,7 @@ class BookmarkService {
             from bookmarks
             where id = ?
         """, { rs, rowNum -> bookmarkRow(rs) }, id)
+        rows = withTags(rows)
         rows ? rows[0] : null
     }
 
@@ -285,7 +284,7 @@ class BookmarkService {
             url       : rs.getString("url"),
             title     : rs.getString("title"),
             notes     : rs.getString("notes"),
-            tags      : tagsFor(id),
+            tags      : [],
             visibility: rs.getString("visibility"),
             status    : rs.getString("status"),
             owner     : rs.getString("owner"),
@@ -294,8 +293,34 @@ class BookmarkService {
         ]
     }
 
-    private List<String> tagsFor(UUID id) {
-        jdbcTemplate.queryForList("select tag from bookmark_tags where bookmark_id = ? order by tag asc", String, id)
+    private List<Map> withTags(List<Map> bookmarks) {
+        if (!bookmarks) {
+            return bookmarks
+        }
+        List<UUID> ids = bookmarks.collect { UUID.fromString(it.id as String) }
+        Map<UUID, List<String>> tagsByBookmark = tagsFor(ids)
+        bookmarks.eachWithIndex { Map bookmark, int index ->
+            bookmark.tags = tagsByBookmark[ids[index]] ?: []
+        }
+        bookmarks
+    }
+
+    private Map<UUID, List<String>> tagsFor(List<UUID> ids) {
+        if (!ids) {
+            return [:]
+        }
+        Map<UUID, List<String>> tagsByBookmark = ids.collectEntries { UUID id -> [(id): []] }
+        String placeholders = ids.collect { "?" }.join(", ")
+        jdbcTemplate.queryForList("""
+            select bookmark_id, tag
+            from bookmark_tags
+            where bookmark_id in (${placeholders})
+            order by bookmark_id asc, tag asc
+        """, ids as Object[]).each { row ->
+            UUID bookmarkId = row.bookmark_id instanceof UUID ? row.bookmark_id as UUID : UUID.fromString(row.bookmark_id.toString())
+            tagsByBookmark[bookmarkId] << row.tag.toString()
+        }
+        tagsByBookmark
     }
     private static class QueryParts {
         final List<String> clauses = []

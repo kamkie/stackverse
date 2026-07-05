@@ -8,13 +8,11 @@ import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.TimeSource
-import groovy.transform.CompileDynamic
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Transactional
 
 import java.sql.Timestamp
 
-@CompileDynamic
 class ModerationService {
     JdbcTemplate jdbcTemplate
     TimeSource timeSource
