@@ -513,7 +513,7 @@ CI runs on every push to `main`, every pull request, a weekly schedule, and
 manual dispatch. Shared workflow files stay O(1) in the number of
 implementations: a new variant adds its own workflow file and is otherwise
 picked up automatically. Pull requests run the affected subset, while pushes
-to `main`, scheduled runs, and manual runs keep the full sweep. Four job
+to `main`, scheduled runs, and manual runs keep the full sweep. Five job
 categories:
 
 - **Per-implementation builds** — each implementation has its own workflow
@@ -554,6 +554,19 @@ categories:
   scheduled runs, and manual runs it expects every build workflow. Branch
   protection requires `ci-ok` plus CodeQL — required checks never change as
   variants land.
+- **Dependency submission** — per-implementation build workflows keep their
+  pull-request build jobs at `contents: read`. Workflows for ecosystems where
+  CI can resolve a richer build-time graph add a separate
+  `*-dependency-submission` job that runs only for trusted pushes to
+  `refs/heads/main` and is the only job in that workflow with
+  `contents: write` (plus `id-token: write` where the component-detection
+  action requires it). Gradle variants run `gradle/actions/setup-gradle` with
+  `dependency-graph: generate-and-submit`; Go, Maven, sbt, NuGet, and Cargo
+  variants use their ecosystem submission actions. This is intentionally
+  separate from GitHub's static dependency graph parsing of committed
+  manifests and lockfiles for ecosystems such as npm/Yarn, pip requirements,
+  GitHub Actions, Dockerfiles, and compose files: static graph coverage is
+  useful, but it is not a CI-submitted Dependency Submission API snapshot.
 
 This keeps PR cost tied to the changed surface without weakening contract
 changes: implementation-only changes stay scoped, while contract and shared
@@ -587,8 +600,9 @@ Two more automations live in `.github/`:
   SARIF filenames explicitly, because `java-kotlin` writes `java.sarif` and
   `javascript-typescript` writes `javascript.sarif`.
 - [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
-  every ecosystem (Gradle, NuGet, npm, pip, GitHub Actions, Dockerfiles, and
-  the compose infra images), with minor/patch bumps grouped per ecosystem.
+  every ecosystem (Gradle, Go modules, Maven, NuGet, npm, pip, sbt, Cargo,
+  GitHub Actions, Dockerfiles, and the compose infra images), with
+  minor/patch bumps grouped per ecosystem.
 
 ## Observability
 

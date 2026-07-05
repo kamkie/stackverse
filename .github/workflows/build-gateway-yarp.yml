@@ -50,3 +50,28 @@ jobs:
           files: gateways/yarp/TestResults/TestResults.xml
           flags: gateway-yarp
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved NuGet snapshots only from trusted main pushes.
+  gateway-yarp-dependency-submission:
+    name: Gateway · YARP dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.301
+      - name: Restore packages
+        run: dotnet restore
+        working-directory: gateways/yarp
+      - name: Submit NuGet dependency graph
+        uses: advanced-security/component-detection-dependency-submission-action@v0.1.3
+        with:
+          filePath: gateways/yarp
+          detectorsCategories: NuGet
+          correlator: gateway-yarp

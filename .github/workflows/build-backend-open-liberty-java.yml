@@ -47,3 +47,25 @@ jobs:
           directory: backends/open-liberty-java/target/surefire-reports
           flags: backend-open-liberty-java
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved Maven snapshots only from trusted main pushes.
+  backend-open-liberty-java-dependency-submission:
+    name: Backend · Open Liberty Java dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      - name: Submit Maven dependency graph
+        uses: advanced-security/maven-dependency-submission-action@v5
+        with:
+          directory: backends/open-liberty-java
+          correlator: backend-open-liberty-java
