@@ -85,7 +85,9 @@ Robot Framework showcase in
 [testing/robot-acceptance/](testing/robot-acceptance) demonstrates
 keyword-driven UI acceptance tests against a running stack, the
 Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
-API-client collection for direct-backend exploration, the
+API-client collection for direct-backend exploration, the k6 showcase in
+[testing/k6-system/](testing/k6-system) runs system smoke and light-load checks
+against a composed stack without making benchmark claims, the
 axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
 accessibility checks against representative browser states, the OWASP ZAP
 showcase in [testing/zap-security/](testing/zap-security) runs a passive
@@ -158,10 +160,12 @@ property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
 `./scripts/schemathesis-api.ps1`). For a curated API-client walkthrough of the
 same direct-backend surface, run the Bruno showcase from `testing/bruno-api`.
-For a readable Hurl API showcase against the same backend target, use
-`./scripts/hurl-api.sh` (PowerShell: `./scripts/hurl-api.ps1`). For an
-optional passive security smoke scan against a running gateway, use
-`./scripts/zap-security.sh` (PowerShell:
+For optional k6 system smoke and light-load checks against a running composed
+stack, use `./scripts/k6-system.sh` (PowerShell:
+`./scripts/k6-system.ps1`). For a readable Hurl API showcase against the same
+backend target, use `./scripts/hurl-api.sh` (PowerShell:
+`./scripts/hurl-api.ps1`). For an optional passive security smoke scan against
+a running gateway, use `./scripts/zap-security.sh` (PowerShell:
 `./scripts/zap-security.ps1`). For optional trace-based observability
 assertions against a composed stack with OpenTelemetry enabled, use
 `./scripts/tracetest-otel.sh` (PowerShell:

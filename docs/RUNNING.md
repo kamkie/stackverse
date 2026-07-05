@@ -478,6 +478,29 @@ stores tokens only as Bruno runtime variables during a run. There is no CI
 workflow yet, so the suite remains a local API-client showcase and not a merge
 gate.
 
+The k6 system showcase lives in [testing/k6-system](../testing/k6-system) and
+runs through the gateway at `STACKVERSE_URL` (default
+`http://localhost:8000`). It has a one-shot smoke script and a deliberately
+small light-load script: public feed and message-bundle reads, real
+gateway-to-Keycloak login, CSRF-protected bookmark setup/cleanup, authenticated
+user reads, and a moderator read check in smoke mode.
+
+```sh
+./scripts/k6-system.sh
+```
+
+```powershell
+./scripts/k6-system.ps1
+```
+
+Defaults are intentionally modest: `K6_DURATION=30s`, one public VU, one
+authenticated VU, zero unexpected `5xx`, fewer than 1% unexpected statuses, and
+p95 below `K6_P95_MS` (default 1500 ms) for tagged smoke/steady traffic. The
+numbers are smoke and regression signals only, not benchmark claims or stack
+rankings. CI execution is manual through
+[test-k6-system.yml](../.github/workflows/test-k6-system.yml), which builds the
+reference stack and uploads the k6 summary artifact.
+
 The axe-core accessibility showcase lives in
 [testing/axe-a11y](../testing/axe-a11y) and runs through the gateway at
 `STACKVERSE_URL` (default `http://localhost:8000`). It uses Playwright plus
