@@ -56,3 +56,23 @@ jobs:
           files: gateways/go/TestResults/junit.xml
           flags: gateway-go
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved Go module snapshots only from trusted main pushes.
+  gateway-go-dependency-submission:
+    name: Gateway · Go dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: gateways/go/go.mod
+          cache-dependency-path: gateways/go/go.sum
+      - name: Submit Go dependency graph
+        uses: actions/go-dependency-submission@v2
+        with:
+          go-mod-path: gateways/go/go.mod
