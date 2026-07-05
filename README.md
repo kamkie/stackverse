@@ -81,6 +81,8 @@ under [testing/](testing/README.md) as showcase variants: they compare tools and
 representative workflows without replacing or expanding the canonical gates.
 The Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
 generates bounded OpenAPI property tests against a running backend, the
+Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
+API-client collection for direct-backend exploration, the
 axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
 accessibility checks against representative browser states, the OWASP ZAP
 showcase in [testing/zap-security/](testing/zap-security) runs a passive
@@ -146,10 +148,12 @@ backend, `./scripts/conformance.sh` (PowerShell: `./scripts/conformance.ps1`)
 checks that backend against the API contract directly. For optional OpenAPI
 property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
-`./scripts/schemathesis-api.ps1`). For a readable Hurl API showcase against the
-same backend target, use `./scripts/hurl-api.sh` (PowerShell:
-`./scripts/hurl-api.ps1`). For an optional passive security smoke scan against
-a running gateway, use `./scripts/zap-security.sh` (PowerShell:
+`./scripts/schemathesis-api.ps1`). For a curated API-client walkthrough of the
+same direct-backend surface, run the Bruno showcase from `testing/bruno-api`.
+For a readable Hurl API showcase against the same backend target, use
+`./scripts/hurl-api.sh` (PowerShell: `./scripts/hurl-api.ps1`). For an
+optional passive security smoke scan against a running gateway, use
+`./scripts/zap-security.sh` (PowerShell:
 `./scripts/zap-security.ps1`). For optional trace-based observability
 assertions against a composed stack with OpenTelemetry enabled, use
 `./scripts/tracetest-otel.sh` (PowerShell:

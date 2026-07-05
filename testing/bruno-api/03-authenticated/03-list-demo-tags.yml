@@ -1,0 +1,29 @@
+info:
+  name: List demo tags
+  type: http
+  seq: 3
+  tags:
+    - authenticated
+    - tags
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/tags"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("created bookmark tags are visible to the owner", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.tags).to.be.an("array");
+          expect(body.tags.map((item) => item.tag)).to.include("bruno");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

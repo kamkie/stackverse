@@ -1,0 +1,26 @@
+info:
+  name: Delete created bookmark
+  type: http
+  seq: 1
+  tags:
+    - cleanup
+    - bookmarks
+
+http:
+  method: DELETE
+  url: "{{BACKEND_URL}}/api/v1/bookmarks/{{bookmarkId}}"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("demo can clean up the created bookmark", function() {
+          expect(res.status).to.equal(204);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
