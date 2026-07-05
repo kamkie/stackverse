@@ -15,6 +15,10 @@ $venvPython = Join-Path $venvRoot "Scripts/python.exe"
 if (-not (Test-Path $venvPython)) {
     & $python -m venv $venvRoot
     if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    if (-not (Test-Path $venvPython)) {
+        Write-Error "virtualenv was created but no Python executable was found under $venvRoot"
+        exit 1
+    }
 }
 
 & $venvPython -m pip install --disable-pip-version-check -r (Join-Path $suiteRoot "requirements.txt")
