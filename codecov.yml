@@ -38,6 +38,10 @@ flags:
     paths:
       - backends/node-ts/
     carryforward: true
+  backend-play-scala:
+    paths:
+      - backends/play-scala/
+    carryforward: true
   backend-spring-kotlin:
     paths:
       - backends/spring-kotlin/
@@ -111,6 +115,10 @@ component_management:
       name: "backend · node-ts"
       paths:
         - backends/node-ts/**
+    - component_id: backend-play-scala
+      name: "backend · play-scala"
+      paths:
+        - backends/play-scala/**
     - component_id: backend-spring-kotlin
       name: "backend · spring-kotlin"
       paths:
