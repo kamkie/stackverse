@@ -60,7 +60,7 @@ local function request_body()
   return data
 end
 
-local function request_headers(access_token)
+local function request_headers(access_token, cfg)
   local source = ngx.req.get_headers(0)
   local headers = {}
   for key, value in pairs(source) do
@@ -72,7 +72,7 @@ local function request_headers(access_token)
   if access_token then
     headers["Authorization"] = "Bearer " .. access_token
   end
-  local traceparent = telemetry.ensure_traceparent(headers)
+  local traceparent = telemetry.ensure_traceparent(headers, cfg)
   if traceparent then
     headers["traceparent"] = traceparent
   end
@@ -101,7 +101,8 @@ local function upstream_failure(api, dependency, status, detail)
   return ngx.exit(status)
 end
 
-function _M.request(base_url, dependency, access_token, api)
+function _M.request(base_url, dependency, access_token, api, cfg)
+  cfg = cfg or config.load()
   local url = config.join_url(base_url, ngx.var.request_uri)
   local httpc = http.new()
   httpc:set_timeout(30000)
@@ -109,7 +110,7 @@ function _M.request(base_url, dependency, access_token, api)
   local response, err = httpc:request_uri(url, {
     method = ngx.req.get_method(),
     body = request_body(),
-    headers = request_headers(access_token),
+    headers = request_headers(access_token, cfg),
     keepalive_timeout = 60000,
     ssl_verify = true,
   })

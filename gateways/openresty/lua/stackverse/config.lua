@@ -1,13 +1,7 @@
 local _M = {}
 local cached_config = nil
 
-local function env(name, default)
-  local value = os.getenv(name)
-  if value == nil or value == "" then
-    return default
-  end
-  return value
-end
+local env = require("stackverse.env").get
 
 local function trim_right_slash(value)
   return (value:gsub("/+$", ""))
