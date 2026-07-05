@@ -12,6 +12,8 @@ describe('I18n', () => {
 
   afterEach(() => {
     fetchStub.restore();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('serves messages from the bundle and falls back to the last key segment', async () => {
@@ -60,5 +62,68 @@ describe('I18n', () => {
     await flushAsync();
     expect(fetchStub.ifNoneMatch[1]).toBe('"bundle-en"'); // cached etag echoed
     expect(first.t('ui.action.login')).toBe('Log in'); // 304 kept the cache
+  });
+
+  it('aborts a superseded bundle request when the language changes', async () => {
+    fetchStub.restore();
+    const signals: AbortSignal[] = [];
+    globalThis.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(input instanceof Request ? input.url : String(input), 'http://localhost');
+      const signal = init?.signal;
+      if (!(signal instanceof AbortSignal)) throw new Error('Expected an AbortSignal');
+      signals.push(signal);
+      if (url.searchParams.get('lang') === 'pl') {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ language: 'pl', messages: { 'ui.action.login': 'Zaloguj się' } }),
+            { status: 200, headers: { 'Content-Type': 'application/json', ETag: '"bundle-pl"' } },
+          ),
+        );
+      }
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener(
+          'abort',
+          () => reject(new DOMException('Aborted', 'AbortError')),
+          { once: true },
+        );
+      });
+    }) as typeof fetch;
+
+    const i18n = TestBed.inject(I18n);
+    TestBed.tick();
+    expect(signals).toHaveLength(1);
+
+    i18n.setLang('pl');
+    TestBed.tick();
+    await flushAsync();
+
+    expect(signals[0].aborted).toBe(true);
+    expect(i18n.resolvedLanguage()).toBe('pl');
+    expect(i18n.t('ui.action.login')).toBe('Zaloguj się');
+  });
+
+  it('falls back instead of staying unready when the initial bundle request times out', async () => {
+    fetchStub.restore();
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+      const signal = init?.signal;
+      if (!(signal instanceof AbortSignal)) throw new Error('Expected an AbortSignal');
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener(
+          'abort',
+          () => reject(new DOMException('Aborted', 'AbortError')),
+          { once: true },
+        );
+      });
+    }) as typeof fetch;
+
+    const i18n = TestBed.inject(I18n);
+    TestBed.tick();
+    expect(i18n.ready()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(i18n.ready()).toBe(true);
+    expect(i18n.resolvedLanguage()).toBe('en');
   });
 });

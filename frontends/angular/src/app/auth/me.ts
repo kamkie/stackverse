@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { call } from '../api/http';
+import { ApiError } from '../api/problem';
 import type { User } from '../api/types';
 import { SessionStore } from './session';
 
@@ -38,15 +39,19 @@ export class MeStore {
           this.state.set({ user: undefined, pending: false });
           return;
         }
-        this.state.set({ user: undefined, pending: true });
+        this.state.update((s) => ({ ...s, pending: s.user === undefined }));
         call(this.http.get<User>('/api/v1/me'))
           .then((user) => {
             if (generation === this.generation) this.state.set({ user, pending: false });
           })
-          .catch(() => {
-            if (generation === this.generation) {
+          .catch((error: unknown) => {
+            if (generation !== this.generation) return;
+            if (error instanceof ApiError && error.status === 403) {
               this.state.set({ user: undefined, pending: false });
+              return;
             }
+            console.error('Failed to load caller identity', error);
+            this.state.update((s) => ({ ...s, pending: false }));
           });
       });
     });
