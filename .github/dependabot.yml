@@ -18,7 +18,9 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: gomod
-    directory: /backends/go
+    directories:
+      - /backends/go
+      - /gateways/go
     schedule:
       interval: weekly
     groups:
@@ -90,6 +92,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /gateways/go
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
     schedule:
