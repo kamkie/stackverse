@@ -13,9 +13,7 @@ import com.nimbusds.jwt.SignedJWT
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.application.call
 import io.ktor.server.request.header
-import io.ktor.server.routing.get
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.Logger
@@ -24,7 +22,6 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.nio.file.Path
 import java.util.Date
 
 class JwtAuthenticator(private val config: Config, private val mapper: ObjectMapper, private val logger: Logger) {

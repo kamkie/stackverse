@@ -2,14 +2,11 @@ package dev.stackverse.backend
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
-import java.time.Instant
 import java.util.UUID
 
 class MessageRepository(

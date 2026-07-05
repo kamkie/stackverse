@@ -6,7 +6,6 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import org.postgresql.util.PGobject
 import java.sql.Connection
 import java.sql.ResultSet
-import java.time.Instant
 import java.util.UUID
 
 class AuditRepository(private val db: Database, private val mapper: ObjectMapper) {

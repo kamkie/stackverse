@@ -2,7 +2,6 @@ package dev.stackverse.backend
 
 import java.time.Instant
 import java.time.LocalDate
-import java.util.Date
 import java.util.UUID
 
 data class Identity(val username: String, val name: String?, val email: String?, val roles: List<String>) {

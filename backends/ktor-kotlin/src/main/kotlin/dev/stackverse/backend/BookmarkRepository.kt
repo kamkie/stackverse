@@ -1,8 +1,6 @@
 package dev.stackverse.backend
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.routing.delete
-import io.ktor.server.routing.get
 import java.sql.Connection
 import java.sql.ResultSet
 import java.time.Instant
@@ -65,8 +63,7 @@ class BookmarkRepository(private val db: Database) {
     suspend fun listOffset(caller: String?, query: BookmarkListQuery, page: Int, size: Int): PageResponse<BookmarkResponse> = db.read {
         val scope = bookmarkWhere(caller, query)
         val total = queryLong("select count(*) from bookmarks b where ${scope.sql}", scope.args)
-        val connection = this
-        val items = query(
+        val rows = query(
             """
             select b.* from bookmarks b
             where ${scope.sql}
@@ -74,7 +71,8 @@ class BookmarkRepository(private val db: Database) {
             limit ? offset ?
             """.trimIndent(),
             scope.args + listOf(size, page * size),
-        ) { connection.toBookmark(it) }
+        ) { it.toBookmarkRow() }
+        val items = toBookmarks(rows)
         PageResponse(items, page, size, total, pages(total, size))
     }
 
@@ -88,8 +86,7 @@ class BookmarkRepository(private val db: Database) {
                 cursor.id,
             )
         }
-        val connection = this
-        val fetched = query(
+        val rows = query(
             """
             select b.* from bookmarks b
             where ${scope.sql}
@@ -97,7 +94,8 @@ class BookmarkRepository(private val db: Database) {
             limit ?
             """.trimIndent(),
             scope.args + listOf(size + 1),
-        ) { connection.toBookmark(it) }
+        ) { it.toBookmarkRow() }
+        val fetched = toBookmarks(rows)
         val items = fetched.take(size)
         BookmarkCursorPageResponse(items, if (fetched.size > size) BookmarkCursor.of(items.last()).encode() else null)
     }
@@ -131,18 +129,59 @@ class BookmarkRepository(private val db: Database) {
     }
 
     private fun Connection.toBookmark(rs: ResultSet): BookmarkResponse {
-        val id = rs.uuid("id")
-        return BookmarkResponse(
+        val row = rs.toBookmarkRow()
+        return row.toResponse(loadTags(listOf(row.id))[row.id].orEmpty())
+    }
+
+    private fun Connection.toBookmarks(rows: List<BookmarkRow>): List<BookmarkResponse> {
+        val tagsByBookmark = loadTags(rows.map { it.id })
+        return rows.map { row -> row.toResponse(tagsByBookmark[row.id].orEmpty()) }
+    }
+
+    private fun Connection.loadTags(bookmarkIds: List<UUID>): Map<UUID, List<String>> {
+        if (bookmarkIds.isEmpty()) return emptyMap()
+        val placeholders = bookmarkIds.joinToString(", ") { "?" }
+        return query(
+            "select bookmark_id, tag from bookmark_tags where bookmark_id in ($placeholders) order by bookmark_id, tag",
+            bookmarkIds,
+        ) { it.uuid("bookmark_id") to it.getString("tag") }
+            .groupBy({ it.first }, { it.second })
+    }
+
+    private fun ResultSet.toBookmarkRow() = BookmarkRow(
+        id = uuid("id"),
+        url = getString("url"),
+        title = getString("title"),
+        notes = stringOrNull("notes"),
+        visibility = getString("visibility").wireValue(),
+        status = getString("status").wireValue(),
+        owner = getString("owner"),
+        createdAt = instant("created_at"),
+        updatedAt = instant("updated_at"),
+    )
+
+    private data class BookmarkRow(
+        val id: UUID,
+        val url: String,
+        val title: String,
+        val notes: String?,
+        val visibility: String,
+        val status: String,
+        val owner: String,
+        val createdAt: Instant,
+        val updatedAt: Instant,
+    ) {
+        fun toResponse(tags: List<String>) = BookmarkResponse(
             id = id,
-            url = rs.getString("url"),
-            title = rs.getString("title"),
-            notes = rs.stringOrNull("notes"),
-            tags = query("select tag from bookmark_tags where bookmark_id = ? order by tag", listOf(id)) { it.getString("tag") },
-            visibility = rs.getString("visibility").wireValue(),
-            status = rs.getString("status").wireValue(),
-            owner = rs.getString("owner"),
-            createdAt = rs.instant("created_at"),
-            updatedAt = rs.instant("updated_at"),
+            url = url,
+            title = title,
+            notes = notes,
+            tags = tags,
+            visibility = visibility,
+            status = status,
+            owner = owner,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
         )
     }
 
