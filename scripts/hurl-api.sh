@@ -48,6 +48,11 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
+case "$HURL_RUN_ID" in
+    *[![:space:]]*) ;;
+    *) HURL_RUN_ID="" ;;
+esac
+
 if [ -z "$HURL_RUN_ID" ]; then
     HURL_RUN_ID="hurl-$(date -u +%Y%m%d%H%M%S)-$$"
 fi
