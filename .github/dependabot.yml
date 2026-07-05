@@ -73,6 +73,14 @@ updates:
       nuget-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: pip
+    directory: /testing/schemathesis-api
+    schedule:
+      interval: weekly
+    groups:
+      pip-minor:
+        update-types: [minor, patch]
+
   # Dockerfile base images
   - package-ecosystem: docker
     directories:

@@ -1,0 +1,44 @@
+color = false
+max-failures = 5
+warnings = ["missing_auth", "missing_test_data", "validation_mismatch"]
+hooks = "stackverse_schemathesis.hooks"
+workers = 1
+request-timeout = 10.0
+max-redirects = 0
+headers = { "User-Agent" = "stackverse-schemathesis-api" }
+
+[reports]
+directory = "schemathesis-report"
+
+[reports.junit]
+path = "schemathesis-report/junit.xml"
+
+[output.sanitization]
+enabled = true
+keys-to-sanitize = [
+  "authorization",
+  "cookie",
+  "set-cookie",
+  "access_token",
+  "refresh_token",
+  "id_token",
+  "password",
+]
+
+[phases]
+enabled = false
+
+[phases.fuzzing]
+enabled = true
+operation-ordering = "none"
+
+[phases.fuzzing.extra-data-sources]
+responses = false
+
+[generation]
+mode = "positive"
+max-examples = 20
+unique-inputs = true
+
+[checks]
+enabled = true

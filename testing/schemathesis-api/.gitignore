@@ -1,0 +1,5 @@
+.venv*/
+.schemathesis/
+schemathesis-report/
+__pycache__/
+*.pyc

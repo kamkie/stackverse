@@ -78,7 +78,9 @@ runs any backend through the API rules above (`./scripts/conformance.sh`),
 and the [e2e/](e2e) suite drives any composed stack through the UI. Those two
 suites are the canonical acceptance gates. Additional testing-tool examples live
 under [testing/](testing/README.md) as showcase variants: they compare tools and
-representative workflows without replacing or expanding the canonical gates.
+representative workflows without replacing or expanding the canonical gates. The
+Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
+generates bounded OpenAPI property tests against a running backend.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -124,7 +126,10 @@ in its own terminal tab, logs tee'd to `.logs/` — use `./scripts/dev-stack.sh`
 end-to-end suite drives the real app through every required screen:
 `./scripts/e2e.sh` (PowerShell: `./scripts/e2e.ps1`). With just infra and a
 backend, `./scripts/conformance.sh` (PowerShell: `./scripts/conformance.ps1`)
-checks that backend against the API contract directly.
+checks that backend against the API contract directly. For optional OpenAPI
+property fuzzing against the same running backend, use
+`./scripts/schemathesis-api.sh` (PowerShell:
+`./scripts/schemathesis-api.ps1`).
 
 To populate a small repeatable local dataset for demos, run the seed against
 the running backend API:
