@@ -17,13 +17,14 @@ drift — link and summarize.
    decision that obligates updating *every* implementation — never a local shortcut
    (see [AGENTS.md](../AGENTS.md) ground rules 1 and 4).
 2. **Framework-idiom expectations (§2).** Each stack should use the foundational
-   pillars that are the reason to choose it. Departing is allowed for this demo, but
-   only as a **documented deliberate deviation** in the variant's own README.
+   pillars that are the reason to choose it, and by established repo convention a
+   departure is called out as a deliberate deviation in the variant's own README.
+   This is a convention, not part of the hard §1 contract.
 3. **Free to vary (§3).** Naming, formatting, and internal layout beyond the above.
    Not a finding, not something to justify.
 
 The tiers map directly to how a reviewer should weigh a difference: a §1 breach is a
-defect; a §2 departure is a defect **only when undocumented**; a §3 difference is never
+defect; a §2 departure is worth raising only when undocumented; a §3 difference is never
 a defect.
 
 ## 1. Invariants — identical in every implementation
@@ -103,11 +104,14 @@ should adopt its **foundational pillars** — for example:
   Gateway route DSL + filters, nginx `proxy_pass`, `@fastify/http-proxy`).
 
 For an educational polyglot repo, deviating from a pillar can be a legitimate teaching
-choice (e.g. plain SQL kept visible for cross-stack comparison). But a departure from
-the stack's own foundational idiom is only *idiomatic-neutral* when it is **recorded in
-that variant's README** under a **`Deliberate deviations`** section, with the reason.
-An unremarked bypass reads as an oversight, not a demonstration. (Backends already carry
-this section; it is the convention to follow.)
+choice (e.g. plain SQL kept visible for cross-stack comparison). The repo's established
+convention — every backend README already does this — is to call such a departure out in
+that variant's own README, in a *Deliberate deviations* section (the exact heading varies
+across variants — e.g. *Deliberate deviations worth comparing* or *Deliberate deviations &
+notes*), with the reason. An unremarked bypass reads as an oversight rather than a
+demonstration. This §2 expectation is a convention, not part of the non-negotiable §1
+contract: it follows from [AGENTS.md](../AGENTS.md) ground rule 3 (idiomatic style within
+a stack is encouraged) and the per-implementation-README practice.
 
 Note that using the idiomatic-for-the-stack approach for something an invariant does not
 pin — the persistence layer, DI style, error-mapping mechanism, validation mechanism,
@@ -123,8 +127,8 @@ none of it is a deviation to document or a finding to raise.
 ## Using this document
 
 - **Implementers:** uphold every §1 invariant exactly; adopt your stack's §2 pillars or
-  record the departure in your README's `Deliberate deviations`; §3 is yours.
-- **Reviewers (human or agent):** a §1 breach is a defect; a §2 departure is a defect
-  **only if undocumented**; a §3 difference is not a finding. Judge a variant against
-  *its own* stack's idioms, never against another stack's — cross-stack sameness is
-  required only for §1.
+  record the departure in your README's deliberate-deviations section; §3 is yours.
+- **Reviewers (human or agent):** a §1 breach is a defect; a §2 departure is worth
+  raising only when it is undocumented; a §3 difference is not a finding. Judge a variant
+  against *its own* stack's idioms, never against another stack's — cross-stack sameness
+  is required only for §1.
