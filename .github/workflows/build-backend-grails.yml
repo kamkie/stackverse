@@ -50,3 +50,28 @@ jobs:
           directory: backends/grails/build/test-results/test
           flags: backend-grails
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved Gradle snapshots only from trusted main pushes.
+  backend-grails-dependency-submission:
+    name: Backend · Grails (Groovy) dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: backends/grails
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          dependency-graph: generate-and-submit
+          dependency-graph-continue-on-failure: false
+      - name: Submit Gradle dependency graph
+        run: ./gradlew dependencies

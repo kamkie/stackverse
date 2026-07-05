@@ -58,3 +58,23 @@ jobs:
           files: backends/go/TestResults/junit.xml
           flags: backend-go
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved Go module snapshots only from trusted main pushes.
+  backend-go-dependency-submission:
+    name: Backend · Go dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backends/go/go.mod
+          cache-dependency-path: backends/go/go.sum
+      - name: Submit Go dependency graph
+        uses: actions/go-dependency-submission@v2
+        with:
+          go-mod-path: backends/go/go.mod
