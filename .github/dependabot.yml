@@ -56,6 +56,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /gateways/node-fastify
     schedule:
       interval: weekly
     groups:
@@ -81,6 +82,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /gateways/node-fastify
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
     schedule:

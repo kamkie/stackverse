@@ -1,0 +1,57 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else. The contract
+# suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-gateway-node-fastify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gateway-node-fastify:
+    name: Gateway · Node.js Fastify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: gateways/node-fastify
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/cache@v6
+        with:
+          path: gateways/node-fastify/.yarn/cache
+          key: yarn-${{ runner.os }}-gateway-node-fastify-${{ hashFiles('gateways/node-fastify/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-gateway-node-fastify-
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Typecheck and build
+        run: yarn build
+      - name: Test with coverage
+        run: yarn test --coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: gateways/node-fastify/coverage/lcov.info
+          flags: gateway-node-fastify
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: gateways/node-fastify/test-results/junit.xml
+          flags: gateway-node-fastify
+          token: ${{ secrets.CODECOV_TOKEN }}

@@ -1,6 +1,6 @@
 # Gateways
 
-One directory per implementation (`yarp`, `spring-cloud-gateway`, ...). The gateway is
+One directory per implementation (`node-fastify`, `spring-cloud-gateway`, `yarp`, ...). The gateway is
 the BFF: the OIDC client, the session owner, and the only component the browser talks
 to. The full route contract and login flow live in
 [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).

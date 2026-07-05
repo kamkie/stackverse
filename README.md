@@ -46,7 +46,7 @@ Stateless applications; the session lives at the edge.
 
 ```mermaid
 flowchart LR
-    B[Browser<br/>session cookie only] -->|HTTPS| G[Gateway / BFF<br/>YARP · Spring Cloud Gateway · ...]
+    B[Browser<br/>session cookie only] -->|HTTPS| G[Gateway / BFF<br/>YARP · Spring Cloud Gateway · Node.js Fastify · ...]
     G -->|token relay: Bearer JWT| A[Backend API<br/>stateless]
     G <-->|OIDC code flow| K[Keycloak]
     G <-->|session store| R[(Redis)]
@@ -90,6 +90,7 @@ and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration))
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-dotnet)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Go (stdlib + chi) | `backends/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (TypeScript) | `backends/node-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Gateway | Node.js Fastify | `gateways/node-fastify` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-node-fastify)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Spring Cloud Gateway (Kotlin) | `gateways/spring-cloud-gateway` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-spring-cloud-gateway)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |

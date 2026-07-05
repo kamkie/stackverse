@@ -38,6 +38,10 @@ flags:
     paths:
       - frontends/react/
     carryforward: true
+  gateway-node-fastify:
+    paths:
+      - gateways/node-fastify/
+    carryforward: true
   gateway-spring-cloud-gateway:
     paths:
       - gateways/spring-cloud-gateway/
@@ -79,6 +83,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: gateway-node-fastify
+      name: "gateway · node-fastify"
+      paths:
+        - gateways/node-fastify/**
     - component_id: gateway-spring-cloud-gateway
       name: "gateway · spring-cloud-gateway"
       paths:

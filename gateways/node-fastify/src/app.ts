@@ -1,0 +1,324 @@
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import path from "node:path";
+import cookie from "@fastify/cookie";
+import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
+import { loadConfig, type GatewayConfig } from "./config.js";
+import { logEvent, logger, sanitizeLogValue } from "./logging.js";
+import { OidcClient, IdpUnavailableError, usernameFromIdToken, type FetchLike, type TokenSet } from "./oidc.js";
+import { sendProblem } from "./problems.js";
+import { proxyRequest } from "./proxy.js";
+import {
+  SESSION_COOKIE,
+  XSRF_HEADER,
+  applySecurityHeaders,
+  canonicalPublicOrigin,
+  hasValidCsrf,
+  isSameOriginStateChange,
+  issueCsrfCookie,
+  randomToken,
+} from "./security.js";
+import { RedisSessionStore, type GatewaySession, type SessionStore } from "./session-store.js";
+
+const SESSION_TTL_SECONDS = 8 * 60 * 60;
+const LOGIN_STATE_TTL_SECONDS = 10 * 60;
+const REFRESH_SKEW_MS = 30_000;
+
+export interface BuildAppOptions {
+  config?: GatewayConfig;
+  sessionStore?: SessionStore;
+  oidcClient?: OidcClient;
+  fetchImpl?: FetchLike;
+}
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const gateway = options.config ?? loadConfig();
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const sessionStore = options.sessionStore ?? new RedisSessionStore(gateway.redisUrl);
+  const oidc = options.oidcClient ?? new OidcClient(gateway, fetchImpl);
+  const expectedOrigin = canonicalPublicOrigin(gateway.publicUrl);
+  const ownsSessionStore = options.sessionStore === undefined;
+
+  const app = Fastify({ logger: false });
+  await app.register(cookie);
+  app.addContentTypeParser("*", { parseAs: "buffer" }, (_request, body, done) => {
+    done(null, body);
+  });
+
+  app.addHook("onRequest", async (request, reply) => {
+    issueCsrfCookie(request, reply, gateway.cookiesSecure);
+  });
+
+  app.addHook("onSend", async (request, reply, payload) => {
+    applySecurityHeaders(request, reply, gateway.cookiesSecure);
+    return payload;
+  });
+
+  app.setErrorHandler((error, _request, reply) => {
+    logger.error({ err: error }, "Unhandled gateway error");
+    sendProblem(reply, 500, "Internal Server Error", "The gateway failed to handle the request.");
+  });
+
+  app.addHook("onClose", async () => {
+    if (ownsSessionStore) {
+      await sessionStore.close?.();
+    }
+  });
+
+  app.get("/auth/login", async (_request, reply) => {
+    const state = randomToken(24);
+    const codeVerifier = randomToken(32);
+    const nonce = randomToken(24);
+    await sessionStore.setLoginState(state, { codeVerifier, nonce, createdAt: Date.now() }, LOGIN_STATE_TTL_SECONDS);
+    try {
+      return reply.redirect(await oidc.authorizationUrl(state, codeVerifier, nonce), 302);
+    } catch (error) {
+      logEvent("error", "dependency_call_failed", "failure", "OIDC discovery failed during login", {
+        dependency: "keycloak",
+        error_code: error instanceof Error ? error.name : "oidc_discovery_failed",
+      });
+      return sendProblem(reply, 503, "Service Unavailable", "Authentication is temporarily unavailable; please retry.");
+    }
+  });
+
+  app.get("/auth/callback", async (request, reply) => {
+    const query = request.query as Record<string, string | undefined>;
+    if (query["error"] || !query["code"] || !query["state"]) {
+      logEvent("info", "oidc_callback_completed", "failure", "Authorization code flow failed", {
+        error_code: sanitizeLogValue(query["error"] ?? "invalid_callback"),
+      });
+      return reply.redirect("/", 302);
+    }
+
+    const loginState = await sessionStore.consumeLoginState(query["state"]);
+    if (!loginState) {
+      logEvent("info", "oidc_callback_completed", "failure", "Authorization code flow failed", {
+        error_code: "invalid_state",
+      });
+      return reply.redirect("/", 302);
+    }
+
+    try {
+      const tokens = await oidc.exchangeCode(query["code"], loginState.codeVerifier);
+      if (!tokens.idToken) throw new Error("missing_id_token");
+      const payload = await oidc.verifyIdToken(tokens.idToken, loginState.nonce);
+      const username = usernameFromIdToken(payload);
+      const session = sessionFromTokens(username, tokens);
+      const sessionId = await sessionStore.createSession(session, SESSION_TTL_SECONDS);
+      setSessionCookie(reply, sessionId, gateway.cookiesSecure);
+      logEvent("info", "oidc_callback_completed", "success", "Authorization code flow completed", { actor: username });
+      logEvent("info", "session_created", "success", "Session stored in Redis, cookie issued", { actor: username });
+      return reply.redirect("/", 302);
+    } catch (error) {
+      logEvent("info", "oidc_callback_completed", "failure", "Authorization code flow failed", {
+        error_code: error instanceof Error ? sanitizeLogValue(error.message) : "callback_failed",
+      });
+      return reply.redirect("/", 302);
+    }
+  });
+
+  app.get("/auth/session", async (request, reply) => {
+    const loaded = await loadSession(request, sessionStore);
+    if (!loaded) {
+      return reply.send({ authenticated: false });
+    }
+    return reply.send({ authenticated: true, username: loaded.session.username });
+  });
+
+  app.post("/auth/logout", async (request, reply) => {
+    const loaded = await loadSession(request, sessionStore);
+    if (loaded) {
+      await sessionStore.destroySession(loaded.id);
+      clearSessionCookie(reply, gateway.cookiesSecure);
+      logEvent("info", "session_destroyed", "success", "Session destroyed by user logout", {
+        reason: "logout",
+        actor: loaded.session.username,
+      });
+      if (loaded.session.refreshToken) {
+        await oidc.logout(loaded.session.refreshToken);
+      }
+    } else {
+      clearSessionCookie(reply, gateway.cookiesSecure);
+    }
+    return reply.code(204).send();
+  });
+
+  app.all("/api/*", async (request, reply) => {
+    if (!isSameOriginStateChange(request, expectedOrigin)) {
+      logEvent("info", "csrf_validation_failed", "denied", "Rejected a cross-origin state-changing /api request", {
+        method: sanitizeLogValue(request.method),
+        path: sanitizeLogValue(request.url.split("?")[0]),
+      });
+      return sendProblem(reply, 403, "Forbidden", "Cross-origin state-changing requests are not supported.");
+    }
+    if (!hasValidCsrf(request)) {
+      logEvent("info", "csrf_validation_failed", "denied", "Rejected a state-changing /api request without a matching CSRF header", {
+        method: sanitizeLogValue(request.method),
+        path: sanitizeLogValue(request.url.split("?")[0]),
+      });
+      return sendProblem(reply, 403, "Forbidden", `Missing or mismatched ${XSRF_HEADER.toUpperCase()} header.`);
+    }
+
+    const loaded = await loadSession(request, sessionStore);
+    let accessToken: string | undefined;
+    if (loaded) {
+      try {
+        accessToken = await accessTokenForSession(loaded.id, loaded.session, sessionStore, oidc);
+      } catch (error) {
+        if (error instanceof IdpUnavailableError) {
+          return sendProblem(reply, 503, "Service Unavailable", "Authentication is temporarily unavailable; please retry.");
+        }
+        throw error;
+      }
+      if (!accessToken) {
+        await sessionStore.destroySession(loaded.id);
+        clearSessionCookie(reply, gateway.cookiesSecure);
+        logEvent("info", "session_destroyed", "success", "Session destroyed after a failed token refresh; request degraded to anonymous", {
+          reason: "token_refresh_failed",
+          actor: loaded.session.username,
+        });
+      }
+    }
+
+    return proxyRequest(request, reply, gateway.backendUrl, "backend", fetchImpl, accessToken);
+  });
+
+  app.all("/*", async (request, reply) => {
+    if (gateway.frontendUrl) {
+      return proxyRequest(request, reply, gateway.frontendUrl, "frontend", fetchImpl);
+    }
+    return serveStaticSpa(request, reply, gateway.spaRoot);
+  });
+
+  return app;
+}
+
+function sessionFromTokens(username: string, tokens: TokenSet): GatewaySession {
+  const now = Date.now();
+  const session: GatewaySession = {
+    username,
+    accessToken: tokens.accessToken,
+    expiresAt: now + tokens.expiresIn * 1000,
+    createdAt: now,
+    updatedAt: now,
+  };
+  if (tokens.refreshToken) session.refreshToken = tokens.refreshToken;
+  if (tokens.idToken) session.idToken = tokens.idToken;
+  return session;
+}
+
+async function accessTokenForSession(
+  id: string,
+  session: GatewaySession,
+  sessionStore: SessionStore,
+  oidc: OidcClient,
+): Promise<string | undefined> {
+  if (session.accessToken && session.expiresAt - REFRESH_SKEW_MS > Date.now()) {
+    return session.accessToken;
+  }
+  if (!session.refreshToken) {
+    return undefined;
+  }
+  const refreshed = await oidc.refresh(session.refreshToken);
+  if (!refreshed) {
+    return undefined;
+  }
+
+  const updated: GatewaySession = {
+    ...session,
+    accessToken: refreshed.accessToken,
+    expiresAt: Date.now() + refreshed.expiresIn * 1000,
+    updatedAt: Date.now(),
+  };
+  if (refreshed.refreshToken) updated.refreshToken = refreshed.refreshToken;
+  if (refreshed.idToken) updated.idToken = refreshed.idToken;
+  await sessionStore.saveSession(id, updated, SESSION_TTL_SECONDS);
+  return updated.accessToken;
+}
+
+async function loadSession(
+  request: FastifyRequest,
+  sessionStore: SessionStore,
+): Promise<{ id: string; session: GatewaySession } | null> {
+  const id = request.cookies[SESSION_COOKIE];
+  if (!id) return null;
+  const session = await sessionStore.getSession(id);
+  return session ? { id, session } : null;
+}
+
+function setSessionCookie(reply: FastifyReply, id: string, secure: boolean): void {
+  reply.setCookie(SESSION_COOKIE, id, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  });
+}
+
+function clearSessionCookie(reply: FastifyReply, secure: boolean): void {
+  reply.clearCookie(SESSION_COOKIE, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure,
+    path: "/",
+  });
+}
+
+async function serveStaticSpa(request: FastifyRequest, reply: FastifyReply, root: string): Promise<FastifyReply> {
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    return sendProblem(reply, 404, "Not Found", "No route matched the request.");
+  }
+
+  const rootPath = path.resolve(root);
+  const url = new URL(request.url, "http://stackverse.local");
+  const requestedPath = safeStaticPath(rootPath, url.pathname);
+  const file = await existingFile(requestedPath) ?? path.join(rootPath, "index.html");
+  reply.type(contentType(file));
+  return reply.send(createReadStream(file));
+}
+
+function safeStaticPath(root: string, pathname: string): string {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    decoded = "/";
+  }
+  const relative = path.normalize(decoded).replace(/^[/\\]+/, "");
+  const candidate = path.resolve(root, relative);
+  const rootWithSeparator = root.endsWith(path.sep) ? root : `${root}${path.sep}`;
+  if (candidate !== root && !candidate.startsWith(rootWithSeparator)) {
+    return path.join(root, "index.html");
+  }
+  return candidate;
+}
+
+async function existingFile(candidate: string): Promise<string | null> {
+  try {
+    const details = await stat(candidate);
+    if (details.isFile()) return candidate;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function contentType(file: string): string {
+  switch (path.extname(file).toLowerCase()) {
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".js":
+      return "text/javascript; charset=utf-8";
+    case ".json":
+      return "application/json; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml";
+    case ".png":
+      return "image/png";
+    case ".ico":
+      return "image/x-icon";
+    default:
+      return "text/html; charset=utf-8";
+  }
+}
