@@ -1,7 +1,11 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "./app.js";
 import { loadConfig, type GatewayConfig } from "./config.js";
+import type { OidcClient } from "./oidc.js";
 import { CONTENT_SECURITY_POLICY, STRICT_TRANSPORT_SECURITY } from "./security.js";
 import { MemorySessionStore, type GatewaySession } from "./session-store.js";
 
@@ -131,6 +135,61 @@ describe("node-fastify gateway", () => {
     });
   });
 
+  it("creates a Redis-backed session after a successful OIDC callback", async () => {
+    const config = testConfig();
+    const store = new MemorySessionStore();
+    const oidcClient = {
+      authorizationUrl: vi.fn(async (state: string) => `http://idp.test/auth?state=${state}`),
+      exchangeCode: vi.fn(async (code: string, codeVerifier: string) => {
+        expect(code).toBe("auth-code");
+        expect(codeVerifier).toHaveLength(43);
+        return {
+          accessToken: "callback-access",
+          refreshToken: "callback-refresh",
+          idToken: "callback-id",
+          expiresIn: 120,
+        };
+      }),
+      verifyIdToken: vi.fn(async (idToken: string, nonce: string) => {
+        expect(idToken).toBe("callback-id");
+        expect(nonce).toHaveLength(32);
+        return { preferred_username: "alice" };
+      }),
+      logout: vi.fn(async () => undefined),
+    } as unknown as OidcClient;
+    const app = await buildApp({ config, sessionStore: store, oidcClient });
+
+    try {
+      const login = await app.inject({ method: "GET", url: "/auth/login" });
+      const state = new URL(login.headers.location as string).searchParams.get("state");
+      expect(state).toHaveLength(32);
+
+      const callback = await app.inject({ method: "GET", url: `/auth/callback?code=auth-code&state=${state}` });
+
+      expect(callback.statusCode).toBe(302);
+      expect(callback.headers.location).toBe("/");
+      const sessionId = cookieValue(callback, "stackverse_session");
+      const session = await store.getSession(sessionId);
+      expect(session).toMatchObject({
+        username: "alice",
+        accessToken: "callback-access",
+        refreshToken: "callback-refresh",
+        idToken: "callback-id",
+      });
+
+      const sessionResponse = await app.inject({
+        method: "GET",
+        url: "/auth/session",
+        headers: { cookie: `stackverse_session=${sessionId}` },
+      });
+      expect(sessionResponse.json()).toEqual({ authenticated: true, username: "alice" });
+      expect(oidcClient.exchangeCode).toHaveBeenCalledTimes(1);
+      expect(oidcClient.verifyIdToken).toHaveBeenCalledTimes(1);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("relays anonymous api requests without client-supplied credentials", async () => {
     await withApp(async (app, _store, calls) => {
       const response = await app.inject({
@@ -240,6 +299,48 @@ describe("node-fastify gateway", () => {
             "content-length": "999",
           },
         });
+      }
+      return defaultFetch(url);
+    });
+  });
+
+  it("passes through API responses that must not carry a body", async () => {
+    await withApp(async (app) => {
+      const notModified = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
+      expect(notModified.statusCode).toBe(304);
+      expect(notModified.headers.etag).toBe("\"bundle-v1\"");
+      expect(notModified.body).toBe("");
+
+      const head = await app.inject({ method: "HEAD", url: "/api/v1/messages/bundle" });
+      expect(head.statusCode).toBe(200);
+      expect(head.headers["cache-control"]).toBe("no-cache");
+      expect(head.body).toBe("");
+    }, testConfig(), (url, init) => {
+      if (hasOrigin(url, BACKEND_ORIGIN) && init?.method === "GET") {
+        return new Response(null, {
+          status: 304,
+          headers: { "cache-control": "no-cache", etag: "\"bundle-v1\"" },
+        });
+      }
+      return defaultFetch(url);
+    });
+  });
+
+  it("returns an upstream problem document when backend proxying fails", async () => {
+    await withApp(async (app) => {
+      const response = await app.inject({ method: "GET", url: "/api/v1/bookmarks" });
+
+      expect(response.statusCode).toBe(502);
+      expect(response.headers["content-type"]).toContain("application/problem+json");
+      expect(response.json()).toMatchObject({
+        type: "about:blank",
+        title: "Bad Gateway",
+        status: 502,
+        detail: "The upstream service is unavailable.",
+      });
+    }, testConfig(), (url) => {
+      if (hasOrigin(url, BACKEND_ORIGIN)) {
+        throw new Error("backend offline");
       }
       return defaultFetch(url);
     });
@@ -370,5 +471,36 @@ describe("node-fastify gateway", () => {
       expect(frontend?.url).toBe("http://frontend.test/admin/users");
       expect(header(frontend?.init?.headers as Headers, "cookie")).toBeNull();
     });
+  });
+
+  it("serves the static SPA fallback without escaping SPA_ROOT", async () => {
+    const root = await mkdtemp(path.join(tmpdir(), "stackverse-node-fastify-spa-"));
+    await mkdir(path.join(root, "assets"));
+    await writeFile(path.join(root, "index.html"), "<main>fallback shell</main>");
+    await writeFile(path.join(root, "assets", "app.js"), "window.stackverse = true;");
+
+    try {
+      await withApp(async (app) => {
+        const asset = await app.inject({ method: "GET", url: "/assets/app.js" });
+        expect(asset.statusCode).toBe(200);
+        expect(asset.headers["content-type"]).toBe("text/javascript; charset=utf-8");
+        expect(asset.body).toBe("window.stackverse = true;");
+
+        const fallback = await app.inject({ method: "GET", url: "/admin/users" });
+        expect(fallback.statusCode).toBe(200);
+        expect(fallback.headers["content-type"]).toBe("text/html; charset=utf-8");
+        expect(fallback.body).toBe("<main>fallback shell</main>");
+
+        const traversal = await app.inject({ method: "GET", url: "/%2e%2e/secret.txt" });
+        expect(traversal.statusCode).toBe(200);
+        expect(traversal.body).toBe("<main>fallback shell</main>");
+
+        const unsupportedMethod = await app.inject({ method: "POST", url: "/admin/users" });
+        expect(unsupportedMethod.statusCode).toBe(404);
+        expect(unsupportedMethod.headers["content-type"]).toContain("application/problem+json");
+      }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
+    } finally {
+      await rm(root, { force: true, recursive: true });
+    }
   });
 });
