@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { Catch, HttpException, Module, type ArgumentsHost, type ExceptionFilter } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -17,6 +17,16 @@ import { ApiProblem, ValidationProblem, firstParam, sendProblem } from "./proble
 
 @Module({})
 class AppModule {}
+
+@Catch(HttpException)
+class NestProblemFilter implements ExceptionFilter {
+  catch(error: HttpException, host: ArgumentsHost): FastifyReply {
+    const reply = host.switchToHttp().getResponse<FastifyReply>();
+    const status = error.getStatus();
+    const title = status === 404 ? "Not Found" : error.name.replace(/Exception$/, "");
+    return sendProblem(reply, status, title);
+  }
+}
 
 /** SPEC rules 5 + 11: field errors with a `validation.*` key and a localized message. */
 async function sendValidationProblem(
@@ -124,5 +134,6 @@ export async function buildApp(): Promise<NestFastifyApplication> {
     new FastifyAdapter(fastify as never),
     { logger: false },
   );
+  app.useGlobalFilters(new NestProblemFilter());
   return app;
 }
