@@ -8,6 +8,7 @@ implemented in many stacks. Read these before changing anything:
 - [spec/openapi.yaml](spec/openapi.yaml) — API shapes and status codes (canonical for the wire)
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — BFF/session-auth architecture, gateway route contract, ports
 - [docs/LOGGING.md](docs/LOGGING.md) — logging requirements, normative for every implementation
+- [docs/INVARIANTS.md](docs/INVARIANTS.md) — what every implementation must hold identical vs. what is free to be idiomatic per stack (the invariant / deliberate-deviation / free-style tiers)
 
 ## Ground rules
 

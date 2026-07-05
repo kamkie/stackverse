@@ -4,6 +4,10 @@ The architectural thesis of Stackverse: **applications are stateless; the sessio
 at the edge, and tokens never reach the browser.** This is the BFF / token-handler
 pattern, and every gateway implementation demonstrates it in its own stack.
 
+This document defines the architecture normatively; for the consolidated list of what
+every implementation must hold identical (and what is free to be idiomatic per stack),
+see [INVARIANTS.md](INVARIANTS.md).
+
 ## Components
 
 | Component | Role | State |
