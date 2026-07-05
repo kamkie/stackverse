@@ -132,7 +132,7 @@ final class WebSupport {
     static MutableHttpResponse<?> etag(ObjectMapper mapper, HttpRequest<?> request, Object body, String contentLanguage) {
         try {
             byte[] json = mapper.writeValueAsBytes(body);
-            String etag = "\"" + HexFormat.of().formatHex(MessageDigest.getInstance("MD5").digest(json)) + "\"";
+            String etag = "\"" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(json)) + "\"";
             MutableHttpResponse<byte[]> response;
             if (ifNoneMatch(request.getHeaders().get(HttpHeaders.IF_NONE_MATCH), etag)) {
                 response = HttpResponse.status(HttpStatus.NOT_MODIFIED);

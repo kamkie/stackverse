@@ -1,21 +1,18 @@
 package dev.stackverse.backend;
 
-import io.micronaut.core.async.publisher.Publishers;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.MutableHttpResponse;
-import io.micronaut.http.annotation.Filter;
-import io.micronaut.http.filter.HttpServerFilter;
-import io.micronaut.http.filter.ServerFilterChain;
-import jakarta.inject.Singleton;
-import org.reactivestreams.Publisher;
+import io.micronaut.http.annotation.RequestFilter;
+import io.micronaut.http.annotation.ServerFilter;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 
-@Singleton
-@Filter("/**")
-final class AuthFilter implements HttpServerFilter {
+@ServerFilter("/**")
+final class AuthFilter {
     static final String IDENTITY = "stackverse.identity";
     private static final Logger LOG = LoggerFactory.getLogger(AuthFilter.class);
 
@@ -29,11 +26,12 @@ final class AuthFilter implements HttpServerFilter {
         this.problems = problems;
     }
 
-    @Override
-    public Publisher<MutableHttpResponse<?>> doFilter(HttpRequest<?> request, ServerFilterChain chain) {
+    @RequestFilter
+    @ExecuteOn(TaskExecutors.BLOCKING)
+    MutableHttpResponse<?> authenticate(HttpRequest<?> request) {
         String header = request.getHeaders().get("Authorization");
         if (header == null || header.isBlank()) {
-            return chain.proceed(request);
+            return null;
         }
         if (!header.startsWith("Bearer ")) {
             return problem(request, Problems.unauthorized("Missing or invalid bearer token."));
@@ -53,10 +51,10 @@ final class AuthFilter implements HttpServerFilter {
                     Map.of("actor", identity.username()));
             return problem(request, Problems.forbiddenKey("error.account.blocked"));
         }
-        return chain.proceed(request);
+        return null;
     }
 
-    private Publisher<MutableHttpResponse<?>> problem(HttpRequest<?> request, ProblemException problem) {
-        return Publishers.just(problems.response(request, problem));
+    private MutableHttpResponse<?> problem(HttpRequest<?> request, ProblemException problem) {
+        return problems.response(request, problem);
     }
 }

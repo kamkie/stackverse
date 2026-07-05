@@ -16,9 +16,11 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
@@ -125,7 +127,7 @@ final class AdminController {
                 """;
         List<Object> filterArgs = auditFilterArgs(actor, action, targetType, targetId, from, to);
         long total = db.scalarLong("select count(*) from audit_entries " + where, filterArgs.toArray());
-        List<Object> queryArgs = new java.util.ArrayList<>(filterArgs);
+        List<Object> queryArgs = new ArrayList<>(filterArgs);
         queryArgs.add(size);
         queryArgs.add(WebSupport.offset(page, size));
         List<AuditResponse> items = db.query("""
@@ -134,7 +136,7 @@ final class AdminController {
                 order by created_at desc, id desc
                 limit ? offset ?
                 """.formatted(where), rs -> new AuditResponse(
-                rs.getObject("id", java.util.UUID.class),
+                rs.getObject("id", UUID.class),
                 rs.getString("actor"),
                 rs.getString("action"),
                 rs.getString("target_type"),
@@ -161,7 +163,7 @@ final class AdminController {
         LocalDate from = today.minusDays(29);
         Map<String, Long> bookmarksCreated = countsByDay("bookmarks", "created_at", from);
         Map<String, Long> activeUsers = countsByDay("user_accounts", "last_seen", from);
-        List<DailyStat> daily = new java.util.ArrayList<>();
+        List<DailyStat> daily = new ArrayList<>();
         for (int i = 0; i < 30; i++) {
             String date = from.plusDays(i).toString();
             daily.add(new DailyStat(date, bookmarksCreated.getOrDefault(date, 0L), activeUsers.getOrDefault(date, 0L)));
@@ -206,7 +208,7 @@ final class AdminController {
     }
 
     private List<Object> auditFilterArgs(String actor, String action, String targetType, String targetId, Instant from, Instant to) {
-        List<Object> args = new java.util.ArrayList<>();
+        List<Object> args = new ArrayList<>();
         args.add(actor);
         args.add(actor);
         args.add(action);

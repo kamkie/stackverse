@@ -1,7 +1,5 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-
 import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -100,11 +98,9 @@ record Account(String username, Instant firstSeen, Instant lastSeen, String stat
                long bookmarkCount) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record BookmarkInput(String url, String title, String notes, List<String> tags, String visibility) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record BookmarkResponse(UUID id, String url, String title, String notes, List<String> tags, String visibility,
                         String status, String owner, Instant createdAt, Instant updatedAt) {
     static BookmarkResponse from(Bookmark bookmark) {
@@ -114,18 +110,15 @@ record BookmarkResponse(UUID id, String url, String title, String notes, List<St
     }
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record BookmarkCursorPage(List<BookmarkResponse> items, String nextCursor) {
 }
 
 record TagCount(String tag, long count) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record MessageInput(String key, String language, String text, String description) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record MessageResponse(UUID id, String key, String language, String text, String description,
                        Instant createdAt, Instant updatedAt) {
     static MessageResponse from(Message message) {
@@ -146,7 +139,6 @@ record ReportResolutionInput(String resolution, String note) {
 record BookmarkStatusInput(String status, String note) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record ReportResponse(UUID id, UUID bookmarkId, String reporter, String reason, String comment, String status,
                       Instant createdAt, String resolvedBy, Instant resolvedAt, String resolutionNote) {
     static ReportResponse from(Report report) {
@@ -156,11 +148,9 @@ record ReportResponse(UUID id, UUID bookmarkId, String reporter, String reason, 
     }
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record UserResponse(String username, String name, String email, List<String> roles) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record AccountResponse(String username, Instant firstSeen, Instant lastSeen, String status, String blockedReason,
                        long bookmarkCount) {
 }
@@ -168,7 +158,6 @@ record AccountResponse(String username, Instant firstSeen, Instant lastSeen, Str
 record UserStatusInput(String status, String reason) {
 }
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record AuditResponse(UUID id, String actor, String action, String targetType, String targetId, Object detail,
                      Instant createdAt) {
 }
