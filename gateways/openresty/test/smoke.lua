@@ -297,10 +297,18 @@ local function test_logging_and_telemetry()
   assert_equal(telemetry.ensure_traceparent({ Traceparent = incoming }), incoming)
   assert_equal(ngx.ctx.stackverse_trace_id, "11111111111111111111111111111111")
   assert_equal(ngx.ctx.stackverse_span_id, "2222222222222222")
-  set_ngx()
-  assert_equal(telemetry.ensure_traceparent({ traceparent = "bad" }), nil)
 
   local old_getenv = os.getenv
+  os.getenv = function(name)
+    if name == "OTEL_SDK_DISABLED" then
+      return "true"
+    end
+    return old_getenv(name)
+  end
+  set_ngx()
+  assert_equal(telemetry.ensure_traceparent({ traceparent = "bad" }), nil)
+  os.getenv = old_getenv
+
   os.getenv = function(name)
     if name == "OTEL_SDK_DISABLED" then
       return "false"
