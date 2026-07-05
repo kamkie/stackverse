@@ -20,6 +20,7 @@ dependencies = [
 test = [
   "pytest>=9.1.1,<10",
   "pytest-cov>=7.1.0,<8",
+  "ruff>=0.14.8,<1",
 ]
 
 [project.scripts]
@@ -34,6 +35,14 @@ packages = ["stackverse_backend"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
 
 [tool.coverage.run]
 branch = true

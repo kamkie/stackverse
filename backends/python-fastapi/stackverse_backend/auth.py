@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Annotated, Any
 
 import httpx
 import jwt
-from fastapi import Request
+from fastapi import Depends, Request
 from jwt import PyJWKClient
+from starlette.concurrency import run_in_threadpool
 
 from .config import config
 from .db import query
 from .i18n import localize, resolve_language
 from .logging_setup import log_event
-from .problems import ForbiddenProblem, UnauthorizedProblem, first_param, problem_response
+from .problems import ForbiddenProblem, UnauthorizedProblem, first_param
 from .time import now_utc
 
 APP_ROLES = {"moderator", "admin"}
@@ -91,10 +93,7 @@ def record_seen(username: str) -> str:
     return str(rows[0]["status"])
 
 
-async def authenticate_request(request: Request) -> Any:
-    from starlette.concurrency import run_in_threadpool
-
-    request.state.caller = None
+async def authenticate_request(request: Request) -> Caller | None:
     header = request.headers.get("authorization")
     if not header or not header.startswith("Bearer "):
         return None
@@ -108,7 +107,7 @@ async def authenticate_request(request: Request) -> Any:
             "Rejected a bearer token",
             error_code=exc.__class__.__name__.lower(),
         )
-        return problem_response(401, "Unauthorized", "Missing or invalid bearer token.")
+        raise UnauthorizedProblem("Missing or invalid bearer token.") from exc
     status = await run_in_threadpool(record_seen, caller.username)
     if status == "blocked":
         log_event(
@@ -124,30 +123,36 @@ async def authenticate_request(request: Request) -> Any:
             request.headers.get("accept-language"),
         )
         detail = await run_in_threadpool(localize, "error.account.blocked", language)
-        return problem_response(403, "Forbidden", detail)
-    request.state.caller = caller
-    return None
+        raise ForbiddenProblem(detail)
+    return caller
 
 
-def require_caller(request: Request) -> Caller:
-    caller = getattr(request.state, "caller", None)
+def require_caller(caller: Annotated[Caller | None, Depends(authenticate_request)]) -> Caller:
     if caller is None:
         raise UnauthorizedProblem()
     return caller
 
 
-def require_role(request: Request, role: str) -> Caller:
-    caller = require_caller(request)
-    if role not in caller.roles:
-        log_event(
-            "info",
-            "authz_denied",
-            "denied",
-            "Denied a request lacking the required role",
-            actor=caller.username,
-        )
-        raise ForbiddenProblem("You do not have the role required for this operation.")
-    return caller
+def require_role(role: str) -> Callable[[Caller], Caller]:
+    def role_dependency(caller: Annotated[Caller, Depends(require_caller)]) -> Caller:
+        if role not in caller.roles:
+            log_event(
+                "info",
+                "authz_denied",
+                "denied",
+                "Denied a request lacking the required role",
+                actor=caller.username,
+            )
+            raise ForbiddenProblem("You do not have the role required for this operation.")
+        return caller
+
+    return role_dependency
+
+
+OptionalCaller = Annotated[Caller | None, Depends(authenticate_request)]
+CurrentCaller = Annotated[Caller, Depends(require_caller)]
+ModeratorCaller = Annotated[Caller, Depends(require_role("moderator"))]
+AdminCaller = Annotated[Caller, Depends(require_role("admin"))]
 
 
 def me_response(caller: Caller) -> dict[str, Any]:

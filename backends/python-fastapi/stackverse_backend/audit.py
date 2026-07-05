@@ -22,5 +22,13 @@ def record_audit(
         insert into audit_entries (id, actor, action, target_type, target_id, detail, created_at)
         values (%s, %s, %s, %s, %s, %s::jsonb, %s)
         """,
-        (str(uuid4()), actor, action, target_type, target_id, json.dumps(detail) if detail is not None else None, now_utc()),
+        (
+            str(uuid4()),
+            actor,
+            action,
+            target_type,
+            target_id,
+            json.dumps(detail) if detail is not None else None,
+            now_utc(),
+        ),
     )

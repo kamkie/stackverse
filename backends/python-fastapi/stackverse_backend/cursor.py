@@ -4,7 +4,7 @@ import base64
 from dataclasses import dataclass
 from datetime import datetime
 
-from .problems import BadRequestProblem, UUID_PATTERN
+from .problems import UUID_PATTERN, BadRequestProblem
 from .time import iso_datetime
 
 
@@ -15,7 +15,7 @@ class BookmarkCursor:
 
 
 def encode_cursor(cursor: BookmarkCursor) -> str:
-    raw = f"{iso_datetime(cursor.created_at)}|{cursor.id}".encode("utf-8")
+    raw = f"{iso_datetime(cursor.created_at)}|{cursor.id}".encode()
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 

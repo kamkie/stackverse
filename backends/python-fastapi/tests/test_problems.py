@@ -45,9 +45,7 @@ def test_problem_response_uses_rfc9457_media_type_and_optional_fields() -> None:
         "title": "Bad Request",
         "status": 400,
         "detail": "Request validation failed.",
-        "errors": [
-            {"field": "title", "messageKey": "validation.title.required", "message": "Title is required."}
-        ],
+        "errors": [{"field": "title", "messageKey": "validation.title.required", "message": "Title is required."}],
     }
 
 

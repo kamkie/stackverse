@@ -8,7 +8,14 @@ from fastapi.testclient import TestClient
 from starlette.requests import Request
 
 from stackverse_backend import api
-from stackverse_backend.problems import BadRequestProblem, ConflictProblem, NotFoundProblem, UnauthorizedProblem, ValidationProblem
+from stackverse_backend.problems import (
+    BadRequestProblem,
+    ConflictProblem,
+    NotFoundProblem,
+    UnauthorizedProblem,
+    ValidationProblem,
+)
+from stackverse_backend.routers import meta, register_routes
 
 
 def make_request(query: str = "") -> Request:
@@ -129,13 +136,16 @@ def test_parse_bookmark_filters_and_listing_where_match_public_and_private_contr
     assert filters == {"tags": ["python", "fast-api"], "q": "50%_off", "visibility": "public"}
 
     where, params = api.listing_where(None, filters)
-    assert where == "visibility = 'public' and status = 'active' and tags @> %s::text[] and (title ilike %s escape E'\\\\' or notes ilike %s escape E'\\\\')"
+    assert (
+        where.as_string(None)
+        == "visibility = 'public' and status = 'active' and tags @> %s::text[] and (title ilike %s escape E'\\\\' or notes ilike %s escape E'\\\\')"
+    )
     assert params == (["python", "fast-api"], r"%50\%\_off%", r"%50\%\_off%")
 
     private_where, private_params = api.listing_where(
         SimpleNamespace(username="demo"), {"tags": [], "q": None, "visibility": None}
     )
-    assert private_where == "owner = %s"
+    assert private_where.as_string(None) == "owner = %s"
     assert private_params == ("demo",)
 
     with pytest.raises(UnauthorizedProblem):
@@ -245,17 +255,17 @@ def test_message_conflict_snapshot_and_log_event(monkeypatch) -> None:
 
 def test_health_and_readiness_routes_use_database_probe(monkeypatch) -> None:
     app = FastAPI()
-    api.register_routes(app)
+    register_routes(app)
     client = TestClient(app)
 
     monkeypatch.setattr(api, "_was_ready", False)
-    monkeypatch.setattr(api, "query", lambda _sql: [{"ok": 1}])
+    monkeypatch.setattr(meta, "query", lambda _sql: [{"ok": 1}])
     assert client.get("/healthz").status_code == 200
     assert client.get("/readyz").status_code == 200
 
-    monkeypatch.setattr(api, "query", lambda _sql: (_ for _ in ()).throw(RuntimeError("down")))
+    monkeypatch.setattr(meta, "query", lambda _sql: (_ for _ in ()).throw(RuntimeError("down")))
     events = []
-    monkeypatch.setattr(api, "log_event", lambda *args, **fields: events.append((args, fields)))
+    monkeypatch.setattr(meta, "log_event", lambda *args, **fields: events.append((args, fields)))
 
     assert client.get("/readyz").status_code == 503
     assert events[0][0][:3] == ("warn", "dependency_call_failed", "failure")
