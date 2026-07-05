@@ -10,7 +10,10 @@ canonical acceptance gates.
 |---|---|---|---|
 | `conformance/` | API contract and backend semantics from `spec/openapi.yaml` and `docs/SPEC.md` | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | required for every backend |
 | `e2e/` | Required browser screens and gateway/session behavior | composed stack, `STACKVERSE_URL` | required for every frontend |
+| `testing/schemathesis-api` | Generated OpenAPI property tests for edge cases and response/schema checks | direct backend, `BACKEND_URL` + `KEYCLOAK_URL` | manual showcase |
 | `testing/<tool>-<scope>` | Tool comparison through representative flows | backend or composed stack, depending on scope | showcase unless deliberately promoted |
+| `testing/selenium-e2e` | Selenium WebDriver page-object browser showcase | composed stack, `STACKVERSE_URL` | optional manual workflow |
+| `testing/cypress-e2e` | Cypress browser-runner showcase for representative session, feed, CRUD, and moderation flows | composed stack, `STACKVERSE_URL` | manual showcase workflow |
 
 Showcase suites should demonstrate the tool, not clone every canonical test.
 Pick flows that exercise the tool's strengths while staying anchored to the

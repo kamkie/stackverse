@@ -1,0 +1,64 @@
+name: Schemathesis API
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Backend implementation directory name
+        required: true
+        default: spring-kotlin
+        type: string
+      max_examples:
+        description: Schemathesis examples per operation
+        required: true
+        default: "20"
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.backend }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  schemathesis:
+    name: Schemathesis · ${{ inputs.backend }} backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BACKEND_IMAGE: stackverse/backend-${{ inputs.backend }}:local
+      SCHEMATHESIS_MAX_EXAMPLES: ${{ inputs.max_examples }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build backend image
+        run: docker build -t "$BACKEND_IMAGE" -f "backends/${{ inputs.backend }}/Dockerfile" .
+      - name: Start infra + backend
+        run: docker compose --profile app up -d backend
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: testing/schemathesis-api/requirements.txt
+      - name: Wait for the backend to be ready
+        run: |
+          for _ in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "backend never became ready" >&2
+          exit 1
+      - name: Run Schemathesis suite
+        run: ./scripts/schemathesis-api.sh
+      - name: Dump compose logs
+        if: failure()
+        run: docker compose logs
+      - name: Upload Schemathesis report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: schemathesis-report-${{ inputs.backend }}
+          path: |
+            testing/schemathesis-api/schemathesis-report/
+            testing/schemathesis-api/.schemathesis/
+          retention-days: 7

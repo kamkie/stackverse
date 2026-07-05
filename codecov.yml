@@ -22,6 +22,10 @@ flags:
     paths:
       - backends/go/
     carryforward: true
+  backend-node-nestjs:
+    paths:
+      - backends/node-nestjs/
+    carryforward: true
   backend-node-ts:
     paths:
       - backends/node-ts/
@@ -37,6 +41,10 @@ flags:
   frontend-react:
     paths:
       - frontends/react/
+    carryforward: true
+  gateway-go:
+    paths:
+      - gateways/go/
     carryforward: true
   gateway-node-fastify:
     paths:
@@ -67,6 +75,10 @@ component_management:
       name: "backend · go"
       paths:
         - backends/go/**
+    - component_id: backend-node-nestjs
+      name: "backend · node-nestjs"
+      paths:
+        - backends/node-nestjs/**
     - component_id: backend-node-ts
       name: "backend · node-ts"
       paths:
@@ -83,6 +95,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: gateway-go
+      name: "gateway · go"
+      paths:
+        - gateways/go/**
     - component_id: gateway-node-fastify
       name: "gateway · node-fastify"
       paths:

@@ -1,7 +1,7 @@
 # Backends
 
 One directory per implementation, named after the stack (`spring-kotlin`, `dotnet`,
-`go`, `node-ts`, ...). Every backend implements [spec/openapi.yaml](../spec/openapi.yaml)
+`go`, `node-ts`, `node-nestjs`, ...). Every backend implements [spec/openapi.yaml](../spec/openapi.yaml)
 with the semantics from [docs/SPEC.md](../docs/SPEC.md).
 
 ## Conventions

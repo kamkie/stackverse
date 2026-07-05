@@ -18,7 +18,9 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: gomod
-    directory: /backends/go
+    directories:
+      - /backends/go
+      - /gateways/go
     schedule:
       interval: weekly
     groups:
@@ -51,12 +53,14 @@ updates:
 
   - package-ecosystem: npm
     directories:
+      - /backends/node-nestjs
       - /backends/node-ts
       - /conformance
       - /e2e
       - /frontends/angular
       - /frontends/react
       - /gateways/node-fastify
+      - /testing/cypress-e2e
     schedule:
       interval: weekly
     groups:
@@ -73,15 +77,25 @@ updates:
       nuget-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: pip
+    directory: /testing/schemathesis-api
+    schedule:
+      interval: weekly
+    groups:
+      pip-minor:
+        update-types: [minor, patch]
+
   # Dockerfile base images
   - package-ecosystem: docker
     directories:
       - /backends/dotnet
       - /backends/go
+      - /backends/node-nestjs
       - /backends/node-ts
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /gateways/go
       - /gateways/node-fastify
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
