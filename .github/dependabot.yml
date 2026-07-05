@@ -56,6 +56,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /testing/cypress-e2e
     schedule:
       interval: weekly
     groups:
