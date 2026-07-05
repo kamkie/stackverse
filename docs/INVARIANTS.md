@@ -60,8 +60,9 @@ a defect.
   no rewrite of `Cache-Control`/`ETag`/`Content-Language`/`304` on proxied `/api/**`. A
   `401` the SPA sees is the backend's problem document passed through untouched.
 - **The backend is stateless and authorizes per endpoint** — it validates the JWT
-  (issuer, audience, signature via JWKS) and owns which endpoints require which role;
-  its only state is the database.
+  (issuer, audience, expiry, and signature via JWKS — see
+  [backends/README.md](../backends/README.md)) and owns which endpoints require which
+  role; its only state is the database.
 
 ### Configuration
 - **Environment-variable names are identical across stacks** — e.g. `OIDC_ISSUER_URI`,
