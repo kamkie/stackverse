@@ -1,0 +1,52 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow so parallel variant PRs never edit a shared workflow.
+name: build-backend-rust-axum
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-rust-axum:
+    name: Backend · Rust Axum
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/rust-axum
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: taiki-e/install-action@cargo-llvm-cov
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            backends/rust-axum/target
+          key: cargo-${{ runner.os }}-backend-rust-axum-${{ hashFiles('backends/rust-axum/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-backend-rust-axum-
+      - name: Format
+        run: cargo fmt --check
+      - name: Check
+        run: cargo check --locked
+      - name: Test with coverage
+        run: |
+          mkdir -p coverage
+          cargo llvm-cov --locked --lcov --output-path coverage/lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/rust-axum/coverage/lcov.info
+          flags: backend-rust-axum
+          token: ${{ secrets.CODECOV_TOKEN }}
