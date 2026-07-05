@@ -1,13 +1,11 @@
 package dev.stackverse.backend
 
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.routing.delete
 import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
-import java.time.Instant
 import java.util.UUID
 
 class ModerationRepository(

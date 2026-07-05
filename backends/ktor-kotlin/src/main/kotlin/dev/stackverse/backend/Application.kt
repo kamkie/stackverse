@@ -1,14 +1,12 @@
 package dev.stackverse.backend
 
-import com.fasterxml.jackson.annotation.JsonInclude
-import com.fasterxml.jackson.databind.DeserializationFeature
-import com.fasterxml.jackson.databind.SerializationFeature
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.KotlinModule
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.serialization.jackson.jackson
+import io.ktor.serialization.jackson.JacksonConverter
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.application.call
 import io.ktor.server.application.install
 import io.ktor.server.application.log
@@ -19,6 +17,8 @@ import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.statuspages.StatusPages
+import io.ktor.server.request.httpMethod
+import io.ktor.server.request.path
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.delete
@@ -60,13 +60,7 @@ fun main() {
 
 fun Application.stackverseModule(context: AppContext) {
     install(ContentNegotiation) {
-        jackson {
-            registerModule(KotlinModule.Builder().build())
-            registerModule(JavaTimeModule())
-            disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL)
-        }
+        register(ContentType.Application.Json, JacksonConverter(context.mapper))
     }
     install(StatusPages) {
         exception<ValidationProblem> { call, cause ->
@@ -108,7 +102,13 @@ fun Application.stackverseModule(context: AppContext) {
         }
     }
 
-    intercept(io.ktor.server.application.ApplicationCallPipeline.Plugins) {
+    intercept(ApplicationCallPipeline.Plugins) {
+        if (call.request.httpMethod == HttpMethod.Get && call.request.path() == "/api/v1/bookmarks") {
+            call.response.headers.append("Deprecation", DEPRECATION)
+            call.response.headers.append("Sunset", SUNSET)
+            call.response.headers.append(HttpHeaders.Link, SUCCESSOR_LINK)
+        }
+
         val identity = context.jwtAuthenticator.authenticate(call)
         if (identity != null) {
             val account = context.accounts.recordSeen(identity.username)
@@ -175,9 +175,6 @@ fun Application.stackverseModule(context: AppContext) {
                 val query = call.bookmarkQuery()
                 val identity = call.identity()
                 val result = context.bookmarks.listOffset(identity?.username, query, page, size)
-                call.response.headers.append("Deprecation", DEPRECATION)
-                call.response.headers.append("Sunset", SUNSET)
-                call.response.headers.append(HttpHeaders.Link, SUCCESSOR_LINK)
                 call.respond(result)
             }
             post {

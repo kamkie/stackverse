@@ -3,7 +3,6 @@ package dev.stackverse.backend
 import java.sql.Connection
 import java.time.LocalDate
 import java.time.ZoneOffset
-import java.util.Date
 
 class StatsRepository(private val db: Database) {
     suspend fun stats(): AdminStatsResponse = db.read {
