@@ -31,6 +31,11 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
   public Response toResponse(Throwable throwable) {
     Throwable ex = unwrap(throwable);
     if (ex instanceof ValidationProblem validation) {
+      Caller caller = (Caller) request.getAttribute(AuthFilter.CALLER_ATTRIBUTE);
+      Map<String, Object> fields = new LinkedHashMap<>();
+      if (caller != null) fields.put("actor", caller.username());
+      fields.put("error_code", "validation_failed");
+      Log.event("info", "input_validation_failed", "failure", "Input validation failed", fields);
       String language = StackverseResource.resolveLanguage(
           StackverseResource.firstParam(uriInfo.getQueryParameters().get("lang")),
           headers.getHeaderString("Accept-Language"));
@@ -64,7 +69,7 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
       int status = web.getResponse().getStatus();
       return JsonSupport.problem(status, Response.Status.fromStatusCode(status).getReasonPhrase(), null, null);
     }
-    Log.event("error", "request_failed", "failure", "Unhandled request failure",
+    Log.error("request_failed", "failure", "Unhandled request failure", ex,
         Map.of("error_code", ex.getClass().getSimpleName()));
     return JsonSupport.problem(500, "Internal Server Error", "Unexpected server error.", null);
   }

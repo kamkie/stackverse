@@ -67,10 +67,19 @@ final class RuntimeSupport {
 
   static PreparedStatement prepare(Connection connection, String sql, Object... params) throws SQLException {
     PreparedStatement statement = connection.prepareStatement(sql);
-    for (int i = 0; i < params.length; i++) {
-      bind(statement, i + 1, params[i], connection);
+    try {
+      for (int i = 0; i < params.length; i++) {
+        bind(statement, i + 1, params[i], connection);
+      }
+      return statement;
+    } catch (SQLException | RuntimeException ex) {
+      try {
+        statement.close();
+      } catch (SQLException closeFailure) {
+        ex.addSuppressed(closeFailure);
+      }
+      throw ex;
     }
-    return statement;
   }
 
   static void bind(PreparedStatement statement, int index, Object value, Connection connection) throws SQLException {
@@ -244,6 +253,12 @@ final class Log {
     }
   }
 
+  static void error(String event, String outcome, String message, Throwable throwable, Map<String, ?> fields) {
+    Map<String, Object> withError = new java.util.LinkedHashMap<>(fields);
+    withError.put("stack_trace", stackTrace(throwable));
+    event("error", event, outcome, message, withError);
+  }
+
   private static boolean enabled(String level) {
     return severity(level) <= severity(RuntimeSupport.CONFIG.logLevel());
   }
@@ -255,5 +270,11 @@ final class Log {
       case "debug" -> 3;
       default -> 2;
     };
+  }
+
+  private static String stackTrace(Throwable throwable) {
+    java.io.StringWriter writer = new java.io.StringWriter();
+    throwable.printStackTrace(new java.io.PrintWriter(writer));
+    return writer.toString();
   }
 }

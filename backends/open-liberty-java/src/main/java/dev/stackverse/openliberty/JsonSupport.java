@@ -63,7 +63,8 @@ final class JsonSupport {
         .header("Cache-Control", "no-cache");
     if (ifNoneMatch != null) {
       for (String candidate : ifNoneMatch.split(",")) {
-        if (etag.equals(candidate.trim())) {
+        String token = candidate.trim();
+        if (etag.equals(token) || "*".equals(token)) {
           return Response.status(Response.Status.NOT_MODIFIED)
               .header("ETag", etag)
               .header("Cache-Control", "no-cache")

@@ -125,7 +125,7 @@ public class StackverseResource {
   @GET
   @Path("/api/v2/bookmarks")
   public Response listBookmarksV2() throws SQLException {
-    Paging paging = paging();
+    int size = cursorPageSize();
     ListFilters filters = listFilters();
     String rawCursor = single("cursor");
     Cursor cursor = rawCursor == null ? null : decodeCursor(rawCursor);
@@ -143,15 +143,15 @@ public class StackverseResource {
          PreparedStatement statement = prepare(connection,
              "select * from bookmarks where " + parts.where() + cursorWhere
                  + " order by created_at desc, id desc limit ?",
-             append(params, paging.size() + 1))) {
+             append(params, size + 1))) {
       try (ResultSet rs = statement.executeQuery()) {
         while (rs.next()) fetched.add(bookmark(rs));
       }
     }
-    List<Map<String, Object>> items = fetched.size() > paging.size() ? fetched.subList(0, paging.size()) : fetched;
+    List<Map<String, Object>> items = fetched.size() > size ? fetched.subList(0, size) : fetched;
     Map<String, Object> body = new LinkedHashMap<>();
     body.put("items", items);
-    if (fetched.size() > paging.size() && !items.isEmpty()) {
+    if (fetched.size() > size && !items.isEmpty()) {
       Map<String, Object> last = items.get(items.size() - 1);
       body.put("nextCursor", encodeCursor(Instant.parse((String) last.get("createdAt")), UUID.fromString((String) last.get("id"))));
     }
@@ -210,7 +210,9 @@ public class StackverseResource {
         throw ApiProblem.notFound();
       }
       if ("hidden".equals(bookmark.get("status")) && "public".equals(input.visibility())) {
-        throw ApiProblem.conflict("This bookmark was hidden by moderation and cannot be made public.");
+        throw ApiProblem.conflict(
+            "This bookmark was hidden by moderation and cannot be made public.",
+            "error.bookmark.hidden-publish");
       }
       try (PreparedStatement statement = RuntimeSupport.prepare(connection,
           """
@@ -1226,8 +1228,17 @@ public class StackverseResource {
 
   private PreparedStatement prepare(Connection connection, String sql, List<Object> params) throws SQLException {
     PreparedStatement statement = connection.prepareStatement(sql);
-    for (int i = 0; i < params.size(); i++) RuntimeSupport.bind(statement, i + 1, params.get(i), connection);
-    return statement;
+    try {
+      for (int i = 0; i < params.size(); i++) RuntimeSupport.bind(statement, i + 1, params.get(i), connection);
+      return statement;
+    } catch (SQLException | RuntimeException ex) {
+      try {
+        statement.close();
+      } catch (SQLException closeFailure) {
+        ex.addSuppressed(closeFailure);
+      }
+      throw ex;
+    }
   }
 
   private Paging paging() {
@@ -1236,6 +1247,12 @@ public class StackverseResource {
     if (page < 0) throw ApiProblem.badRequest("page must not be negative");
     if (size < 1 || size > 100) throw ApiProblem.badRequest("size must be between 1 and 100");
     return new Paging(page, size);
+  }
+
+  private int cursorPageSize() {
+    int size = integer(single("size"), 20, "size");
+    if (size < 1 || size > 100) throw ApiProblem.badRequest("size must be between 1 and 100");
+    return size;
   }
 
   private String single(String name) {

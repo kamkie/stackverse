@@ -44,6 +44,10 @@ class ApiProblem extends RuntimeException {
   static ApiProblem conflict(String detail) {
     return new ApiProblem(409, "Conflict", detail);
   }
+
+  static ApiProblem conflict(String detail, String detailKey) {
+    return new ApiProblem(409, "Conflict", detail, detailKey);
+  }
 }
 
 record FieldViolation(String field, String messageKey) {}
