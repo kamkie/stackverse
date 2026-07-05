@@ -128,6 +128,11 @@ then keeps the full sweep on `main`, scheduled, and manual runs (see
 | Frontend | Vanilla TypeScript | `frontends/vanilla-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vanilla-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Vue | `frontends/vue` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vue)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 
+Line counts per variant, split into app / tests / infra / docs with
+[`tokei`](https://github.com/XAMPPRocky/tokei), live in
+[docs/CODE-STATS.md](docs/CODE-STATS.md) — regenerate with `./scripts/code-stats.sh`
+(PowerShell: `./scripts/code-stats.ps1`).
+
 ## Quickstart
 
 All run modes (frontend-only dev, full stack, observability, logs) are covered
