@@ -573,7 +573,9 @@ categories:
   Contract/shared changes such as `spec/openapi.yaml`, `docs/SPEC.md`,
   `docs/ARCHITECTURE.md`, `docs/LOGGING.md`, `e2e/`, `compose.yaml`,
   `.dockerignore`, `scripts/build-images.*`, or the Keycloak realm run e2e
-  against every frontend.
+  against every frontend. Changes to the e2e reference backend
+  (`backends/spring-kotlin`) or gateway (`gateways/yarp`) also run e2e against
+  every frontend because those implementations anchor the composed-stack suite.
 - **`ci-ok`** ([`ci.yml`](../.github/workflows/ci.yml)) — the single merge
   gate: it fails if any selected contract-suite job failed or was cancelled,
   if any observed GitHub Actions check failed, if an implementation directory

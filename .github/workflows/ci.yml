@@ -121,7 +121,7 @@ jobs:
             cp "$all_frontends" "$selected_frontends"
             select_all_build_workflows
           else
-            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$changed_files"
+            git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"
 
             while IFS= read -r file; do
               [ -n "$file" ] || continue
@@ -131,12 +131,18 @@ jobs:
                   name="${name%%/*}"
                   add_backend "$name"
                   add_build_workflow backend "$name"
+                  if [ "$name" = "spring-kotlin" ]; then
+                    all_frontend_contract=1
+                  fi
                   ;;
                 gateways/*/*)
                   name="${file#gateways/}"
                   name="${name%%/*}"
                   add_gateway "$name"
                   add_build_workflow gateway "$name"
+                  if [ "$name" = "yarp" ]; then
+                    all_frontend_contract=1
+                  fi
                   ;;
                 frontends/*/*)
                   name="${file#frontends/}"
