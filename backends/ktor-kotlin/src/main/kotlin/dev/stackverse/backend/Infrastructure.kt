@@ -1,6 +1,5 @@
 package dev.stackverse.backend
 
-import ch.qos.logback.classic.Level as LogbackLevel
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder
 import ch.qos.logback.classic.spi.ILoggingEvent
@@ -13,7 +12,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import io.ktor.server.application.log
 import net.logstash.logback.encoder.LogstashEncoder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -23,6 +21,7 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.ceil
+import ch.qos.logback.classic.Level as LogbackLevel
 
 fun isHttpUrl(url: String): Boolean {
     val uri = runCatching { URI(url) }.getOrNull() ?: return false

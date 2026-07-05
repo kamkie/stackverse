@@ -3,7 +3,6 @@ package dev.stackverse.backend
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
-import java.sql.Statement
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset

@@ -1,6 +1,7 @@
 plugins {
     // Keep Kotlin below 2.4 until the repository CodeQL extractor supports it.
     kotlin("jvm") version "2.3.21"
+    id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     application
     jacoco
 }

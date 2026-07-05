@@ -1,12 +1,12 @@
 package dev.stackverse.backend
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
 import io.ktor.http.HttpStatusCode
 import java.time.Instant
 import java.util.Base64
 import java.util.UUID
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class BookmarkCursorTest {
     @Test

@@ -1,7 +1,6 @@
 package dev.stackverse.backend
 
 import io.ktor.http.ContentType
-import io.ktor.server.application.Application
 import io.ktor.util.AttributeKey
 
 const val AUDIENCE = "stackverse-api"

@@ -23,6 +23,7 @@ import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.Date
+import kotlin.coroutines.cancellation.CancellationException
 
 class JwtAuthenticator(private val config: Config, private val mapper: ObjectMapper, private val logger: Logger) {
     private val http = HttpClient.newBuilder().build()
@@ -36,6 +37,8 @@ class JwtAuthenticator(private val config: Config, private val mapper: ObjectMap
             ?: throwRejected()
         return try {
             withContext(Dispatchers.IO) { validate(raw) }
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             throwRejected()
         }

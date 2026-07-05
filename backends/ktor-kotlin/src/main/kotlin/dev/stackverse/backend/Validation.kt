@@ -27,8 +27,12 @@ class Validator {
     }
 }
 
-class ApiProblem(val status: HttpStatusCode, val title: String, val detail: String? = null, val detailKey: String? = null) :
-    RuntimeException(detail ?: title)
+class ApiProblem(
+    val status: HttpStatusCode,
+    val title: String,
+    val detail: String? = null,
+    val detailKey: String? = null,
+) : RuntimeException(detail ?: title)
 
 class BookmarkCursor(val createdAt: Instant, val id: UUID) {
     fun encode(): String = Base64.getUrlEncoder().withoutPadding()

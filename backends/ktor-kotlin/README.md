@@ -20,10 +20,10 @@ Configuration is environment variables only (see the table in
 seed is read from `../../spec/messages` relative to the working directory - override
 with `SEED_MESSAGES_DIR` when running from anywhere else.
 
-Build and unit tests:
+Kotlin style check, build, and unit tests:
 
 ```sh
-./gradlew build
+./gradlew ktlintCheck build
 ```
 
 Container image (repo root as context - the image ships the message seed):
@@ -35,7 +35,7 @@ docker build -t stackverse/backend-ktor-kotlin:local -f backends/ktor-kotlin/Doc
 ## Idioms this implementation demonstrates
 
 - **Ktor as a thin HTTP boundary** - routing, status pages, JSON negotiation, and
-  auth/account interception live in the application module; contract decisions stay
+  auth/account handling live in application plugins and routes; contract decisions stay
   in explicit service/repository functions.
 - **Coroutine-friendly blocking persistence** - JDBC/HikariCP calls run on
   `Dispatchers.IO`, keeping the implementation easy to read while avoiding event-loop
