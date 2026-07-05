@@ -78,15 +78,17 @@ runs any backend through the API rules above (`./scripts/conformance.sh`),
 and the [e2e/](e2e) suite drives any composed stack through the UI. Those two
 suites are the canonical acceptance gates. Additional testing-tool examples live
 under [testing/](testing/README.md) as showcase variants: they compare tools and
-representative workflows without replacing or expanding the canonical gates. The
-Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
+representative workflows without replacing or expanding the canonical gates.
+The Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-api)
 generates bounded OpenAPI property tests against a running backend, the
 Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
 API-client collection for direct-backend exploration, the
 axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
-accessibility checks against representative browser states, and the OWASP ZAP
+accessibility checks against representative browser states, the OWASP ZAP
 showcase in [testing/zap-security/](testing/zap-security) runs a passive
-baseline security smoke scan against a running gateway.
+baseline security smoke scan against a running gateway, and the Hurl showcase
+in [testing/hurl-api/](testing/hurl-api) documents representative HTTP API
+flows as executable plain text.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -145,7 +147,9 @@ property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
 `./scripts/schemathesis-api.ps1`). For a curated API-client walkthrough of the
 same direct-backend surface, run the Bruno showcase from `testing/bruno-api`.
-For an optional passive security smoke scan against a running gateway, use
+For a readable Hurl API showcase against the same backend target, use
+`./scripts/hurl-api.sh` (PowerShell: `./scripts/hurl-api.ps1`). For an
+optional passive security smoke scan against a running gateway, use
 `./scripts/zap-security.sh` (PowerShell:
 `./scripts/zap-security.ps1`). For optional trace-based observability
 assertions against a composed stack with OpenTelemetry enabled, use
