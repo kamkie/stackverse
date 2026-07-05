@@ -135,7 +135,7 @@ describe("node-fastify gateway", () => {
     });
   });
 
-  it("creates a Redis-backed session after a successful OIDC callback", async () => {
+  it("creates a gateway session after a successful OIDC callback", async () => {
     const config = testConfig();
     const store = new MemorySessionStore();
     const oidcClient = {
@@ -473,7 +473,7 @@ describe("node-fastify gateway", () => {
     });
   });
 
-  it("serves the static SPA fallback without escaping SPA_ROOT", async () => {
+  it("serves the static SPA fallback for unknown and unsafe paths", async () => {
     const root = await mkdtemp(path.join(tmpdir(), "stackverse-node-fastify-spa-"));
     await mkdir(path.join(root, "assets"));
     await writeFile(path.join(root, "index.html"), "<main>fallback shell</main>");
@@ -491,9 +491,15 @@ describe("node-fastify gateway", () => {
         expect(fallback.headers["content-type"]).toBe("text/html; charset=utf-8");
         expect(fallback.body).toBe("<main>fallback shell</main>");
 
-        const traversal = await app.inject({ method: "GET", url: "/%2e%2e/secret.txt" });
-        expect(traversal.statusCode).toBe(200);
-        expect(traversal.body).toBe("<main>fallback shell</main>");
+        const unknownPath = await app.inject({ method: "GET", url: "/%2e%2e/secret.txt" });
+        expect(unknownPath.statusCode).toBe(200);
+        expect(unknownPath.body).toBe("<main>fallback shell</main>");
+
+        if (process.platform === "win32") {
+          const driveQualifiedPath = await app.inject({ method: "GET", url: "/%43:%5CWindows%5Cwin.ini" });
+          expect(driveQualifiedPath.statusCode).toBe(200);
+          expect(driveQualifiedPath.body).toBe("<main>fallback shell</main>");
+        }
 
         const unsupportedMethod = await app.inject({ method: "POST", url: "/admin/users" });
         expect(unsupportedMethod.statusCode).toBe(404);
