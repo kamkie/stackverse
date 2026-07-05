@@ -1,0 +1,12 @@
+name: local
+variables:
+  - name: BACKEND_URL
+    value: http://localhost:8080
+    enabled: true
+    secret: false
+    type: text
+  - name: KEYCLOAK_URL
+    value: http://localhost:8180
+    enabled: true
+    secret: false
+    type: text

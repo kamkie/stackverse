@@ -1,0 +1,29 @@
+info:
+  name: Get demo identity
+  type: http
+  seq: 1
+  tags:
+    - authenticated
+    - me
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/me"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("demo identity comes from the token", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.username).to.equal("demo");
+          expect(body.roles).to.be.an("array");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

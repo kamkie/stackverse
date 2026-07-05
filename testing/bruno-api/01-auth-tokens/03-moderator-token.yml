@@ -1,0 +1,42 @@
+info:
+  name: Get moderator token
+  type: http
+  seq: 3
+  tags:
+    - auth
+
+http:
+  method: POST
+  url: "{{KEYCLOAK_URL}}/realms/stackverse/protocol/openid-connect/token"
+  headers:
+    - name: Content-Type
+      value: application/x-www-form-urlencoded
+  body:
+    type: form-urlencoded
+    data:
+      - name: grant_type
+        value: password
+      - name: client_id
+        value: stackverse-conformance
+      - name: username
+        value: moderator
+      - name: password
+        value: moderator
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("moderator token is issued", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.access_token).to.be.a("string").and.not.empty;
+          bru.setVar("moderatorToken", body.access_token);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

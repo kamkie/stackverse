@@ -1,0 +1,29 @@
+info:
+  name: Get English message bundle
+  type: http
+  seq: 2
+  tags:
+    - public
+    - messages
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/messages/bundle?lang=en"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("message bundle is public and localized", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.language).to.equal("en");
+          expect(body.messages).to.be.an("object");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

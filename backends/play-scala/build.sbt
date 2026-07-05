@@ -1,0 +1,26 @@
+import play.sbt.PlayImport._
+
+ThisBuild / scalaVersion := "2.13.18"
+
+lazy val root = (project in file("."))
+  .enablePlugins(PlayScala)
+  .settings(
+    name := "stackverse-backend-play-scala",
+    organization := "dev.stackverse",
+    version := "0.1.0",
+    scalacOptions ++= Seq("-deprecation", "-feature"),
+    libraryDependencies ++= Seq(
+      guice,
+      "com.zaxxer" % "HikariCP" % "7.1.0",
+      "org.postgresql" % "postgresql" % "42.7.12",
+      "org.flywaydb" % "flyway-core" % "12.10.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "12.10.0",
+      "com.nimbusds" % "nimbus-jose-jwt" % "10.9.1",
+      "io.opentelemetry" % "opentelemetry-api" % "1.63.0",
+      "io.opentelemetry" % "opentelemetry-sdk" % "1.63.0",
+      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.63.0",
+      "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.63.0",
+      "org.scalatest" %% "scalatest" % "3.2.19" % Test
+    ),
+    Test / fork := true
+  )

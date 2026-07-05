@@ -1,0 +1,39 @@
+info:
+  name: Report bookmark as mentor
+  type: http
+  seq: 1
+  tags:
+    - moderation
+
+http:
+  method: POST
+  url: "{{BACKEND_URL}}/api/v1/bookmarks/{{bookmarkId}}/reports"
+  body:
+    type: json
+    data: |-
+      {
+        "reason": "broken-link",
+        "comment": "Bruno showcase report {{runId}}"
+      }
+  auth:
+    type: bearer
+    token: "{{mentorToken}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("another authenticated user can report the public bookmark", function() {
+          expect(res.status).to.equal(201);
+          const body = res.getBody();
+          expect(body.bookmarkId).to.equal(bru.getVar("bookmarkId"));
+          expect(body.reporter).to.equal("mentor");
+          expect(body.status).to.equal("open");
+          bru.setVar("reportId", body.id);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

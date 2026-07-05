@@ -1,0 +1,29 @@
+info:
+  name: List open reports as moderator
+  type: http
+  seq: 3
+  tags:
+    - moderation
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/admin/reports?status=open&size=20"
+  auth:
+    type: bearer
+    token: "{{moderatorToken}}"
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("moderator can read the open reports queue", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.items).to.be.an("array");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

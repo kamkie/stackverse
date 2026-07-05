@@ -1,0 +1,29 @@
+info:
+  name: Read admin stats
+  type: http
+  seq: 1
+  tags:
+    - admin
+
+http:
+  method: GET
+  url: "{{BACKEND_URL}}/api/v1/admin/stats"
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("admin can read aggregate stats", function() {
+          expect(res.status).to.equal(200);
+          const body = res.getBody();
+          expect(body.totals).to.be.an("object");
+          expect(body.daily).to.be.an("array");
+          expect(body.topTags).to.be.an("array");
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

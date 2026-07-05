@@ -84,12 +84,16 @@ generates bounded OpenAPI property tests against a running backend, the
 Robot Framework showcase in
 [testing/robot-acceptance/](testing/robot-acceptance) demonstrates
 keyword-driven UI acceptance tests against a running stack, the
+Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
+API-client collection for direct-backend exploration, the
 axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
 accessibility checks against representative browser states, the OWASP ZAP
 showcase in [testing/zap-security/](testing/zap-security) runs a passive
 baseline security smoke scan against a running gateway, and the Hurl showcase
 in [testing/hurl-api/](testing/hurl-api) documents representative HTTP API
-flows as executable plain text.
+flows as executable plain text, and the Postman showcase in
+[testing/postman-api/](testing/postman-api) provides a Newman/Postman CLI
+collection for representative API workflows.
 CI runs the gates plus every implementation's own build and tests on each push
 and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration)).
 
@@ -101,10 +105,12 @@ and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration))
 | Backend | Ktor (Kotlin) | `backends/ktor-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-ktor-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-dotnet)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Go (stdlib + chi) | `backends/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Grails (Groovy) | `backends/grails` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-grails)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Micronaut (Java) | `backends/micronaut-java` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-micronaut-java)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (TypeScript) | `backends/node-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Node.js (NestJS) | `backends/node-nestjs` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-node-nestjs)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Python FastAPI | `backends/python-fastapi` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-python-fastapi)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Play Framework (Scala) | `backends/play-scala` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-play-scala)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Spring Cloud Gateway (Kotlin) | `gateways/spring-cloud-gateway` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-spring-cloud-gateway)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Go (stdlib + chi) | `gateways/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Node.js Fastify | `gateways/node-fastify` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-node-fastify)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
@@ -113,6 +119,7 @@ and pull request (see [docs/RUNNING.md](docs/RUNNING.md#continuous-integration))
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Angular | `frontends/angular` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-angular)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Svelte | `frontends/svelte` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-svelte)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | Vanilla TypeScript | `frontends/vanilla-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vanilla-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Vue | `frontends/vue` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vue)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 
 ## Quickstart
@@ -147,14 +154,18 @@ backend, `./scripts/conformance.sh` (PowerShell: `./scripts/conformance.ps1`)
 checks that backend against the API contract directly. For optional OpenAPI
 property fuzzing against the same running backend, use
 `./scripts/schemathesis-api.sh` (PowerShell:
-`./scripts/schemathesis-api.ps1`). For a readable Hurl API showcase against the
-same backend target, use `./scripts/hurl-api.sh` (PowerShell:
-`./scripts/hurl-api.ps1`). For an optional passive security smoke scan against
-a running gateway, use `./scripts/zap-security.sh` (PowerShell:
+`./scripts/schemathesis-api.ps1`). For a curated API-client walkthrough of the
+same direct-backend surface, run the Bruno showcase from `testing/bruno-api`.
+For a readable Hurl API showcase against the same backend target, use
+`./scripts/hurl-api.sh` (PowerShell: `./scripts/hurl-api.ps1`). For an
+optional passive security smoke scan against a running gateway, use
+`./scripts/zap-security.sh` (PowerShell:
 `./scripts/zap-security.ps1`). For optional trace-based observability
 assertions against a composed stack with OpenTelemetry enabled, use
 `./scripts/tracetest-otel.sh` (PowerShell:
-`./scripts/tracetest-otel.ps1`).
+`./scripts/tracetest-otel.ps1`). For an optional Postman/Newman API showcase,
+run `yarn test` from `testing/postman-api` against the same direct backend
+target.
 
 To populate a small repeatable local dataset for demos, run the seed against
 the running backend API:

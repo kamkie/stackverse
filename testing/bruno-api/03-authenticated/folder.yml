@@ -1,0 +1,9 @@
+info:
+  name: 03 - Authenticated User
+  type: folder
+  seq: 4
+
+request:
+  auth:
+    type: bearer
+    token: "{{demoToken}}"

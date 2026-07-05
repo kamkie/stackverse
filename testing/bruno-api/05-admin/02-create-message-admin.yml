@@ -1,0 +1,39 @@
+info:
+  name: Create runtime message
+  type: http
+  seq: 2
+  tags:
+    - admin
+    - messages
+
+http:
+  method: POST
+  url: "{{BACKEND_URL}}/api/v1/messages"
+  body:
+    type: json
+    data: |-
+      {
+        "key": "showcase.bruno.{{runId}}",
+        "language": "en",
+        "text": "Bruno showcase message {{runId}}",
+        "description": "Created and deleted by testing/bruno-api."
+      }
+  auth: inherit
+
+runtime:
+  scripts:
+    - type: tests
+      code: |-
+        test("admin can create a runtime message", function() {
+          expect(res.status).to.equal(201);
+          const body = res.getBody();
+          expect(body.id).to.be.a("string").and.not.empty;
+          expect(body.key).to.equal("showcase.bruno." + bru.getVar("runId"));
+          bru.setVar("messageId", body.id);
+        });
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
