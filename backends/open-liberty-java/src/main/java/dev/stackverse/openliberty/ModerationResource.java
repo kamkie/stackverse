@@ -57,8 +57,8 @@ public class ModerationResource extends ResourceSupport {
           if (rs.next()) bookmarkId = UUID.fromString(rs.getString("bookmark_id"));
         }
         if (bookmarkId == null) throw ApiProblem.notFound();
-        try (PreparedStatement lock = RuntimeSupport.prepare(connection, "select id from bookmarks where id = ? for update", bookmarkId)) {
-          lock.executeQuery().close();
+        try (PreparedStatement lock = RuntimeSupport.prepare(connection, "select id from bookmarks where id = ? for update", bookmarkId);
+             ResultSet ignored = lock.executeQuery()) {
         }
       }
       Map<String, Object> report = reportById(connection, id, true);
