@@ -8,6 +8,11 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths:
+      - '.github/workflows/build-frontend-svelte.yml'
+      - 'frontends/svelte/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

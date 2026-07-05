@@ -8,6 +8,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths:
+      - '.github/workflows/build-gateway-spring-cloud-gateway.yml'
+      - 'gateways/spring-cloud-gateway/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

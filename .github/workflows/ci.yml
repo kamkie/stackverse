@@ -1,20 +1,17 @@
-# The implementation-agnostic half of CI: the two black-box contract suites —
-# conformance directly against every backend, e2e through the full composed
-# stack once per frontend — plus the ci-ok merge gate. Implementations are
-# discovered from the filesystem, and per-implementation builds live in their
-# own build-*.yml workflows, so this file is O(1) in the number of stacks:
-# a new variant adds its own directory and build workflow and is picked up
-# here with zero edits — that is what keeps parallel variant PRs from
-# conflicting in shared files.
-#
-# All jobs run unconditionally (no path filters): the contract couples
-# everything to spec/ and docs/.
+# The implementation-agnostic half of CI: the two black-box contract suites
+# plus the ci-ok merge gate. Pull requests run the affected subset, while
+# pushes to main, scheduled runs, and manual runs keep the full sweep. Each
+# implementation still owns its build workflow, so this file stays O(1) in
+# the number of stacks.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,31 +21,237 @@ permissions:
   contents: read
 
 jobs:
-  # Lists implementations from the filesystem: a directory with a Dockerfile
-  # under backends/ or frontends/ is an implementation. Feeds the matrices
-  # below, so adding a variant needs no edit here.
+  # Lists implementations from the filesystem and narrows PR work from the
+  # changed paths. A directory with a Dockerfile under backends/, gateways/,
+  # or frontends/ is an active implementation.
   discover:
-    name: Discover implementations
+    name: Discover affected implementations
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       backends: ${{ steps.list.outputs.backends }}
       frontends: ${{ steps.list.outputs.frontends }}
+      expected_build_workflows: ${{ steps.list.outputs.expected_build_workflows }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - id: list
-        name: List implementation directories
+        name: List affected implementation directories
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          backends=$(ls -d backends/*/Dockerfile | cut -d/ -f2 | jq -Rnc '[inputs]')
-          frontends=$(ls -d frontends/*/Dockerfile | cut -d/ -f2 | jq -Rnc '[inputs]')
-          echo "backends=$backends" | tee -a "$GITHUB_OUTPUT"
-          echo "frontends=$frontends" | tee -a "$GITHUB_OUTPUT"
+          set -eu
+
+          tmp=$(mktemp -d)
+          all_backends="$tmp/all-backends"
+          all_gateways="$tmp/all-gateways"
+          all_frontends="$tmp/all-frontends"
+          selected_backends="$tmp/selected-backends"
+          selected_gateways="$tmp/selected-gateways"
+          selected_frontends="$tmp/selected-frontends"
+          expected_builds="$tmp/expected-builds"
+          changed_files="$tmp/changed-files"
+          : > "$selected_backends"
+          : > "$selected_gateways"
+          : > "$selected_frontends"
+          : > "$expected_builds"
+
+          list_active() {
+            find "$1" -mindepth 2 -maxdepth 2 -name Dockerfile -printf '%h\n' \
+              | sed 's#.*/##' \
+              | sort
+          }
+
+          to_json() {
+            sort -u "$1" | jq -Rnc '[inputs | select(length > 0)]'
+          }
+
+          active() {
+            grep -Fxq "$2" "$1"
+          }
+
+          add_backend() {
+            name="$1"
+            if active "$all_backends" "$name"; then
+              echo "$name" >> "$selected_backends"
+            fi
+          }
+
+          add_gateway() {
+            name="$1"
+            if active "$all_gateways" "$name"; then
+              echo "$name" >> "$selected_gateways"
+            fi
+          }
+
+          add_frontend() {
+            name="$1"
+            if active "$all_frontends" "$name"; then
+              echo "$name" >> "$selected_frontends"
+            fi
+          }
+
+          add_build_workflow() {
+            layer="$1"
+            name="$2"
+            workflow=".github/workflows/build-${layer}-${name}.yml"
+            if [ -f "$workflow" ]; then
+              echo "$workflow" >> "$expected_builds"
+            fi
+          }
+
+          select_all_build_workflows() {
+            find .github/workflows -maxdepth 1 -name 'build-*.yml' -print \
+              | sed 's#^\./##' \
+              | sort >> "$expected_builds"
+          }
+
+          list_active backends > "$all_backends"
+          list_active gateways > "$all_gateways"
+          list_active frontends > "$all_frontends"
+
+          all_backend_contract=0
+          all_frontend_contract=0
+          all_build_workflows=0
+
+          if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
+            cp "$all_backends" "$selected_backends"
+            cp "$all_frontends" "$selected_frontends"
+            select_all_build_workflows
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$changed_files"
+
+            while IFS= read -r file; do
+              [ -n "$file" ] || continue
+              case "$file" in
+                backends/*/*)
+                  name="${file#backends/}"
+                  name="${name%%/*}"
+                  add_backend "$name"
+                  add_build_workflow backend "$name"
+                  ;;
+                gateways/*/*)
+                  name="${file#gateways/}"
+                  name="${name%%/*}"
+                  add_gateway "$name"
+                  add_build_workflow gateway "$name"
+                  ;;
+                frontends/*/*)
+                  name="${file#frontends/}"
+                  name="${name%%/*}"
+                  add_frontend "$name"
+                  add_build_workflow frontend "$name"
+                  ;;
+                .github/workflows/build-backend-*.yml)
+                  name="${file#.github/workflows/build-backend-}"
+                  name="${name%.yml}"
+                  add_build_workflow backend "$name"
+                  ;;
+                .github/workflows/build-gateway-*.yml)
+                  name="${file#.github/workflows/build-gateway-}"
+                  name="${name%.yml}"
+                  add_build_workflow gateway "$name"
+                  ;;
+                .github/workflows/build-frontend-*.yml)
+                  name="${file#.github/workflows/build-frontend-}"
+                  name="${name%.yml}"
+                  add_build_workflow frontend "$name"
+                  ;;
+                .github/workflows/ci.yml)
+                  all_backend_contract=1
+                  all_frontend_contract=1
+                  ;;
+                spec/openapi.yaml)
+                  all_backend_contract=1
+                  all_frontend_contract=1
+                  all_build_workflows=1
+                  ;;
+                docs/SPEC.md|docs/ARCHITECTURE.md|docs/LOGGING.md)
+                  all_backend_contract=1
+                  all_frontend_contract=1
+                  ;;
+                conformance/*|conformance/**)
+                  all_backend_contract=1
+                  ;;
+                e2e/*|e2e/**)
+                  all_frontend_contract=1
+                  ;;
+                compose.yaml|.dockerignore|infra/keycloak/*|infra/keycloak/**)
+                  all_backend_contract=1
+                  all_frontend_contract=1
+                  ;;
+                scripts/build-images.sh|scripts/build-images.ps1)
+                  all_frontend_contract=1
+                  ;;
+              esac
+            done < "$changed_files"
+
+            if [ "$all_backend_contract" -eq 1 ]; then
+              cp "$all_backends" "$selected_backends"
+            fi
+            if [ "$all_frontend_contract" -eq 1 ]; then
+              cp "$all_frontends" "$selected_frontends"
+            fi
+            if [ "$all_build_workflows" -eq 1 ]; then
+              select_all_build_workflows
+            fi
+          fi
+
+          backends_json=$(to_json "$selected_backends")
+          frontends_json=$(to_json "$selected_frontends")
+          expected_builds_json=$(to_json "$expected_builds")
+
+          echo "backends=$backends_json" | tee -a "$GITHUB_OUTPUT"
+          echo "frontends=$frontends_json" | tee -a "$GITHUB_OUTPUT"
+          echo "expected_build_workflows=$expected_builds_json" | tee -a "$GITHUB_OUTPUT"
+
+          {
+            echo "### CI selection"
+            echo
+            echo "- Backends for conformance: $backends_json"
+            echo "- Frontends for e2e: $frontends_json"
+            echo "- Expected build workflows: $expected_builds_json"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  dispatch-build-workflows:
+    name: Dispatch build workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: discover
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch expected build workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_BUILD_WORKFLOWS: ${{ needs.discover.outputs.expected_build_workflows }}
+        run: |
+          set -eu
+          workflows=$(echo "$EXPECTED_BUILD_WORKFLOWS" | jq -r '.[]')
+          if [ -z "$workflows" ]; then
+            echo "no build workflows to dispatch"
+            exit 0
+          fi
+          while IFS= read -r workflow; do
+            [ -n "$workflow" ] || continue
+            echo "dispatching $workflow"
+            gh workflow run "$(basename "$workflow")" \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref "$GITHUB_REF_NAME"
+          done <<EOF
+          $workflows
+          EOF
 
   conformance:
     name: Conformance · ${{ matrix.backend }} backend
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: discover
+    if: ${{ needs.discover.outputs.backends != '[]' }}
     strategy:
       fail-fast: false
       matrix:
@@ -106,14 +309,14 @@ jobs:
           retention-days: 7
 
   # Frontends are proven by e2e (there is no per-frontend conformance suite),
-  # so every frontend implementation gets its own composed run. The backend and
-  # gateway legs stay pinned to the reference implementations — the matrix
-  # exists to prove each frontend, not every combination.
+  # so each affected frontend implementation gets its own composed run. The
+  # backend and gateway legs stay pinned to the reference implementations.
   e2e:
     name: E2E · spring-kotlin + yarp + ${{ matrix.frontend }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: discover
+    if: ${{ needs.discover.outputs.frontends != '[]' }}
     strategy:
       fail-fast: false
       matrix:
@@ -145,7 +348,7 @@ jobs:
         working-directory: e2e
         run: yarn playwright install --with-deps chromium
       # the gateway serves the SPA only after the internal frontend static
-      # server and keycloak/backend are up — poll both layers
+      # server and keycloak/backend are up - poll both layers
       - name: Wait for the stack to be ready
         run: |
           for _ in $(seq 1 90); do
@@ -179,31 +382,26 @@ jobs:
             e2e/test-results/
           retention-days: 7
 
-  # The single merge gate: branch protection requires this one check instead of
-  # naming every job, so required checks never change when a variant lands.
-  # `needs` covers this workflow's jobs; the per-implementation build workflows
-  # are separate files (GitHub Actions `needs` cannot cross workflows), so the
-  # last step waits for every other GitHub-Actions check on the same commit —
-  # which automatically includes any future build-*.yml. Waiting on observed
-  # checks alone would pass silently when a build workflow is missing or never
-  # ran (broken YAML produces no check runs at all), so the gate also asserts
-  # that every implementation directory has its build workflow and that every
-  # build-*.yml produced a successful workflow run for this commit.
+  # The single merge gate: branch protection requires this one check instead
+  # of naming every variant job. It waits for this workflow's selected jobs
+  # and for the per-implementation build workflows expected from the same PR
+  # diff. Pushes to main, scheduled runs, and manual runs still expect every
+  # build workflow.
   ci-ok:
     name: ci-ok
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [discover, conformance, e2e]
+    needs: [discover, dispatch-build-workflows, conformance, e2e]
     if: always()
     permissions:
       actions: read
       checks: read
       contents: read
     steps:
-      - name: Fail if a contract-suite job failed
-        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+      - name: Fail if a selected contract-suite job failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         run: |
-          echo "a needed job did not succeed: discover=${{ needs.discover.result }} conformance=${{ needs.conformance.result }} e2e=${{ needs.e2e.result }}" >&2
+          echo "a needed job did not succeed: discover=${{ needs.discover.result }} dispatch-build-workflows=${{ needs.dispatch-build-workflows.result }} conformance=${{ needs.conformance.result }} e2e=${{ needs.e2e.result }}" >&2
           exit 1
       - uses: actions/checkout@v7
       - name: Every implementation must have a build workflow
@@ -217,35 +415,49 @@ jobs:
               name=$(basename "$(dirname "$dockerfile")")
               wf=".github/workflows/build-${layer}-${name}.yml"
               if [ ! -f "$wf" ]; then
-                echo "::error::$dir/$name has no $wf — every implementation ships its own build workflow"
+                echo "::error::$dir/$name has no $wf - every implementation ships its own build workflow"
                 missing=1
               fi
             done
           done
           exit "$missing"
-      - name: Wait for every other check on this commit
+      - name: Wait for expected checks on this commit
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_BUILD_WORKFLOWS: ${{ needs.discover.outputs.expected_build_workflows }}
         run: |
           set -eu
-          expected=$(ls .github/workflows/build-*.yml)
-          echo "gating on all github-actions check runs for $SHA and on runs of:"
-          echo "$expected"
+          expected=$(echo "$EXPECTED_BUILD_WORKFLOWS" | jq -r '.[]')
+          expected_event="$GITHUB_EVENT_NAME"
+          min_created_at=""
+          case "$GITHUB_EVENT_NAME" in
+            schedule|workflow_dispatch)
+              expected_event="workflow_dispatch"
+              min_created_at=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --jq .created_at)
+              ;;
+          esac
+          echo "gating on github-actions check runs for $SHA"
+          if [ -n "$expected" ]; then
+            echo "expecting successful runs of:"
+            echo "$expected"
+            echo "expected build workflow event: $expected_event"
+          else
+            echo "no per-implementation build workflows are expected for this change"
+          fi
+
           for attempt in $(seq 1 90); do
             waiting=""
 
-            # 1) every build-*.yml must have a successful workflow run for this
-            #    commit — a workflow that never ran creates no check runs and
-            #    would be invisible to the check-run scan below. Only the latest
-            #    run per workflow counts: a closed/reopened PR keeps its head
-            #    SHA, so a concurrency-cancelled older run must not veto the
-            #    successful current one.
+            # 1) every selected build-*.yml must have a successful workflow run
+            #    for this commit. A workflow skipped by PR path filters creates
+            #    no run, so only the diff-selected workflows are mandatory here.
             runs=$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?head_sha=${SHA}&per_page=100" \
               --paginate --slurp \
-              | jq '[.[].workflow_runs[] | {path, status, conclusion, run_number}]')
-            for wf in $expected; do
-              state=$(echo "$runs" | jq -r --arg p "$wf" '[.[] | select(.path == $p)]
+              | jq '[.[].workflow_runs[] | {path, status, conclusion, run_number, event, created_at}]')
+            while IFS= read -r wf; do
+              [ -n "$wf" ] || continue
+              state=$(echo "$runs" | jq -r --arg p "$wf" --arg e "$expected_event" --arg min "$min_created_at" '[.[] | select(.path == $p and .event == $e and ($min == "" or .created_at >= $min))]
                       | sort_by(.run_number) | last
                       | if . == null then "missing"
                         elif .status != "completed" then "running"
@@ -259,10 +471,13 @@ jobs:
                   ;;
                 *) waiting="$waiting $wf" ;;
               esac
-            done
+            done <<EOF
+          $expected
+          EOF
 
-            # 2) every other github-actions check run must complete successfully
-            #    (gh cannot combine --slurp with --jq, so filter with external jq)
+            # 2) every other github-actions check run that did start must
+            #    complete successfully. This catches CodeQL, selected contract
+            #    matrix jobs, and any unexpected workflow that ran and failed.
             checks=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/check-runs?per_page=100" \
               --paginate --slurp \
               | jq '[.[].check_runs[]
@@ -278,7 +493,7 @@ jobs:
             fi
             pending=$(echo "$checks" | jq '[.[] | select(.status != "completed")]')
             if [ -z "$waiting" ] && [ "$(echo "$pending" | jq length)" -eq 0 ]; then
-              echo "all $(echo "$checks" | jq length) other checks green; every build workflow ran"
+              echo "all $(echo "$checks" | jq length) observed checks green; expected build workflows ran"
               exit 0
             fi
             echo "attempt $attempt: still waiting"

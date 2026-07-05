@@ -540,38 +540,54 @@ of the merge gate.
 
 ## Continuous integration
 
-CI runs on every push to `main` and every pull request, split so that shared
-workflow files stay O(1) in the number of implementations — a new variant
-adds its own workflow file and is otherwise picked up automatically. Four job
+CI runs on every push to `main`, every pull request, a weekly schedule, and
+manual dispatch. Shared workflow files stay O(1) in the number of
+implementations: a new variant adds its own workflow file and is otherwise
+picked up automatically. Pull requests run the affected subset, while pushes
+to `main`, scheduled runs, and manual runs keep the full sweep. Four job
 categories:
 
 - **Per-implementation builds** — each implementation has its own workflow
   file, `.github/workflows/build-<layer>-<name>.yml`, running that stack's
   build and tests in its own toolchain (see the workflow file and the
-  implementation README for specifics).
+  implementation README for specifics). On pull requests these workflows use
+  path filters: an implementation build runs when its own workflow file, its
+  implementation directory, or `spec/openapi.yaml` (for backends and
+  frontends) changes. Pushes to `main` still run every implementation build.
 - **Conformance** ([`ci.yml`](../.github/workflows/ci.yml)) — a `discover`
-  job lists `backends/*/Dockerfile` from the filesystem, and one matrix leg
-  per discovered backend builds that backend's image, starts the compose
+  job lists `backends/*/Dockerfile` from the filesystem, narrows pull
+  requests to affected backend implementations, and runs one matrix leg per
+  selected backend. Each leg builds that backend's image, starts the compose
   infra plus the backend, and runs the `conformance/` suite against it
-  directly.
+  directly. Contract/shared changes such as `spec/openapi.yaml`,
+  `docs/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/LOGGING.md`,
+  `conformance/`, `compose.yaml`, `.dockerignore`, or the Keycloak realm run
+  conformance against every backend.
 - **E2E** ([`ci.yml`](../.github/workflows/ci.yml)) — the same discovery over
-  `frontends/*/Dockerfile`: one composed-stack run per frontend (backend and
-  gateway pinned to the reference implementations, spring-kotlin + yarp),
-  building the images with `scripts/build-images.sh` and driving the `e2e/`
-  Playwright suite through the gateway — frontends have no conformance suite
-  of their own, so e2e is their acceptance gate.
+  `frontends/*/Dockerfile` narrows pull requests to affected frontend
+  implementations. Each selected frontend gets one composed-stack run
+  (backend and gateway pinned to the reference implementations,
+  spring-kotlin + yarp), building the images with `scripts/build-images.sh`
+  and driving the `e2e/` Playwright suite through the gateway. Frontends have
+  no conformance suite of their own, so e2e is their acceptance gate.
+  Contract/shared changes such as `spec/openapi.yaml`, `docs/SPEC.md`,
+  `docs/ARCHITECTURE.md`, `docs/LOGGING.md`, `e2e/`, `compose.yaml`,
+  `.dockerignore`, `scripts/build-images.*`, or the Keycloak realm run e2e
+  against every frontend.
 - **`ci-ok`** ([`ci.yml`](../.github/workflows/ci.yml)) — the single merge
-  gate: it fails if any of the jobs above (its own workflow's via `needs`,
-  the per-implementation build workflows via the Checks API) failed or was
-  cancelled, if an implementation directory has no `build-<layer>-<name>.yml`,
-  or if a `build-*.yml` never produced a run for the commit (a missing or
-  broken workflow creates no checks and must not pass silently). Branch
+  gate: it fails if any selected contract-suite job failed or was cancelled,
+  if any observed GitHub Actions check failed, if an implementation directory
+  has no `build-<layer>-<name>.yml`, or if a diff-selected `build-*.yml`
+  never produced a run for the commit (a missing or broken selected workflow
+  creates no checks and must not pass silently). On pushes to `main`,
+  scheduled runs, and manual runs it expects every build workflow. Branch
   protection requires `ci-ok` plus CodeQL — required checks never change as
   variants land.
 
-All jobs run on every change (no path filters): the contract couples every
-implementation to `spec/` and `docs/`. Playwright reports upload as workflow
-artifacts when a suite fails.
+This keeps PR cost tied to the changed surface without weakening contract
+changes: implementation-only changes stay scoped, while contract and shared
+runtime changes fan out through the relevant black-box suites. Playwright
+reports upload as workflow artifacts when a suite fails.
 
 Each per-implementation build also uploads unit/integration coverage to
 [Codecov](https://codecov.io/gh/kamkie/stackverse) under a per-implementation

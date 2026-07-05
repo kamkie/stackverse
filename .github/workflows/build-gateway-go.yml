@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    paths:
+      - '.github/workflows/build-gateway-go.yml'
+      - 'gateways/go/**'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
