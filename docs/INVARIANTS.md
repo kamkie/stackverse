@@ -119,6 +119,10 @@ pin — the persistence layer, DI style, error-mapping mechanism, validation mec
 project structure — is **not** a deviation and needs no justification. §1 fixes the
 observable contract, not the internal machinery.
 
+For the full per-stack catalog of these conventions — what idiomatic looks like for each
+language/framework and where each variant follows or departs — see
+[CONVENTIONS.md](CONVENTIONS.md).
+
 ## 3. Free to vary
 
 Naming, formatting, import order, file and package layout beyond what §1 and §2 imply,
