@@ -18,13 +18,10 @@ yarn test             # vitest via `ng test` (add --coverage for lcov)
 yarn build            # type-checked static production bundle in dist/browser
 ```
 
-Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
-through `.pnp.cjs` and packages live in the global cache. Editor support:
-`yarn dlx @yarnpkg/sdks vscode` (SDKs are committed under `.yarn/sdks`).
-The Angular CLI, its Vite-based dev server, and the vitest runner all work
-under PnP today; Vite prints the same PnP deprecation warning as in
-`frontends/react` — if a future toolchain release breaks PnP, switch
-`.yarnrc.yml` to `nodeLinker: node-modules`.
+Yarn Berry with the `node-modules` linker. Angular's Vite/esbuild builder
+currently loses Yarn PnP virtual package paths, so this implementation keeps
+Yarn 4 but installs a generated, gitignored `node_modules` tree. Package
+archives still live in the Yarn global cache.
 
 **No mock mode.** Unlike `frontends/react` (MSW), this app has no in-browser
 API mocks: `yarn dev` expects a running gateway on :8000 (see the dev-stack
