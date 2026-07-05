@@ -1,0 +1,57 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else. The contract
+# suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-python-fastapi
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-python-fastapi:
+    name: Backend · Python FastAPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/python-fastapi
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backends/python-fastapi/pyproject.toml
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+      - name: Compile
+        run: python -m compileall stackverse_backend tests
+      - name: Test with coverage
+        run: |
+          mkdir -p TestResults
+          python -m pytest --cov=stackverse_backend --cov-report=xml --junitxml=TestResults/junit.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/python-fastapi/coverage.xml
+          flags: backend-python-fastapi
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/python-fastapi/TestResults/junit.xml
+          flags: backend-python-fastapi
+          token: ${{ secrets.CODECOV_TOKEN }}
