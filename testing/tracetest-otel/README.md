@@ -54,6 +54,11 @@ standard host ports; all probes use service names inside the compose network,
 so the suite can run while another local Stackverse stack owns ports such as
 5432, 8180, 8000, 3000, 4317, or 4318.
 
+If you invoke Docker Compose by hand, keep the `app`, `observability`, and
+`tracetest` profiles together. The overlay routes backend and gateway
+telemetry to the collector that is declared under the `tracetest` profile; it
+is not a standalone replacement for the normal observability profile.
+
 ## What It Proves
 
 The test sends:
