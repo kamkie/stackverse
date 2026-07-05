@@ -1,12 +1,10 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import io.micronaut.http.HttpStatus;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@JsonInclude(JsonInclude.Include.NON_NULL)
 record ProblemBody(String type, String title, int status, String detail, List<FieldErrorBody> errors) {
 }
 

@@ -52,6 +52,9 @@ docker build -t stackverse/backend-micronaut-java:local -f backends/micronaut-ja
 
 - Micronaut Management is not used for `/healthz` and `/readyz`; the contract wants two
   exact paths, with readiness checking `select 1`.
+- `micronaut-security-jwt` / OAuth2 resource-server support is not used. The custom
+  `JwtVerifier` keeps issuer, audience, expiry and JWKS validation visible for
+  cross-stack comparison while still preserving the stateless backend contract.
 - The OpenTelemetry Java agent is baked into the container image for traces, metrics and
   logs when `OTEL_SDK_DISABLED=false`; local `./gradlew run` is console-only unless run
   with an agent by hand.

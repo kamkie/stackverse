@@ -3,8 +3,10 @@ package dev.stackverse.backend;
 import jakarta.inject.Singleton;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 
 @Singleton
@@ -34,7 +36,7 @@ final class AccountService {
                 """, this::mapAccount, username);
     }
 
-    java.util.List<Account> search(String q, String status, int page, int size) {
+    List<Account> search(String q, String status, int page, int size) {
         String qLike = q == null || q.isBlank() ? "" : "%" + WebSupport.escapeLike(q.toLowerCase(Locale.ROOT)) + "%";
         return db.query("""
                 select username, first_seen, last_seen, status, blocked_reason,
@@ -61,7 +63,7 @@ final class AccountService {
                 status, reason, username);
     }
 
-    private Account mapAccount(java.sql.ResultSet rs) throws SQLException {
+    private Account mapAccount(ResultSet rs) throws SQLException {
         return new Account(
                 rs.getString("username"),
                 rs.getTimestamp("first_seen").toInstant(),
