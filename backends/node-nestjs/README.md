@@ -70,7 +70,9 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 - **Fastify adapter boundary** - Fastify is still the Nest platform adapter so
   the backend keeps pino integration and Fastify replies for explicit status,
   header, and ETag handling, but routes are not registered directly on a
-  Fastify instance.
+  Fastify instance. `fastify` is intentionally pinned to `5.8.5`, the exact
+  version resolved by `@nestjs/platform-fastify@^11.1.27`, so Yarn PnP loads a
+  single Fastify copy and adapter hooks/decorators share one runtime instance.
 - **SQL without an ORM** - hand-written parameterized queries per feature
   service (`src/*/*.service.ts`), with a tiny `withTransaction` helper for the
   moderation state machine. Lock ordering, keyset predicates, and partial
