@@ -4,11 +4,12 @@
 
 FROM maven:3-eclipse-temurin-26-alpine AS build
 WORKDIR /build
-# Maven metadata first so the dependency layer caches across source changes.
-COPY backends/quarkus-java/pom.xml ./
-RUN mvn -B -q dependency:go-offline
+# Maven wrapper metadata first so the dependency layer caches across source changes.
+COPY backends/quarkus-java/.mvn .mvn
+COPY backends/quarkus-java/mvnw backends/quarkus-java/mvnw.cmd backends/quarkus-java/pom.xml ./
+RUN sh mvnw -B -q dependency:go-offline
 COPY backends/quarkus-java/src src
-RUN mvn -B -DskipTests package
+RUN sh mvnw -B -DskipTests package
 
 FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
