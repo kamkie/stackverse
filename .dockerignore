@@ -5,6 +5,7 @@
 .claude
 **/build
 **/dist
+**/target
 **/.gradle
 **/.kotlin
 **/node_modules

@@ -135,7 +135,9 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: sbt
-    directory: /backends/play-scala
+    directories:
+      - /backends/play-scala
+      - /backends/scala-http4s
     schedule:
       interval: weekly
     groups:
@@ -172,6 +174,7 @@ updates:
       - /backends/quarkus-java
       - /backends/ruby-rails
       - /backends/rust-axum
+      - /backends/scala-http4s
       - /backends/spring-java
       - /backends/spring-kotlin
       - /frontends/angular

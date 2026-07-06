@@ -79,6 +79,10 @@ flags:
     paths:
       - backends/rust-axum/
     carryforward: true
+  backend-scala-http4s:
+    paths:
+      - backends/scala-http4s/
+    carryforward: true
   backend-spring-java:
     paths:
       - backends/spring-java/
@@ -216,6 +220,10 @@ component_management:
       name: "backend · rust-axum"
       paths:
         - backends/rust-axum/**
+    - component_id: backend-scala-http4s
+      name: "backend · scala-http4s"
+      paths:
+        - backends/scala-http4s/**
     - component_id: backend-spring-java
       name: "backend · spring-java"
       paths:
