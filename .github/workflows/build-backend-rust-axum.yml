@@ -69,7 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Submit Cargo dependency graph
-        uses: advanced-security/component-detection-dependency-submission-action@v0.1.3
+        uses: advanced-security/component-detection-dependency-submission-action@v0.1.4
         with:
           filePath: backends/rust-axum
           detectorsCategories: Cargo
