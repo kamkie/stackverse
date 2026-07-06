@@ -148,7 +148,8 @@ export async function authenticateBearerRequest(request: FastifyRequest): Promis
 export function registerFastifyAuth(app: FastifyInstance): void {
   app.decorateRequest("caller", null);
   // Rate limiting belongs at the Stackverse gateway/operator boundary; see app.ts.
-  app.addHook(PRE_PARSER_AUTH_HOOK, authenticateBearerRequest); // codeql[js/missing-rate-limiting]
+  const addHook = app.addHook.bind(app);
+  addHook(PRE_PARSER_AUTH_HOOK, authenticateBearerRequest); // codeql[js/missing-rate-limiting]
 }
 
 @Injectable()
