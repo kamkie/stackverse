@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-quarkus-java:local -f backends/quarkus-java/Dockerfile .
 
-FROM maven:3-eclipse-temurin-26-alpine AS build
+FROM eclipse-temurin:25-jdk-alpine AS build
 WORKDIR /build
 # Maven wrapper metadata first so the dependency layer caches across source changes.
 COPY backends/quarkus-java/.mvn .mvn
