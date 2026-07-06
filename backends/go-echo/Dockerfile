@@ -6,7 +6,7 @@ FROM golang:1.26.4-alpine AS build
 WORKDIR /build
 # module files first so the dependency layer caches across source changes
 COPY backends/go-echo/go.mod backends/go-echo/go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
 COPY backends/go-echo/ ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /backend ./cmd/backend
 
