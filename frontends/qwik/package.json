@@ -13,7 +13,7 @@
     "typecheck": "tsc -p tsconfig.typecheck.json"
   },
   "dependencies": {
-    "@builder.io/qwik": "1.19.2"
+    "@builder.io/qwik": "1.20.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.0",
