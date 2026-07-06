@@ -137,6 +137,10 @@ authorization code flow plus token relay against a stub backend. Docker required
 dotnet test
 ```
 
+NuGet resolves through committed `packages.lock.json` files. After changing
+`PackageReference` versions, run `dotnet restore --force-evaluate` from this
+directory and commit the updated lock files.
+
 ## Docker
 
 ```sh
