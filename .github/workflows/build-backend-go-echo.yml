@@ -35,6 +35,15 @@ jobs:
         with:
           go-version-file: backends/go-echo/go.mod
           cache-dependency-path: backends/go-echo/go.sum
+      - name: Verify modules
+        run: go mod verify
+      - name: Format
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            exit 1
+          fi
       - name: Build
         run: go build ./...
       - name: Vet

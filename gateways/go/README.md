@@ -87,9 +87,14 @@ go run ./cmd/gateway
 ## Test
 
 The unit/integration tests use `httptest` for the backend, frontend, and OIDC
-provider; no Docker services are required.
+provider; no Docker services are required. Local verification mirrors CI;
+`gofmt -l .` should print no files:
 
 ```sh
+go mod verify
+gofmt -l .
+go build ./...
+go vet ./...
 go test ./...
 ```
 

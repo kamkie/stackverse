@@ -5,7 +5,7 @@
 FROM golang:1.26.4-alpine AS build
 WORKDIR /build
 COPY go.mod go.sum ./
-RUN go mod download
+RUN go mod download && go mod verify
 COPY . ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /gateway ./cmd/gateway
 
