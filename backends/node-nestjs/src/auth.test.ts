@@ -103,4 +103,24 @@ describe("Fastify auth hook", () => {
       await app.close();
     }
   });
+
+  it("does not authenticate unmatched routes before Fastify returns 404", async () => {
+    const app = Fastify({ logger: false });
+    registerFastifyAuth(app);
+    app.setErrorHandler(async (error, request, reply) => sendProblemForError(error, request, reply));
+    app.get("/api/v1/me", () => ({ ok: true }));
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/unknown",
+        headers: { authorization: "Bearer not-a-jwt" },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(logEventMock).not.toHaveBeenCalled();
+    } finally {
+      await app.close();
+    }
+  });
 });

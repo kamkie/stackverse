@@ -110,6 +110,9 @@ export async function authenticateBearerRequest(request: FastifyRequest): Promis
   if (authenticatedRequests.has(request)) return;
   authenticatedRequests.add(request);
   request.caller = null;
+  // Fastify runs global hooks for unmatched requests too; keep those as 404s
+  // instead of letting bearer validation rewrite them to 401/403 or touch DB.
+  if (request.routeOptions.url === undefined) return;
   const header = request.headers.authorization;
   if (!header?.startsWith("Bearer ")) return;
   let caller: Caller;
