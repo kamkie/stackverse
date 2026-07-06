@@ -55,14 +55,17 @@ jobs:
         run: yarn test --coverage
       - name: Normalize coverage paths
         run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info frontends/react/
+      # Dependabot PRs do not receive the repository Codecov token unless it is
+      # also configured as a Dependabot secret; keep app verification authoritative.
       - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@v7
         with:
           files: frontends/react/coverage/lcov.info
           flags: frontend-react
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@v7
         with:
           report_type: test_results
