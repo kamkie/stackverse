@@ -558,7 +558,7 @@ __metadata:
     "@types/node": "npm:^26.1.0"
     "@vitest/coverage-v8": "npm:^4.1.9"
     jsdom: "npm:^29.1.1"
-    solid-js: "npm:^1.9.9"
+    solid-js: "npm:^1.9.14"
     typescript: "npm:^6.0.3"
     vite: "npm:^8.1.3"
     vite-plugin-solid: "npm:^2.11.12"
@@ -1623,7 +1623,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"solid-js@npm:^1.9.9":
+"solid-js@npm:^1.9.14":
   version: 1.9.14
   resolution: "solid-js@npm:1.9.14"
   dependencies:
