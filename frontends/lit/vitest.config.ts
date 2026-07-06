@@ -12,7 +12,6 @@ export default defineConfig({
         ".yarn/**",
         "coverage/**",
         "dist/**",
-        "src/main.ts",
         "test-results/**",
         "vite.config.ts",
         "vitest.config.ts",

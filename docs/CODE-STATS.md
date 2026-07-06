@@ -63,10 +63,10 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | angular | 3485 | 1288 | 0.37 | 46 | 15 | 230 | 84 | 13 | TypeScript, HTML, JavaScript |
-| lit | 2179 | 505 | 0.23 | 8 | 5 | 158 | 83 | 13 | TypeScript, HTML, JavaScript |
+| lit | 2176 | 505 | 0.23 | 8 | 5 | 157 | 83 | 13 | TypeScript, HTML, JavaScript |
 | react | 5636 | 1021 | 0.18 | 47 | 20 | 251 | 93 | 13 | TSX, TypeScript, JavaScript |
 | solid | 2704 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
 | svelte | 1732 | 445 | 0.26 | 34 | 6 | 159 | 61 | 13 | TypeScript, Svelte, HTML |
 | vanilla-ts | 2145 | 454 | 0.21 | 8 | 4 | 154 | 69 | 13 | TypeScript, HTML, JavaScript |
 | vue | 3477 | 550 | 0.16 | 36 | 7 | 183 | 82 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 21358 | 4728 | | 212 | 63 | 1289 | 543 | 91 | |
+| **subtotal** | 21355 | 4728 | | 212 | 63 | 1288 | 543 | 91 | |

@@ -57,6 +57,8 @@ interface BookmarkListState {
   tags: string[];
   pages: BookmarkCursorPage[];
   nextCursor?: string;
+  generation: number;
+  pending?: Promise<void>;
 }
 
 type FormValues = Record<string, string>;
@@ -90,8 +92,8 @@ const state = {
   dialog: null as DialogState | null,
   toasts: [] as Toast[],
   nextToastId: 0,
-  bookmarks: { q: "", tags: [], pages: [] } as BookmarkListState,
-  feed: { q: "", tags: [], pages: [] } as BookmarkListState,
+  bookmarks: { q: "", tags: [], pages: [], generation: 0 } as BookmarkListState,
+  feed: { q: "", tags: [], pages: [], generation: 0 } as BookmarkListState,
   myReports: { status: "" as ReportStatus | "", page: 0, items: [] as Report[] },
   adminReports: { status: "open" as ReportStatus, page: 0, items: [] as Report[] },
   users: { q: "", page: 0, items: [] as UserAccount[] },
@@ -202,7 +204,7 @@ function pushToast(message: string, variant: ToastVariant = "success"): void {
   state.toasts.push({ id, message, variant });
   window.setTimeout(() => {
     state.toasts = state.toasts.filter((toast) => toast.id !== id);
-    void renderApp();
+    requestShellUpdate();
   }, 5000);
 }
 
@@ -394,6 +396,10 @@ function shellHtml(mainHtml: string, options: { includeDialog?: boolean } = {}):
 function renderShell(mainHtml: string, options: { includeDialog?: boolean } = {}): void {
   currentMainHtml = mainHtml;
   currentIncludeDialog = options.includeDialog !== false;
+  requestShellUpdate();
+}
+
+function requestShellUpdate(): void {
   appElement?.requestUpdate();
 }
 
@@ -443,19 +449,31 @@ async function routeHtml(path: string): Promise<string> {
 
 function resetBookmarkList(list: BookmarkListState): void {
   list.pages = [];
+  list.generation += 1;
+  delete list.pending;
   delete list.nextCursor;
 }
 
 async function fetchNextBookmarks(list: BookmarkListState, visibility?: Visibility): Promise<void> {
-  const page = await apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
+  if (list.pending) return list.pending;
+  const generation = list.generation;
+  const pending = apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
     ...(list.tags.length > 0 ? { tag: list.tags } : {}),
     ...(list.q ? { q: list.q } : {}),
     ...(visibility ? { visibility } : {}),
     ...(list.nextCursor ? { cursor: list.nextCursor } : {}),
-  });
-  list.pages.push(page);
-  if (page.nextCursor === undefined) delete list.nextCursor;
-  else list.nextCursor = page.nextCursor;
+  })
+    .then((page) => {
+      if (list.generation !== generation) return;
+      list.pages.push(page);
+      if (page.nextCursor === undefined) delete list.nextCursor;
+      else list.nextCursor = page.nextCursor;
+    })
+    .finally(() => {
+      if (list.pending === pending) delete list.pending;
+    });
+  list.pending = pending;
+  return pending;
 }
 
 async function ensureBookmarks(list: BookmarkListState, visibility?: Visibility): Promise<void> {
@@ -1257,57 +1275,32 @@ function rememberDialogFormState(
 ): void {
   if (!state.dialog) return;
 
-  switch (form.dataset.form) {
+  const expectedKind = dialogKindForForm(form.dataset.form);
+  if (!expectedKind || state.dialog.kind !== expectedKind) return;
+
+  const next = { ...state.dialog, values } as DialogState & { error?: unknown };
+  if (errorUpdate.kind === "set") {
+    next.error = errorUpdate.error;
+  } else {
+    delete next.error;
+  }
+  state.dialog = next;
+}
+
+function dialogKindForForm(formName: string | undefined): DialogState["kind"] | undefined {
+  switch (formName) {
     case "bookmark":
-      if (state.dialog.kind === "bookmark-form") {
-        if (errorUpdate.kind === "set") {
-          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
-        } else {
-          delete state.dialog.error;
-          state.dialog = { ...state.dialog, values };
-        }
-      }
-      break;
+      return "bookmark-form";
     case "report-bookmark":
-      if (state.dialog.kind === "report-bookmark") {
-        if (errorUpdate.kind === "set") {
-          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
-        } else {
-          delete state.dialog.error;
-          state.dialog = { ...state.dialog, values };
-        }
-      }
-      break;
+      return "report-bookmark";
     case "edit-report":
-      if (state.dialog.kind === "edit-report") {
-        if (errorUpdate.kind === "set") {
-          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
-        } else {
-          delete state.dialog.error;
-          state.dialog = { ...state.dialog, values };
-        }
-      }
-      break;
+      return "edit-report";
     case "block-user":
-      if (state.dialog.kind === "block-user") {
-        if (errorUpdate.kind === "set") {
-          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
-        } else {
-          delete state.dialog.error;
-          state.dialog = { ...state.dialog, values };
-        }
-      }
-      break;
+      return "block-user";
     case "message":
-      if (state.dialog.kind === "message-form") {
-        if (errorUpdate.kind === "set") {
-          state.dialog = { ...state.dialog, values, error: errorUpdate.error };
-        } else {
-          delete state.dialog.error;
-          state.dialog = { ...state.dialog, values };
-        }
-      }
-      break;
+      return "message-form";
+    default:
+      return undefined;
   }
 }
 
@@ -1415,7 +1408,11 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
           await apiSend<Message>("POST", "/api/v1/messages", messageBody(values));
           pushToast(t("ui.toast.message-created"));
         }
-        await i18n.load();
+        try {
+          await i18n.load();
+        } catch {
+          // The message mutation already committed; keep the success flow intact.
+        }
         state.dialog = null;
         break;
       }
