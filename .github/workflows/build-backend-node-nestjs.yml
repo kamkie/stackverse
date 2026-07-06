@@ -49,7 +49,10 @@ jobs:
         run: yarn test --coverage
       - name: Normalize coverage paths
         run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info backends/node-nestjs/
+      # Dependabot PRs do not receive the repository Codecov token unless it is
+      # also configured as a Dependabot secret; keep app verification authoritative.
       - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
@@ -57,7 +60,7 @@ jobs:
           flags: backend-node-nestjs
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload test results to Codecov
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
