@@ -3,12 +3,13 @@
 #
 #   docker build -t stackverse/backend-quarkus-java:local -f backends/quarkus-java/src/main/docker/Dockerfile.jvm .
 
-FROM maven:3.9.16-eclipse-temurin-21-alpine AS build
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /build
-COPY backends/quarkus-java/pom.xml ./
-RUN mvn -B -q dependency:go-offline
+COPY backends/quarkus-java/.mvn .mvn
+COPY backends/quarkus-java/mvnw backends/quarkus-java/mvnw.cmd backends/quarkus-java/pom.xml ./
+RUN sh mvnw -B -q dependency:go-offline
 COPY backends/quarkus-java/src src
-RUN mvn -B -DskipTests package
+RUN sh mvnw -B -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S app && adduser -S app -G app

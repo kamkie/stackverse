@@ -10,12 +10,13 @@ file covers only what is specific to this stack.
 
 ## Run it locally
 
-Prerequisites: Java 21+, Maven, and the compose infra
-(`docker compose up -d` at the repo root).
+Prerequisites: Java 21+ and the compose infra (`docker compose up -d` at the
+repo root). The Maven wrapper pins Maven 3.9.16, so no system Maven install is
+required.
 
 ```sh
 cd backends/quarkus-java
-mvn quarkus:dev
+./mvnw quarkus:dev
 ```
 
 Defaults match the compose infra (PostgreSQL on 5432, Keycloak on 8180). The
@@ -27,13 +28,13 @@ another backend implementation.
 Tests and style checks:
 
 ```sh
-mvn verify
+./mvnw verify
 ```
 
 `verify` includes the Spotless/google-java-format gate. To reformat locally:
 
 ```sh
-mvn spotless:apply
+./mvnw spotless:apply
 ```
 
 Conformance (the acceptance gate), with the backend running:
