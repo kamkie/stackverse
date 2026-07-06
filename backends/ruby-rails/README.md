@@ -1,6 +1,6 @@
 # Backend · Ruby on Rails API
 
-The Stackverse backend in Ruby 3.4 and Rails 7.2 API mode: Rails routing and
+The Stackverse backend in Ruby 4.0 and Rails 8.1 API mode: Rails routing and
 controllers, ActiveRecord migrations/models for PostgreSQL, JWT bearer
 authentication against Keycloak's JWKS, and structured stdout logging. Shared
 behavior, endpoints, and environment variables are documented once in
@@ -8,7 +8,7 @@ behavior, endpoints, and environment variables are documented once in
 
 ## Run it locally
 
-Prerequisites: Ruby 3.4, Bundler, and the compose infra (`docker compose up -d`
+Prerequisites: Ruby 4.0, Bundler, and the compose infra (`docker compose up -d`
 at the repo root).
 
 ```sh
