@@ -11,6 +11,10 @@ documents it points to.
 Prerequisites: PHP 8.3+ with `pdo_pgsql`, Composer, and the compose infra
 (`docker compose up -d` at the repo root).
 
+The lockfile is resolved with Composer's `config.platform.php` set to PHP
+8.3.0, so contributors on newer local PHP versions keep dependency updates
+compatible with the documented PHP 8.3+ baseline.
+
 ```sh
 cd backends/php-laravel
 composer install
@@ -25,6 +29,7 @@ local server.
 Tests:
 
 ```sh
+composer validate --strict --no-check-publish
 composer lint
 php artisan test
 ```
