@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "paths": {
       "@builder.io/qwik": ["src/qwik-shim.ts"],
       "@builder.io/qwik/jsx-runtime": ["src/qwik-jsx-runtime.ts"],
