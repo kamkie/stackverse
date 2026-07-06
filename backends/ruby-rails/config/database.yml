@@ -1,0 +1,19 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  host: <%= ENV.fetch("DB_HOST", "localhost") %>
+  port: <%= ENV.fetch("DB_PORT", "5432") %>
+  database: <%= ENV.fetch("DB_NAME", "stackverse") %>
+  username: <%= ENV.fetch("DB_USER", "stackverse") %>
+  password: <%= ENV.fetch("DB_PASSWORD", "stackverse") %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", "5") %>
+
+development:
+  <<: *default
+
+test:
+  <<: *default
+  database: <%= ENV.fetch("DB_NAME", "stackverse_test") %>
+
+production:
+  <<: *default

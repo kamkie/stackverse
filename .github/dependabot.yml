@@ -27,6 +27,14 @@ updates:
       cargo-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: bundler
+    directory: /backends/ruby-rails
+    schedule:
+      interval: weekly
+    groups:
+      bundler-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: gomod
     directories:
       - /backends/go
@@ -141,6 +149,7 @@ updates:
       - /backends/play-scala
       - /backends/python-django
       - /backends/quarkus-java
+      - /backends/ruby-rails
       - /backends/rust-axum
       - /backends/spring-kotlin
       - /frontends/angular
