@@ -14,7 +14,7 @@ COPY backends/elixir-phoenix/lib lib
 COPY backends/elixir-phoenix/priv priv
 RUN mix compile && mix release
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk add --no-cache ca-certificates libstdc++ ncurses-libs openssl \
   && addgroup -S app \
   && adduser -S app -G app
