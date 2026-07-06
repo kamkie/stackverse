@@ -17,6 +17,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Package-by-feature slices, each owning entity/repo/service/controller | Package-by-feature (bookmark/message/moderation/account/audit/stats) | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Package-by-feature slices, each owning entity/repo/service/controller | Package-by-feature (bookmark/message/moderation/account/audit/stats) | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Application.module() with plugins/ and routes/ split across files | Flat dev.stackverse.backend package; module + all routes in Application.kt | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | Minimal-API .NET 10 with feature folders, or MVC controllers | Minimal APIs, feature folders (Bookmarks/, Messages/...), static Map()+service per feature | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | cmd/ entrypoint, internal/ for private packages, package-by-feature | cmd/backend main + internal/ feature packages (bookmarks, messages, auth, web...) | ✅ idiomatic |
@@ -39,6 +40,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Spring Data JPA/Hibernate, Flyway migrations, ddl-auto validate | Spring Data JPA + JpaSpecificationExecutor, Flyway V1, ddl-auto=validate, Postgres | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Spring Data JPA/Hibernate, Flyway migrations, ddl-auto validate | Spring Data JPA + JpaSpecificationExecutor, Flyway V1, ddl-auto=validate, Postgres | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Exposed DSL/DAO over HikariCP, or a coroutine JDBC layer | Hand-written SQL via raw JDBC + HikariCP; Flyway migrations | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | EF Core + Npgsql, code-first migrations, LINQ queries | EF Core 10 + Npgsql, checked-in migrations, Database.Migrate() on startup, text[] tags + GIN | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
@@ -61,6 +63,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Constructor injection, @Service/@Configuration/@Bean components | Constructor injection throughout; @Service, @Configuration @Bean beans | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Constructor injection, @Service/@Configuration/@Bean components | Constructor injection throughout; @Service, @Configuration @Bean beans | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Koin, or Ktor 3 built-in dependencies plugin | Manual AppContext object graph wired by hand in main() | 🔴 undocumented |
 | [ASP.NET Core](../backends/dotnet/README.md) | Built-in MS.Extensions.DI, constructor injection, scoped services | Built-in container; AddScoped services, endpoint-param injection, DbContext + auth via options | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | manual constructor wiring in main/setup func, no DI container | app.New wires stores/APIs via NewX constructors passing pool+logger | ✅ idiomatic |
@@ -83,6 +86,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Spring Security OAuth2 resource server, stateless JWT, @PreAuthorize roles | OAuth2 resource server, STATELESS JWT, @EnableMethodSecurity + @PreAuthorize, custom filter | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Spring Security OAuth2 resource server, stateless JWT, @PreAuthorize roles | OAuth2 resource server, STATELESS JWT, @EnableMethodSecurity + @PreAuthorize, custom filter | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Authentication plugin or named application plugin for auth context | Custom Nimbus JwtAuthenticator in a named application plugin; routes require identity/roles explicitly | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | JwtBearer against JWKS, authorization policies, fallback auth policy | JwtBearer vs Keycloak JWKS, fallback RequireAuthenticatedUser, per-endpoint role policies | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | golang-jwt for JWT, net/http middleware; JWKS via a library | golang-jwt/jwt validates iss/aud/exp; hand-rolled cached JWKS fetch; chi middleware | 🟡 deliberate |
@@ -105,6 +109,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | @RestControllerAdvice + ProblemDetail (RFC 9457) | @RestControllerAdvice extends ResponseEntityExceptionHandler, ProblemDetail | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | @RestControllerAdvice + ProblemDetail (RFC 9457) | @RestControllerAdvice extends ResponseEntityExceptionHandler, ProblemDetail | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | StatusPages plugin maps typed exceptions to responses | StatusPages maps ValidationProblem/ApiProblem to RFC-7807 Problem JSON | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | ProblemDetails via IExceptionHandler / AddProblemDetails middleware | Custom exception middleware maps ApiProblem types to hand-written RFC 9457 problem+json | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | sentinel/typed errors; explicit status mapping at handler edge | *Problem type implements error, rendered as RFC 9457 problem+json | ✅ idiomatic |
@@ -127,6 +132,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Servlet blocking model, @Transactional, pessimistic locks where needed | Web MVC blocking, @Transactional(readOnly), @Lock PESSIMISTIC_WRITE row locks | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Servlet blocking model, @Transactional, pessimistic locks where needed | Web MVC blocking, @Transactional(readOnly), @Lock PESSIMISTIC_WRITE row locks | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | suspend handlers; offload blocking work to Dispatchers.IO | suspend repos wrap blocking JDBC in withContext(Dispatchers.IO) | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | async/await end-to-end; DB races handled explicitly | async/await throughout; explicit FOR UPDATE transaction for the publish race | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | server goroutine, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
@@ -149,6 +155,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Bean Validation (jakarta.validation @Valid/@NotNull) on DTOs | Programmatic validation in services via custom Validator; no Bean Validation | 🟡 deliberate |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Bean Validation (jakarta.validation @Valid/@NotNull) on DTOs | Programmatic validation in services via custom Validator; no Bean Validation | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | No standard library; manual checks in handlers/services | Hand-rolled Validator collecting FieldViolations per field | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | DataAnnotations or FluentValidation with model binding | Hand-rolled Validator collecting FieldViolations, thrown as ValidationProblem | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | struct-tag validator (go-playground/validator) common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
@@ -171,6 +178,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | JUnit 5, @SpringBootTest/MockMvc, Testcontainers, spring-security-test | JUnit 5, @SpringBootTest + MockMvc + Testcontainers Postgres, injected JWTs | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | JUnit 5, @SpringBootTest/MockMvc, Testcontainers, spring-security-test | JUnit 5 focused unit tests; full API behavior covered by backend conformance | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | testApplication from ktor-server-test-host with kotlin.test/JUnit5 | testApplication + kotlin.test/JUnit5; helper/unit tests only, no DB integration | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests plus no-container WebApplicationFactory tests over the minimal-API pipeline | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
@@ -193,6 +201,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | ktlint or detekt wired into the Gradle build | No ktlint/detekt/spotless; only shared root .editorconfig | 🔴 undocumented |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Checkstyle, Spotless, or Error Prone wired into the Gradle build | No Java formatter/linter yet; only shared root .editorconfig and javac | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .editorconfig only (whitespace); no dotnet format or analyzer gate in CI | 🔴 undocumented |
 | [Go (chi)](../backends/go/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | gofmt + go vet in CI; no golangci-lint config | 🔴 undocumented |
@@ -215,6 +224,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Data-class DTOs distinct from entities, enums serialized to wire values | Separate request/response data classes; enums with @JsonValue + WebConfig converters | ✅ idiomatic |
+| [Spring Boot (Java)](../backends/spring-java/README.md) | Records/DTOs distinct from JPA entities, enums serialized to wire values | Separate request/response records; enums with @JsonValue + WebConfig converters | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | kotlinx.serialization @Serializable data classes | Jackson (ktor-serialization-jackson) over plain data classes | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | records for DTOs, enums, nullable reference types enabled | sealed record DTOs, mutable entity classes, enums, Nullable enabled, global kebab-case enum policy | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |

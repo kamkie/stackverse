@@ -60,6 +60,7 @@ updates:
       - /backends/grails
       - /backends/ktor-kotlin
       - /backends/micronaut-java
+      - /backends/spring-java
       - /backends/spring-kotlin
       - /gateways/spring-cloud-gateway
     schedule:
@@ -161,6 +162,7 @@ updates:
       - /backends/quarkus-java
       - /backends/ruby-rails
       - /backends/rust-axum
+      - /backends/spring-java
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
