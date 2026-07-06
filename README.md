@@ -85,7 +85,10 @@ The Schemathesis showcase in [testing/schemathesis-api/](testing/schemathesis-ap
 generates bounded OpenAPI property tests against a running backend, the
 Robot Framework showcase in
 [testing/robot-acceptance/](testing/robot-acceptance) demonstrates
-keyword-driven UI acceptance tests against a running stack, the
+keyword-driven UI acceptance tests against a running stack, the Selenium
+showcase in [testing/selenium-e2e/](testing/selenium-e2e) and the Cypress
+showcase in [testing/cypress-e2e/](testing/cypress-e2e) drive representative
+browser flows through the composed stack, the
 Bruno showcase in [testing/bruno-api/](testing/bruno-api) provides a curated
 API-client collection for direct-backend exploration, the k6 showcase in
 [testing/k6-system/](testing/k6-system) runs system smoke and light-load checks
@@ -93,11 +96,13 @@ against a composed stack without making benchmark claims, the
 axe-core showcase in [testing/axe-a11y/](testing/axe-a11y) runs automated
 accessibility checks against representative browser states, the OWASP ZAP
 showcase in [testing/zap-security/](testing/zap-security) runs a passive
-baseline security smoke scan against a running gateway, and the Hurl showcase
+baseline security smoke scan against a running gateway, the Hurl showcase
 in [testing/hurl-api/](testing/hurl-api) documents representative HTTP API
-flows as executable plain text, and the Postman showcase in
+flows as executable plain text, the Postman showcase in
 [testing/postman-api/](testing/postman-api) provides a Newman/Postman CLI
-collection for representative API workflows.
+collection for representative API workflows, and the Tracetest showcase in
+[testing/tracetest-otel/](testing/tracetest-otel) asserts that one gateway API
+action produces a single trace spanning gateway and backend spans.
 CI runs affected implementation builds and contract-suite legs on pull requests,
 then keeps the full sweep on `main`, scheduled, and manual runs. Trusted
 `main`-branch jobs also submit build-time dependency snapshots where CI can
