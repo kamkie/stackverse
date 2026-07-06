@@ -1,6 +1,6 @@
 import { Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
-import { createRemoteJWKSet, jwtVerify, errors as joseErrors, type JWTPayload } from "jose";
-import type { FastifyRequest } from "fastify";
+import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify, errors as joseErrors, type JWTPayload } from "jose";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { config } from "./config.js";
 import { pool } from "./db.js";
 import { logEvent } from "./logging.js";
@@ -23,6 +23,9 @@ declare module "fastify" {
     caller: Caller | null;
   }
 }
+
+const authenticatedRequests = new WeakSet<FastifyRequest>();
+const PRE_PARSER_AUTH_HOOK = "onRequest";
 
 /**
  * Signature keys come straight from `OIDC_JWKS_URI` when set (compose: the
@@ -63,6 +66,9 @@ interface RealmAccessPayload extends JWTPayload {
 }
 
 async function verifyBearer(token: string): Promise<Caller> {
+  // Parse obviously malformed compact tokens before OIDC discovery/JWKS lookup,
+  // so "Bearer not-a-jwt" remains a local 401 even when Keycloak is unavailable.
+  decodeProtectedHeader(token);
   const { payload } = await jwtVerify<RealmAccessPayload>(token, await keySet(), {
     issuer: config.oidc.issuerUri,
     audience: config.oidc.audience,
@@ -94,42 +100,63 @@ async function recordSeen(username: string): Promise<AccountState> {
   return result.rows[0] as AccountState;
 }
 
+/**
+ * Bearer authentication for every request: a missing token leaves the request
+ * anonymous (whether that is acceptable is each endpoint's decision), a
+ * presented-but-invalid token is always a 401, and a valid token from a
+ * blocked account is a 403 with a localized problem document (SPEC rule 17) —
+ * the lazy account upsert (rule 16) happens here.
+ */
+export async function authenticateBearerRequest(request: FastifyRequest): Promise<void> {
+  if (authenticatedRequests.has(request)) return;
+  authenticatedRequests.add(request);
+  request.caller = null;
+  // Fastify runs global hooks for unmatched requests too; keep those as 404s
+  // instead of letting bearer validation rewrite them to 401/403 or touch DB.
+  if (request.routeOptions.url === undefined) return;
+  const header = request.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return;
+  let caller: Caller;
+  try {
+    caller = await verifyBearer(header.slice("Bearer ".length));
+  } catch (error) {
+    // an expected 401 and a security signal, never above INFO (docs/LOGGING.md §3)
+    logEvent("info", "jwt_validation_failed", "failure", "Rejected a bearer token", {
+      error_code: (error as { code?: string }).code?.toLowerCase() ?? "invalid_token",
+    });
+    throw new UnauthorizedProblem("Missing or invalid bearer token.");
+  }
+  const account = await recordSeen(caller.username);
+  if (account.status === "blocked") {
+    logEvent("warn", "blocked_user_rejected", "denied", "Refused a request from a blocked account", {
+      actor: caller.username,
+    });
+    const language = await resolveRequestLanguage(
+      request.query as Record<string, unknown>,
+      request.headers["accept-language"],
+    );
+    throw new ForbiddenProblem(await localize("error.account.blocked", language));
+  }
+  request.caller = caller;
+}
+
+/**
+ * Fastify parses JSON before Nest guards run. Keep auth on `onRequest` so an
+ * invalid or blocked bearer token is rejected consistently before parser
+ * failures, while the Nest guard remains an idempotent safety net.
+ */
+export function registerFastifyAuth(app: FastifyInstance): void {
+  app.decorateRequest("caller", null);
+  // Rate limiting belongs at the Stackverse gateway/operator boundary; see app.ts.
+  const addHook = app.addHook.bind(app);
+  addHook(PRE_PARSER_AUTH_HOOK, authenticateBearerRequest); // codeql[js/missing-rate-limiting]
+}
+
 @Injectable()
 export class BearerAuthGuard implements CanActivate {
-  /**
-   * Bearer authentication for every request: a missing token leaves the request
-   * anonymous (whether that is acceptable is each endpoint's decision), a
-   * presented-but-invalid token is always a 401, and a valid token from a
-   * blocked account is a 403 with a localized problem document (SPEC rule 17) —
-   * the lazy account upsert (rule 16) happens in this global Nest guard.
-   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
-    request.caller = null;
-    const header = request.headers.authorization;
-    if (!header?.startsWith("Bearer ")) return true;
-    let caller: Caller;
-    try {
-      caller = await verifyBearer(header.slice("Bearer ".length));
-    } catch (error) {
-      // an expected 401 and a security signal, never above INFO (docs/LOGGING.md §3)
-      logEvent("info", "jwt_validation_failed", "failure", "Rejected a bearer token", {
-        error_code: (error as { code?: string }).code?.toLowerCase() ?? "invalid_token",
-      });
-      throw new UnauthorizedProblem("Missing or invalid bearer token.");
-    }
-    const account = await recordSeen(caller.username);
-    if (account.status === "blocked") {
-      logEvent("warn", "blocked_user_rejected", "denied", "Refused a request from a blocked account", {
-        actor: caller.username,
-      });
-      const language = await resolveRequestLanguage(
-        request.query as Record<string, unknown>,
-        request.headers["accept-language"],
-      );
-      throw new ForbiddenProblem(await localize("error.account.blocked", language));
-    }
-    request.caller = caller;
+    await authenticateBearerRequest(request);
     return true;
   }
 }
