@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-ruby-rails:local -f backends/ruby-rails/Dockerfile .
 
-FROM ruby:3.4.6-slim AS build
+FROM ruby:4.0.5-slim AS build
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libpq-dev pkg-config \
@@ -13,7 +13,7 @@ COPY backends/ruby-rails/Gemfile backends/ruby-rails/Gemfile.lock ./
 RUN bundle config set without test development \
     && bundle install --jobs 4 --retry 3
 
-FROM ruby:3.4.6-slim
+FROM ruby:4.0.5-slim
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq5 \
