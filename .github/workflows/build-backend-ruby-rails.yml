@@ -1,0 +1,48 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else. The contract
+# suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-ruby-rails
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-backend-ruby-rails.yml'
+      - 'backends/ruby-rails/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-ruby-rails:
+    name: Backend · Ruby on Rails API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/ruby-rails
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4.6"
+          bundler-cache: true
+          working-directory: backends/ruby-rails
+      - name: Zeitwerk check
+        run: bundle exec rails zeitwerk:check
+      - name: Test
+        run: bundle exec rails test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/ruby-rails/coverage/.resultset.json
+          flags: backend-ruby-rails
+          token: ${{ secrets.CODECOV_TOKEN }}

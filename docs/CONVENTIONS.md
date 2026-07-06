@@ -6,7 +6,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 **Status legend:** ✅ idiomatic · 🟡 deliberate deviation (documented in the variant's README) · 🔴 undocumented deviation · — not applicable.
 
-> Source trail: the per-variant issues (#163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind this snapshot. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
+> Source trail: the per-variant issues (#145, #163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind this snapshot. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
 >
 > Maintenance note: unlike most shared docs this file is O(N) in the number of implementations — a new variant adds one row to each table in its layer section. Keep cells terse; put the *why* in the variant README, not here.
 
@@ -30,6 +30,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to app/controllers, models, services in standard app/* packages | Conventional Play layout: conf/routes, app/{controllers,services,repositories,models,support} | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources per aggregate under one package | Maven layout; thin JAX-RS resources all delegate to one StackverseService | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with flat src/*.rs modules; workspace only when splitting libs | Single binary crate, flat modules (auth, config, db, error, handlers, logging) | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails API app with app/controllers, app/models, app/services, config/routes.rb | Standard Rails API layout; controllers plus contract-heavy services under app/services/stackverse | ✅ idiomatic |
 
 ### Persistence / data access
 
@@ -49,6 +50,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Slick (or Anorm/Quill) with Play DB pool for typed/async queries | Hand-written JDBC via thin Db helper on HikariCP + Flyway; raw SQL strings | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate ORM with Panache active-record/repository entities | Plain JDBC + hand-written SQL, custom RowMapper helpers, Flyway migrations | 🟡 deliberate |
 | [Rust (Axum)](../backends/rust-axum/README.md) | SQLx/Diesel/SeaORM with explicit migrations | SQLx runtime-checked queries, FromRow structs, embedded SQL migrations | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveRecord models and migrations over PostgreSQL | ActiveRecord migrations/models; explicit SQL for contract-sensitive queries and row locks | 🟡 deliberate |
 
 ### Dependency injection
 
@@ -68,6 +70,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, and controller components | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | @ApplicationScoped service, constructor @Inject, @Provider filters/mappers | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Axum/Tower state extractors; no DI container | Cloned AppState injected through State and middleware state | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails autoloading, controllers, concerns, service objects instead of a DI container | Zeitwerk-autoloaded controllers/models/services; module singletons for stateless helpers | ✅ idiomatic |
 
 ### Security / auth
 
@@ -87,6 +90,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Play filters/action-builders or Silhouette/pac4j for auth | Nimbus JOSE JWT verified against Keycloak JWKS in AuthService; filters disabled | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | SmallRye JWT bearer with @RolesAllowed/@Authenticated annotation RBAC | SmallRye JWT config-driven; proactive auth off; roles enforced manually via requireRole | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tower/Axum middleware validating JWT and attaching request state | Axum middleware validates JWKS/JWT, provisions accounts, and exposes Identity in request extensions | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | Rack middleware/controller before_action auth; JWT via a library | ApplicationController before_action validates JWKS/JWT and role helpers enforce endpoints | ✅ idiomatic |
 
 ### Error handling → HTTP
 
@@ -106,6 +110,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Custom ApiProblem hierarchy caught in controller api() wrapper, emits RFC 7807 problem+json | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | JAX-RS ExceptionMapper providers translating exceptions to responses | ExceptionMapper providers emit RFC 9457 application/problem+json | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Implement IntoResponse for app errors and use Result<T, E> handlers | AppError implements IntoResponse; handlers short-circuit with Result<Response, AppError> | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | rescue_from in ApplicationController or exceptions_app for API errors | ApplicationController rescue_from renders RFC 9457 problem+json from typed problem errors | ✅ idiomatic |
 
 ### Concurrency / async
 
@@ -125,6 +130,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Action.async returning Future; non-blocking I/O off the request thread | Action.async wrappers run blocking JDBC on a bounded database-dispatcher | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Reactive Mutiny/Uni or auto-offloaded blocking on RESTEasy Reactive | Blocking JDBC on quarkus-rest; manual JDBC transactions, no Mutiny | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tokio async handlers, SQLx futures, graceful shutdown | async Axum handlers over SQLx pool; shared state cloned per route/middleware | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | Synchronous Rack request handling with pooled DB connections | Synchronous controllers, ActiveRecord transactions, SELECT ... FOR UPDATE row locks | ✅ idiomatic |
 
 ### Validation
 
@@ -144,6 +150,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Manual Validator accumulator over Play-JSON asOpt lookups with message keys | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Manual Validator over raw Jackson JsonNode collecting FieldViolations | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | validator crate or explicit domain validation | Hand-written Validator collecting localized FieldViolations | 🟡 deliberate |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveModel validations on models/form objects or dry-validation | Programmatic Validator collecting localized FieldViolations for RFC 9457 responses | 🟡 deliberate |
 
 ### Testing
 
@@ -163,6 +170,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | ScalaTest AnyFunSuite unit tests of helpers; ResultSet faked via JDK dynamic proxies | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | Plain JUnit 5 unit tests with JDK dynamic-proxy mocks; contract via external conformance suite | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | cargo test covers helpers, validation, pagination, language, and AppError rendering | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | Minitest/Rails test, request tests, fixtures or factories | Minitest unit tests for helpers; HTTP contract covered by shared conformance suite | 🟡 deliberate |
 
 ### Formatter / linter
 
@@ -182,6 +190,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | RuboCop plus rails-omakase or StandardRB in CI | No RuboCop/Standard configured; CI runs Zeitwerk and Minitest only | 🔴 undocumented |
 
 ### API & domain-type modeling
 
@@ -201,6 +210,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Case-class rows plus manual JsObject builders (Wire.obj/Responses); string-typed enums | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Records/POJOs as request and response DTOs, framework-serialized | Records for domain/inputs; responses hand-built as LinkedHashMap, requests read from JsonNode | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Serde DTO structs, enums for closed sets, typed IDs | Serde request/response structs and FromRow rows; wire values kept as strings | ✅ idiomatic |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveRecord models plus Jbuilder/serializers or render json hashes | ActiveRecord rows and hand-built response hashes with wire-string enums and nil omission | 🟡 deliberate |
 
 ## Gateways
 

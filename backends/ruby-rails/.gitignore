@@ -1,0 +1,7 @@
+!/bin/
+!/bin/rails
+
+/.bundle/
+/coverage/
+/log/*
+/tmp/*

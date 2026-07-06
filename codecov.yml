@@ -62,6 +62,10 @@ flags:
     paths:
       - backends/quarkus-java/
     carryforward: true
+  backend-ruby-rails:
+    paths:
+      - backends/ruby-rails/
+    carryforward: true
   backend-rust-axum:
     paths:
       - backends/rust-axum/
@@ -167,6 +171,10 @@ component_management:
       name: "backend · quarkus-java"
       paths:
         - backends/quarkus-java/**
+    - component_id: backend-ruby-rails
+      name: "backend · ruby-rails"
+      paths:
+        - backends/ruby-rails/**
     - component_id: backend-rust-axum
       name: "backend · rust-axum"
       paths:
