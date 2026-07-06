@@ -1,6 +1,7 @@
 package dev.stackverse.gateway.config
 
 import dev.stackverse.gateway.common.logEvent
+import dev.stackverse.gateway.relay.TokenEndpointResponseStatusException
 import dev.stackverse.gateway.web.Csrf
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
@@ -8,27 +9,32 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.HttpMethod
+import org.springframework.http.ReactiveHttpInputMessage
+import org.springframework.http.client.reactive.ClientHttpResponse
+import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.oauth2.client.ReactiveOAuth2AuthorizedClientManager
 import org.springframework.security.oauth2.client.RefreshTokenReactiveOAuth2AuthorizedClientProvider
 import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest
 import org.springframework.security.oauth2.client.endpoint.ReactiveOAuth2AccessTokenResponseClient
 import org.springframework.security.oauth2.client.endpoint.WebClientReactiveRefreshTokenTokenResponseClient
-import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.oauth2.client.registration.ClientRegistrations
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.InMemoryReactiveClientRegistrationRepository
 import org.springframework.security.oauth2.client.registration.ReactiveClientRegistrationRepository
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers
 import org.springframework.security.oauth2.client.web.DefaultReactiveOAuth2AuthorizedClientManager
 import org.springframework.security.oauth2.client.web.server.DefaultServerOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizationRequestResolver
 import org.springframework.security.oauth2.client.web.server.ServerOAuth2AuthorizedClientRepository
 import org.springframework.security.oauth2.client.web.server.WebSessionServerOAuth2AuthorizedClientRepository
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod
+import org.springframework.security.oauth2.core.OAuth2AuthorizationException
+import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest
+import org.springframework.security.oauth2.core.web.reactive.function.OAuth2BodyExtractors
+import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository
 import org.springframework.security.web.server.csrf.ServerCsrfTokenRepository
-import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationFailureHandler
 import org.springframework.security.web.server.authentication.RedirectServerAuthenticationSuccessHandler
 import org.springframework.security.web.server.authentication.ServerAuthenticationFailureHandler
@@ -36,6 +42,7 @@ import org.springframework.security.web.server.authentication.ServerAuthenticati
 import org.springframework.security.web.server.savedrequest.NoOpServerRequestCache
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher
 import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatchers
+import org.springframework.web.reactive.function.BodyExtractor
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.session.CookieWebSessionIdResolver
@@ -121,7 +128,9 @@ class SecurityConfig {
 
     @Bean
     fun refreshTokenResponseClient(): ReactiveOAuth2AccessTokenResponseClient<OAuth2RefreshTokenGrantRequest> {
-        val delegate = WebClientReactiveRefreshTokenTokenResponseClient()
+        val delegate = WebClientReactiveRefreshTokenTokenResponseClient().apply {
+            setBodyExtractor(StatusPreservingOAuth2BodyExtractor())
+        }
         return ReactiveOAuth2AccessTokenResponseClient { grantRequest ->
             delegate.getTokenResponse(grantRequest).timeout(IDP_TIMEOUT)
         }
@@ -267,5 +276,29 @@ class SecurityConfig {
     private companion object {
         val ACCESS_TOKEN_EXPIRY_SKEW: Duration = Duration.ofSeconds(30)
         val IDP_TIMEOUT: Duration = Duration.ofSeconds(30)
+    }
+}
+
+private class StatusPreservingOAuth2BodyExtractor(
+    private val delegate: BodyExtractor<Mono<OAuth2AccessTokenResponse>, ReactiveHttpInputMessage> =
+        OAuth2BodyExtractors.oauth2AccessTokenResponse(),
+) : BodyExtractor<Mono<OAuth2AccessTokenResponse>, ReactiveHttpInputMessage> {
+    override fun extract(
+        inputMessage: ReactiveHttpInputMessage,
+        context: BodyExtractor.Context,
+    ): Mono<OAuth2AccessTokenResponse> {
+        val statusCode = (inputMessage as? ClientHttpResponse)?.statusCode?.value()
+        return delegate.extract(inputMessage, context)
+            .onErrorMap(OAuth2AuthorizationException::class.java) { e ->
+                if (statusCode == null) {
+                    e
+                } else {
+                    OAuth2AuthorizationException(
+                        e.error,
+                        e.message ?: e.error.toString(),
+                        TokenEndpointResponseStatusException(statusCode, e),
+                    )
+                }
+            }
     }
 }
