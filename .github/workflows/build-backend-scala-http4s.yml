@@ -1,0 +1,92 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else. The contract
+# suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-scala-http4s
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-backend-scala-http4s.yml'
+      - 'backends/scala-http4s/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-scala-http4s:
+    name: Backend · Scala http4s
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backends/scala-http4s
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: sbt/setup-sbt@v1
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.ivy2/cache
+            ~/.sbt
+            ~/.cache/coursier
+          key: sbt-${{ runner.os }}-backend-scala-http4s-${{ hashFiles('backends/scala-http4s/build.sbt', 'backends/scala-http4s/project/*.sbt', 'backends/scala-http4s/project/build.properties') }}
+          restore-keys: sbt-${{ runner.os }}-backend-scala-http4s-
+      - name: Test with coverage
+        run: sbt clean coverage test coverageReport
+      - name: Normalize coverage report path
+        run: |
+          report="$(find target -path '*/scoverage-report/scoverage.xml' -print -quit)"
+          test -n "$report"
+          mkdir -p target/scoverage-report
+          cp "$report" target/scoverage-report/scoverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          files: backends/scala-http4s/target/scoverage-report/scoverage.xml
+          flags: backend-scala-http4s
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          report_type: test_results
+          directory: backends/scala-http4s/target/test-reports
+          flags: backend-scala-http4s
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved sbt snapshots only from trusted main pushes.
+  backend-scala-http4s-dependency-submission:
+    name: Backend · Scala http4s dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: sbt/setup-sbt@v1
+      - name: Submit sbt dependency graph
+        uses: scalacenter/sbt-dependency-submission@v3
+        with:
+          working-directory: backends/scala-http4s
+          correlator: backend-scala-http4s

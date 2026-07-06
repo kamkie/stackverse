@@ -123,6 +123,7 @@ provide a richer resolved graph than static manifest parsing (see
 | Backend | Python Django + DRF | `backends/python-django` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-python-django)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Python FastAPI | `backends/python-fastapi` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-python-fastapi)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Play Framework (Scala) | `backends/play-scala` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-play-scala)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Scala http4s | `backends/scala-http4s` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-scala-http4s)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Quarkus Java (Maven) | `backends/quarkus-java` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-quarkus-java)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Rust Axum | `backends/rust-axum` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-rust-axum)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Ruby on Rails API | `backends/ruby-rails` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-ruby-rails)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
