@@ -43,7 +43,7 @@ module Stackverse
       validator.check(tags.length <= 10, "tags", "validation.tags.too-many")
       validator.check(tags.all? { |tag| tag.match?(TAG_PATTERN) }, "tags", "validation.tag.invalid")
 
-      visibility = input.fetch("visibility", "private")
+      visibility = input.key?("visibility") && !input["visibility"].nil? ? input["visibility"] : "private"
       Errors.bad_request("unknown visibility: #{visibility}") unless VISIBILITIES.include?(visibility)
 
       validator.throw_if_invalid

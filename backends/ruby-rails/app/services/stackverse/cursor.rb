@@ -7,7 +7,7 @@ module Stackverse
     module_function
 
     def encode(cursor)
-      Base64.urlsafe_encode64("#{Clock.iso_time(cursor.created_at)}|#{cursor.id}", padding: false)
+      Base64.urlsafe_encode64("#{cursor.created_at.utc.iso8601(6)}|#{cursor.id}", padding: false)
     end
 
     def decode(value)

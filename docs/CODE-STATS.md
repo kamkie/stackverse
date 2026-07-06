@@ -38,10 +38,10 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | play-scala | 1741 | 306 | 0.18 | 14 | 1 | 25 | 85 | 25 | Scala, SQL |
 | python-fastapi | 2022 | 619 | 0.31 | 24 | 10 | 62 | 91 | 21 | Python, SQL |
 | quarkus-java | 3203 | 357 | 0.11 | 22 | 1 | 164 | 80 | 19 | Java, SQL |
-| ruby-rails | 1804 | 51 | 0.03 | 51 | 4 | 27 | 75 | 27 | Ruby, YAML, Rakefile |
+| ruby-rails | 1813 | 73 | 0.04 | 51 | 5 | 27 | 75 | 27 | Ruby, YAML, Rakefile |
 | rust-axum | 3966 | 0 | 0.00 | 8 | 0 | 42 | 82 | 14 | Rust, SQL |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 37314 | 7726 | | 420 | 98 | 2115 | 1331 | 296 | |
+| **subtotal** | 37323 | 7748 | | 420 | 99 | 2115 | 1331 | 296 | |
 
 ## Gateway
 

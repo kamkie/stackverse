@@ -12,6 +12,16 @@ class StackverseInputValidationTest < ActiveSupport::TestCase
     assert_equal "private", input[:visibility]
   end
 
+  test "null bookmark visibility uses the private default" do
+    input = Stackverse::InputValidation.validate_bookmark(
+      "url" => "https://example.com",
+      "title" => "Example",
+      "visibility" => nil
+    )
+
+    assert_equal "private", input[:visibility]
+  end
+
   test "invalid bookmark input raises field violations" do
     error = assert_raises(Stackverse::ValidationError) do
       Stackverse::InputValidation.validate_bookmark({})

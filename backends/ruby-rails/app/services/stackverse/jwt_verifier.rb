@@ -1,10 +1,15 @@
 module Stackverse
   class JwtVerifier
+    require "jwt"
+
+    class UnknownKeyId < JWT::DecodeError; end
+
     require "net/http"
     require "uri"
 
     def initialize
       @jwks = nil
+      @jwks_mutex = Mutex.new
     end
 
     def verify(token)
@@ -27,20 +32,15 @@ module Stackverse
     def decode_with_current_keys(token)
       header = JWT.decode(token, nil, false).last
       key = public_key(header["kid"])
-      JWT.decode(
-        token,
-        key,
-        true,
-        algorithms: ["RS256"],
-        iss: Stackverse.config.oidc_issuer_uri,
-        verify_iss: true,
-        aud: Stackverse.config.oidc_audience,
-        verify_aud: true
-      ).first
-    rescue JWT::DecodeError
-      @jwks = nil
+      decode(token, key)
+    rescue UnknownKeyId
+      refresh_jwks
       header = JWT.decode(token, nil, false).last
       key = public_key(header["kid"])
+      decode(token, key)
+    end
+
+    def decode(token, key)
       JWT.decode(
         token,
         key,
@@ -55,13 +55,24 @@ module Stackverse
 
     def public_key(kid)
       key = jwks.fetch("keys", []).find { |entry| entry["kid"] == kid }
-      raise JWT::DecodeError, "unknown key id" unless key
+      raise UnknownKeyId, "unknown key id" unless key
 
       JWT::JWK.import(key).public_key
     end
 
     def jwks
-      @jwks ||= fetch_json(jwks_uri)
+      cached = @jwks
+      return cached if cached
+
+      @jwks_mutex.synchronize do
+        @jwks ||= fetch_json(jwks_uri)
+      end
+    end
+
+    def refresh_jwks
+      @jwks_mutex.synchronize do
+        @jwks = nil
+      end
     end
 
     def jwks_uri

@@ -12,7 +12,10 @@ module Stackverse
     end
 
     def matches?(request, etag)
-      request.get_header("HTTP_IF_NONE_MATCH").to_s.split(",").any? { |candidate| candidate.strip == etag }
+      request.get_header("HTTP_IF_NONE_MATCH").to_s.split(",").any? do |candidate|
+        value = candidate.strip
+        value == "*" || value == etag
+      end
     end
   end
 end
