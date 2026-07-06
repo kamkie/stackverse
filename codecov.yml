@@ -74,6 +74,10 @@ flags:
     paths:
       - frontends/react/
     carryforward: true
+  frontend-solid:
+    paths:
+      - frontends/solid/
+    carryforward: true
   frontend-svelte:
     paths:
       - frontends/svelte/
@@ -175,6 +179,10 @@ component_management:
       name: "frontend · react"
       paths:
         - frontends/react/**
+    - component_id: frontend-solid
+      name: "frontend · solid"
+      paths:
+        - frontends/solid/**
     - component_id: frontend-svelte
       name: "frontend · svelte"
       paths:
