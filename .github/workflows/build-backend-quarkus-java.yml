@@ -74,5 +74,5 @@ jobs:
       - name: Submit Maven dependency graph
         uses: advanced-security/maven-dependency-submission-action@v5
         with:
-          directory: backends/quarkus-java
+          directory: ${{ github.workspace }}/backends/quarkus-java
           correlator: backend-quarkus-java
