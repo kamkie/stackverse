@@ -292,6 +292,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
+| [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Runes-based components with $props, snippets, and mount() bootstrap | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | No framework; DOM/template functions, manual escaping, imperative rendering | Functions returning HTML template-literal strings, set via root.innerHTML + escapeHtml() | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | SFCs with &lt;script setup lang="ts"&gt;, typed defineProps/defineEmits | SFCs with &lt;script setup lang="ts"&gt;, generic defineProps/defineEmits macros | ✅ idiomatic |
@@ -302,6 +303,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | TanStack Query for server state; Context/hooks for local | TanStack Query + Context (i18n/toast) + web-storage helpers; no global store | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Signals (signal/computed/effect) with zoneless change detection | Plain signal stores + effect/untracked; zoneless; RxJS only at HttpClient | ✅ idiomatic |
+| [SolidJS](../frontends/solid/README.md) | Fine-grained signals/memos for local and shared state; context only when needed | Component and module-level `createSignal`/`createMemo`, no global store | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | $state/$derived/$effect for component state; stores retained for shared route/session/i18n state | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Plain mutable object; manual re-render, no reactive runtime | Single `state` object, full renderApp() re-render on every change | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Composition API refs; Pinia for shared/global stores | Module-level ref() singletons in plain .ts files; no Pinia | 🔴 undocumented |
@@ -312,6 +314,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
+| [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit file-based routing under src/routes | Hand-rolled History-API router (lib/route.ts store) with `{#if}` page dispatch in App.svelte | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Hand-rolled History API router; no router library | History API + popstate, data-link delegation, path switch in routeHtml | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | vue-router with createWebHistory and nested routes | vue-router createWebHistory, nested /admin children | ✅ idiomatic |
@@ -322,6 +325,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Typed client generated from OpenAPI schema | openapi-fetch over openapi-typescript schema.ts, RFC 9457 unwrap | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | HttpClient + interceptors; types generated from OpenAPI | HttpClient (fetch) + csrf interceptor; hand-written types from spec | 🟡 deliberate |
+| [SolidJS](../frontends/solid/README.md) | Generated OpenAPI types with a typed fetch wrapper | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Generated types from OpenAPI; typed fetch wrapper | Hand-written fetch wrapper (ApiError) + types hand-transcribed from OpenAPI | 🟡 deliberate |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | fetch wrappers; types from OpenAPI (codegen common, hand-writing fine) | Hand-written fetch wrappers; types.ts hand-transcribed from openapi.yaml, zero codegen | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Typed fetch client generated from OpenAPI schema | openapi-fetch over openapi-typescript-generated schema.ts | ✅ idiomatic |
@@ -332,6 +336,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Semantic HTML, labeled controls, ARIA wiring, roles | native &lt;dialog&gt;, useId label/aria-invalid/aria-describedby, roles, &lt;time&gt; | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | label/for, aria-invalid, roles, aria-live, native dialog | label/for, aria-invalid, role/aria-live/aria-label, native &lt;dialog&gt; showModal | ✅ idiomatic |
+| [SolidJS](../frontends/solid/README.md) | Semantic HTML, ARIA labels/roles, keyboard-operable native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Semantic elements, ARIA roles/labels, keyboard-operable controls | Semantic nav/time/headings, role/aria-label, role=alert, rel=noreferrer | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Semantic HTML, ARIA, native dialog, labelled controls | aria-*, roles, &lt;dialog&gt; showModal, scope=col, aria-live, visually-hidden labels | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Semantic HTML, ARIA roles/labels, live regions, labeled fields | role=alert/status, aria-live, aria-label, label-wrapped fields | ✅ idiomatic |
@@ -342,6 +347,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
+| [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with entry module plus small focused modules | src/ main.ts monolith + api/i18n/types modules and dev/ helpers | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | src/ with components, views/pages, router, composables | src/ with components, pages, api, i18n, mocks, dev, test | ✅ idiomatic |
@@ -352,6 +358,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
+| [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom for lib stores/helpers; no component tests | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Vitest + jsdom with @vue/test-utils for mounting | Vitest + jsdom, manual createApp mount helper, no @vue/test-utils | 🔴 undocumented |
@@ -362,6 +369,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
+| [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check plus shared EditorConfig coverage | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |

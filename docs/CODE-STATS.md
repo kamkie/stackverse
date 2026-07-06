@@ -59,7 +59,8 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | angular | 3485 | 1288 | 0.37 | 46 | 15 | 230 | 84 | 13 | TypeScript, HTML, JavaScript |
 | react | 5636 | 1021 | 0.18 | 47 | 20 | 251 | 93 | 13 | TSX, TypeScript, JavaScript |
+| solid | 2676 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
 | svelte | 1732 | 445 | 0.26 | 34 | 6 | 159 | 61 | 13 | TypeScript, Svelte, HTML |
 | vanilla-ts | 2145 | 454 | 0.21 | 8 | 4 | 154 | 69 | 13 | TypeScript, HTML, JavaScript |
 | vue | 3477 | 550 | 0.16 | 36 | 7 | 183 | 82 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 16475 | 3758 | | 171 | 52 | 977 | 389 | 65 | |
+| **subtotal** | 19151 | 4223 | | 204 | 58 | 1131 | 460 | 78 | |

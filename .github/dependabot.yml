@@ -82,6 +82,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/react
+      - /frontends/solid
       - /frontends/svelte
       - /frontends/vanilla-ts
       - /frontends/vue
@@ -141,6 +142,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/react
+      - /frontends/solid
       - /frontends/svelte
       - /frontends/vanilla-ts
       - /frontends/vue

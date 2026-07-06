@@ -1,0 +1,64 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow -
+# adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-frontend-solid
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-frontend-solid.yml'
+      - 'frontends/solid/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-solid:
+    name: Frontend · SolidJS
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/solid
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-solid-${{ hashFiles('frontends/solid/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-solid-
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Typecheck and build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test --coverage
+      - name: Normalize coverage paths
+        run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info frontends/solid/
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: frontends/solid/coverage/lcov.info
+          flags: frontend-solid
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: frontends/solid/test-results/junit.xml
+          flags: frontend-solid
+          token: ${{ secrets.CODECOV_TOKEN }}
