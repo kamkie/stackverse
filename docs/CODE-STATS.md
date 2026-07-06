@@ -51,7 +51,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
-| apisix | 1356 | 1069 | 0.79 | 16 | 2 | 14 | 109 | 14 | Lua, YAML, HTML |
+| apisix | 1357 | 1070 | 0.79 | 16 | 2 | 14 | 109 | 14 | Lua, YAML, HTML |
 | go | 1288 | 1197 | 0.93 | 12 | 6 | 12 | 89 | 12 | Go, HTML |
 | node-fastify | 1074 | 661 | 0.62 | 12 | 3 | 100 | 99 | 21 | TypeScript, HTML, JavaScript |
 | openresty | 1240 | 969 | 0.78 | 13 | 2 | 24 | 99 | 17 | Lua, HTML |
@@ -59,7 +59,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | rust | 1883 | 728 | 0.39 | 10 | 1 | 48 | 89 | 11 | Rust, HTML |
 | spring-cloud-gateway | 952 | 1193 | 1.25 | 18 | 12 | 244 | 140 | 18 | Kotlin, HTML, YAML |
 | yarp | 1025 | 1801 | 1.76 | 13 | 13 | 60 | 131 | 14 | C#, JSON, HTML |
-| **subtotal** | 9877 | 7969 | | 106 | 40 | 561 | 854 | 124 | |
+| **subtotal** | 9878 | 7970 | | 106 | 40 | 561 | 854 | 124 | |
 
 ## Frontend
 

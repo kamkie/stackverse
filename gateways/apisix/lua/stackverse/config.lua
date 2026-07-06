@@ -179,6 +179,7 @@ local function make_oidc(public_issuer, internal_issuer, client_id, client_secre
       id_token = true,
       enc_id_token = true,
       access_token = true,
+      refresh_token = true,
     },
     ssl_verify = "yes",
   }
