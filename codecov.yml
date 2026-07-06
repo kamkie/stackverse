@@ -19,6 +19,10 @@ flags:
     paths:
       - backends/dotnet/
     carryforward: true
+  backend-elixir-phoenix:
+    paths:
+      - backends/elixir-phoenix/
+    carryforward: true
   backend-go:
     paths:
       - backends/go/
@@ -160,6 +164,10 @@ component_management:
       name: "backend · dotnet"
       paths:
         - backends/dotnet/**
+    - component_id: backend-elixir-phoenix
+      name: "backend · elixir-phoenix"
+      paths:
+        - backends/elixir-phoenix/**
     - component_id: backend-go
       name: "backend · go"
       paths:

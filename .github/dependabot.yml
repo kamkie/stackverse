@@ -93,6 +93,14 @@ updates:
       maven-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: mix
+    directory: /backends/elixir-phoenix
+    schedule:
+      interval: weekly
+    groups:
+      mix-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: npm
     directories:
       - /backends/node-nestjs
@@ -160,6 +168,7 @@ updates:
   - package-ecosystem: docker
     directories:
       - /backends/dotnet
+      - /backends/elixir-phoenix
       - /backends/go
       - /backends/go-echo
       - /backends/grails

@@ -1,0 +1,58 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow so parallel variant PRs never edit a shared workflow.
+name: build-backend-elixir-phoenix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-backend-elixir-phoenix.yml'
+      - 'backends/elixir-phoenix/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-elixir-phoenix:
+    name: Backend · Elixir Phoenix
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/elixir-phoenix
+    steps:
+      - uses: actions/checkout@v7
+      - uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18'
+          otp-version: '28'
+      - name: Cache deps and build output
+        uses: actions/cache@v6
+        with:
+          path: |
+            backends/elixir-phoenix/deps
+            backends/elixir-phoenix/_build
+          key: mix-${{ runner.os }}-backend-elixir-phoenix-${{ hashFiles('backends/elixir-phoenix/mix.lock') }}
+          restore-keys: mix-${{ runner.os }}-backend-elixir-phoenix-
+      - name: Install dependencies
+        run: mix deps.get
+      - name: Format
+        run: mix format --check-formatted
+      - name: Compile
+        run: mix compile --warnings-as-errors
+      - name: Test with coverage
+        run: mix coveralls.lcov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          files: backends/elixir-phoenix/cover/lcov.info
+          flags: backend-elixir-phoenix
+          token: ${{ secrets.CODECOV_TOKEN }}
