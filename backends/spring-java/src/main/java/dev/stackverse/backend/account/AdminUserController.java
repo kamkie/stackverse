@@ -8,6 +8,7 @@ import dev.stackverse.backend.common.BadRequestProblem;
 import dev.stackverse.backend.common.NotFoundProblem;
 import dev.stackverse.backend.common.PageResponse;
 import java.time.Instant;
+import java.util.Locale;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -64,7 +65,7 @@ public class AdminUserController {
     ) {
         requireValidPaging(page, size);
         requireMaxLength(q, 100, "q");
-        String qLike = q == null || q.isBlank() ? null : "%" + escapeLike(q.toLowerCase()) + "%";
+        String qLike = q == null || q.isBlank() ? null : "%" + escapeLike(q.toLowerCase(Locale.ROOT)) + "%";
         return PageResponse.of(repository.search(qLike, status, Pageable.ofSize(size).withPage(page)), row ->
             UserAccountResponse.of(row.getAccount(), row.getBookmarkCount())
         );
