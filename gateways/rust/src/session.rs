@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use redis::AsyncCommands;
+use redis::{AsyncCommands, aio::MultiplexedConnection};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
@@ -57,7 +57,7 @@ pub trait SessionStore: Send + Sync {
 pub type DynSessionStore = Arc<dyn SessionStore>;
 
 pub struct RedisSessionStore {
-    client: redis::Client,
+    connection: MultiplexedConnection,
 }
 
 impl RedisSessionStore {
@@ -70,18 +70,18 @@ impl RedisSessionStore {
         let client = redis::Client::open(url)?;
         let mut connection = client.get_multiplexed_async_connection().await?;
         let _: String = redis::cmd("PING").query_async(&mut connection).await?;
-        Ok(Self { client })
+        Ok(Self { connection })
     }
 
-    async fn connection(&self) -> anyhow::Result<redis::aio::MultiplexedConnection> {
-        Ok(self.client.get_multiplexed_async_connection().await?)
+    fn connection(&self) -> MultiplexedConnection {
+        self.connection.clone()
     }
 }
 
 #[async_trait]
 impl SessionStore for RedisSessionStore {
     async fn load_session(&self, key: &str) -> anyhow::Result<Option<SessionData>> {
-        let mut connection = self.connection().await?;
+        let mut connection = self.connection();
         let raw: Option<String> = connection.get(format!("{SESSION_KEY_PREFIX}{key}")).await?;
         raw.map(|value| serde_json::from_str(&value).map_err(Into::into))
             .transpose()
@@ -94,7 +94,7 @@ impl SessionStore for RedisSessionStore {
         ttl: Duration,
     ) -> anyhow::Result<()> {
         let raw = serde_json::to_string(data)?;
-        let mut connection = self.connection().await?;
+        let mut connection = self.connection();
         let _: () = connection
             .set_ex(format!("{SESSION_KEY_PREFIX}{key}"), raw, ttl.as_secs())
             .await?;
@@ -102,7 +102,7 @@ impl SessionStore for RedisSessionStore {
     }
 
     async fn delete_session(&self, key: &str) -> anyhow::Result<()> {
-        let mut connection = self.connection().await?;
+        let mut connection = self.connection();
         let _: () = connection.del(format!("{SESSION_KEY_PREFIX}{key}")).await?;
         Ok(())
     }
@@ -114,7 +114,7 @@ impl SessionStore for RedisSessionStore {
         ttl: Duration,
     ) -> anyhow::Result<()> {
         let raw = serde_json::to_string(data)?;
-        let mut connection = self.connection().await?;
+        let mut connection = self.connection();
         let _: () = connection
             .set_ex(format!("{STATE_KEY_PREFIX}{state}"), raw, ttl.as_secs())
             .await?;
@@ -122,7 +122,7 @@ impl SessionStore for RedisSessionStore {
     }
 
     async fn consume_oauth_state(&self, state: &str) -> anyhow::Result<Option<OAuthState>> {
-        let mut connection = self.connection().await?;
+        let mut connection = self.connection();
         let raw: Option<String> = redis::cmd("GETDEL")
             .arg(format!("{STATE_KEY_PREFIX}{state}"))
             .query_async(&mut connection)
@@ -132,7 +132,7 @@ impl SessionStore for RedisSessionStore {
     }
 
     async fn ping(&self) -> anyhow::Result<()> {
-        let mut connection = self.connection().await?;
+        let mut connection = self.connection();
         let _: String = redis::cmd("PING").query_async(&mut connection).await?;
         Ok(())
     }

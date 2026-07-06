@@ -35,8 +35,8 @@ pub async fn proxy(
                 headers.insert(reqwest::header::AUTHORIZATION, value);
             }
         }
-        inject_trace_context(&mut headers);
     }
+    inject_trace_context(&mut headers);
 
     let body = reqwest::Body::wrap_stream(body.into_data_stream());
     let method =

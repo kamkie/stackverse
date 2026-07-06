@@ -27,12 +27,7 @@ async fn main() -> anyhow::Result<()> {
             .context("connect to Redis")?,
     );
     let oidc = Arc::new(OidcClient::new(config.clone(), http.clone()));
-    let state = AppState {
-        config: config.clone(),
-        store,
-        oidc,
-        http,
-    };
+    let state = AppState::new(config.clone(), store, oidc, http);
 
     tracing::info!(
         event = "application_start",

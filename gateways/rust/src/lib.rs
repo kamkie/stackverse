@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use axum::body::Body;
 use axum::extract::State;
-use axum::http::{HeaderMap, Request, StatusCode, header};
+use axum::http::{HeaderMap, Method, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{any, get, post};
 use axum::{Json, Router, middleware};
@@ -35,9 +35,28 @@ const PLACEHOLDER_INDEX: &str = include_str!("static/index.html");
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Config>,
+    pub expected_origin: String,
     pub store: DynSessionStore,
     pub oidc: Arc<OidcClient>,
     pub http: reqwest::Client,
+}
+
+impl AppState {
+    pub fn new(
+        config: Arc<Config>,
+        store: DynSessionStore,
+        oidc: Arc<OidcClient>,
+        http: reqwest::Client,
+    ) -> Self {
+        let expected_origin = expected_origin(&config.public_url);
+        Self {
+            config,
+            expected_origin,
+            store,
+            oidc,
+            http,
+        }
+    }
 }
 
 pub fn app(state: AppState) -> Router {
@@ -302,9 +321,8 @@ async fn api(State(state): State<AppState>, request: Request<Body>) -> Response 
     let method = request.method().clone();
     let path = request.uri().path().to_string();
     let headers = request.headers().clone();
-    let expected = expected_origin(&state.config.public_url);
 
-    if !same_origin_state_change_allowed(&headers, &method, &path, &expected) {
+    if !same_origin_state_change_allowed(&headers, &method, &path, &state.expected_origin) {
         tracing::info!(
             event = "csrf_validation_failed",
             outcome = "denied",
@@ -391,6 +409,9 @@ async fn api(State(state): State<AppState>, request: Request<Body>) -> Response 
 async fn frontend(State(state): State<AppState>, request: Request<Body>) -> Response {
     if let Some(frontend_url) = &state.config.frontend_url {
         return proxy::proxy(&state, request, frontend_url, "frontend", false, None).await;
+    }
+    if !matches!(*request.method(), Method::GET | Method::HEAD) {
+        return StatusCode::NOT_FOUND.into_response();
     }
     if let Some(spa_root) = &state.config.spa_root {
         return serve_spa_file(spa_root, request.uri().path()).await;

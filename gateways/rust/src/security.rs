@@ -180,7 +180,7 @@ pub fn valid_csrf(headers: &HeaderMap, method: &Method) -> bool {
     else {
         return false;
     };
-    header.len() == cookie.len() && constant_time_eq(header.as_bytes(), cookie.as_bytes())
+    constant_time_eq(header.as_bytes(), cookie.as_bytes())
 }
 
 pub fn same_origin_state_change_allowed(

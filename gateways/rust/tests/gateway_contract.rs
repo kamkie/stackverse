@@ -122,6 +122,24 @@ async fn security_headers_are_scoped_without_changing_api_semantics() {
 }
 
 #[tokio::test]
+async fn local_spa_fallback_only_handles_get_and_head() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+
+    let get = harness
+        .request(Method::GET, "/not-a-real-route")
+        .send()
+        .await;
+    assert_eq!(get.status(), StatusCode::OK);
+    assert_content_type(&get, "text/html");
+
+    let post = harness
+        .request(Method::POST, "/not-a-real-route")
+        .send()
+        .await;
+    assert_eq!(post.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn login_redirects_with_code_flow_and_pkce() {
     let harness = Harness::new(IdpBehavior::default()).await;
     let response = harness.request(Method::GET, "/auth/login").send().await;
@@ -326,12 +344,8 @@ impl Harness {
             .build()
             .unwrap();
         let store = Arc::new(MemorySessionStore::new());
-        let state = AppState {
-            config: config.clone(),
-            store: store.clone(),
-            oidc: Arc::new(OidcClient::new(config, http.clone())),
-            http,
-        };
+        let oidc = Arc::new(OidcClient::new(config.clone(), http.clone()));
+        let state = AppState::new(config, store.clone(), oidc, http);
         Self {
             app: app(state),
             store,
