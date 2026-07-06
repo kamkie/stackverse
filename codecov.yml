@@ -91,6 +91,10 @@ flags:
     paths:
       - frontends/angular/
     carryforward: true
+  frontend-lit:
+    paths:
+      - frontends/lit/
+    carryforward: true
   frontend-react:
     paths:
       - frontends/react/
@@ -220,6 +224,10 @@ component_management:
       name: "frontend · angular"
       paths:
         - frontends/angular/**
+    - component_id: frontend-lit
+      name: "frontend · lit"
+      paths:
+        - frontends/lit/**
     - component_id: frontend-react
       name: "frontend · react"
       paths:
