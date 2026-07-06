@@ -53,10 +53,11 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | go | 1288 | 1197 | 0.93 | 12 | 6 | 12 | 89 | 12 | Go, HTML |
 | node-fastify | 1074 | 661 | 0.62 | 12 | 3 | 100 | 99 | 21 | TypeScript, HTML, JavaScript |
 | openresty | 1240 | 969 | 0.78 | 13 | 2 | 24 | 99 | 17 | Lua, HTML |
+| python | 1059 | 351 | 0.33 | 12 | 1 | 59 | 98 | 17 | Python, HTML |
 | rust | 1883 | 728 | 0.39 | 10 | 1 | 48 | 89 | 11 | Rust, HTML |
 | spring-cloud-gateway | 952 | 1193 | 1.25 | 18 | 12 | 244 | 140 | 18 | Kotlin, HTML, YAML |
 | yarp | 1025 | 1801 | 1.76 | 13 | 13 | 60 | 131 | 14 | C#, JSON, HTML |
-| **subtotal** | 7462 | 6549 | | 78 | 37 | 488 | 647 | 93 | |
+| **subtotal** | 8521 | 6900 | | 90 | 38 | 547 | 745 | 110 | |
 
 ## Frontend
 

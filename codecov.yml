@@ -127,6 +127,10 @@ flags:
     paths:
       - gateways/openresty/
     carryforward: true
+  gateway-python:
+    paths:
+      - gateways/python/
+    carryforward: true
   gateway-rust:
     paths:
       - gateways/rust/
@@ -260,6 +264,10 @@ component_management:
       name: "gateway · openresty"
       paths:
         - gateways/openresty/**
+    - component_id: gateway-python
+      name: "gateway · python"
+      paths:
+        - gateways/python/**
     - component_id: gateway-rust
       name: "gateway · rust"
       paths:
