@@ -1,12 +1,13 @@
 import { NestFactory } from "@nestjs/core";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
+import type { RawRequestDefaultExpression, RawServerDefault } from "fastify";
 import { AppModule } from "./app.module.js";
 import { registerFastifyAuth } from "./auth.js";
 import { logger } from "./logging.js";
 import { sendProblemForError } from "./problem.filter.js";
 
 export async function buildApp(): Promise<NestFastifyApplication> {
-  const adapter = new FastifyAdapter({
+  const adapter = new FastifyAdapter<RawServerDefault, RawRequestDefaultExpression<RawServerDefault>>({
     loggerInstance: logger,
     // OTEL server spans are the per-request record; access logs would only add
     // probe noise (docs/LOGGING.md §5)
