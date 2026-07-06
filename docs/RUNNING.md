@@ -582,7 +582,13 @@ workflow). `codecov.yml` also mirrors each implementation as a
 yml-side, so PR comments and the dashboard break coverage down per
 implementation without extra uploads. Coverage is informational only — see
 `codecov.yml` at the repo root; the acceptance gate stays the conformance and
-e2e suites. The upload needs a `CODECOV_TOKEN` repository secret.
+e2e suites. The upload uses `secrets.CODECOV_TOKEN`; for Dependabot-triggered
+workflows, GitHub exposes only Dependabot secrets, not regular Actions
+secrets, and Codecov requires a token for protected branches. Add a Dependabot
+secret with the same `CODECOV_TOKEN` name if Dependabot PRs should publish
+coverage. Every Codecov upload step is `continue-on-error: true`, so a missing
+token or Codecov outage is visible in the step logs but cannot turn a passing
+build, conformance, or e2e job red.
 
 Coverage reports must name source files relative to the repository root before
 upload. Some tools run from an implementation directory and emit LCOV entries

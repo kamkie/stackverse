@@ -1,5 +1,6 @@
 # Coverage is informational: this repo's acceptance gate is the conformance and
-# e2e suites, not a coverage number — Codecov reports must never fail CI.
+# e2e suites, not a coverage number. Workflow upload steps use
+# `continue-on-error: true` because Codecov reports must never fail CI.
 coverage:
   status:
     project:

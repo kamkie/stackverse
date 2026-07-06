@@ -51,6 +51,7 @@ jobs:
         run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info backends/node-nestjs/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/node-nestjs/coverage/lcov.info
           flags: backend-node-nestjs
@@ -58,6 +59,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: backends/node-nestjs/test-results/junit.xml

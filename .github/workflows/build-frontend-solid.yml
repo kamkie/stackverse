@@ -50,6 +50,7 @@ jobs:
         run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info frontends/solid/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: frontends/solid/coverage/lcov.info
           flags: frontend-solid
@@ -57,6 +58,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: frontends/solid/test-results/junit.xml

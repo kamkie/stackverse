@@ -38,6 +38,7 @@ jobs:
         run: ./gradlew build
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/micronaut-java/build/reports/jacoco/test/jacocoTestReport.xml
           flags: backend-micronaut-java
@@ -45,6 +46,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           directory: backends/micronaut-java/build/test-results/test

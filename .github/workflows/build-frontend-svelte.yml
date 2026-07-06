@@ -50,6 +50,7 @@ jobs:
         run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info frontends/svelte/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: frontends/svelte/coverage/lcov.info
           flags: frontend-svelte
@@ -57,6 +58,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: frontends/svelte/test-results/junit.xml

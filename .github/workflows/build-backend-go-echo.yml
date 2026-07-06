@@ -48,6 +48,7 @@ jobs:
         run: node ../../tools/normalize-coverage-paths.mjs coverage.out backends/go-echo/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/go-echo/coverage.out
           flags: backend-go-echo
@@ -55,6 +56,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: backends/go-echo/TestResults/junit.xml

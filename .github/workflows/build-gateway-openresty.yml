@@ -42,6 +42,7 @@ jobs:
             resty -I /opt/stackverse/lua /opt/stackverse/test/coverage.lua /opt/stackverse/test/smoke.lua /coverage/lcov.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: gateways/openresty/coverage/lcov.info
           flags: gateway-openresty

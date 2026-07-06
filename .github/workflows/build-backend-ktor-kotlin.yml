@@ -40,6 +40,7 @@ jobs:
         run: ./gradlew ktlintCheck build
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/ktor-kotlin/build/reports/jacoco/test/jacocoTestReport.xml
           flags: backend-ktor-kotlin
@@ -47,6 +48,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: backends/ktor-kotlin/build/test-results/test/TEST-*.xml

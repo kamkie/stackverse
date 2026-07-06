@@ -54,6 +54,7 @@ jobs:
           cp "$report" target/scoverage-report/scoverage.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/play-scala/target/scoverage-report/scoverage.xml
           flags: backend-play-scala
@@ -61,6 +62,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           directory: backends/play-scala/target/test-reports
