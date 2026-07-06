@@ -1,0 +1,11 @@
+routes:
+  - id: stackverse-gateway
+    uri: /*
+    plugins:
+      stackverse-gateway: {}
+    upstream:
+      type: roundrobin
+      nodes:
+        "127.0.0.1:9": 1
+
+#END

@@ -119,6 +119,10 @@ flags:
     paths:
       - frontends/vue/
     carryforward: true
+  gateway-apisix:
+    paths:
+      - gateways/apisix/
+    carryforward: true
   gateway-go:
     paths:
       - gateways/go/
@@ -260,6 +264,10 @@ component_management:
       name: "frontend · vue"
       paths:
         - frontends/vue/**
+    - component_id: gateway-apisix
+      name: "gateway · apisix"
+      paths:
+        - gateways/apisix/**
     - component_id: gateway-go
       name: "gateway · go"
       paths:

@@ -184,6 +184,7 @@ updates:
       - /frontends/svelte
       - /frontends/vanilla-ts
       - /frontends/vue
+      - /gateways/apisix
       - /gateways/go
       - /gateways/node-fastify
       - /gateways/openresty

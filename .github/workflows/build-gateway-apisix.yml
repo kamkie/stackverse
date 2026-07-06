@@ -1,0 +1,50 @@
+# Build and smoke tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else.
+name: build-gateway-apisix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-gateway-apisix.yml'
+      - 'gateways/apisix/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gateway-apisix:
+    name: Gateway · APISIX
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: gateways/apisix
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build image
+        run: docker build -t stackverse/gateway-apisix:local .
+      - name: Validate APISIX config
+        run: docker run --rm stackverse/gateway-apisix:local apisix test
+      - name: Run Lua smoke tests with coverage
+        run: |
+          mkdir -p coverage
+          docker run --rm \
+            -v "${{ github.workspace }}/gateways/apisix/coverage:/coverage" \
+            stackverse/gateway-apisix:local \
+            resty -I /opt/stackverse/lua -I /usr/local/apisix/deps/share/lua/5.1 \
+            /opt/stackverse/test/coverage.lua /opt/stackverse/test/smoke.lua /coverage/lcov.info
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          files: gateways/apisix/coverage/lcov.info
+          flags: gateway-apisix
+          token: ${{ secrets.CODECOV_TOKEN }}

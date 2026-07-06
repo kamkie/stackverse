@@ -1,0 +1,52 @@
+apisix:
+  node_listen:
+    - ${{PORT:=8000}}
+  enable_admin: false
+  enable_control: false
+  enable_reuseport: false
+  enable_ipv6: false
+  enable_server_tokens: false
+  extra_lua_path: "/opt/stackverse/lua/?.lua;/opt/stackverse/lua/?/init.lua;"
+  ssl:
+    enable: false
+
+nginx_config:
+  error_log: /dev/stderr
+  error_log_level: warn
+  worker_processes: 1
+  envs:
+    - BACKEND_URL
+    - FRONTEND_URL
+    - LOG_FORMAT
+    - LOG_LEVEL
+    - OIDC_CLIENT_ID
+    - OIDC_CLIENT_SECRET
+    - OIDC_INTERNAL_ISSUER_URI
+    - OIDC_ISSUER_URI
+    - OTEL_EXPORTER_OTLP_ENDPOINT
+    - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+    - OTEL_SDK_DISABLED
+    - OTEL_SERVICE_NAME
+    - PUBLIC_URL
+    - REDIS_URL
+    - SPA_ROOT
+  http:
+    enable_access_log: false
+
+http:
+  custom_lua_shared_dict:
+    discovery: 1m
+    introspection: 1m
+    jwks: 1m
+    jwt_verification: 1m
+    sessions: 10m
+
+deployment:
+  role: data_plane
+  role_data_plane:
+    config_provider: yaml
+
+plugins:
+  - stackverse-gateway
+
+stream_plugins: []
