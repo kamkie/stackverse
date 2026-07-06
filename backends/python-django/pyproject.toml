@@ -4,12 +4,12 @@ version = "0.1.0"
 description = "Stackverse backend implementation in Python with Django REST Framework"
 requires-python = ">=3.14"
 dependencies = [
-  "Django>=5.2,<7",
-  "djangorestframework>=3.16,<4",
+  "Django>=6.0.6,<7",
+  "djangorestframework>=3.17.1,<4",
   "psycopg[binary]>=3.3.4,<4",
   "PyJWT[crypto]>=2.13.0,<3",
   "httpx>=0.28.1,<1",
-  "uvicorn[standard]>=0.50.0,<1",
+  "uvicorn[standard]>=0.50.1,<1",
   "opentelemetry-api>=1.43.0,<2",
   "opentelemetry-sdk>=1.43.0,<2",
   "opentelemetry-exporter-otlp-proto-grpc>=1.43.0,<2",
@@ -21,7 +21,7 @@ dependencies = [
 test = [
   "pytest>=9.1.1,<10",
   "pytest-cov>=7.1.0,<8",
-  "ruff>=0.14.8,<1",
+  "ruff>=0.15.20,<1",
 ]
 
 [project.scripts]
