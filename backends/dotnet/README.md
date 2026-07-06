@@ -28,6 +28,10 @@ Tests (unit tests plus WebApplicationFactory integration tests; no containers):
 dotnet test
 ```
 
+NuGet resolves through committed `packages.lock.json` files. After changing
+`PackageReference` versions or local tools, run `dotnet restore --force-evaluate`
+from this directory and commit the updated lock files.
+
 Conformance (the acceptance gate), with the backend running:
 
 ```sh
