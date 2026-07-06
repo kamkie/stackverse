@@ -30,15 +30,12 @@ Migrations apply on startup — the database must be one this backend owns
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Local verification (plain unit tests, no containers):
+Local verification (plain unit tests, no containers; `gofmt -l .` should
+print no files):
 
 ```sh
 go mod verify
-unformatted="$(gofmt -l .)"
-if [ -n "$unformatted" ]; then
-  echo "$unformatted"
-  exit 1
-fi
+gofmt -l .
 go build ./...
 go vet ./...
 go test ./...
