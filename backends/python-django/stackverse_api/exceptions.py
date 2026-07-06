@@ -6,7 +6,7 @@ from django.db import DatabaseError
 from django.http import Http404
 from rest_framework.exceptions import MethodNotAllowed, NotFound, ParseError
 
-from .i18n import localize, resolve_language
+from .i18n import localize, localize_many, resolve_language
 from .logging_setup import log_event, logger
 from .problems import AppProblem, ValidationProblem, first_param, problem_response
 
@@ -26,11 +26,12 @@ def drf_exception_handler(exc: Exception, context: dict[str, Any]):
             first_param(request, "lang") if request is not None else None,
             request.headers.get("accept-language") if request is not None else None,
         )
+        messages = localize_many((violation.message_key for violation in exc.violations), language)
         errors = [
             {
                 "field": violation.field,
                 "messageKey": violation.message_key,
-                "message": localize(violation.message_key, language),
+                "message": messages[violation.message_key],
             }
             for violation in exc.violations
         ]

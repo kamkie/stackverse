@@ -55,13 +55,21 @@ def _safe_json_value(value: Any) -> Any:
     return repr(value)
 
 
+def _json_level(levelno: int) -> str:
+    if levelno == logging.WARNING:
+        return "warn"
+    if levelno == logging.CRITICAL:
+        return "fatal"
+    return logging.getLevelName(levelno).lower()
+
+
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         payload: dict[str, Any] = {
             "timestamp": datetime.fromtimestamp(record.created, UTC)
             .isoformat(timespec="milliseconds")
             .replace("+00:00", "Z"),
-            "level": record.levelname.lower(),
+            "level": _json_level(record.levelno),
             "logger": record.name,
             "message": record.getMessage(),
         }

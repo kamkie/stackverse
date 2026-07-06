@@ -141,10 +141,6 @@ def require_max_length(value: str | None, max_length: int, name: str) -> None:
         raise BadRequestProblem(f"{name} must be at most {max_length} characters")
 
 
-def escape_like(value: str) -> str:
-    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
 UUID_PATTERN = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
 

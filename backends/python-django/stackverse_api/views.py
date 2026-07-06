@@ -161,8 +161,9 @@ def _resolve_one(report: Report, resolution: str, actor: str, note: str | None, 
     return report
 
 
-def _hide_bookmark(actor: str, bookmark_id: str, note: str | None) -> None:
-    bookmark = Bookmark.objects.select_for_update().filter(id=bookmark_id).first()
+def _hide_bookmark(actor: str, bookmark_id: str, note: str | None, bookmark: Bookmark | None = None) -> None:
+    if bookmark is None:
+        bookmark = Bookmark.objects.select_for_update().filter(id=bookmark_id).first()
     if bookmark is None:
         raise NotFoundProblem()
     if bookmark.status == "hidden":
@@ -194,7 +195,11 @@ def _account_with_count(username: str) -> tuple[UserAccount, int]:
     account = UserAccount.objects.filter(username=username).first()
     if account is None:
         raise NotFoundProblem()
-    return account, Bookmark.objects.filter(owner=username).count()
+    return account, _bookmark_count(username)
+
+
+def _bookmark_count(username: str) -> int:
+    return Bookmark.objects.filter(owner=username).count()
 
 
 def _tag_counts_for_owner(username: str) -> list[dict[str, Any]]:
@@ -480,11 +485,14 @@ def admin_report_detail(request: Any, report_id: str) -> HttpResponse:
     parsed_report_id = parse_uuid(report_id)
     target, note = validate_resolution_input(request.data)
     with transaction.atomic():
+        locked_bookmark = None
         if target == "actioned":
             existing = Report.objects.only("bookmark_id").filter(id=parsed_report_id).first()
             if existing is None:
                 raise NotFoundProblem()
-            Bookmark.objects.select_for_update().filter(id=existing.bookmark_id).first()
+            locked_bookmark = Bookmark.objects.select_for_update().filter(id=existing.bookmark_id).first()
+            if locked_bookmark is None:
+                raise NotFoundProblem()
         report = Report.objects.select_for_update().filter(id=parsed_report_id).first()
         if report is None:
             raise NotFoundProblem()
@@ -524,7 +532,7 @@ def admin_report_detail(request: Any, report_id: str) -> HttpResponse:
 
         resolved = _resolve_one(report, target, caller.username, note, False)
         if target == "actioned":
-            _hide_bookmark(caller.username, str(report.bookmark_id), note)
+            _hide_bookmark(caller.username, str(report.bookmark_id), note, locked_bookmark)
             siblings = (
                 Report.objects.select_for_update()
                 .filter(bookmark_id=report.bookmark_id, status="open")
@@ -641,8 +649,7 @@ def admin_user_status(request: Any, username: str) -> HttpResponse:
         resource_type="user",
         resource_id=username,
     )
-    account, bookmark_count = _account_with_count(username)
-    return json_response(to_user_account_response(account, bookmark_count))
+    return json_response(to_user_account_response(account, _bookmark_count(username)))
 
 
 @api_view(["GET"])

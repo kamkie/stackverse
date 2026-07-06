@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 from django.db.models import Case, IntegerField, Value, When
 
@@ -44,8 +45,15 @@ def resolve_language(lang: str | None, accept_language: str | None) -> str:
 
 
 def localize(key: str, language: str) -> str:
-    message = (
-        Message.objects.filter(key=key, language__in=list(dict.fromkeys([language, DEFAULT_LANGUAGE])))
+    return localize_many([key], language)[key]
+
+
+def localize_many(keys: Iterable[str], language: str) -> dict[str, str]:
+    ordered_keys = list(dict.fromkeys(keys))
+    if not ordered_keys:
+        return {}
+    rows = (
+        Message.objects.filter(key__in=ordered_keys, language__in=list(dict.fromkeys([language, DEFAULT_LANGUAGE])))
         .annotate(
             priority=Case(
                 When(language=language, then=Value(0)),
@@ -53,10 +61,12 @@ def localize(key: str, language: str) -> str:
                 output_field=IntegerField(),
             )
         )
-        .order_by("priority")
-        .first()
+        .order_by("key", "priority")
     )
-    return message.text if message is not None else key
+    messages: dict[str, str] = {}
+    for row in rows:
+        messages.setdefault(row.key, row.text)
+    return {key: messages.get(key, key) for key in ordered_keys}
 
 
 def message_bundle(language: str) -> dict[str, str]:

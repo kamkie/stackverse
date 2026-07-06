@@ -6,7 +6,6 @@ from django.test import RequestFactory
 from stackverse_api.problems import (
     BadRequestProblem,
     NotFoundProblem,
-    escape_like,
     first_param,
     multi_param,
     omit_none,
@@ -64,7 +63,7 @@ def test_require_valid_paging_defaults_and_rejects_out_of_range_values() -> None
         require_valid_paging(make_request("size=101"))
 
 
-def test_misc_problem_helpers_cover_masking_and_sql_like_escaping() -> None:
+def test_misc_problem_helpers_cover_masking_and_optional_field_omission() -> None:
     assert parse_uuid("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA") == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     with pytest.raises(NotFoundProblem):
         parse_uuid("not-a-uuid")
@@ -72,5 +71,4 @@ def test_misc_problem_helpers_cover_masking_and_sql_like_escaping() -> None:
     with pytest.raises(BadRequestProblem, match="q must be at most 3 characters"):
         require_max_length("four", 3, "q")
 
-    assert escape_like(r"50%_off\path") == r"50\%\_off\\path"
     assert omit_none({"present": 1, "missing": None}) == {"present": 1}
