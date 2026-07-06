@@ -202,6 +202,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | httputil.ReverseProxy with custom Director/ModifyResponse/ErrorHandler | NewSingleHostReverseProxy; Director strips Cookie/Auth, injects Bearer, per-proxy handlers | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | @fastify/reply-from proxy with Stackverse-specific header/token/trace policy | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Native proxy_pass to an upstream block | Manual lua-resty-http request_uri, buffers/re-emits response in content_by_lua | 🟡 deliberate |
+| [Rust Axum](../gateways/rust/README.md) | Axum handlers plus Tower middleware; reqwest or hyper-based upstream forwarding | Axum catch-all routes stream through reqwest with Stackverse header/token/trace policy | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | YARP AddReverseProxy with route/cluster config plus request transforms | AddReverseProxy + AddTransforms; strips Cookie/CSRF/Authorization, injects Bearer | ✅ idiomatic |
 
 ### Routing configuration
@@ -212,6 +213,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | chi router with explicit method routes and middleware chain | chi.NewRouter with Get/Post/Handle/NotFound plus security + CSRF middleware | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | Fastify route methods with wildcard catch-alls for proxy paths | app.all("/api/*") and app.all("/*") plus explicit /auth/* GET/POST routes | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | nginx location blocks (=, prefix) in nginx.conf | Standard location blocks; PORT templated via envsubst at entrypoint | ✅ idiomatic |
+| [Rust Axum](../gateways/rust/README.md) | Axum Router with explicit routes and catch-all fallbacks | Router routes /auth/* explicitly, /api/{*rest} via any(), and fallback for the SPA | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | Routes/clusters bound from appsettings.json ReverseProxy section | Programmatic RouteConfig/ClusterConfig via LoadFromMemory, not appsettings | 🔴 undocumented |
 
 ### Session / cookie handling
@@ -222,6 +224,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | opaque HttpOnly cookie keying server-side store; stateless process | 32-byte opaque key in HttpOnly Lax cookie; session in Redis via go-redis/v9 | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/cookie; opaque session id in httpOnly cookie, tokens server-side | @fastify/cookie, opaque id in httpOnly lax stackverse_session cookie, tokens in Redis via ioredis | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | lua-resty-session + lua-resty-openidc, HttpOnly cookie, server-side store | lua-resty-session (storage=redis) + lua-resty-openidc, HttpOnly SameSite=Lax | ✅ idiomatic |
+| [Rust Axum](../gateways/rust/README.md) | Opaque HttpOnly cookie keying a server-side async store; stateless process | 32-byte opaque key in HttpOnly Lax cookie; session and login state in Redis via redis-rs | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | Cookie auth; server-side ticket store for stateless multi-instance | Cookie auth + Redis ITicketStore + Data Protection keys in Redis | ✅ idiomatic |
 
 ### CSRF & security headers
@@ -232,6 +235,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | double-submit XSRF token, constant-time compare, hardening header middleware | XSRF-TOKEN/X-XSRF-TOKEN via subtle.ConstantTimeCompare plus Origin/Sec-Fetch checks | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/helmet plus @fastify/csrf-protection for headers and tokens | Hand-rolled double-submit CSRF + Origin/Sec-Fetch-Site checks and manual header set in security.ts | 🟡 deliberate |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | No nginx built-in; hand-roll in Lua for a BFF | Double-submit XSRF token (constant-time), Origin/Sec-Fetch-Site, headers via header_filter | ✅ idiomatic |
+| [Rust Axum](../gateways/rust/README.md) | Tower middleware for hardening headers; double-submit token check at handler/middleware boundary | Double-submit XSRF token (constant-time), Origin/Sec-Fetch-Site, headers via Axum middleware | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | Built-in IAntiforgery; UseHsts/UseSecurityHeaders for hardening | Hand-rolled double-submit CSRF + EdgeSecurity headers; CodeQL alert suppressed inline | 🟡 deliberate |
 
 ### Error handling
@@ -242,6 +246,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | explicit error returns, sentinel errors, errors.Is; RFC 7807 problem+json | (val,ok,error) returns, errRefreshRejected/errIDPUnavailable sentinels, problem+json | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | setErrorHandler with RFC7807 application/problem+json responses | setErrorHandler plus sendProblem helper emitting problem+json (problems.ts) | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Lua-emitted error bodies; format is app choice | RFC 7807 application/problem+json via problem.lua | ✅ idiomatic |
+| [Rust Axum](../gateways/rust/README.md) | Typed errors or response helpers implementing IntoResponse | Small problem helper returns RFC 9457 application/problem+json; callback failures redirect not 500 | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | RFC 9457 problem+json responses; avoid leaking 500s | Problems.Write problem+json helper; OIDC callback failures redirect not 500 | ✅ idiomatic |
 
 ### Concurrency / async
@@ -252,6 +257,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | goroutine-per-request net/http, context propagation, graceful shutdown | net/http server, signal.NotifyContext + Shutdown, ctx threaded through handlers | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | async/await handlers, native fetch or proxy plugins, stream large payloads | async/await throughout, @fastify/reply-from proxy, @fastify/static SPA files | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Non-blocking cosockets (lua-resty-*), ngx.timer for background work | Cosocket lua-resty-http/redis, ngx.timer.at for OTLP export | ✅ idiomatic |
+| [Rust Axum](../gateways/rust/README.md) | Tokio async handlers, Tower layers, reqwest/hyper streams, graceful shutdown | async Axum handlers, reqwest streaming proxy, Redis futures, ctrl-c graceful shutdown | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | async/await end-to-end with CancellationToken propagation | async throughout, ValueTask transforms; hand-rolled refresh may double-refresh | 🟡 deliberate |
 
 ### Testing
@@ -262,6 +268,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | stdlib testing + httptest fakes for upstreams; table-driven | testing + httptest harness faking backend/frontend/OIDC; gotestsum in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | Vitest or node:test running Fastify in-process with injected requests | Vitest suite hosting buildApp in-process with MemorySessionStore and stubbed fetch | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Test::Nginx (TAP) or busted | Hand-rolled Lua harness with ngx mock via resty; bespoke debug-hook LCOV | 🔴 undocumented |
+| [Rust Axum](../gateways/rust/README.md) | cargo test with tower::ServiceExt and local stub services | cargo test runs helper units plus Axum in-process requests against local stub backend/IdP servers | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | xUnit + WebApplicationFactory integration tests | xUnit + WebApplicationFactory + Testcontainers (real Keycloak/Redis) | ✅ idiomatic |
 
 ### Formatter / linter
@@ -272,6 +279,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../gateways/go/README.md) | gofmt check plus golangci-lint (staticcheck) with committed config | CI runs go build + go vet only; no gofmt check, no golangci-lint, no config | 🔴 undocumented |
 | [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | No ESLint/Prettier/Biome; only .editorconfig and tsc typecheck | 🔴 undocumented |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | No linter or formatter configured; CI only builds, config-tests, smoke-tests | 🔴 undocumented |
+| [Rust Axum](../gateways/rust/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | Roslyn analyzers + dotnet format, often warnings-as-errors in CI | Minimal shared .editorconfig only; no analyzers, format check, or warnings-as-errors | 🔴 undocumented |
 
 ## Frontends

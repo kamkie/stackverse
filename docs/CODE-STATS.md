@@ -48,9 +48,10 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | go | 1288 | 1197 | 0.93 | 12 | 6 | 12 | 84 | 12 | Go, HTML |
 | node-fastify | 1074 | 661 | 0.62 | 12 | 3 | 100 | 99 | 21 | TypeScript, HTML, JavaScript |
 | openresty | 1240 | 969 | 0.78 | 13 | 2 | 24 | 99 | 17 | Lua, HTML |
+| rust | 1883 | 716 | 0.38 | 10 | 1 | 47 | 86 | 11 | Rust, HTML |
 | spring-cloud-gateway | 890 | 995 | 1.12 | 17 | 10 | 244 | 139 | 18 | Kotlin, HTML, YAML |
 | yarp | 852 | 1049 | 1.23 | 12 | 12 | 57 | 128 | 13 | C#, HTML, JSON |
-| **subtotal** | 5344 | 4871 | | 66 | 33 | 437 | 549 | 81 | |
+| **subtotal** | 7227 | 5587 | | 76 | 34 | 484 | 635 | 92 | |
 
 ## Frontend
 
