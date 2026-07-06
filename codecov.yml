@@ -54,6 +54,10 @@ flags:
     paths:
       - backends/play-scala/
     carryforward: true
+  backend-python-django:
+    paths:
+      - backends/python-django/
+    carryforward: true
   backend-python-fastapi:
     paths:
       - backends/python-fastapi/
@@ -159,6 +163,10 @@ component_management:
       name: "backend · play-scala"
       paths:
         - backends/play-scala/**
+    - component_id: backend-python-django
+      name: "backend · python-django"
+      paths:
+        - backends/python-django/**
     - component_id: backend-python-fastapi
       name: "backend · python-fastapi"
       paths:

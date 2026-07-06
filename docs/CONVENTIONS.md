@@ -27,6 +27,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | Nest CLI feature modules: *.module/*.controller/*.service per domain | Nest CLI app with feature modules, controllers, and injectable services | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Maven WAR: src/main/java, webapp/WEB-INF, liberty server.xml config | Standard Maven WAR; single flat package, src/main/liberty/config/server.xml | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | APIRouter per resource module, routers included on the app | `routers/` APIRouter modules by resource area, included from app setup | ✅ idiomatic |
+| [Django + DRF](../backends/python-django/README.md) | Django project + app layout, urls.py route table, models/migrations in the app | `stackverse_django` project plus `stackverse_api` app with models, migrations, DRF views, and helpers | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to app/controllers, models, services in standard app/* packages | Conventional Play layout: conf/routes, app/{controllers,services,repositories,models,support} | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources per aggregate under one package | Maven layout; thin JAX-RS resources all delegate to one StackverseService | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with flat src/*.rs modules; workspace only when splitting libs | Single binary crate, flat modules (auth, config, db, error, handlers, logging) | ✅ idiomatic |
@@ -46,6 +47,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | TypeORM/Prisma via @nestjs/typeorm with injected repositories | Injectable feature services use raw pg, hand-written SQL, tiny withTransaction | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JPA/Hibernate entities via a Liberty JDBC dataSource | Explicit JDBC + HikariCP + Flyway migrations; tags as text[] with GIN index | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | SQLAlchemy ORM (often async) with Alembic migrations | Plain psycopg3 raw SQL, dict_row, pool; hand-rolled SQL migration runner | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | Django ORM models, QuerySets, and checked-in migrations | Django ORM + migrations; small raw SQL snippets only for PostgreSQL `unnest(tags)` reports | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Slick (or Anorm/Quill) with Play DB pool for typed/async queries | Hand-written JDBC via thin Db helper on HikariCP + Flyway; raw SQL strings | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate ORM with Panache active-record/repository entities | Plain JDBC + hand-written SQL, custom RowMapper helpers, Flyway migrations | 🟡 deliberate |
 | [Rust (Axum)](../backends/rust-axum/README.md) | SQLx/Diesel/SeaORM with explicit migrations | SQLx runtime-checked queries, FromRow structs, embedded SQL migrations | ✅ idiomatic |
@@ -65,6 +67,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | Nest IoC container: @Injectable providers, @Controller, constructor injection | Feature modules with @Controller classes and @Injectable services; global guard/filter providers | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | CDI beans with @Inject; beans.xml bean-discovery | beans.xml present but no @Inject; JAX-RS getClasses() + static RuntimeSupport | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | FastAPI Depends() for db sessions, current user, config | Depends for optional/current/role callers; db remains module-global pool | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | Django apps/settings plus request-scoped view functions/classes; no DI container | Settings/apps wire framework services; DRF views call focused helper modules | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, and controller components | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | @ApplicationScoped service, constructor @Inject, @Provider filters/mappers | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Axum/Tower state extractors; no DI container | Cloned AppState injected through State and middleware state | ✅ idiomatic |
@@ -84,6 +87,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | Passport guards / @UseGuards, AuthGuard, @Roles decorators | Global CanActivate guard verifies JWT via jose; services use requireCaller/requireRole helpers | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | MicroProfile JWT / Jakarta Security declarative role checks | Manual Nimbus JWT validation in a ContainerRequestFilter | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | JWT/OAuth2 via a Security() dependency (e.g. OAuth2, HTTPBearer) | JWKS/PyJWT verified through FastAPI dependencies; role aliases wrap require_role | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | DRF authentication classes and permission checks | Custom DRF authentication class validates JWKS/PyJWT; view helpers enforce Stackverse roles | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play filters/action-builders or Silhouette/pac4j for auth | Nimbus JOSE JWT verified against Keycloak JWKS in AuthService; filters disabled | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | SmallRye JWT bearer with @RolesAllowed/@Authenticated annotation RBAC | SmallRye JWT config-driven; proactive auth off; roles enforced manually via requireRole | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tower/Axum middleware validating JWT and attaching request state | Axum middleware validates JWKS/JWT, provisions accounts, and exposes Identity in request extensions | ✅ idiomatic |
@@ -103,6 +107,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | Throw HttpException subclasses; Nest exception filters render responses | Global ProblemFilter renders ApiProblem/ValidationProblem and unexpected errors as RFC 9457 | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JAX-RS ExceptionMapper translating exceptions to responses | ExceptionMapper&lt;Throwable&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | Raise HTTPException; FastAPI serializes the detail body | Custom AppProblem hierarchy + exception_handlers emitting RFC 9457 problem+json | ✅ idiomatic |
+| [Django + DRF](../backends/python-django/README.md) | DRF custom exception handler maps API exceptions to responses | AppProblem/ValidationProblem handled by DRF exception handler emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Custom ApiProblem hierarchy caught in controller api() wrapper, emits RFC 7807 problem+json | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | JAX-RS ExceptionMapper providers translating exceptions to responses | ExceptionMapper providers emit RFC 9457 application/problem+json | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Implement IntoResponse for app errors and use Result<T, E> handlers | AppError implements IntoResponse; handlers short-circuit with Result<Response, AppError> | ✅ idiomatic |
@@ -122,6 +127,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | async/await handlers; RxJS Observables for streams/interceptors | Plain async/await; SELECT ... FOR UPDATE row locks for moderation races | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Synchronous JAX-RS on container threads; @Suspended for async | Synchronous blocking JDBC on request threads; no async/reactive | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | async handlers with an async driver (asyncpg/psycopg async) | Sync handlers + sync psycopg run on Starlette worker threadpool | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | Synchronous views over Django ORM, or async views only with async-safe dependencies | Sync DRF function views over Django ORM with transaction.atomic and SELECT FOR UPDATE locks | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Action.async returning Future; non-blocking I/O off the request thread | Action.async wrappers run blocking JDBC on a bounded database-dispatcher | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Reactive Mutiny/Uni or auto-offloaded blocking on RESTEasy Reactive | Blocking JDBC on quarkus-rest; manual JDBC transactions, no Mutiny | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tokio async handlers, SQLx futures, graceful shutdown | async Axum handlers over SQLx pool; shared state cloned per route/middleware | ✅ idiomatic |
@@ -141,6 +147,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | class-validator/class-transformer DTOs with a global ValidationPipe | Hand-rolled Validator collector, no pipes, no DTO decorators | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Bean Validation (@Valid / Hibernate Validator) on inputs | Hand-rolled Validator collecting FieldViolations, keyed message localization | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | Pydantic models bind and validate request bodies | Bodies bound as `Annotated[Any, Body()]`; hand-rolled Validator functions | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | DRF serializers validate request bodies and query parameters | DRF parses bodies; hand-rolled Validator functions preserve localized contract keys | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Manual Validator accumulator over Play-JSON asOpt lookups with message keys | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Manual Validator over raw Jackson JsonNode collecting FieldViolations | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | validator crate or explicit domain validation | Hand-written Validator collecting localized FieldViolations | 🟡 deliberate |
@@ -160,6 +167,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | Jest with @nestjs/testing TestingModule; supertest e2e | Vitest unit tests on pure functions/helpers, vi.mock, no TestingModule | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JUnit 5 units; Arquillian/liberty-maven integration tests | JUnit 5 (surefire + JaCoCo), one unit test; acceptance via shared conformance suite | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | pytest with TestClient/httpx exercising the ASGI app end-to-end | pytest unit tests of helpers plus a small TestClient route smoke; no DB integration | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | pytest/pytest-django or Django TestCase with APIClient integration tests | pytest unit tests of helpers; HTTP/DB acceptance lives in shared conformance | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | ScalaTest AnyFunSuite unit tests of helpers; ResultSet faked via JDK dynamic proxies | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | Plain JUnit 5 unit tests with JDK dynamic-proxy mocks; contract via external conformance suite | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | cargo test covers helpers, validation, pagination, language, and AppError rendering | ✅ idiomatic |
@@ -179,6 +187,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | ESLint + Prettier scripts alongside Nest CLI build/dev flow | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Spotless/Checkstyle or google-java-format via Maven plugin | No formatter or linter plugin configured in pom.xml | 🔴 undocumented |
 | [FastAPI](../backends/python-fastapi/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
+| [Django + DRF](../backends/python-django/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
@@ -198,6 +207,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [NestJS](../backends/node-nestjs/README.md) | DTO classes + entities; enums; @nestjs/swagger OpenAPI generation | Plain TS interfaces, string-literal unions, wire-string enums, omitNulls helper | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Typed DTOs bound by JSON-B/Jackson, often OpenAPI-generated | Map&lt;String,Object&gt; + Jackson for wire; records for internal inputs, no DTOs | 🔴 undocumented |
 | [FastAPI](../backends/python-fastapi/README.md) | Pydantic models as request/response schemas with response_model | Plain dict[str, Any] in/out; dataclasses only for Caller and Config | 🟡 deliberate |
+| [Django + DRF](../backends/python-django/README.md) | Django models plus DRF serializers for request/response DTOs | Django models for domain; manual response dict mappers omit optional null fields | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Case-class rows plus manual JsObject builders (Wire.obj/Responses); string-typed enums | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Records/POJOs as request and response DTOs, framework-serialized | Records for domain/inputs; responses hand-built as LinkedHashMap, requests read from JsonNode | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Serde DTO structs, enums for closed sets, typed IDs | Serde request/response structs and FromRow rows; wire values kept as strings | ✅ idiomatic |
