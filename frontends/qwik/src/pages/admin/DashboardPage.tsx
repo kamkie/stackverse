@@ -1,6 +1,5 @@
 import { component$, useStore, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
 import { api } from "../../lib/api";
-import { goto } from "../../lib/route";
 import { m, mc, type I18nState } from "../../lib/i18n";
 import type { AdminStats } from "../../lib/types";
 
@@ -57,7 +56,6 @@ export default component$<{ i18n: I18nState; onNavigate$: PropFunction<(path: st
               href="/admin/reports"
               onClick$={(event: Event) => {
                 event.preventDefault();
-                goto("/admin/reports");
                 void props.onNavigate$("/admin/reports");
               }}
             >
@@ -77,14 +75,14 @@ export default component$<{ i18n: I18nState; onNavigate$: PropFunction<(path: st
                 const createdHeight = Math.max(1, (day.bookmarksCreated / maxValue) * 120);
                 const activeHeight = Math.max(1, (day.activeUsers / maxValue) * 120);
                 return (
-                  <>
+                  <g key={day.date}>
                     <rect class="sv-chart-bar" x={String(x)} y={String(150 - createdHeight)} width="7" height={String(createdHeight)}>
                       <title>{`${day.date}: ${day.bookmarksCreated} ${m(props.i18n, "ui.admin.stats.bookmarks-created")}`}</title>
                     </rect>
                     <rect class="sv-chart-bar sv-chart-bar--secondary" x={String(x + 8)} y={String(150 - activeHeight)} width="7" height={String(activeHeight)}>
                       <title>{`${day.date}: ${day.activeUsers} ${m(props.i18n, "ui.admin.stats.active-users")}`}</title>
                     </rect>
-                  </>
+                  </g>
                 );
               })}
             </svg>

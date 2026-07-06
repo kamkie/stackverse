@@ -65,10 +65,6 @@ export default component$(() => {
     app.i18n = next;
   });
 
-  const updateRoute$ = $((path: string) => {
-    app.route = path;
-  });
-
   const navClass = (path: string, exact = true): string => {
     const active = exact
       ? app.route === path
@@ -153,7 +149,7 @@ export default component$(() => {
           ) : app.route === "/admin" || app.route === "/admin/" ? (
             <DashboardPage
               i18n={app.i18n}
-              onNavigate$={updateRoute$}
+              onNavigate$={navigate$}
             />
           ) : (
             <div class="sv-alert sv-alert--danger" role="alert">403</div>

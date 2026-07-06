@@ -5,6 +5,16 @@ import { endOfDayIso, formatDate } from "../../lib/format";
 import { m, type I18nState } from "../../lib/i18n";
 import type { AuditEntry, Page } from "../../lib/types";
 
+const knownActions = [
+  "message.created",
+  "message.updated",
+  "message.deleted",
+  "report.resolved",
+  "bookmark.status-changed",
+  "user.blocked",
+  "user.unblocked",
+];
+
 export default component$<{ i18n: I18nState }>((props) => {
   const state = useStore<{
     actor: string;
@@ -101,12 +111,16 @@ export default component$<{ i18n: I18nState }>((props) => {
           class="sv-input"
           placeholder={m(props.i18n, "ui.audit.action.placeholder")}
           aria-label={m(props.i18n, "ui.audit.action.placeholder")}
+          list="audit-log-known-actions"
           value={state.action}
           onInput$={(event: Event) => {
             state.action = (event.target as HTMLInputElement).value;
             void scheduleFilterReload$();
           }}
         />
+        <datalist id="audit-log-known-actions">
+          {knownActions.map((item) => <option key={item} value={item} />)}
+        </datalist>
         <label class="sv-toolbar-field">
           <span class="sv-label">{m(props.i18n, "ui.field.from")}</span>
           <input
