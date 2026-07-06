@@ -14,7 +14,9 @@ RUN curl -fsSL "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt
     && ln -s /opt/sbt/bin/sbt /usr/local/bin/sbt
 
 WORKDIR /workspace/backends/scala-http4s
-RUN sbt clean stage
+RUN sbt "clean; stage" \
+    && mkdir -p /workspace/backend-stage \
+    && cp -R target/out/jvm/scala-*/stackverse-backend-scala-http4s/universal/stage/. /workspace/backend-stage/
 
 FROM eclipse-temurin:25-jre
 
@@ -22,7 +24,7 @@ RUN groupadd -r stackverse \
     && useradd -r -g stackverse -u 10001 stackverse
 
 WORKDIR /app
-COPY --from=build /workspace/backends/scala-http4s/target/universal/stage/ /app/
+COPY --from=build /workspace/backend-stage/ /app/
 COPY spec/messages /app/spec/messages
 
 RUN chmod +x /app/bin/stackverse-backend-scala-http4s \
