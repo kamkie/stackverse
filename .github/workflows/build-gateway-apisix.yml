@@ -36,6 +36,7 @@ jobs:
       - name: Run Lua smoke tests with coverage
         run: |
           mkdir -p coverage
+          chmod 777 coverage
           docker run --rm \
             -v "${{ github.workspace }}/gateways/apisix/coverage:/coverage" \
             stackverse/gateway-apisix:local \
