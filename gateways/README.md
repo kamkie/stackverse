@@ -1,6 +1,6 @@
 # Gateways
 
-One directory per implementation (`go`, `node-fastify`, `python`, `spring-cloud-gateway`, `yarp`, ...). The gateway is
+One directory per implementation (`apisix`, `go`, `node-fastify`, `openresty`, `python`, `rust`, `spring-cloud-gateway`, `yarp`, ...). The gateway is
 the BFF: the OIDC client, the session owner, and the only component the browser talks
 to. The full route contract and login flow live in
 [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md).
@@ -103,11 +103,11 @@ logging / OpenTelemetry contract.
   `auth_request` plus oauth2-proxy.
 - **OpenResty / Apache APISIX** are the credible middle path: configuration plus
   Lua can meet the exact BFF contract instead of forcing a separate companion
-  process. APISIX packages the same `lua-resty-openidc` foundation and includes a
-  double-submit CSRF plugin, but the Stackverse `/auth/*` routes still require
-  custom Lua snippets and SPA delivery is less direct. Plain OpenResty was chosen
-  as the clearer infrastructure-as-gateway variant to pursue in
-  [#62](https://github.com/kamkie/stackverse/issues/62).
+  process. OpenResty is the clearer infrastructure-as-gateway baseline; APISIX
+  packages the same `lua-resty-openidc` foundation behind a product gateway
+  route/plugin surface. Both still need custom Lua for Stackverse's exact
+  `/auth/*` routes, anonymous token relay, refresh failure split, SPA delivery,
+  and problem-response shape.
 
 ## Configuration (environment variables)
 

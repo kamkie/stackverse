@@ -259,6 +259,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Reactive Spring Cloud Gateway on WebFlux/Netty, non-blocking proxy | spring-cloud-starter-gateway-server-webflux; reactive Netty proxy | ✅ idiomatic |
+| [Apache APISIX](../gateways/apisix/README.md) | APISIX route/upstream/plugin pipeline, custom plugins for policy | Standalone route enters a custom plugin; Lua relay handles Stackverse token/header/trace policy | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | httputil.ReverseProxy with custom Director/ModifyResponse/ErrorHandler | NewSingleHostReverseProxy; Director strips Cookie/Auth, injects Bearer, per-proxy handlers | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | @fastify/reply-from proxy with Stackverse-specific header/token/trace policy | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Native proxy_pass to an upstream block | Manual lua-resty-http request_uri, buffers/re-emits response in content_by_lua | 🟡 deliberate |
@@ -271,6 +272,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Routes via application.yaml or a RouteLocatorBuilder fluent bean | Programmatic RouteLocatorBuilder bean in RouteConfig.kt; header-strip + token relay | ✅ idiomatic |
+| [Apache APISIX](../gateways/apisix/README.md) | Standalone `apisix.yaml` route definitions or Admin API-managed routes | Standalone `apisix.yaml` catch-all route with one custom BFF plugin | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | chi router with explicit method routes and middleware chain | chi.NewRouter with Get/Post/Handle/NotFound plus security + CSRF middleware | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | Fastify route methods with wildcard catch-alls for proxy paths | app.all("/api/*") and app.all("/*") plus explicit /auth/* GET/POST routes | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | nginx location blocks (=, prefix) in nginx.conf | Standard location blocks; PORT templated via envsubst at entrypoint | ✅ idiomatic |
@@ -283,6 +285,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Spring Session (Redis) over WebSession; cookie via CookieWebSessionIdResolver | Spring Session Redis; custom stackverse_session cookie, HttpOnly/Lax/Secure | ✅ idiomatic |
+| [Apache APISIX](../gateways/apisix/README.md) | lua-resty-openidc/session inside APISIX plugins when built-in plugins are insufficient | custom APISIX plugin uses lua-resty-openidc + lua-resty-session Redis storage | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | opaque HttpOnly cookie keying server-side store; stateless process | 32-byte opaque key in HttpOnly Lax cookie; session in Redis via go-redis/v9 | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/cookie; opaque session id in httpOnly cookie, tokens server-side | @fastify/cookie, opaque id in httpOnly lax stackverse_session cookie, tokens in Redis via ioredis | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | lua-resty-session + lua-resty-openidc, HttpOnly cookie, server-side store | lua-resty-session (storage=redis) + lua-resty-openidc, HttpOnly SameSite=Lax | ✅ idiomatic |
@@ -295,6 +298,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Spring Security CsrfWebFilter and built-in header writers | CookieServerCsrfTokenRepository plus custom same-origin checks and contract problem responses | 🟡 deliberate |
+| [Apache APISIX](../gateways/apisix/README.md) | APISIX security plugins plus custom Lua for policy gaps | Hand-rolled double-submit CSRF + Origin/Sec-Fetch-Site checks and plugin header_filter | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | double-submit XSRF token, constant-time compare, hardening header middleware | XSRF-TOKEN/X-XSRF-TOKEN via subtle.ConstantTimeCompare plus Origin/Sec-Fetch checks | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/helmet plus @fastify/csrf-protection for headers and tokens | Hand-rolled double-submit CSRF + Origin/Sec-Fetch-Site checks and manual header set in security.ts | 🟡 deliberate |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | No nginx built-in; hand-roll in Lua for a BFF | Double-submit XSRF token (constant-time), Origin/Sec-Fetch-Site, headers via header_filter | ✅ idiomatic |
@@ -307,6 +311,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Mono.error propagation; RFC 9457 problem responses for gateway-owned errors | onErrorResume maps IdpUnavailable to 503; Problems writes RFC 9457 documents | ✅ idiomatic |
+| [Apache APISIX](../gateways/apisix/README.md) | Lua-emitted gateway errors from custom plugins | RFC 9457 application/problem+json via problem.lua; callback failures redirect not 500 | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | explicit error returns, sentinel errors, errors.Is; RFC 7807 problem+json | (val,ok,error) returns, errRefreshRejected/errIDPUnavailable sentinels, problem+json | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | setErrorHandler with RFC7807 application/problem+json responses | setErrorHandler plus sendProblem helper emitting problem+json (problems.ts) | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Lua-emitted error bodies; format is app choice | RFC 7807 application/problem+json via problem.lua | ✅ idiomatic |
@@ -319,6 +324,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Reactor Mono/Flux, fully non-blocking; block() only at bootstrap | Reactor throughout; single startup .block() for OIDC discovery | ✅ idiomatic |
+| [Apache APISIX](../gateways/apisix/README.md) | OpenResty/APISIX non-blocking cosockets and worker lifecycle hooks | Cosocket lua-resty-http/redis, custom plugin init/header/access phases, ngx.timer for OTLP export | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | goroutine-per-request net/http, context propagation, graceful shutdown | net/http server, signal.NotifyContext + Shutdown, ctx threaded through handlers | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | async/await handlers, native fetch or proxy plugins, stream large payloads | async/await throughout, @fastify/reply-from proxy, @fastify/static SPA files | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Non-blocking cosockets (lua-resty-*), ngx.timer for background work | Cosocket lua-resty-http/redis, ngx.timer.at for OTLP export | ✅ idiomatic |
@@ -331,6 +337,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | JUnit 5 + @SpringBootTest + Testcontainers integration tests | @SpringBootTest RANDOM_PORT, Testcontainers Keycloak+Redis, real code flow | ✅ idiomatic |
+| [Apache APISIX](../gateways/apisix/README.md) | Test::Nginx (TAP), busted, or APISIX plugin test harnesses | Hand-rolled Lua harness with ngx mock via resty; bespoke debug-hook LCOV | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | stdlib testing + httptest fakes for upstreams; table-driven | testing + httptest harness faking backend/frontend/OIDC; gotestsum in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | Vitest or node:test running Fastify in-process with injected requests | Vitest suite hosting buildApp in-process with MemorySessionStore and stubbed fetch | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | Test::Nginx (TAP) or busted | Hand-rolled Lua harness with ngx mock via resty; bespoke debug-hook LCOV | 🔴 undocumented |
@@ -343,6 +350,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | ktlint, detekt, or spotless wired into the Gradle build | None configured; only shared root .editorconfig for whitespace | 🔴 undocumented |
+| [Apache APISIX](../gateways/apisix/README.md) | luacheck and often stylua for Lua plugin code | No linter or formatter configured; CI builds, config-tests, and smoke-tests | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | gofmt check plus golangci-lint (staticcheck) with committed config | CI runs go build + go vet only; no gofmt check, no golangci-lint, no config | 🔴 undocumented |
 | [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | No ESLint/Prettier/Biome; only .editorconfig and tsc typecheck | 🔴 undocumented |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | No linter or formatter configured; CI only builds, config-tests, smoke-tests | 🔴 undocumented |
