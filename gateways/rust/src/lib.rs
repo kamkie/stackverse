@@ -82,6 +82,11 @@ pub fn app(state: AppState) -> Router {
         .layer(TraceLayer::new_for_http())
 }
 
+pub fn install_tls_provider() {
+    // Tests create several harnesses; the first successful install is enough.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
+
 async fn healthz() -> StatusCode {
     StatusCode::OK
 }

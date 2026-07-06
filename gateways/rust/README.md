@@ -43,6 +43,9 @@ cookie rules, and the login sequence live in
 - **Observability.** When `OTEL_SDK_DISABLED=false`, spans and log records are
   exported through OTLP/HTTP using standard `OTEL_*` variables. Proxied API
   requests receive W3C trace context from the active gateway span.
+- **HTTP client TLS stays explicit.** `reqwest` uses Rustls without a bundled
+  provider and the binary/test harness install Rustls's Ring provider before
+  constructing clients, avoiding an AWS-LC/CMake requirement in the Docker build.
 
 ## Logging conformance
 
