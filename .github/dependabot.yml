@@ -20,6 +20,7 @@ updates:
   - package-ecosystem: cargo
     directories:
       - /backends/rust-axum
+      - /gateways/rust
     schedule:
       interval: weekly
     groups:
@@ -151,6 +152,7 @@ updates:
       - /gateways/go
       - /gateways/node-fastify
       - /gateways/openresty
+      - /gateways/rust
       - /gateways/spring-cloud-gateway
       - /gateways/yarp
     schedule:

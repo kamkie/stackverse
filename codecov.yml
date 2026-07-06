@@ -110,6 +110,10 @@ flags:
     paths:
       - gateways/openresty/
     carryforward: true
+  gateway-rust:
+    paths:
+      - gateways/rust/
+    carryforward: true
   gateway-spring-cloud-gateway:
     paths:
       - gateways/spring-cloud-gateway/
@@ -223,6 +227,10 @@ component_management:
       name: "gateway · openresty"
       paths:
         - gateways/openresty/**
+    - component_id: gateway-rust
+      name: "gateway · rust"
+      paths:
+        - gateways/rust/**
     - component_id: gateway-spring-cloud-gateway
       name: "gateway · spring-cloud-gateway"
       paths:
