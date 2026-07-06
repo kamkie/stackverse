@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoenix/Dockerfile .
 
-FROM elixir:1.18-alpine AS build
+FROM elixir:1.20-alpine AS build
 RUN apk add --no-cache build-base git
 WORKDIR /app
 ENV MIX_ENV=prod
