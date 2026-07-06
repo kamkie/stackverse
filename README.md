@@ -109,6 +109,7 @@ provide a richer resolved graph than static manifest parsing (see
 | Component | Stack | Directory | Status | Coverage |
 |---|---|---|---|---|
 | Backend | Spring Boot (Kotlin) | `backends/spring-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-spring-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Backend | Spring Boot (Java) | `backends/spring-java` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-spring-java)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Ktor (Kotlin) | `backends/ktor-kotlin` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-ktor-kotlin)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | ASP.NET Core (C#) | `backends/dotnet` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-dotnet)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Backend | Go (stdlib + chi) | `backends/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=backend-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |

@@ -78,6 +78,10 @@ flags:
     paths:
       - backends/rust-axum/
     carryforward: true
+  backend-spring-java:
+    paths:
+      - backends/spring-java/
+    carryforward: true
   backend-spring-kotlin:
     paths:
       - backends/spring-kotlin/
@@ -203,6 +207,10 @@ component_management:
       name: "backend · rust-axum"
       paths:
         - backends/rust-axum/**
+    - component_id: backend-spring-java
+      name: "backend · spring-java"
+      paths:
+        - backends/spring-java/**
     - component_id: backend-spring-kotlin
       name: "backend · spring-kotlin"
       paths:

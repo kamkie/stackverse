@@ -42,8 +42,9 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | quarkus-java | 3203 | 357 | 0.11 | 22 | 1 | 164 | 80 | 19 | Java, SQL |
 | ruby-rails | 1813 | 73 | 0.04 | 51 | 5 | 27 | 75 | 27 | Ruby, YAML, Rakefile |
 | rust-axum | 3966 | 0 | 0.00 | 8 | 0 | 42 | 82 | 14 | Rust, SQL |
+| spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 42045 | 8066 | | 496 | 111 | 2214 | 1500 | 353 | |
+| **subtotal** | 44955 | 8171 | | 573 | 115 | 2454 | 1581 | 372 | |
 
 ## Gateway
 
