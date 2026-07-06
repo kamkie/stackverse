@@ -113,7 +113,9 @@ GEM
       net-smtp
     marcel (1.2.1)
     mini_mime (1.1.5)
-    minitest (5.27.0)
+    minitest (6.0.6)
+      drb (~> 2.0)
+      prism (~> 1.5)
     msgpack (1.8.3)
     net-imap (0.6.4.1)
       date
@@ -239,7 +241,7 @@ PLATFORMS
 DEPENDENCIES
   bootsnap (~> 1.18)
   jwt (~> 2.10)
-  minitest (~> 5.25)
+  minitest (~> 6.0)
   pg (~> 1.6)
   puma (~> 6.6)
   rails (~> 8.1.3)
