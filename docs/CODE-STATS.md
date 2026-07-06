@@ -32,16 +32,18 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | grails | 1922 | 289 | 0.15 | 38 | 7 | 187 | 71 | 20 | Groovy, SQL, YAML |
 | ktor-kotlin | 1897 | 291 | 0.15 | 17 | 4 | 243 | 67 | 20 | Kotlin, SQL |
 | micronaut-java | 2336 | 229 | 0.10 | 25 | 5 | 251 | 68 | 19 | Java, SQL, YAML |
-| node-nestjs | 2105 | 383 | 0.18 | 36 | 6 | 143 | 118 | 23 | TypeScript |
+| node-nestjs | 2119 | 445 | 0.21 | 36 | 6 | 143 | 120 | 23 | TypeScript |
 | node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
 | open-liberty-java | 2238 | 308 | 0.14 | 19 | 2 | 519 | 86 | 18 | Java, SQL, XML |
+| php-laravel | 2744 | 87 | 0.03 | 49 | 5 | 36 | 77 | 36 | PHP, JSON, XML |
 | play-scala | 1741 | 306 | 0.18 | 14 | 1 | 25 | 85 | 25 | Scala, SQL |
+| python-django | 1964 | 169 | 0.09 | 27 | 7 | 63 | 90 | 21 | Python |
 | python-fastapi | 2022 | 619 | 0.31 | 24 | 10 | 62 | 91 | 21 | Python, SQL |
 | quarkus-java | 3203 | 357 | 0.11 | 22 | 1 | 164 | 80 | 19 | Java, SQL |
 | ruby-rails | 1813 | 73 | 0.04 | 51 | 5 | 27 | 75 | 27 | Ruby, YAML, Rakefile |
 | rust-axum | 3966 | 0 | 0.00 | 8 | 0 | 42 | 82 | 14 | Rust, SQL |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 37323 | 7748 | | 420 | 99 | 2115 | 1331 | 296 | |
+| **subtotal** | 42045 | 8066 | | 496 | 111 | 2214 | 1500 | 353 | |
 
 ## Gateway
 
@@ -51,9 +53,9 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | node-fastify | 1074 | 661 | 0.62 | 12 | 3 | 100 | 99 | 21 | TypeScript, HTML, JavaScript |
 | openresty | 1240 | 969 | 0.78 | 13 | 2 | 24 | 99 | 17 | Lua, HTML |
 | rust | 1879 | 727 | 0.39 | 10 | 1 | 47 | 86 | 11 | Rust, HTML |
-| spring-cloud-gateway | 890 | 995 | 1.12 | 17 | 10 | 244 | 139 | 18 | Kotlin, HTML, YAML |
+| spring-cloud-gateway | 952 | 1193 | 1.25 | 18 | 12 | 244 | 140 | 18 | Kotlin, HTML, YAML |
 | yarp | 852 | 1049 | 1.23 | 12 | 12 | 57 | 128 | 13 | C#, HTML, JSON |
-| **subtotal** | 7223 | 5598 | | 76 | 34 | 484 | 635 | 92 | |
+| **subtotal** | 7285 | 5796 | | 77 | 36 | 484 | 636 | 92 | |
 
 ## Frontend
 
@@ -61,8 +63,8 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | angular | 3485 | 1288 | 0.37 | 46 | 15 | 230 | 84 | 13 | TypeScript, HTML, JavaScript |
 | react | 5636 | 1021 | 0.18 | 47 | 20 | 251 | 93 | 13 | TSX, TypeScript, JavaScript |
-| solid | 2676 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
+| solid | 2704 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
 | svelte | 1732 | 445 | 0.26 | 34 | 6 | 159 | 61 | 13 | TypeScript, Svelte, HTML |
 | vanilla-ts | 2145 | 454 | 0.21 | 8 | 4 | 154 | 69 | 13 | TypeScript, HTML, JavaScript |
 | vue | 3477 | 550 | 0.16 | 36 | 7 | 183 | 82 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 19151 | 4223 | | 204 | 58 | 1131 | 460 | 78 | |
+| **subtotal** | 19179 | 4223 | | 204 | 58 | 1131 | 460 | 78 | |
