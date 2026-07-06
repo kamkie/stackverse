@@ -139,6 +139,7 @@ provide a richer resolved graph than static manifest parsing (see
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Angular | `frontends/angular` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-angular)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Lit (Web Components) | `frontends/lit` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-lit)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | Qwik | `frontends/qwik` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-qwik)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | SolidJS | `frontends/solid` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-solid)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Svelte | `frontends/svelte` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-svelte)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Vanilla TypeScript | `frontends/vanilla-ts` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vanilla-ts)](https://app.codecov.io/gh/kamkie/stackverse/flags) |

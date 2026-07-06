@@ -109,6 +109,7 @@ updates:
       - /e2e
       - /frontends/angular
       - /frontends/lit
+      - /frontends/qwik
       - /frontends/react
       - /frontends/solid
       - /frontends/svelte
@@ -188,6 +189,7 @@ updates:
       - /backends/spring-kotlin
       - /frontends/angular
       - /frontends/lit
+      - /frontends/qwik
       - /frontends/react
       - /frontends/solid
       - /frontends/svelte
