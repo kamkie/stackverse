@@ -116,6 +116,7 @@ updates:
 
   - package-ecosystem: pip
     directories:
+      - /backends/python-django
       - /testing/robot-acceptance
       - /testing/schemathesis-api
     schedule:
@@ -137,6 +138,7 @@ updates:
       - /backends/node-ts
       - /backends/open-liberty-java
       - /backends/play-scala
+      - /backends/python-django
       - /backends/quarkus-java
       - /backends/rust-axum
       - /backends/spring-kotlin
