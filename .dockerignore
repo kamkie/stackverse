@@ -6,6 +6,9 @@
 **/build
 **/dist
 **/target
+**/_build
+**/cover
+**/deps
 **/.gradle
 **/.kotlin
 **/node_modules
