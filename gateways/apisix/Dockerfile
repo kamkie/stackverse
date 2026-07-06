@@ -1,4 +1,4 @@
-FROM apache/apisix:3.14.0-debian
+FROM apache/apisix:3.17.0-debian
 
 # Build from the implementation directory:
 #   docker build -t stackverse/gateway-apisix:local gateways/apisix
