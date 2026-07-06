@@ -20,7 +20,7 @@ use stackverse_gateway_rust::security::{
     STRICT_TRANSPORT_SECURITY,
 };
 use stackverse_gateway_rust::session::{MemorySessionStore, SessionData, SessionStore};
-use stackverse_gateway_rust::{AppState, app};
+use stackverse_gateway_rust::{AppState, app, install_tls_provider};
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tower::ServiceExt;
@@ -322,6 +322,7 @@ struct Harness {
 
 impl Harness {
     async fn new(idp_behavior: IdpBehavior) -> Self {
+        install_tls_provider();
         let backend = BackendServer::spawn().await;
         let idp = IdpServer::spawn(idp_behavior).await;
         let config = Arc::new(Config {

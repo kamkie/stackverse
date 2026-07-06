@@ -28,6 +28,7 @@ pub struct AppState {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Arc::new(Config::load());
+    install_tls_provider();
     let _logging = logging::init(&config)?;
 
     let pool = db::connect(&config)
@@ -79,4 +80,9 @@ async fn main() -> anyhow::Result<()> {
 
 fn app(state: AppState) -> Router {
     handlers::router(state).layer(TraceLayer::new_for_http())
+}
+
+fn install_tls_provider() {
+    // Tests and embedders may install first; any installed provider is acceptable.
+    let _ = rustls::crypto::ring::default_provider().install_default();
 }

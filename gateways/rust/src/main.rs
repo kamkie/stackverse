@@ -7,12 +7,13 @@ use stackverse_gateway_rust::config::Config;
 use stackverse_gateway_rust::logging;
 use stackverse_gateway_rust::oidc::OidcClient;
 use stackverse_gateway_rust::session::RedisSessionStore;
-use stackverse_gateway_rust::{AppState, app};
+use stackverse_gateway_rust::{AppState, app, install_tls_provider};
 use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config = Arc::new(Config::load()?);
+    install_tls_provider();
     let _logging = logging::init(&config)?;
 
     let http = reqwest::Client::builder()

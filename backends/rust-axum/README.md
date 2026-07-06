@@ -28,8 +28,8 @@ Tests:
 
 ```sh
 cargo fmt --check
-cargo check
-cargo test
+cargo check --locked
+cargo test --locked
 ```
 
 Conformance (the acceptance gate), with the backend running:
@@ -64,6 +64,9 @@ docker build -t stackverse/backend-rust-axum:local -f backends/rust-axum/Dockerf
 - **OpenTelemetry** — when `OTEL_SDK_DISABLED=false`, spans and log records are
   exported through OTLP/HTTP using standard `OTEL_*` exporter variables; console
   output remains JSON by default.
+- **HTTP client TLS stays explicit** — `reqwest` uses Rustls without a bundled
+  provider and the binary installs Rustls's Ring provider before constructing
+  clients, avoiding an AWS-LC/CMake requirement in the Docker build.
 
 ## Deliberate deviations worth comparing
 
