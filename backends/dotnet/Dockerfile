@@ -6,9 +6,10 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
 WORKDIR /src
 # project file first so the dependency layer caches across source changes
 COPY backends/dotnet/src/StackverseBackend/StackverseBackend.csproj src/StackverseBackend/
-RUN dotnet restore src/StackverseBackend/StackverseBackend.csproj
+COPY backends/dotnet/src/StackverseBackend/packages.lock.json src/StackverseBackend/
+RUN dotnet restore src/StackverseBackend/StackverseBackend.csproj --locked-mode
 COPY backends/dotnet/src/ src/
-RUN dotnet publish src/StackverseBackend/StackverseBackend.csproj -c Release -o /app /p:UseAppHost=false
+RUN dotnet publish src/StackverseBackend/StackverseBackend.csproj --no-restore -c Release -o /app /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.9 AS runtime
 # Npgsql probes for Kerberos/GSSAPI at startup; without the library it prints a

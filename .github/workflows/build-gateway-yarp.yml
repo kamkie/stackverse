@@ -30,12 +30,14 @@ jobs:
         working-directory: gateways/yarp
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v5.4.0
         with:
           dotnet-version: 10.0.301
+      - name: Restore locked packages
+        run: dotnet restore --locked-mode
       # integration tests bring up Keycloak and Redis via Testcontainers
       - name: Build and test
-        run: dotnet test --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults
+        run: dotnet test --no-restore --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
@@ -63,11 +65,11 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
+      - uses: actions/setup-dotnet@v5.4.0
         with:
           dotnet-version: 10.0.301
       - name: Restore packages
-        run: dotnet restore
+        run: dotnet restore --locked-mode
         working-directory: gateways/yarp
       - name: Submit NuGet dependency graph
         uses: advanced-security/component-detection-dependency-submission-action@v0.1.4

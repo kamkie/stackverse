@@ -1,9 +1,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
 WORKDIR /src
 COPY src/StackverseGateway/StackverseGateway.csproj src/StackverseGateway/
-RUN dotnet restore src/StackverseGateway/StackverseGateway.csproj
+COPY src/StackverseGateway/packages.lock.json src/StackverseGateway/
+RUN dotnet restore src/StackverseGateway/StackverseGateway.csproj --locked-mode
 COPY src/ src/
-RUN dotnet publish src/StackverseGateway/StackverseGateway.csproj -c Release -o /app /p:UseAppHost=false
+RUN dotnet publish src/StackverseGateway/StackverseGateway.csproj --no-restore -c Release -o /app /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.9 AS runtime
 WORKDIR /app
