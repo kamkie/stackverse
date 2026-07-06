@@ -36,6 +36,37 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Build and test
         run: ./gradlew build
+      - name: Merge JUnit test results
+        run: |
+          python - <<'PY'
+          import glob
+          import pathlib
+          import xml.etree.ElementTree as ET
+
+          files = sorted(glob.glob("build/test-results/test/TEST-*.xml"))
+          if not files:
+              raise SystemExit("No Gradle JUnit XML files found in build/test-results/test")
+
+          root = ET.Element("testsuites")
+          totals = {"tests": 0, "failures": 0, "errors": 0, "skipped": 0}
+          total_time = 0.0
+
+          for file_name in files:
+              suite = ET.parse(file_name).getroot()
+              root.append(suite)
+              for key in totals:
+                  totals[key] += int(suite.attrib.get(key, "0"))
+              total_time += float(suite.attrib.get("time", "0"))
+
+          for key, value in totals.items():
+              root.set(key, str(value))
+          root.set("time", f"{total_time:.3f}")
+
+          out = pathlib.Path("TestResults/junit.xml")
+          out.parent.mkdir(exist_ok=True)
+          ET.ElementTree(root).write(out, encoding="utf-8", xml_declaration=True)
+          print(f"Merged {len(files)} Gradle JUnit XML files into {out}")
+          PY
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         with:
@@ -47,7 +78,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           report_type: test_results
-          directory: backends/spring-java/build/test-results/test
+          files: backends/spring-java/TestResults/junit.xml
           flags: backend-spring-java
           token: ${{ secrets.CODECOV_TOKEN }}
 
