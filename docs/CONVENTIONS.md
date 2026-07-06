@@ -20,6 +20,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Application.module() with plugins/ and routes/ split across files | Flat dev.stackverse.backend package; module + all routes in Application.kt | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | Minimal-API .NET 10 with feature folders, or MVC controllers | Minimal APIs, feature folders (Bookmarks/, Messages/...), static Map()+service per feature | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | cmd/ entrypoint, internal/ for private packages, package-by-feature | cmd/backend main + internal/ feature packages (bookmarks, messages, auth, web...) | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | cmd/ entrypoint, internal/ packages, Echo router setup at the HTTP edge | cmd/backend main + internal/ feature packages; Echo route/middleware wiring in app | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | grails-app/{controllers,services,domain,conf} convention dirs; src/main/groovy for beans | Standard grails-app dirs; src/main/groovy holds Spring config and support | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Gradle Micronaut app, package-by-feature/layer under src/main/java | Standard Gradle layout; single flat dev.stackverse.backend package | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | src/ with app/server split, routes as Fastify plugins, ESM + tsc build | src/ app.ts + server.ts split; feature routes in src/routes/*.ts; ESM, tsc to dist/ | ✅ idiomatic |
@@ -38,6 +39,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Exposed DSL/DAO over HikariCP, or a coroutine JDBC layer | Hand-written SQL via raw JDBC + HikariCP; Flyway migrations | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | EF Core + Npgsql, code-first migrations, LINQ queries | EF Core 10 + Npgsql, checked-in migrations, Database.Migrate() on startup, text[] tags + GIN | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | GORM/Hibernate domain classes with dynamic finders | Raw Spring JdbcTemplate + hand-written SQL, Flyway migrations, no GORM | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | Micronaut Data (JDBC/JPA) repositories with derived queries | Hand-rolled Database helper over HikariCP DataSource, raw SQL + Flyway | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Prisma/Drizzle/TypeORM, or plain pg with a query layer | plain pg, hand-written parameterized SQL, withTransaction helper, node-pg-migrate | 🟡 deliberate |
@@ -56,6 +58,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Koin, or Ktor 3 built-in dependencies plugin | Manual AppContext object graph wired by hand in main() | 🔴 undocumented |
 | [ASP.NET Core](../backends/dotnet/README.md) | Built-in MS.Extensions.DI, constructor injection, scoped services | Built-in container; AddScoped services, endpoint-param injection, DbContext + auth via options | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | manual constructor wiring in main/setup func, no DI container | app.New wires stores/APIs via NewX constructors passing pool+logger | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | manual constructor wiring in main/setup func, no DI container | app.New wires stores/APIs and attaches Echo route middleware explicitly | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | By-name Spring bean injection of services into controllers/services | Convention property injection for services; Spring @Configuration/@Bean for security | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Compile-time DI: constructor injection, @Singleton/@Controller, annotation processing | Constructor injection with @Singleton/@Controller/@Filter and annotation processors | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Fastify decorate/register plugin model; no container (or tsyringe/Nest if used) | Fastify decorate/hook/register + module-level singletons (pool, config, logger) | ✅ idiomatic |
@@ -74,6 +77,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Authentication plugin or named application plugin for auth context | Custom Nimbus JwtAuthenticator in a named application plugin; routes require identity/roles explicitly | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | JwtBearer against JWKS, authorization policies, fallback auth policy | JwtBearer vs Keycloak JWKS, fallback RequireAuthenticatedUser, per-endpoint role policies | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | golang-jwt for JWT, net/http middleware; JWKS via a library | golang-jwt/jwt validates iss/aud/exp; hand-rolled cached JWKS fetch; chi middleware | 🟡 deliberate |
+| [Go (Echo)](../backends/go-echo/README.md) | Echo middleware plus golang-jwt or echo-jwt with JWKS-backed verification | golang-jwt validates iss/aud/exp; hand-rolled cached JWKS fetch through Echo middleware adapters | 🟡 deliberate |
 | [Grails](../backends/grails/README.md) | grails-spring-security-core plugin with annotations/interceptors | Raw Spring Security OAuth2 resource-server SecurityFilterChain, manual role checks | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | micronaut-security with JWT/JWKS validation and @Secured role rules | @ServerFilter/@RequestFilter + custom Nimbus JwtVerifier, manual JWKS/OIDC and role checks | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | JWT verify via jose/JWKS in an onRequest/preHandler hook, role guards | jose jwtVerify against Keycloak JWKS in one onRequest hook; requireCaller/requireRole | ✅ idiomatic |
@@ -92,6 +96,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | StatusPages plugin maps typed exceptions to responses | StatusPages maps ValidationProblem/ApiProblem to RFC-7807 Problem JSON | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | ProblemDetails via IExceptionHandler / AddProblemDetails middleware | Custom exception middleware maps ApiProblem types to hand-written RFC 9457 problem+json | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | sentinel/typed errors; explicit status mapping at handler edge | *Problem type implements error, rendered as RFC 9457 problem+json | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | Echo HTTPErrorHandler plus typed app errors at handler edge | Echo HTTPErrorHandler maps framework 404/405; *Problem renders RFC 9457 problem+json | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | respond with errors, or UrlMappings error controllers | Spring @ControllerAdvice + ApiError to RFC7807 problem+json; UrlMappings 404/500 | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @Produces ExceptionHandler beans mapping exceptions to responses | ExceptionHandler&lt;ProblemException&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | central setErrorHandler mapping typed errors to responses | setErrorHandler maps ApiProblem subclasses to RFC 9457 problem+json | ✅ idiomatic |
@@ -110,6 +115,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | suspend handlers; offload blocking work to Dispatchers.IO | suspend repos wrap blocking JDBC in withContext(Dispatchers.IO) | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | async/await end-to-end; DB races handled explicitly | async/await throughout; explicit FOR UPDATE transaction for the publish race | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | server goroutine, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | net/http server with Echo handler, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Synchronous servlet request handling; Promise/async only when needed | Synchronous JdbcTemplate calls under @Transactional; nothing async | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Blocking work offloaded via @ExecuteOn(TaskExecutors.BLOCKING) where needed | @RequestFilter offloads JWT/account JDBC; controller JDBC remains synchronous | 🔴 undocumented |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | async/await, pooled connections, explicit locking for critical sections | async/await, pg.Pool, SELECT ... FOR UPDATE with documented lock ordering | ✅ idiomatic |
@@ -128,6 +134,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | No standard library; manual checks in handlers/services | Hand-rolled Validator collecting FieldViolations per field | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | DataAnnotations or FluentValidation with model binding | Hand-rolled Validator collecting FieldViolations, thrown as ValidationProblem | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | struct-tag validator (go-playground/validator) common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
+| [Go (Echo)](../backends/go-echo/README.md) | Echo binding plus go-playground/validator common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
 | [Grails](../backends/grails/README.md) | Domain constraints or @Validateable command objects | Manual validation in services building problem-detail error lists | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | Bean Validation: @Valid on @Body with jakarta.validation constraints | Hand-rolled Validator collecting field violations; no @Valid despite http-validation dep | 🔴 undocumented |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Zod/TypeBox or Fastify JSON-schema type provider for request validation | hand-rolled Validator collecting field violations; no schema framework | 🟡 deliberate |
@@ -146,6 +153,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | testApplication from ktor-server-test-host with kotlin.test/JUnit5 | testApplication + kotlin.test/JUnit5; helper/unit tests only, no DB integration | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests plus no-container WebApplicationFactory tests over the minimal-API pipeline | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | stdlib testing, table-driven tests, httptest for router edges | stdlib testing, table-driven cases, Echo route smoke tests; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for services and support helpers; unit-only, no integration tests | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @MicronautTest with injected HTTP client for integration tests | Plain JUnit 5 + AssertJ unit tests; controllers instantiated directly, no @MicronautTest | 🔴 undocumented |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Vitest/Jest, unit plus integration (supertest/inject) tests | Vitest unit tests on pure functions (validation, cursor, etag, i18n); no HTTP-level tests | ✅ idiomatic |
@@ -164,6 +172,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .editorconfig only (whitespace); no dotnet format or analyzer gate in CI | 🔴 undocumented |
 | [Go (chi)](../backends/go/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | gofmt + go vet in CI; no golangci-lint config | 🔴 undocumented |
+| [Go (Echo)](../backends/go-echo/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | go vet in CI; no gofmt check or golangci-lint config | 🔴 undocumented |
 | [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | No CodeNarc or any linter/formatter configured | 🔴 undocumented |
 | [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | tsc --noEmit (strict) only; no ESLint/Prettier/Biome config anywhere | 🔴 undocumented |
@@ -182,6 +191,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | kotlinx.serialization @Serializable data classes | Jackson (ktor-serialization-jackson) over plain data classes | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | records for DTOs, enums, nullable reference types enabled | sealed record DTOs, mutable entity classes, enums, Nullable enabled, global kebab-case enum policy | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Typed GORM domain classes; JSON views or respond marshalling | Untyped Maps end-to-end, lowercase wire-string enums, manual JSON render | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | Java records for DTOs; enums for closed value sets | Records for DTOs/domain; String constants for enum-like wire values, text[] tags | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | TS interfaces/types for DTOs and rows, union types for enums | row interfaces + as const union enums; lowercase wire strings; omitNulls drops nulls | ✅ idiomatic |

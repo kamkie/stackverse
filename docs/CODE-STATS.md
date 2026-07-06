@@ -28,6 +28,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | dotnet | 2985 | 691 | 0.23 | 45 | 11 | 72 | 99 | 20 | C#, JSON |
 | go | 3500 | 1277 | 0.36 | 28 | 15 | 14 | 105 | 14 | Go, SQL |
+| go-echo | 3539 | 1291 | 0.36 | 29 | 15 | 14 | 117 | 14 | Go, SQL |
 | grails | 1922 | 289 | 0.15 | 38 | 7 | 187 | 71 | 20 | Groovy, SQL, YAML |
 | ktor-kotlin | 1897 | 291 | 0.15 | 17 | 4 | 243 | 67 | 20 | Kotlin, SQL |
 | micronaut-java | 2336 | 229 | 0.10 | 25 | 5 | 251 | 68 | 19 | Java, SQL, YAML |
@@ -39,7 +40,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | quarkus-java | 3203 | 357 | 0.11 | 22 | 1 | 164 | 80 | 19 | Java, SQL |
 | rust-axum | 3966 | 0 | 0.00 | 8 | 0 | 42 | 82 | 14 | Rust, SQL |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 31971 | 6384 | | 340 | 79 | 2074 | 1139 | 255 | |
+| **subtotal** | 35510 | 7675 | | 369 | 94 | 2088 | 1256 | 269 | |
 
 ## Gateway
 

@@ -1,0 +1,82 @@
+# Build and unit/integration tests for one implementation. Each implementation
+# has its own build workflow file so parallel variant PRs never edit a shared
+# workflow — adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-go-echo
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-backend-go-echo.yml'
+      - 'backends/go-echo/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-go-echo:
+    name: Backend · Go (Echo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/go-echo
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backends/go-echo/go.mod
+          cache-dependency-path: backends/go-echo/go.sum
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: |
+          mkdir -p TestResults
+          go run gotest.tools/gotestsum@v1.13.0 --junitfile TestResults/junit.xml \
+            -- -coverprofile coverage.out -covermode=atomic ./...
+      - name: Normalize coverage paths
+        run: node ../../tools/normalize-coverage-paths.mjs coverage.out backends/go-echo/
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/go-echo/coverage.out
+          flags: backend-go-echo
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/go-echo/TestResults/junit.xml
+          flags: backend-go-echo
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # The dependency submission API requires contents: write. Keep PR builds
+  # read-only and submit resolved Go module snapshots only from trusted main pushes.
+  backend-go-echo-dependency-submission:
+    name: Backend · Go Echo dependency submission
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: backends/go-echo/go.mod
+          cache-dependency-path: backends/go-echo/go.sum
+      - name: Submit Go dependency graph
+        uses: actions/go-dependency-submission@v2
+        with:
+          go-mod-path: backends/go-echo/go.mod
