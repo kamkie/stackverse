@@ -42,6 +42,7 @@ jobs:
         run: bundle exec rails test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/ruby-rails/coverage/.resultset.json
           flags: backend-ruby-rails

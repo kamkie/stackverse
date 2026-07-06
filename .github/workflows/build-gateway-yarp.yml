@@ -40,6 +40,7 @@ jobs:
         run: dotnet test --no-restore --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           directory: gateways/yarp/TestResults
           flags: gateway-yarp
@@ -47,6 +48,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: gateways/yarp/TestResults/TestResults.xml

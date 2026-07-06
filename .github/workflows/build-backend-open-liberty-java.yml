@@ -40,6 +40,7 @@ jobs:
         run: ./mvnw -B -ntp test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/open-liberty-java/target/site/jacoco/jacoco.xml
           flags: backend-open-liberty-java
@@ -47,6 +48,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           directory: backends/open-liberty-java/target/surefire-reports

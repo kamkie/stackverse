@@ -46,6 +46,7 @@ jobs:
         run: node ../../tools/normalize-coverage-paths.mjs coverage.out gateways/go/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: gateways/go/coverage.out
           flags: gateway-go
@@ -53,6 +54,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: gateways/go/TestResults/junit.xml

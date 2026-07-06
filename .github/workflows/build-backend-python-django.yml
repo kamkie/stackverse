@@ -52,6 +52,7 @@ jobs:
           python -m pytest --cov=stackverse_api --cov-report=xml --junitxml=TestResults/junit.xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/python-django/coverage.xml
           flags: backend-python-django
@@ -59,6 +60,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: backends/python-django/TestResults/junit.xml

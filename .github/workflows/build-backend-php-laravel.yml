@@ -51,6 +51,7 @@ jobs:
         run: composer test
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/php-laravel/coverage.xml
           flags: backend-php-laravel
@@ -58,6 +59,7 @@ jobs:
       - name: Upload test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           report_type: test_results
           files: backends/php-laravel/TestResults/junit.xml

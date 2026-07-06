@@ -51,6 +51,7 @@ jobs:
           cargo llvm-cov --locked --lcov --output-path coverage/lcov.info
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
+        continue-on-error: true
         with:
           files: backends/rust-axum/coverage/lcov.info
           flags: backend-rust-axum
