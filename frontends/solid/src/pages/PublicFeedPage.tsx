@@ -18,8 +18,10 @@ export default function PublicFeedPage(props: Props) {
   const [error, setError] = createSignal<Error | null>(null);
   const [q, setQ] = createSignal("");
   const [reporting, setReporting] = createSignal<Bookmark | null>(null);
+  let loadRequest = 0;
 
   async function load(reset = true) {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
@@ -32,12 +34,15 @@ export default function PublicFeedPage(props: Props) {
           q: q(),
         },
       });
+      if (request !== loadRequest) return;
       setBookmarks(loaded.bookmarks);
       setNextCursor(loaded.nextCursor);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 

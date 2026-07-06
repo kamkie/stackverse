@@ -30,7 +30,13 @@ export default function MessagesPage(props: Props) {
     setLoading(true);
     setError(null);
     try {
-      setMessages(await api<Page<Message>>(`/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`));
+      const nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`);
+      if (nextMessages.items.length === 0 && page() > 0) {
+        setPage(Math.max(0, nextMessages.totalPages - 1));
+        await load();
+        return;
+      }
+      setMessages(nextMessages);
     } catch (caught) {
       setError(caught instanceof Error ? caught : new Error(String(caught)));
     } finally {

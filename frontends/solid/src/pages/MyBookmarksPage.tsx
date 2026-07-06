@@ -24,8 +24,10 @@ export default function MyBookmarksPage(props: Props) {
   >(null);
   const [deleting, setDeleting] = createSignal<Bookmark | null>(null);
   const [tagReloadKey, setTagReloadKey] = createSignal(0);
+  let loadRequest = 0;
 
   async function load(reset = true) {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
@@ -38,12 +40,15 @@ export default function MyBookmarksPage(props: Props) {
           tag: selectedTag() ? [selectedTag()] : [],
         },
       });
+      if (request !== loadRequest) return;
       setBookmarks(loaded.bookmarks);
       setNextCursor(loaded.nextCursor);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 

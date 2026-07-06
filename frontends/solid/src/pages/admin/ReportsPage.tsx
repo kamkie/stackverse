@@ -19,7 +19,13 @@ export default function ReportsPage() {
     setLoading(true);
     setError(null);
     try {
-      setReports(await api<Page<Report>>(`/api/v1/admin/reports${queryString({ status: status(), page: page() })}`));
+      const nextReports = await api<Page<Report>>(`/api/v1/admin/reports${queryString({ status: status(), page: page() })}`);
+      if (nextReports.items.length === 0 && page() > 0) {
+        setPage(Math.max(0, nextReports.totalPages - 1));
+        await load();
+        return;
+      }
+      setReports(nextReports);
     } catch (caught) {
       setError(caught instanceof Error ? caught : new Error(String(caught)));
     } finally {
