@@ -104,11 +104,6 @@ class Wire
         }
     }
 
-    public static function escapeLike(string $value): string
-    {
-        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
-    }
-
     /**
      * Encodes a validated scalar list as a PostgreSQL array literal.
      *

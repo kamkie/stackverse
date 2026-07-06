@@ -77,19 +77,24 @@ class JwtVerifier
 
     private function publicKey(mixed $kid): string
     {
-        $jwks = $this->jwks();
-        foreach ($jwks['keys'] ?? [] as $key) {
-            if (($kid === null || ($key['kid'] ?? null) === $kid) && ($key['kty'] ?? null) === 'RSA') {
-                return $this->rsaPublicKeyPem($key);
+        $key = $this->findPublicKey($this->jwks(), $kid);
+        if ($key !== null) {
+            return $key;
+        }
+
+        if (is_string($kid) && $kid !== '') {
+            $key = $this->findPublicKey($this->jwks(refresh: true), $kid);
+            if ($key !== null) {
+                return $key;
             }
         }
 
         throw new RuntimeException('signing key not found');
     }
 
-    private function jwks(): array
+    private function jwks(bool $refresh = false): array
     {
-        if (self::$jwks !== null) {
+        if (! $refresh && self::$jwks !== null) {
             return self::$jwks;
         }
 
@@ -131,6 +136,25 @@ class JwtVerifier
 
             throw $error;
         }
+    }
+
+    private function findPublicKey(array $jwks, mixed $kid): ?string
+    {
+        foreach ($jwks['keys'] ?? [] as $key) {
+            if (! is_array($key) || ($key['kty'] ?? null) !== 'RSA') {
+                continue;
+            }
+            if (($key['use'] ?? 'sig') !== 'sig' || ($key['alg'] ?? 'RS256') !== 'RS256') {
+                continue;
+            }
+            if ($kid !== null && ($key['kid'] ?? null) !== $kid) {
+                continue;
+            }
+
+            return $this->rsaPublicKeyPem($key);
+        }
+
+        return null;
     }
 
     private function jsonPart(string $value): array

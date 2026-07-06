@@ -45,4 +45,4 @@ ENV APP_ENV=production \
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "php artisan stackverse:startup && exec frankenphp php-server --root public --listen 0.0.0.0:${PORT:-8080}"]
+CMD ["sh", "-c", "php artisan stackverse:startup || exit $?; stopped=0; stop() { if [ \"$stopped\" -eq 0 ]; then stopped=1; php artisan stackverse:stop; fi; }; term() { kill -TERM \"$pid\" 2>/dev/null; wait \"$pid\" 2>/dev/null; code=$?; stop; exit \"$code\"; }; trap term TERM INT; frankenphp php-server --root public --listen 0.0.0.0:${PORT:-8080} & pid=$!; wait \"$pid\"; code=$?; stop; exit \"$code\""]

@@ -232,11 +232,20 @@ class AdminController extends Controller
         if ($value === null) {
             return null;
         }
-        if (strtotime($value) === false) {
+
+        if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/', $value, $match) !== 1) {
             throw new BadRequestProblem("$name must be an RFC 3339 date-time");
         }
 
-        return $value;
+        $fraction = str_pad($match[2] ?? '0', 6, '0');
+        $offset = $match[3] === 'Z' ? '+00:00' : $match[3];
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d\TH:i:s.uP', $match[1].'.'.$fraction.$offset);
+        $errors = \DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            throw new BadRequestProblem("$name must be an RFC 3339 date-time");
+        }
+
+        return $date->format('Y-m-d H:i:s.uP');
     }
 
     private function count(string $sql): int

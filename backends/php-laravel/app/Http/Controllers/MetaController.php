@@ -30,7 +30,7 @@ class MetaController extends Controller
             DB::select('select 1');
             if (! self::$wasReady) {
                 self::$wasReady = true;
-                Logger::event('info', 'dependency_call_failed', 'success', 'Readiness restored: database reachable again', [
+                Logger::event('info', 'dependency_recovered', 'success', 'Readiness restored: database reachable again', [
                     'dependency' => 'postgres',
                 ]);
             }

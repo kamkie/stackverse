@@ -35,14 +35,14 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | node-nestjs | 2105 | 383 | 0.18 | 36 | 6 | 143 | 118 | 23 | TypeScript |
 | node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
 | open-liberty-java | 2238 | 308 | 0.14 | 19 | 2 | 519 | 86 | 18 | Java, SQL, XML |
-| php-laravel | 2686 | 62 | 0.02 | 48 | 4 | 36 | 77 | 36 | PHP, JSON, XML |
+| php-laravel | 2730 | 62 | 0.02 | 48 | 4 | 36 | 77 | 36 | PHP, JSON, XML |
 | play-scala | 1741 | 306 | 0.18 | 14 | 1 | 25 | 85 | 25 | Scala, SQL |
 | python-fastapi | 2022 | 619 | 0.31 | 24 | 10 | 62 | 91 | 21 | Python, SQL |
 | quarkus-java | 3203 | 357 | 0.11 | 22 | 1 | 164 | 80 | 19 | Java, SQL |
 | ruby-rails | 1813 | 73 | 0.04 | 51 | 5 | 27 | 75 | 27 | Ruby, YAML, Rakefile |
 | rust-axum | 3966 | 0 | 0.00 | 8 | 0 | 42 | 82 | 14 | Rust, SQL |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 38196 | 7737 | | 417 | 98 | 2124 | 1333 | 305 | |
+| **subtotal** | 38240 | 7737 | | 417 | 98 | 2124 | 1333 | 305 | |
 
 ## Gateway
 

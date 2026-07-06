@@ -45,11 +45,15 @@ class Problems
 
         $i18n = app(I18nService::class);
         $language = $i18n->requestLanguage($request);
+        $messages = $i18n->localizeMany(
+            array_values(array_unique(array_map(static fn (array $violation): string => $violation['messageKey'], $exception->violations))),
+            $language,
+        );
         $errors = array_map(
             static fn (array $violation): array => [
                 'field' => $violation['field'],
                 'messageKey' => $violation['messageKey'],
-                'message' => $i18n->localize($violation['messageKey'], $language),
+                'message' => $messages[$violation['messageKey']] ?? $violation['messageKey'],
             ],
             $exception->violations,
         );

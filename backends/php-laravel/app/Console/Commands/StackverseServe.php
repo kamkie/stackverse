@@ -2,7 +2,6 @@
 
 namespace App\Console\Commands;
 
-use App\Support\Logger;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 
@@ -21,7 +20,7 @@ class StackverseServe extends Command
         try {
             return Artisan::call('serve', ['--host' => '0.0.0.0', '--port' => $port], $this->output);
         } finally {
-            Logger::event('info', 'application_stop', 'success', 'Stackverse backend (php-laravel) stopped');
+            Artisan::call('stackverse:stop', [], $this->output);
         }
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\Wire;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -9,20 +10,19 @@ class I18nService
 {
     public const DEFAULT_LANGUAGE = 'en';
 
+    private static ?array $supportedLanguages = null;
+
     public function requestLanguage(Request $request): string
     {
         return $this->resolveLanguage(
-            $this->firstLanguage($request),
+            Wire::firstParam($request, 'lang'),
             $request->headers->get('Accept-Language'),
         );
     }
 
     public function resolveLanguage(?string $lang, ?string $acceptLanguage): string
     {
-        $supported = array_fill_keys(array_map(
-            static fn (object $row): string => $row->language,
-            DB::select('select distinct language from messages'),
-        ), true);
+        $supported = $this->supportedLanguages();
 
         if ($lang !== null && isset($supported[$lang])) {
             return $lang;
@@ -39,15 +39,40 @@ class I18nService
 
     public function localize(string $key, string $language): string
     {
-        $row = DB::selectOne(
-            'select text from messages
-             where key = ? and language = any(?::text[])
-             order by case when language = ? then 0 else 1 end
-             limit 1',
-            [$key, '{'.$language.','.self::DEFAULT_LANGUAGE.'}', $language],
+        return $this->localizeMany([$key], $language)[$key] ?? $key;
+    }
+
+    /**
+     * @param  list<string>  $keys
+     * @return array<string, string>
+     */
+    public function localizeMany(array $keys, string $language): array
+    {
+        $unique = array_values(array_unique($keys));
+        if ($unique === []) {
+            return [];
+        }
+
+        $rows = DB::select(
+            'select key, language, text from messages
+             where key = any(?::text[]) and language = any(?::text[])
+             order by key, case when language = ? then 0 else 1 end',
+            [Wire::pgTextArray($unique), Wire::pgTextArray([$language, self::DEFAULT_LANGUAGE]), $language],
         );
 
-        return $row->text ?? $key;
+        $messages = [];
+        foreach ($rows as $row) {
+            if (! array_key_exists($row->key, $messages)) {
+                $messages[$row->key] = $row->text;
+            }
+        }
+
+        $localized = [];
+        foreach ($unique as $key) {
+            $localized[$key] = $messages[$key] ?? $key;
+        }
+
+        return $localized;
     }
 
     public function bundle(string $language): array
@@ -101,13 +126,15 @@ class I18nService
         return array_map(static fn (array $entry): string => $entry['code'], $entries);
     }
 
-    private function firstLanguage(Request $request): ?string
+    private function supportedLanguages(): array
     {
-        $value = $request->query('lang');
-        if (is_array($value)) {
-            return isset($value[0]) ? (string) $value[0] : null;
+        if (self::$supportedLanguages !== null) {
+            return self::$supportedLanguages;
         }
 
-        return $value === null ? null : (string) $value;
+        return self::$supportedLanguages = array_fill_keys(array_map(
+            static fn (object $row): string => $row->language,
+            DB::select('select distinct language from messages'),
+        ), true);
     }
 }
