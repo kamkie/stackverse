@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "./api";
+import { ApiError, api, apiStatus, fieldErrorFor, jsonBody, queryString } from "./api";
 import { endOfDayIso } from "./format";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -136,6 +136,24 @@ describe("fieldErrorFor", () => {
     expect(fieldErrorFor(error, "url")).toBe("Enter a valid URL");
     expect(fieldErrorFor(error, "title")).toBeUndefined();
     expect(fieldErrorFor(new Error("nope"), "url")).toBeUndefined();
+  });
+
+  it("handles structurally serialized ApiError-like objects", () => {
+    const serialized = {
+      status: 400,
+      problem: {
+        errors: [
+          {
+            field: "url",
+            messageKey: "validation.url.required",
+            message: "URL is required.",
+          },
+        ],
+      },
+    };
+
+    expect(apiStatus(serialized)).toBe(400);
+    expect(fieldErrorFor(serialized, "url")).toBe("URL is required.");
   });
 });
 

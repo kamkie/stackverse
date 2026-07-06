@@ -26,7 +26,6 @@ export default component$<{ i18n: I18nState }>((props) => {
     loading: boolean;
     error: string;
     loadRequest: number;
-    filterTimer: number | undefined;
   }>({
     actor: "",
     action: "",
@@ -37,14 +36,6 @@ export default component$<{ i18n: I18nState }>((props) => {
     loading: true,
     error: "",
     loadRequest: 0,
-    filterTimer: undefined,
-  });
-
-  const clearPendingFilterReload$ = $(() => {
-    if (state.filterTimer !== undefined) {
-      window.clearTimeout(state.filterTimer);
-      state.filterTimer = undefined;
-    }
   });
 
   const load$ = $(async (options: { clear?: boolean } = {}) => {
@@ -73,25 +64,12 @@ export default component$<{ i18n: I18nState }>((props) => {
   });
 
   const reloadFirstPage$ = $(() => {
-    void clearPendingFilterReload$();
     state.page = 0;
     void load$({ clear: true });
   });
 
-  const scheduleFilterReload$ = $(() => {
-    void clearPendingFilterReload$();
-    state.page = 0;
-    state.filterTimer = window.setTimeout(() => {
-      state.filterTimer = undefined;
-      void load$({ clear: true });
-    }, 200);
-  });
-
-  useVisibleTask$(({ cleanup }) => {
+  useVisibleTask$(() => {
     void load$();
-    cleanup(() => {
-      void clearPendingFilterReload$();
-    });
   });
 
   return (
@@ -104,7 +82,7 @@ export default component$<{ i18n: I18nState }>((props) => {
           value={state.actor}
           onInput$={(event: Event) => {
             state.actor = (event.target as HTMLInputElement).value;
-            void scheduleFilterReload$();
+            void reloadFirstPage$();
           }}
         />
         <input
@@ -115,7 +93,7 @@ export default component$<{ i18n: I18nState }>((props) => {
           value={state.action}
           onInput$={(event: Event) => {
             state.action = (event.target as HTMLInputElement).value;
-            void scheduleFilterReload$();
+            void reloadFirstPage$();
           }}
         />
         <datalist id="audit-log-known-actions">
@@ -149,7 +127,6 @@ export default component$<{ i18n: I18nState }>((props) => {
           type="button"
           class="sv-button sv-button--ghost"
           onClick$={() => {
-            void clearPendingFilterReload$();
             state.actor = "";
             state.action = "";
             state.from = "";

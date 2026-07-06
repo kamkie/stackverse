@@ -1,5 +1,6 @@
 import { component$, useSignal, type PropFunction } from "@builder.io/qwik";
-import { ApiError, api, fieldErrorFor, jsonBody } from "../lib/api";
+import { api, apiStatus, fieldErrorFor, jsonBody } from "../lib/api";
+import { formText } from "../lib/form";
 import { m, type I18nState } from "../lib/i18n";
 import { markReported } from "../lib/reportedStore";
 import type { Bookmark, Report, ReportInput, ReportReason } from "../lib/types";
@@ -25,10 +26,13 @@ export default component$<Props>((props) => {
     <Dialog title={m(props.i18n, "ui.action.report")} ctx={`bookmark:${props.bookmark.id}`} onClose$={props.onClose$}>
       <form
         class="sv-form"
+        preventdefault:submit
         onSubmit$={async (event: Event) => {
-          event.preventDefault();
           pending.value = true;
           error.value = undefined;
+          const form = event.target as HTMLFormElement;
+          reason.value = formText(form, "reason") as ReportReason;
+          comment.value = formText(form, "comment");
           const body: ReportInput = {
             reason: reason.value,
             ...(comment.value ? { comment: comment.value } : {}),
@@ -43,7 +47,7 @@ export default component$<Props>((props) => {
             await props.onDone$();
             await props.onClose$();
           } catch (caught) {
-            if (caught instanceof ApiError && caught.status === 409) {
+            if (apiStatus(caught) === 409) {
               markReported(props.bookmark.id);
               await props.toast$(m(props.i18n, "ui.toast.report-duplicate"));
               await props.onDone$();
@@ -58,6 +62,7 @@ export default component$<Props>((props) => {
       >
         <Field label={m(props.i18n, "ui.field.reason")} error={fieldErrorFor(error.value, "reason")}>
           <select
+            name="reason"
             class="sv-select"
             value={reason.value}
             onChange$={(event: Event) => (reason.value = (event.target as HTMLInputElement).value as ReportReason)}
@@ -70,7 +75,7 @@ export default component$<Props>((props) => {
           </select>
         </Field>
         <Field label={m(props.i18n, "ui.field.comment")} error={fieldErrorFor(error.value, "comment")}>
-          <textarea class="sv-textarea" value={comment.value} onInput$={(event: Event) => (comment.value = (event.target as HTMLInputElement).value)} />
+          <textarea name="comment" class="sv-textarea" value={comment.value} onInput$={(event: Event) => (comment.value = (event.target as HTMLInputElement).value)} />
         </Field>
         <div class="sv-form-actions">
           <button type="button" class="sv-button" onClick$={props.onClose$}>

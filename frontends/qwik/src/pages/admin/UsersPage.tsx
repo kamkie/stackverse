@@ -4,6 +4,7 @@ import Field from "../../components/Field";
 import Pagination from "../../components/Pagination";
 import { api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
 import { formatDate } from "../../lib/format";
+import { formText } from "../../lib/form";
 import { m, type I18nState } from "../../lib/i18n";
 import type { Page, User, UserAccount } from "../../lib/types";
 
@@ -26,12 +27,14 @@ export default component$<{ i18n: I18nState; me: User | null | undefined }>((pro
   const reason = useSignal("");
   const blockError = useSignal<unknown>(undefined);
   const blockReasonError = useSignal("");
+  const usersRevision = useSignal(0);
 
   const load$ = $(async () => {
     state.loading = true;
     state.error = "";
     try {
       state.users = await api<Page<UserAccount>>(`/api/v1/admin/users${queryString({ q: state.q, page: state.page })}`);
+      usersRevision.value += 1;
     } catch (caught) {
       state.error = caught instanceof Error ? caught.message : String(caught);
     } finally {
@@ -39,20 +42,35 @@ export default component$<{ i18n: I18nState; me: User | null | undefined }>((pro
     }
   });
 
-  const setUserStatus$ = $(async (username: string, status: "active" | "blocked") => {
-    if (status === "blocked" && reason.value.trim() === "") {
+  const setUserStatus$ = $(async (username: string, status: "active" | "blocked", nextReason?: string) => {
+    const trimmedReason = status === "blocked" ? (nextReason ?? "").trim() : "";
+    if (status === "blocked" && trimmedReason === "") {
       blockReasonError.value = m(props.i18n, "validation.block.reason.required");
       return;
     }
     blockError.value = undefined;
     blockReasonError.value = "";
     try {
-      await api<UserAccount>(`/api/v1/admin/users/${encodeURIComponent(username)}/status`, {
+      const updatedUser = await api<UserAccount>(`/api/v1/admin/users/${encodeURIComponent(username)}/status`, {
         method: "PUT",
-        ...jsonBody({ status, ...(status === "blocked" ? { reason: reason.value } : {}) }),
+        ...jsonBody({ status, ...(status === "blocked" ? { reason: trimmedReason } : {}) }),
       });
+      if (status === "active") {
+        state.users = null;
+        usersRevision.value += 1;
+        await load$();
+      } else if (state.users) {
+        const existingUser = state.users.items.find((user) => user.username === updatedUser.username);
+        if (existingUser) {
+          existingUser.firstSeen = updatedUser.firstSeen;
+          existingUser.lastSeen = updatedUser.lastSeen;
+          existingUser.status = updatedUser.status;
+          existingUser.blockedReason = updatedUser.blockedReason;
+          existingUser.bookmarkCount = updatedUser.bookmarkCount;
+          usersRevision.value += 1;
+        }
+      }
       state.blocking = null;
-      await load$();
     } catch (caught) {
       blockError.value = caught;
     }
@@ -96,9 +114,9 @@ export default component$<{ i18n: I18nState; me: User | null | undefined }>((pro
                   <th scope="col"><span class="sv-visually-hidden">{m(props.i18n, "ui.field.actions")}</span></th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody key={`users:${usersRevision.value}`} data-revision={usersRevision.value}>
                 {state.users.items.map((user) => (
-                  <tr key={user.username} data-ctx={`user:${user.username}`}>
+                  <tr key={`${user.username}:${user.status}:${user.blockedReason ?? ""}:${usersRevision.value}`} data-ctx={`user:${user.username}`}>
                     <td>{user.username}</td>
                     <td><time dateTime={user.lastSeen}>{formatDate(user.lastSeen, props.i18n.resolvedLanguage)}</time></td>
                     <td>{user.bookmarkCount}</td>
@@ -113,7 +131,7 @@ export default component$<{ i18n: I18nState; me: User | null | undefined }>((pro
                     </td>
                     <td class="sv-cell-actions">
                       {user.status === "blocked" ? (
-                        <button type="button" class="sv-button sv-button--sm" onClick$={() => setUserStatus$(user.username, "active")}>
+                        <button type="button" class="sv-button sv-button--sm" onClick$={async () => setUserStatus$(user.username, "active")}>
                           {m(props.i18n, "ui.action.unblock")}
                         </button>
                       ) : props.me && props.me.username !== user.username ? (
@@ -152,13 +170,15 @@ export default component$<{ i18n: I18nState; me: User | null | undefined }>((pro
         <Dialog title={`${m(props.i18n, "ui.action.block")} - ${state.blocking.username}`} ctx={`user:${state.blocking.username}`} onClose$={() => (state.blocking = null)}>
           <form
             class="sv-form"
-            onSubmit$={(event: Event) => {
-              event.preventDefault();
-              if (state.blocking) void setUserStatus$(state.blocking.username, "blocked");
+            preventdefault:submit
+            onSubmit$={async (event: Event) => {
+              const nextReason = formText(event.target as HTMLFormElement, "reason");
+              reason.value = nextReason;
+              if (state.blocking) await setUserStatus$(state.blocking.username, "blocked", nextReason);
             }}
           >
             <Field label={m(props.i18n, "ui.field.reason")} error={fieldErrorFor(blockError.value, "reason") ?? blockReasonError.value}>
-              <textarea class="sv-textarea" value={reason.value} onInput$={(event: Event) => (reason.value = (event.target as HTMLInputElement).value)} />
+              <textarea name="reason" class="sv-textarea" value={reason.value} onInput$={(event: Event) => (reason.value = (event.target as HTMLInputElement).value)} />
             </Field>
             <div class="sv-form-actions">
               <button type="button" class="sv-button" onClick$={() => (state.blocking = null)}>

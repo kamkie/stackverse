@@ -1,5 +1,6 @@
 import { component$, useSignal, type PropFunction } from "@builder.io/qwik";
-import { ApiError, api, fieldErrorFor, jsonBody } from "../lib/api";
+import { api, apiStatus, fieldErrorFor, jsonBody } from "../lib/api";
+import { formText } from "../lib/form";
 import { m, type I18nState } from "../lib/i18n";
 import type { Bookmark, BookmarkInput, Visibility } from "../lib/types";
 import Dialog from "./Dialog";
@@ -29,10 +30,16 @@ export default component$<Props>((props) => {
     >
       <form
         class="sv-form"
+        preventdefault:submit
         onSubmit$={async (event: Event) => {
-          event.preventDefault();
           pending.value = true;
           error.value = undefined;
+          const form = event.target as HTMLFormElement;
+          url.value = formText(form, "url");
+          title.value = formText(form, "title");
+          notes.value = formText(form, "notes");
+          tags.value = formText(form, "tags");
+          visibility.value = formText(form, "visibility") as Visibility;
           const body: BookmarkInput = {
             url: url.value,
             title: title.value,
@@ -62,23 +69,24 @@ export default component$<Props>((props) => {
         }}
       >
         <Field label={m(props.i18n, "ui.field.url")} error={fieldErrorFor(error.value, "url")}>
-          <input class="sv-input" value={url.value} onInput$={(event: Event) => (url.value = (event.target as HTMLInputElement).value)} />
+          <input name="url" class="sv-input" value={url.value} onInput$={(event: Event) => (url.value = (event.target as HTMLInputElement).value)} />
         </Field>
         <Field label={m(props.i18n, "ui.field.title")} error={fieldErrorFor(error.value, "title")}>
-          <input class="sv-input" value={title.value} onInput$={(event: Event) => (title.value = (event.target as HTMLInputElement).value)} />
+          <input name="title" class="sv-input" value={title.value} onInput$={(event: Event) => (title.value = (event.target as HTMLInputElement).value)} />
         </Field>
         <Field label={m(props.i18n, "ui.field.notes")} error={fieldErrorFor(error.value, "notes")}>
-          <textarea class="sv-textarea" value={notes.value} onInput$={(event: Event) => (notes.value = (event.target as HTMLInputElement).value)} />
+          <textarea name="notes" class="sv-textarea" value={notes.value} onInput$={(event: Event) => (notes.value = (event.target as HTMLInputElement).value)} />
         </Field>
         <Field
           label={m(props.i18n, "ui.field.tags")}
           hint={m(props.i18n, "ui.field.tags.hint")}
           error={fieldErrorFor(error.value, "tags")}
         >
-          <input class="sv-input" value={tags.value} onInput$={(event: Event) => (tags.value = (event.target as HTMLInputElement).value)} />
+          <input name="tags" class="sv-input" value={tags.value} onInput$={(event: Event) => (tags.value = (event.target as HTMLInputElement).value)} />
         </Field>
         <Field label={m(props.i18n, "ui.field.visibility")} error={fieldErrorFor(error.value, "visibility")}>
           <select
+            name="visibility"
             class="sv-select"
             value={visibility.value}
             onChange$={(event: Event) => (visibility.value = (event.target as HTMLInputElement).value as Visibility)}
@@ -87,7 +95,7 @@ export default component$<Props>((props) => {
             <option value="public">{m(props.i18n, "ui.visibility.public")}</option>
           </select>
         </Field>
-        {error.value instanceof ApiError && error.value.status === 409 ? (
+        {apiStatus(error.value) === 409 ? (
           <div class="sv-alert sv-alert--warning" role="alert">
             {m(props.i18n, "error.bookmark.hidden-publish")}
           </div>

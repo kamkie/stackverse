@@ -18,8 +18,8 @@ export default component$<Props>((props) => {
     <Dialog title={props.title} ctx={props.ctx} onClose$={props.onClose$}>
       <form
         class="sv-form"
+        preventdefault:submit
         onSubmit$={(event: Event) => {
-          event.preventDefault();
           void props.onConfirm$();
         }}
       >

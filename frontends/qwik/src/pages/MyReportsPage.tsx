@@ -4,8 +4,9 @@ import ConfirmDialog from "../components/ConfirmDialog";
 import Dialog from "../components/Dialog";
 import Field from "../components/Field";
 import Pagination from "../components/Pagination";
-import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../lib/api";
+import { api, apiMessage, apiStatus, fieldErrorFor, jsonBody, queryString } from "../lib/api";
 import { formatDate } from "../lib/format";
+import { formText } from "../lib/form";
 import { m, type I18nState } from "../lib/i18n";
 import { removeReported } from "../lib/reportedStore";
 import type { Page, Report, ReportInput, ReportReason, ReportStatus } from "../lib/types";
@@ -104,7 +105,7 @@ export default component$<Props>((props) => {
                 </thead>
                 <tbody>
                   {state.reports.items.map((report) => (
-                    <tr key={report.id} data-ctx={`report:${report.id}`}>
+                    <tr key={`${report.id}:${report.status}:${report.reason}:${report.comment ?? ""}:${report.resolutionNote ?? ""}`} data-ctx={`report:${report.id}`}>
                       <td><time dateTime={report.createdAt}>{formatDate(report.createdAt, props.i18n.resolvedLanguage)}</time></td>
                       <td><BookmarkContext i18n={props.i18n} bookmarkId={report.bookmarkId} /></td>
                       <td><span class="sv-badge">{m(props.i18n, `ui.report.reason.${report.reason}`)}</span></td>
@@ -162,23 +163,31 @@ export default component$<Props>((props) => {
         <Dialog title={m(props.i18n, "ui.my-reports.dialog.edit")} ctx={`report:${state.editing.id}`} onClose$={() => (state.editing = null)}>
           <form
             class="sv-form"
+            preventdefault:submit
             onSubmit$={async (event: Event) => {
-              event.preventDefault();
               if (!state.editing) return;
               editPending.value = true;
               editError.value = undefined;
+              const form = event.target as HTMLFormElement;
+              editReason.value = formText(form, "reason") as ReportReason;
+              editComment.value = formText(form, "comment");
               try {
                 const body: ReportInput = {
                   reason: editReason.value,
                   ...(editComment.value ? { comment: editComment.value } : {}),
                 };
-                await api<Report>(`/api/v1/reports/${state.editing.id}`, {
+                const updatedReport = await api<Report>(`/api/v1/reports/${state.editing.id}`, {
                   method: "PUT",
                   ...jsonBody(body),
                 });
+                if (state.reports) {
+                  state.reports = {
+                    ...state.reports,
+                    items: state.reports.items.map((report) => (report.id === updatedReport.id ? updatedReport : report)),
+                  };
+                }
                 state.editing = null;
                 await props.toast$(m(props.i18n, "ui.toast.report-updated"));
-                await load$();
               } catch (caught) {
                 editError.value = caught;
               } finally {
@@ -187,17 +196,17 @@ export default component$<Props>((props) => {
             }}
           >
             <Field label={m(props.i18n, "ui.field.reason")} error={fieldErrorFor(editError.value, "reason")}>
-              <select class="sv-select" value={editReason.value} onChange$={(event: Event) => (editReason.value = (event.target as HTMLInputElement).value as ReportReason)}>
+              <select name="reason" class="sv-select" value={editReason.value} onChange$={(event: Event) => (editReason.value = (event.target as HTMLInputElement).value as ReportReason)}>
                 {REPORT_REASONS.map((option) => (
                   <option key={option} value={option}>{m(props.i18n, `ui.report.reason.${option}`)}</option>
                 ))}
               </select>
             </Field>
             <Field label={m(props.i18n, "ui.field.comment")} error={fieldErrorFor(editError.value, "comment")}>
-              <textarea class="sv-textarea" value={editComment.value} onInput$={(event: Event) => (editComment.value = (event.target as HTMLInputElement).value)} />
+              <textarea name="comment" class="sv-textarea" value={editComment.value} onInput$={(event: Event) => (editComment.value = (event.target as HTMLInputElement).value)} />
             </Field>
-            {editError.value instanceof ApiError && editError.value.status === 409 ? (
-              <div class="sv-alert sv-alert--warning" role="alert">{editError.value.message}</div>
+            {apiStatus(editError.value) === 409 ? (
+              <div class="sv-alert sv-alert--warning" role="alert">{apiMessage(editError.value)}</div>
             ) : null}
             <div class="sv-form-actions">
               <button type="button" class="sv-button" onClick$={() => (state.editing = null)}>

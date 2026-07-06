@@ -3,7 +3,8 @@ import ConfirmDialog from "../../components/ConfirmDialog";
 import Dialog from "../../components/Dialog";
 import Field from "../../components/Field";
 import Pagination from "../../components/Pagination";
-import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
+import { api, apiMessage, apiStatus, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
+import { formText } from "../../lib/form";
 import { loadBundle, m, SUPPORTED_LANGUAGES, type I18nState } from "../../lib/i18n";
 import type { Message, MessageInput, Page } from "../../lib/types";
 
@@ -149,7 +150,7 @@ export default component$<Props>((props) => {
               </thead>
               <tbody>
                 {state.messages.items.map((message) => (
-                  <tr key={message.id} data-ctx={`message:${message.id}`}>
+                  <tr key={`${message.id}:${message.updatedAt}:${message.text}`} data-ctx={`message:${message.id}`}>
                     <td class="sv-cell-mono">{message.key}</td>
                     <td><span class="sv-badge">{message.language}</span></td>
                     <td>{message.text}</td>
@@ -186,39 +187,65 @@ export default component$<Props>((props) => {
         >
           <form
             class="sv-form"
+            preventdefault:submit
             onSubmit$={async (event: Event) => {
-              event.preventDefault();
               formError.value = undefined;
+              const form = event.target as HTMLFormElement;
+              key.value = formText(form, "key");
+              messageLanguage.value = formText(form, "language");
+              text.value = formText(form, "text");
+              description.value = formText(form, "description");
               const body: MessageInput = {
                 key: key.value,
                 language: messageLanguage.value,
                 text: text.value,
                 ...(description.value ? { description: description.value } : {}),
               };
+              const editing = state.editing;
               try {
-                if (state.editing === "new") {
-                  await api<Message>("/api/v1/messages", { method: "POST", ...jsonBody(body) });
+                if (editing === "new") {
+                  const createdMessage = await api<Message>("/api/v1/messages", { method: "POST", ...jsonBody(body) });
+                  if (state.messages && state.page === 0) {
+                    const q = state.q.trim().toLowerCase();
+                    const matchesQuery = q === "" || createdMessage.key.toLowerCase().includes(q) || createdMessage.text.toLowerCase().includes(q);
+                    const matchesLanguage = state.language === "" || createdMessage.language === state.language;
+                    if (matchesQuery && matchesLanguage) {
+                      const totalItems = state.messages.totalItems + 1;
+                      const size = state.messages.size || 20;
+                      state.messages = {
+                        ...state.messages,
+                        items: [createdMessage, ...state.messages.items].slice(0, size),
+                        totalItems,
+                        totalPages: Math.max(1, Math.ceil(totalItems / size)),
+                      };
+                    }
+                  }
                   await props.toast$(m(props.i18n, "ui.toast.message-created"));
-                } else if (state.editing) {
-                  await api<Message>(`/api/v1/messages/${state.editing.id}`, {
+                } else if (editing) {
+                  const updatedMessage = await api<Message>(`/api/v1/messages/${editing.id}`, {
                     method: "PUT",
                     ...jsonBody(body),
                   });
+                  if (state.messages) {
+                    state.messages = {
+                      ...state.messages,
+                      items: state.messages.items.map((message) => (message.id === updatedMessage.id ? updatedMessage : message)),
+                    };
+                  }
                   await props.toast$(m(props.i18n, "ui.toast.message-updated"));
                 }
                 state.editing = null;
                 await refreshBundle$();
-                await load$();
               } catch (caught) {
                 formError.value = caught;
               }
             }}
           >
             <Field label={m(props.i18n, "ui.field.key")} error={fieldErrorFor(formError.value, "key")}>
-              <input class="sv-input" value={key.value} onInput$={(event: Event) => (key.value = (event.target as HTMLInputElement).value)} />
+              <input name="key" class="sv-input" value={key.value} onInput$={(event: Event) => (key.value = (event.target as HTMLInputElement).value)} />
             </Field>
             <Field label={m(props.i18n, "ui.field.language")} error={fieldErrorFor(formError.value, "language")}>
-              <select class="sv-select" value={messageLanguage.value} onChange$={(event: Event) => (messageLanguage.value = (event.target as HTMLInputElement).value)}>
+              <select name="language" class="sv-select" value={messageLanguage.value} onChange$={(event: Event) => (messageLanguage.value = (event.target as HTMLInputElement).value)}>
                 {!SUPPORTED_LANGUAGES.includes(messageLanguage.value as "en" | "pl") ? (
                   <option value={messageLanguage.value}>{messageLanguage.value}</option>
                 ) : null}
@@ -226,13 +253,13 @@ export default component$<Props>((props) => {
               </select>
             </Field>
             <Field label={m(props.i18n, "ui.field.text")} error={fieldErrorFor(formError.value, "text")}>
-              <textarea class="sv-textarea" value={text.value} onInput$={(event: Event) => (text.value = (event.target as HTMLInputElement).value)} />
+              <textarea name="text" class="sv-textarea" value={text.value} onInput$={(event: Event) => (text.value = (event.target as HTMLInputElement).value)} />
             </Field>
             <Field label={m(props.i18n, "ui.field.description")} error={fieldErrorFor(formError.value, "description")}>
-              <textarea class="sv-textarea" value={description.value} onInput$={(event: Event) => (description.value = (event.target as HTMLInputElement).value)} />
+              <textarea name="description" class="sv-textarea" value={description.value} onInput$={(event: Event) => (description.value = (event.target as HTMLInputElement).value)} />
             </Field>
-            {formError.value instanceof ApiError && formError.value.status === 409 ? (
-              <div class="sv-alert sv-alert--warning" role="alert">{formError.value.message}</div>
+            {apiStatus(formError.value) === 409 ? (
+              <div class="sv-alert sv-alert--warning" role="alert">{apiMessage(formError.value)}</div>
             ) : null}
             <div class="sv-form-actions">
               <button type="button" class="sv-button" onClick$={() => (state.editing = null)}>
