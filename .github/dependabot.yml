@@ -145,6 +145,7 @@ updates:
   - package-ecosystem: pip
     directories:
       - /backends/python-django
+      - /gateways/python
       - /testing/robot-acceptance
       - /testing/schemathesis-api
     schedule:
@@ -183,6 +184,7 @@ updates:
       - /gateways/go
       - /gateways/node-fastify
       - /gateways/openresty
+      - /gateways/python
       - /gateways/rust
       - /gateways/spring-cloud-gateway
       - /gateways/yarp

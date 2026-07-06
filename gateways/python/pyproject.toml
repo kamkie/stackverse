@@ -1,0 +1,50 @@
+[project]
+name = "stackverse-gateway-python"
+version = "0.1.0"
+description = "Stackverse gateway implementation in Python with Starlette and Authlib"
+requires-python = ">=3.14"
+dependencies = [
+  "Authlib>=1.6.5,<2",
+  "httpx>=0.28.1,<1",
+  "joserfc>=1.7.2,<2",
+  "redis>=7.1.0,<8",
+  "starlette>=0.50.0,<1",
+  "uvicorn[standard]>=0.38.0,<1",
+  "opentelemetry-api>=1.43.0,<2",
+  "opentelemetry-sdk>=1.43.0,<2",
+  "opentelemetry-exporter-otlp-proto-grpc>=1.43.0,<2",
+  "opentelemetry-instrumentation-httpx>=0.64b0,<1",
+  "opentelemetry-instrumentation-starlette>=0.64b0,<1",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=9.1.1,<10",
+  "pytest-cov>=7.1.0,<8",
+  "ruff>=0.15.20,<1",
+]
+
+[project.scripts]
+stackverse-gateway-python = "stackverse_gateway.__main__:run"
+
+[build-system]
+requires = ["hatchling>=1.30.1"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["stackverse_gateway"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.coverage.run]
+branch = true
+source = ["stackverse_gateway"]

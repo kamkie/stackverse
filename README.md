@@ -130,6 +130,7 @@ provide a richer resolved graph than static manifest parsing (see
 | Gateway | Go (stdlib + chi) | `gateways/go` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-go)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Node.js Fastify | `gateways/node-fastify` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-node-fastify)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | OpenResty (nginx + Lua) | `gateways/openresty` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-openresty)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Gateway | Python Starlette | `gateways/python` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-python)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | Rust Axum | `gateways/rust` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-rust)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
