@@ -76,20 +76,27 @@ defmodule StackverseBackend.Application do
     level = settings[:log_level] || "info"
     format = settings[:log_format] || "json"
 
-    Logger.configure(level: String.to_existing_atom(level))
+    Logger.configure(level: logger_level(level))
 
     if format == "json" do
-      Logger.configure_backend(:console,
-        format: {StackverseBackend.JsonLogFormatter, :format},
-        metadata: :all
-      )
+      :ok =
+        Logger.configure_backend(:console,
+          format: {StackverseBackend.JsonLogFormatter, :format},
+          metadata: :all
+        )
     else
-      Logger.configure_backend(:console,
-        format: "$time [$level] $message $metadata\n",
-        metadata: :all
-      )
+      :ok =
+        Logger.configure_backend(:console,
+          format: "$time [$level] $message $metadata\n",
+          metadata: :all
+        )
     end
-  rescue
-    _ -> :ok
   end
+
+  defp logger_level("debug"), do: :debug
+  defp logger_level("info"), do: :info
+  defp logger_level("warn"), do: :warning
+  defp logger_level("warning"), do: :warning
+  defp logger_level("error"), do: :error
+  defp logger_level(_level), do: :info
 end

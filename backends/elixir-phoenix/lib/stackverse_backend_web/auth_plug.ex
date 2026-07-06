@@ -28,7 +28,7 @@ defmodule StackverseBackendWeb.AuthPlug do
         case Auth.record_seen(caller.username) do
           "blocked" ->
             Log.event(
-              :warn,
+              :warning,
               "blocked_user_rejected",
               "denied",
               "Refused a request from a blocked account",
