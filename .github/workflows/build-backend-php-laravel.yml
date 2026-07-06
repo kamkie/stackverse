@@ -1,0 +1,65 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow —
+# adding a variant means adding a sibling file, nothing else. The contract
+# suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-backend-php-laravel
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-backend-php-laravel.yml'
+      - 'backends/php-laravel/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-php-laravel:
+    name: Backend · PHP Laravel
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backends/php-laravel
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: mbstring, openssl, pdo_pgsql
+          coverage: xdebug
+          tools: composer:v2
+      - name: Cache Composer packages
+        uses: actions/cache@v6
+        with:
+          path: ~/.composer/cache/files
+          key: composer-${{ runner.os }}-backend-php-laravel-${{ hashFiles('backends/php-laravel/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-backend-php-laravel-
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Lint
+        run: composer lint
+      - name: Test with coverage
+        run: composer test
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: backends/php-laravel/coverage.xml
+          flags: backend-php-laravel
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: test_results
+          files: backends/php-laravel/TestResults/junit.xml
+          flags: backend-php-laravel
+          token: ${{ secrets.CODECOV_TOKEN }}

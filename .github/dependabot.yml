@@ -35,6 +35,15 @@ updates:
       bundler-minor:
         update-types: [minor, patch]
 
+  - package-ecosystem: composer
+    directories:
+      - /backends/php-laravel
+    schedule:
+      interval: weekly
+    groups:
+      composer-minor:
+        update-types: [minor, patch]
+
   - package-ecosystem: gomod
     directories:
       - /backends/go
@@ -146,6 +155,7 @@ updates:
       - /backends/node-nestjs
       - /backends/node-ts
       - /backends/open-liberty-java
+      - /backends/php-laravel
       - /backends/play-scala
       - /backends/python-django
       - /backends/quarkus-java

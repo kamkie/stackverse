@@ -50,6 +50,10 @@ flags:
     paths:
       - backends/open-liberty-java/
     carryforward: true
+  backend-php-laravel:
+    paths:
+      - backends/php-laravel/
+    carryforward: true
   backend-play-scala:
     paths:
       - backends/play-scala/
@@ -171,6 +175,10 @@ component_management:
       name: "backend · open-liberty-java"
       paths:
         - backends/open-liberty-java/**
+    - component_id: backend-php-laravel
+      name: "backend · php-laravel"
+      paths:
+        - backends/php-laravel/**
     - component_id: backend-play-scala
       name: "backend · play-scala"
       paths:
