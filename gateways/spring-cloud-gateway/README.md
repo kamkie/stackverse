@@ -38,13 +38,14 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 - **Refresh failures are two different animals** (semantics pinned in
   [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md)). An IdP that *rejects* the
   refresh — an authoritative `400`/`401` from the token endpoint (RFC 6749 §5.2) —
-  proves the session is dead: destroy it, `token_refresh_failed` at WARN, degrade
-  the request to anonymous. An IdP that is *unavailable* — unreachable, answering
-  `5xx`/`429`, or answering garbage — proves nothing about the session, so the
-  manager logs `dependency_call_failed` at ERROR (`dependency=keycloak`) and errors
-  with `IdpUnavailableException`; the relay filter translates it into a `503`
-  problem document and the session — whose refresh token may still be valid —
-  survives.
+  proves the session is dead, even when Spring cannot parse the OAuth error body:
+  destroy it, `token_refresh_failed` at WARN, degrade the request to anonymous.
+  An IdP that is *unavailable* — unreachable, answering `5xx`/`429`, or answering
+  garbage without a `400`/`401` token-endpoint verdict — proves nothing about the
+  session, so the manager logs `dependency_call_failed` at ERROR
+  (`dependency=keycloak`) and errors with `IdpUnavailableException`; the relay
+  filter translates it into a `503` problem document and the session — whose
+  refresh token may still be valid — survives.
 - **Logout without a redirect.** The contract wants `204` from `POST /auth/logout`,
   so RP-initiated logout happens server-to-server: a confidential-client POST of the
   refresh token to Keycloak's end-session endpoint tears down the SSO session

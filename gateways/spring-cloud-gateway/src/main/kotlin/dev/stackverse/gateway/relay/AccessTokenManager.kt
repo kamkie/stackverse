@@ -11,6 +11,7 @@ import org.springframework.security.oauth2.client.web.server.ServerOAuth2Authori
 import org.springframework.security.oauth2.core.OAuth2AuthorizationException
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes
 import org.springframework.stereotype.Component
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebSession
 import reactor.core.publisher.Mono
@@ -85,13 +86,13 @@ class AccessTokenManager(
                 Mono.just(refreshed.accessToken.tokenValue)
             }
             .onErrorResume { e ->
-                if (e is OAuth2AuthorizationException && e.isRefreshGrantRejection()) {
+                if (e.isRefreshGrantRejection()) {
                     // degraded but self-healing (the session is destroyed below) — WARN per docs/LOGGING.md §5
                     log.logEvent(
                         Level.WARN, "token_refresh_failed", "failure",
-                        "Token refresh rejected by the IdP (${e.error.errorCode}); treating the session as expired",
+                        "Token refresh rejected by the IdP (${refreshRejectionCode(e)}); treating the session as expired",
                         "error_code" to "idp_rejected",
-                        "oauth2_error" to e.error.errorCode,
+                        "oauth2_error" to refreshRejectionCode(e),
                     )
                     destroyAndDegrade(auth, exchange)
                 } else {
@@ -116,12 +117,40 @@ class AccessTokenManager(
     private fun isExpired(client: OAuth2AuthorizedClient): Boolean =
         client.accessToken.expiresAt?.minus(EXPIRY_SKEW)?.isAfter(Instant.now()) == false
 
-    private fun OAuth2AuthorizationException.isRefreshGrantRejection(): Boolean =
-        error.errorCode == OAuth2ErrorCodes.INVALID_GRANT ||
-            error.errorCode == OAuth2ErrorCodes.INVALID_CLIENT
+    private fun Throwable.isRefreshGrantRejection(): Boolean =
+        oauth2ErrorCode() == OAuth2ErrorCodes.INVALID_GRANT ||
+            oauth2ErrorCode() == OAuth2ErrorCodes.INVALID_CLIENT ||
+            causeChain().any { cause ->
+                when (cause) {
+                    is TokenEndpointResponseStatusException -> cause.statusCode.isRefreshGrantRejectionStatus()
+                    is WebClientResponseException -> cause.statusCode.value().isRefreshGrantRejectionStatus()
+                    else -> false
+                }
+            }
 
     private fun dependencyErrorCode(e: Throwable): String =
         if (e is OAuth2AuthorizationException) e.error.errorCode else e.javaClass.simpleName
+
+    private fun refreshRejectionCode(e: Throwable): String =
+        e.oauth2ErrorCode()
+            ?: e.causeChain()
+                .firstNotNullOfOrNull { cause ->
+                    when (cause) {
+                        is TokenEndpointResponseStatusException -> "http_${cause.statusCode}"
+                        is WebClientResponseException -> "http_${cause.statusCode.value()}"
+                        else -> null
+                    }
+                }
+            ?: e.javaClass.simpleName
+
+    private fun Throwable.oauth2ErrorCode(): String? =
+        (this as? OAuth2AuthorizationException)?.error?.errorCode
+
+    private fun Throwable.causeChain(): Sequence<Throwable> =
+        generateSequence(this) { it.cause }
+
+    private fun Int.isRefreshGrantRejectionStatus(): Boolean =
+        this == 400 || this == 401
 
     /**
      * The session can no longer produce a token: destroy it and degrade the request
