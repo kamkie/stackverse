@@ -9,6 +9,6 @@ gem "puma", "~> 6.6"
 gem "rails", "~> 8.1.3"
 
 group :test do
-  gem "minitest", "~> 5.25"
+  gem "minitest", "~> 6.0"
   gem "simplecov", "~> 0.22", require: false
 end
