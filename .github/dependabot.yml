@@ -114,6 +114,11 @@ updates:
     groups:
       npm-minor:
         update-types: [minor, patch]
+    ignore:
+      # Yarn 4 currently quarantines vitest 4.1.10 in Dependabot's npm job.
+      # Ignore only that patch so a future non-quarantined release can land.
+      - dependency-name: "vitest"
+        versions: ["4.1.10"]
 
   - package-ecosystem: nuget
     directories:
