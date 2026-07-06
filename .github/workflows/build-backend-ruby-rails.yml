@@ -33,14 +33,26 @@ jobs:
       - uses: actions/checkout@v7
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: "3.4.6"
+          ruby-version: "4.0.5"
           bundler-cache: true
           working-directory: backends/ruby-rails
       - name: Zeitwerk check
         run: bundle exec rails zeitwerk:check
       - name: Test
         run: bundle exec rails test
+      - name: Detect Codecov token
+        id: codecov-token
+        shell: bash
+        run: |
+          if [ -n "$CODECOV_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Upload coverage to Codecov
+        if: ${{ steps.codecov-token.outputs.present == 'true' }}
         uses: codecov/codecov-action@v7
         with:
           files: backends/ruby-rails/coverage/.resultset.json
