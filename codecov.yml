@@ -99,6 +99,10 @@ flags:
     paths:
       - frontends/lit/
     carryforward: true
+  frontend-qwik:
+    paths:
+      - frontends/qwik/
+    carryforward: true
   frontend-react:
     paths:
       - frontends/react/
@@ -240,6 +244,10 @@ component_management:
       name: "frontend · lit"
       paths:
         - frontends/lit/**
+    - component_id: frontend-qwik
+      name: "frontend · qwik"
+      paths:
+        - frontends/qwik/**
     - component_id: frontend-react
       name: "frontend · react"
       paths:

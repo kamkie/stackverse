@@ -359,6 +359,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Single light-DOM LitElement shell with route-level template helpers | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | `component$` components in TSX with QRL callbacks and typed props | `component$` TSX components, `$` event handlers, typed props interfaces | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Runes-based components with $props, snippets, and mount() bootstrap | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | No framework; DOM/template functions, manual escaping, imperative rendering | Functions returning HTML template-literal strings, set via root.innerHTML + escapeHtml() | ✅ idiomatic |
@@ -371,6 +372,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | TanStack Query for server state; Context/hooks for local | TanStack Query + Context (i18n/toast) + web-storage helpers; no global store | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Signals (signal/computed/effect) with zoneless change detection | Plain signal stores + effect/untracked; zoneless; RxJS only at HttpClient | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | ReactiveElement properties/state or local controllers for component state | Plain module state; the Lit shell requests updates after state transitions | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | `useStore`/`useSignal` for reactive state; context when cross-component | Component stores/signals plus a tiny route store; no global state library | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Fine-grained signals/memos for local and shared state; context only when needed | Component and module-level `createSignal`/`createMemo`, no global store | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | $state/$derived/$effect for component state; stores retained for shared route/session/i18n state | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Plain mutable object; manual re-render, no reactive runtime | Single `state` object, full renderApp() re-render on every change | ✅ idiomatic |
@@ -383,6 +385,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/main.ts` | ✅ idiomatic |
+| [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit file-based routing under src/routes | Hand-rolled History-API router (lib/route.ts store) with `{#if}` page dispatch in App.svelte | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Hand-rolled History API router; no router library | History API + popstate, data-link delegation, path switch in routeHtml | ✅ idiomatic |
@@ -395,6 +398,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | Typed client generated from OpenAPI schema | openapi-fetch over openapi-typescript schema.ts, RFC 9457 unwrap | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | HttpClient + interceptors; types generated from OpenAPI | HttpClient (fetch) + csrf interceptor; hand-written types from spec | 🟡 deliberate |
 | [Lit (Web Components)](../frontends/lit/README.md) | Typed fetch wrapper, often with generated OpenAPI types | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | Generated OpenAPI types with a typed fetch wrapper | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | Generated OpenAPI types with a typed fetch wrapper | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Generated types from OpenAPI; typed fetch wrapper | Hand-written fetch wrapper (ApiError) + types hand-transcribed from OpenAPI | 🟡 deliberate |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | fetch wrappers; types from OpenAPI (codegen common, hand-writing fine) | Hand-written fetch wrappers; types.ts hand-transcribed from openapi.yaml, zero codegen | ✅ idiomatic |
@@ -407,6 +411,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | Semantic HTML, labeled controls, ARIA wiring, roles | native &lt;dialog&gt;, useId label/aria-invalid/aria-describedby, roles, &lt;time&gt; | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | label/for, aria-invalid, roles, aria-live, native dialog | label/for, aria-invalid, role/aria-live/aria-label, native &lt;dialog&gt; showModal | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Semantic light-DOM HTML, labeled controls, ARIA wiring, native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
+| [Qwik](../frontends/qwik/README.md) | Semantic HTML, labels, ARIA roles, keyboard-operable native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Semantic HTML, ARIA labels/roles, keyboard-operable native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Semantic elements, ARIA roles/labels, keyboard-operable controls | Semantic nav/time/headings, role/aria-label, role=alert, rel=noreferrer | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Semantic HTML, ARIA, native dialog, labelled controls | aria-*, roles, &lt;dialog&gt; showModal, scope=col, aria-live, visually-hidden labels | ✅ idiomatic |
@@ -419,6 +424,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, lib modules, and an app entry | Vite SPA layout: `src/main.ts` custom-element shell plus api/i18n/types/dev modules | ✅ idiomatic |
+| [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with entry module plus small focused modules | src/ main.ts monolith + api/i18n/types modules and dev/ helpers | ✅ idiomatic |
@@ -431,6 +437,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vitest plus @open-wc/testing or Testing Library for custom elements | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | Vitest with Qwik/browser component testing for UI behavior | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom for lib stores/helpers; no component tests | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
@@ -443,6 +450,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | No ESLint/Prettier; strict `tsc` is the static gate | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check plus shared EditorConfig coverage | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |

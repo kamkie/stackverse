@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@builder.io/qwik": ["src/qwik-shim.ts"],
+      "@builder.io/qwik/jsx-runtime": ["src/qwik-jsx-runtime.ts"],
+      "@builder.io/qwik/jsx-dev-runtime": ["src/qwik-jsx-runtime.ts"],
+      "@builder.io/qwik/optimizer": ["src/qwik-optimizer-shim.ts"]
+    }
+  }
+}
