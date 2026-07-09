@@ -13,7 +13,9 @@ export function goto(path: string, replace = false): string {
   return next;
 }
 
-export function installRouteListener(onChange: (path: string) => void): () => void {
+export function installRouteListener(
+  onChange: (path: string) => void,
+): () => void {
   const listener = () => onChange(currentPath());
   window.addEventListener("popstate", listener);
   if (location.pathname === "/") onChange(goto("/feed", true));

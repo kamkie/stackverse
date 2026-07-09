@@ -16,7 +16,8 @@ export class ApiError extends Error {
 
 export function apiStatus(error: unknown): number | undefined {
   if (error instanceof ApiError) return error.status;
-  if (typeof error !== "object" || error === null || !("status" in error)) return undefined;
+  if (typeof error !== "object" || error === null || !("status" in error))
+    return undefined;
   const status = (error as { status?: unknown }).status;
   return typeof status === "number" ? status : undefined;
 }
@@ -27,13 +28,20 @@ export function apiMessage(error: unknown): string {
 
 function problemFor(error: unknown): Problem | null {
   if (error instanceof ApiError) return error.problem;
-  if (typeof error !== "object" || error === null || !("problem" in error)) return null;
+  if (typeof error !== "object" || error === null || !("problem" in error))
+    return null;
   const problem = (error as { problem?: unknown }).problem;
-  return typeof problem === "object" && problem !== null ? (problem as Problem) : null;
+  return typeof problem === "object" && problem !== null
+    ? (problem as Problem)
+    : null;
 }
 
-export function fieldErrorFor(error: unknown, field: string): string | undefined {
-  return problemFor(error)?.errors?.find((entry) => entry.field === field)?.message;
+export function fieldErrorFor(
+  error: unknown,
+  field: string,
+): string | undefined {
+  return problemFor(error)?.errors?.find((entry) => entry.field === field)
+    ?.message;
 }
 
 function readCookie(name: string): string | null {
@@ -47,7 +55,11 @@ function readCookie(name: string): string | null {
   );
 }
 
-function addCsrfHeader(headers: Headers, path: string, method: string): string | null {
+function addCsrfHeader(
+  headers: Headers,
+  path: string,
+  method: string,
+): string | null {
   if (!isMutating(method) || !path.startsWith("/api/")) return null;
   const xsrf = readCookie("XSRF-TOKEN");
   if (xsrf) headers.set("X-XSRF-TOKEN", xsrf);

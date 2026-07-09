@@ -60,7 +60,8 @@ async function fetchBundle(lang: string | null): Promise<CachedBundle> {
   const response = await fetch(url, { headers });
 
   if (response.status === 304 && cached) return cached;
-  if (!response.ok) throw new Error(`Failed to load message bundle: ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Failed to load message bundle: ${response.status}`);
 
   const bundle = (await response.json()) as MessageBundle;
   const fresh: CachedBundle = { etag: response.headers.get("ETag"), bundle };
@@ -68,7 +69,9 @@ async function fetchBundle(lang: string | null): Promise<CachedBundle> {
   return fresh;
 }
 
-export async function loadBundle(lang = readStoredLanguage()): Promise<I18nState> {
+export async function loadBundle(
+  lang = readStoredLanguage(),
+): Promise<I18nState> {
   try {
     const cached = await fetchBundle(lang);
     document.documentElement.lang = cached.bundle.language;

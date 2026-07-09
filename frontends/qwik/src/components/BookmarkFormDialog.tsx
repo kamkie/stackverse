@@ -18,13 +18,18 @@ export default component$<Props>((props) => {
   const title = useSignal(props.bookmark?.title ?? "");
   const notes = useSignal(props.bookmark?.notes ?? "");
   const tags = useSignal(props.bookmark?.tags.join(" ") ?? "");
-  const visibility = useSignal<Visibility>(props.bookmark?.visibility ?? "private");
+  const visibility = useSignal<Visibility>(
+    props.bookmark?.visibility ?? "private",
+  );
   const error = useSignal<unknown>(undefined);
   const pending = useSignal(false);
 
   return (
     <Dialog
-      title={m(props.i18n, props.bookmark ? "ui.bookmarks.dialog.edit" : "ui.bookmarks.dialog.add")}
+      title={m(
+        props.i18n,
+        props.bookmark ? "ui.bookmarks.dialog.edit" : "ui.bookmarks.dialog.add",
+      )}
       ctx={props.bookmark ? `bookmark:${props.bookmark.id}` : undefined}
       onClose$={props.onClose$}
     >
@@ -68,31 +73,78 @@ export default component$<Props>((props) => {
           }
         }}
       >
-        <Field label={m(props.i18n, "ui.field.url")} error={fieldErrorFor(error.value, "url")}>
-          <input name="url" class="sv-input" value={url.value} onInput$={(event: Event) => (url.value = (event.target as HTMLInputElement).value)} />
+        <Field
+          label={m(props.i18n, "ui.field.url")}
+          error={fieldErrorFor(error.value, "url")}
+        >
+          <input
+            name="url"
+            class="sv-input"
+            value={url.value}
+            onInput$={(event: Event) =>
+              (url.value = (event.target as HTMLInputElement).value)
+            }
+          />
         </Field>
-        <Field label={m(props.i18n, "ui.field.title")} error={fieldErrorFor(error.value, "title")}>
-          <input name="title" class="sv-input" value={title.value} onInput$={(event: Event) => (title.value = (event.target as HTMLInputElement).value)} />
+        <Field
+          label={m(props.i18n, "ui.field.title")}
+          error={fieldErrorFor(error.value, "title")}
+        >
+          <input
+            name="title"
+            class="sv-input"
+            value={title.value}
+            onInput$={(event: Event) =>
+              (title.value = (event.target as HTMLInputElement).value)
+            }
+          />
         </Field>
-        <Field label={m(props.i18n, "ui.field.notes")} error={fieldErrorFor(error.value, "notes")}>
-          <textarea name="notes" class="sv-textarea" value={notes.value} onInput$={(event: Event) => (notes.value = (event.target as HTMLInputElement).value)} />
+        <Field
+          label={m(props.i18n, "ui.field.notes")}
+          error={fieldErrorFor(error.value, "notes")}
+        >
+          <textarea
+            name="notes"
+            class="sv-textarea"
+            value={notes.value}
+            onInput$={(event: Event) =>
+              (notes.value = (event.target as HTMLInputElement).value)
+            }
+          />
         </Field>
         <Field
           label={m(props.i18n, "ui.field.tags")}
           hint={m(props.i18n, "ui.field.tags.hint")}
           error={fieldErrorFor(error.value, "tags")}
         >
-          <input name="tags" class="sv-input" value={tags.value} onInput$={(event: Event) => (tags.value = (event.target as HTMLInputElement).value)} />
+          <input
+            name="tags"
+            class="sv-input"
+            value={tags.value}
+            onInput$={(event: Event) =>
+              (tags.value = (event.target as HTMLInputElement).value)
+            }
+          />
         </Field>
-        <Field label={m(props.i18n, "ui.field.visibility")} error={fieldErrorFor(error.value, "visibility")}>
+        <Field
+          label={m(props.i18n, "ui.field.visibility")}
+          error={fieldErrorFor(error.value, "visibility")}
+        >
           <select
             name="visibility"
             class="sv-select"
             value={visibility.value}
-            onChange$={(event: Event) => (visibility.value = (event.target as HTMLInputElement).value as Visibility)}
+            onChange$={(event: Event) =>
+              (visibility.value = (event.target as HTMLInputElement)
+                .value as Visibility)
+            }
           >
-            <option value="private">{m(props.i18n, "ui.visibility.private")}</option>
-            <option value="public">{m(props.i18n, "ui.visibility.public")}</option>
+            <option value="private">
+              {m(props.i18n, "ui.visibility.private")}
+            </option>
+            <option value="public">
+              {m(props.i18n, "ui.visibility.public")}
+            </option>
           </select>
         </Field>
         {apiStatus(error.value) === 409 ? (
@@ -104,7 +156,11 @@ export default component$<Props>((props) => {
           <button type="button" class="sv-button" onClick$={props.onClose$}>
             {m(props.i18n, "ui.action.cancel")}
           </button>
-          <button type="submit" class="sv-button sv-button--primary" disabled={pending.value}>
+          <button
+            type="submit"
+            class="sv-button sv-button--primary"
+            disabled={pending.value}
+          >
             {m(props.i18n, "ui.action.save")}
           </button>
         </div>

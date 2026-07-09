@@ -19,7 +19,7 @@ export default component$<Props>((props) => {
       <form
         class="sv-form"
         preventdefault:submit
-        onSubmit$={(event: Event) => {
+        onSubmit$={() => {
           void props.onConfirm$();
         }}
       >

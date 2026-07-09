@@ -1,6 +1,13 @@
 import { $, component$, useStore, useVisibleTask$ } from "@builder.io/qwik";
 import ToastRegion, { type Toast } from "./components/ToastRegion";
-import { initialI18nState, loadBundle, m, setLanguage, SUPPORTED_LANGUAGES, type I18nState } from "./lib/i18n";
+import {
+  initialI18nState,
+  loadBundle,
+  m,
+  setLanguage,
+  SUPPORTED_LANGUAGES,
+  type I18nState,
+} from "./lib/i18n";
 import { currentPath, goto, installRouteListener } from "./lib/route";
 import {
   LOGIN_URL,
@@ -9,7 +16,12 @@ import {
   logout,
   refreshSession,
 } from "./lib/session";
-import { applyTheme, readStoredTheme, THEME_OPTIONS, type ThemeOption } from "./lib/theme";
+import {
+  applyTheme,
+  readStoredTheme,
+  THEME_OPTIONS,
+  type ThemeOption,
+} from "./lib/theme";
 import type { Session, User } from "./lib/types";
 import MyBookmarksPage from "./pages/MyBookmarksPage";
 import MyReportsPage from "./pages/MyReportsPage";
@@ -49,13 +61,15 @@ export default component$(() => {
     toastId: 0,
   });
 
-  const showToast$ = $((message: string, tone: "success" | "danger" = "success") => {
-    const id = ++app.toastId;
-    app.toasts = [...app.toasts, { id, message, tone }];
-    window.setTimeout(() => {
-      app.toasts = app.toasts.filter((item) => item.id !== id);
-    }, 3500);
-  });
+  const showToast$ = $(
+    (message: string, tone: "success" | "danger" = "success") => {
+      const id = ++app.toastId;
+      app.toasts = [...app.toasts, { id, message, tone }];
+      window.setTimeout(() => {
+        app.toasts = app.toasts.filter((item) => item.id !== id);
+      }, 3500);
+    },
+  );
 
   const navigate$ = $((path: string, replace = false) => {
     app.route = goto(path, replace);
@@ -90,43 +104,67 @@ export default component$(() => {
 
   const adminContent = () => {
     if (!isModerator(app.me)) {
-      return <div class="sv-alert sv-alert--danger" role="alert">403</div>;
+      return (
+        <div class="sv-alert sv-alert--danger" role="alert">
+          403
+        </div>
+      );
     }
     return (
       <div class="sv-layout">
         <aside class="sv-sidebar">
           <h2 class="sv-sidebar-title">{m(app.i18n, "ui.nav.admin")}</h2>
           <nav class="sv-nav sv-nav--vertical" aria-label="Admin">
-            <a href="/admin" class={navClass("/admin")} onClick$={(event: Event) => {
-              event.preventDefault();
-              void navigate$("/admin");
-            }}>
+            <a
+              href="/admin"
+              class={navClass("/admin")}
+              onClick$={(event: Event) => {
+                event.preventDefault();
+                void navigate$("/admin");
+              }}
+            >
               {m(app.i18n, "ui.admin.dashboard")}
             </a>
-            <a href="/admin/reports" class={navClass("/admin/reports")} onClick$={(event: Event) => {
-              event.preventDefault();
-              void navigate$("/admin/reports");
-            }}>
+            <a
+              href="/admin/reports"
+              class={navClass("/admin/reports")}
+              onClick$={(event: Event) => {
+                event.preventDefault();
+                void navigate$("/admin/reports");
+              }}
+            >
               {m(app.i18n, "ui.admin.reports")}
             </a>
             {isAdmin(app.me) ? (
               <>
-                <a href="/admin/users" class={navClass("/admin/users")} onClick$={(event: Event) => {
-                  event.preventDefault();
-                  void navigate$("/admin/users");
-                }}>
+                <a
+                  href="/admin/users"
+                  class={navClass("/admin/users")}
+                  onClick$={(event: Event) => {
+                    event.preventDefault();
+                    void navigate$("/admin/users");
+                  }}
+                >
                   {m(app.i18n, "ui.admin.users")}
                 </a>
-                <a href="/admin/audit" class={navClass("/admin/audit")} onClick$={(event: Event) => {
-                  event.preventDefault();
-                  void navigate$("/admin/audit");
-                }}>
+                <a
+                  href="/admin/audit"
+                  class={navClass("/admin/audit")}
+                  onClick$={(event: Event) => {
+                    event.preventDefault();
+                    void navigate$("/admin/audit");
+                  }}
+                >
                   {m(app.i18n, "ui.admin.audit")}
                 </a>
-                <a href="/admin/messages" class={navClass("/admin/messages")} onClick$={(event: Event) => {
-                  event.preventDefault();
-                  void navigate$("/admin/messages");
-                }}>
+                <a
+                  href="/admin/messages"
+                  class={navClass("/admin/messages")}
+                  onClick$={(event: Event) => {
+                    event.preventDefault();
+                    void navigate$("/admin/messages");
+                  }}
+                >
                   {m(app.i18n, "ui.admin.messages")}
                 </a>
               </>
@@ -147,12 +185,11 @@ export default component$(() => {
               toast$={showToast$}
             />
           ) : app.route === "/admin" || app.route === "/admin/" ? (
-            <DashboardPage
-              i18n={app.i18n}
-              onNavigate$={navigate$}
-            />
+            <DashboardPage i18n={app.i18n} onNavigate$={navigate$} />
           ) : (
-            <div class="sv-alert sv-alert--danger" role="alert">403</div>
+            <div class="sv-alert sv-alert--danger" role="alert">
+              403
+            </div>
           )}
         </section>
       </div>
@@ -164,67 +201,109 @@ export default component$(() => {
       return currentSession.authenticated ? (
         <MyBookmarksPage i18n={app.i18n} toast$={showToast$} />
       ) : (
-        <PublicFeedPage i18n={app.i18n} session={app.session} toast$={showToast$} />
+        <PublicFeedPage
+          i18n={app.i18n}
+          session={app.session}
+          toast$={showToast$}
+        />
       );
     }
     if (app.route === "/reports") {
       return currentSession.authenticated ? (
         <MyReportsPage i18n={app.i18n} toast$={showToast$} />
       ) : (
-        <PublicFeedPage i18n={app.i18n} session={app.session} toast$={showToast$} />
+        <PublicFeedPage
+          i18n={app.i18n}
+          session={app.session}
+          toast$={showToast$}
+        />
       );
     }
     if (app.route.startsWith("/admin")) return adminContent();
-    return <PublicFeedPage i18n={app.i18n} session={app.session} toast$={showToast$} />;
+    return (
+      <PublicFeedPage
+        i18n={app.i18n}
+        session={app.session}
+        toast$={showToast$}
+      />
+    );
   };
 
   if (!app.i18n.ready || app.session === null) {
-    return <div class="sv-loading"><span class="sv-spinner" /></div>;
+    return (
+      <div class="sv-loading">
+        <span class="sv-spinner" />
+      </div>
+    );
   }
 
   return (
     <div class="sv-app">
       <header class="sv-header">
-        <a href="/" class="sv-brand" onClick$={(event: Event) => {
-          event.preventDefault();
-          void navigate$("/feed");
-        }}>
+        <a
+          href="/"
+          class="sv-brand"
+          onClick$={(event: Event) => {
+            event.preventDefault();
+            void navigate$("/feed");
+          }}
+        >
           {m(app.i18n, "ui.app.title")}
         </a>
         <nav class="sv-nav">
           {currentSession.authenticated ? (
             <>
-              <a href="/bookmarks" class={navClass("/bookmarks")} onClick$={(event: Event) => {
-                event.preventDefault();
-                void navigate$("/bookmarks");
-              }}>
+              <a
+                href="/bookmarks"
+                class={navClass("/bookmarks")}
+                onClick$={(event: Event) => {
+                  event.preventDefault();
+                  void navigate$("/bookmarks");
+                }}
+              >
                 {m(app.i18n, "ui.nav.my-bookmarks")}
               </a>
-              <a href="/reports" class={navClass("/reports")} onClick$={(event: Event) => {
-                event.preventDefault();
-                void navigate$("/reports");
-              }}>
+              <a
+                href="/reports"
+                class={navClass("/reports")}
+                onClick$={(event: Event) => {
+                  event.preventDefault();
+                  void navigate$("/reports");
+                }}
+              >
                 {m(app.i18n, "ui.nav.my-reports")}
               </a>
             </>
           ) : null}
-          <a href="/feed" class={navClass("/feed")} onClick$={(event: Event) => {
-            event.preventDefault();
-            void navigate$("/feed");
-          }}>
+          <a
+            href="/feed"
+            class={navClass("/feed")}
+            onClick$={(event: Event) => {
+              event.preventDefault();
+              void navigate$("/feed");
+            }}
+          >
             {m(app.i18n, "ui.nav.public-feed")}
           </a>
           {isModerator(app.me) ? (
-            <a href="/admin" class={navClass("/admin", false)} onClick$={(event: Event) => {
-              event.preventDefault();
-              void navigate$("/admin");
-            }}>
+            <a
+              href="/admin"
+              class={navClass("/admin", false)}
+              onClick$={(event: Event) => {
+                event.preventDefault();
+                void navigate$("/admin");
+              }}
+            >
               {m(app.i18n, "ui.nav.admin")}
             </a>
           ) : null}
         </nav>
         <div class="sv-header-actions">
-          <div class="sv-theme-switch" role="group" aria-label={m(app.i18n, "ui.theme.label")}>
+          <div
+            class="sv-theme-switch"
+            role="group"
+            aria-label={m(app.i18n, "ui.theme.label")}
+          >
             {THEME_OPTIONS.map((option) => (
               <button
                 key={option}
@@ -257,17 +336,24 @@ export default component$(() => {
           {currentSession.authenticated ? (
             <>
               <span class="sv-username">{username(currentSession)}</span>
-              <button type="button" class="sv-button sv-button--ghost sv-button--sm" onClick$={async () => {
-                await logout();
-                app.session = { authenticated: false };
-                app.me = null;
-                void navigate$("/feed");
-              }}>
+              <button
+                type="button"
+                class="sv-button sv-button--ghost sv-button--sm"
+                onClick$={async () => {
+                  await logout();
+                  app.session = { authenticated: false };
+                  app.me = null;
+                  void navigate$("/feed");
+                }}
+              >
                 {m(app.i18n, "ui.action.logout")}
               </button>
             </>
           ) : (
-            <a class="sv-button sv-button--primary sv-button--sm" href={LOGIN_URL}>
+            <a
+              class="sv-button sv-button--primary sv-button--sm"
+              href={LOGIN_URL}
+            >
               {m(app.i18n, "ui.action.login")}
             </a>
           )}

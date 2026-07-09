@@ -31,7 +31,9 @@ describe("loadBookmarkCursor", () => {
   it("resets the list and omits the previous cursor for a fresh load", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(jsonResponse({ items: [bookmark("new")], nextCursor: "next" }));
+      .mockResolvedValue(
+        jsonResponse({ items: [bookmark("new")], nextCursor: "next" }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await loadBookmarkCursor({
@@ -53,7 +55,9 @@ describe("loadBookmarkCursor", () => {
   it("appends the next page when continuing a cursor", async () => {
     const existing = bookmark("existing");
     const next = bookmark("next");
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ items: [next] }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ items: [next] }));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await loadBookmarkCursor({

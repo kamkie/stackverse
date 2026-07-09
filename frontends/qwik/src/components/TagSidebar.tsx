@@ -1,4 +1,9 @@
-import { component$, useStore, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
+import {
+  component$,
+  useStore,
+  useVisibleTask$,
+  type PropFunction,
+} from "@builder.io/qwik";
 import { api } from "../lib/api";
 import { m, type I18nState } from "../lib/i18n";
 import type { TagCount } from "../lib/types";
@@ -32,7 +37,9 @@ export default component$<Props>((props) => {
             <button
               type="button"
               class={`sv-tag${props.selected === item.tag ? " is-active" : ""}`}
-              onClick$={() => props.onSelect$(props.selected === item.tag ? "" : item.tag)}
+              onClick$={() =>
+                props.onSelect$(props.selected === item.tag ? "" : item.tag)
+              }
             >
               {item.tag}
               <span class="sv-tag-count">{item.count}</span>

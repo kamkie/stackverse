@@ -1,4 +1,10 @@
-import { Slot, component$, useSignal, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
+import {
+  Slot,
+  component$,
+  useSignal,
+  useVisibleTask$,
+  type PropFunction,
+} from "@builder.io/qwik";
 
 interface Props {
   title: string;

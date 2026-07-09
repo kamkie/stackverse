@@ -84,14 +84,18 @@ function logSubmits() {
     "submit",
     (event) => {
       const form =
-        event.target instanceof Element ? describeElement(event.target) : "form";
+        event.target instanceof Element
+          ? describeElement(event.target)
+          : "form";
       const submitter =
         event instanceof SubmitEvent && event.submitter
           ? ` via ${describeElement(event.submitter)}`
           : "";
       const context =
         event.target instanceof Element ? contextOf(event.target) : "";
-      console.debug(`[action] submit ${form}${submitter}${context} @ ${here()}`);
+      console.debug(
+        `[action] submit ${form}${submitter}${context} @ ${here()}`,
+      );
     },
     { capture: true },
   );
@@ -126,7 +130,10 @@ function logApiCalls() {
   ): Promise<Response> => {
     let url: URL;
     try {
-      url = new URL(input instanceof Request ? input.url : String(input), location.origin);
+      url = new URL(
+        input instanceof Request ? input.url : String(input),
+        location.origin,
+      );
     } catch {
       return originalFetch(input, init);
     }
@@ -141,10 +148,14 @@ function logApiCalls() {
     const elapsed = () => Math.round(performance.now() - started);
     try {
       const response = await originalFetch(input, init);
-      console.debug(`[api] ${method} ${target} -> ${response.status} (${elapsed()}ms)`);
+      console.debug(
+        `[api] ${method} ${target} -> ${response.status} (${elapsed()}ms)`,
+      );
       return response;
     } catch (error) {
-      console.debug(`[api] ${method} ${target} -> network error (${elapsed()}ms)`);
+      console.debug(
+        `[api] ${method} ${target} -> network error (${elapsed()}ms)`,
+      );
       throw error;
     }
   };

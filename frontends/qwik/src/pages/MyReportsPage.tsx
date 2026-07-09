@@ -1,15 +1,35 @@
-import { $, component$, useSignal, useStore, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
+import {
+  $,
+  component$,
+  useSignal,
+  useStore,
+  useVisibleTask$,
+  type PropFunction,
+} from "@builder.io/qwik";
 import BookmarkContext from "../components/BookmarkContext";
 import ConfirmDialog from "../components/ConfirmDialog";
 import Dialog from "../components/Dialog";
 import Field from "../components/Field";
 import Pagination from "../components/Pagination";
-import { api, apiMessage, apiStatus, fieldErrorFor, jsonBody, queryString } from "../lib/api";
+import {
+  api,
+  apiMessage,
+  apiStatus,
+  fieldErrorFor,
+  jsonBody,
+  queryString,
+} from "../lib/api";
 import { formatDate } from "../lib/format";
 import { formText } from "../lib/form";
 import { m, type I18nState } from "../lib/i18n";
 import { removeReported } from "../lib/reportedStore";
-import type { Page, Report, ReportInput, ReportReason, ReportStatus } from "../lib/types";
+import type {
+  Page,
+  Report,
+  ReportInput,
+  ReportReason,
+  ReportStatus,
+} from "../lib/types";
 import { REPORT_REASONS, REPORT_STATUSES } from "../lib/types";
 
 interface Props {
@@ -44,10 +64,14 @@ export default component$<Props>((props) => {
     state.loading = true;
     state.error = "";
     try {
-      let nextReports = await api<Page<Report>>(`/api/v1/reports${queryString({ status: state.status, page: state.page })}`);
+      let nextReports = await api<Page<Report>>(
+        `/api/v1/reports${queryString({ status: state.status, page: state.page })}`,
+      );
       if (nextReports.items.length === 0 && state.page > 0) {
         state.page = Math.max(0, nextReports.totalPages - 1);
-        nextReports = await api<Page<Report>>(`/api/v1/reports${queryString({ status: state.status, page: state.page })}`);
+        nextReports = await api<Page<Report>>(
+          `/api/v1/reports${queryString({ status: state.status, page: state.page })}`,
+        );
       }
       state.reports = nextReports;
     } catch (caught) {
@@ -71,22 +95,31 @@ export default component$<Props>((props) => {
             aria-label={m(props.i18n, "ui.field.status")}
             value={state.status}
             onChange$={(event: Event) => {
-              state.status = (event.target as HTMLInputElement).value as ReportStatus | "";
+              state.status = (event.target as HTMLInputElement).value as
+                ReportStatus | "";
               state.page = 0;
               void load$();
             }}
           >
-            <option value="">{m(props.i18n, "ui.my-reports.filter.all-statuses")}</option>
+            <option value="">
+              {m(props.i18n, "ui.my-reports.filter.all-statuses")}
+            </option>
             {REPORT_STATUSES.map((option) => (
-              <option key={option} value={option}>{m(props.i18n, `ui.report.status.${option}`)}</option>
+              <option key={option} value={option}>
+                {m(props.i18n, `ui.report.status.${option}`)}
+              </option>
             ))}
           </select>
         </div>
 
         {state.loading && !state.reports ? (
-          <div class="sv-loading"><span class="sv-spinner" /></div>
+          <div class="sv-loading">
+            <span class="sv-spinner" />
+          </div>
         ) : state.error ? (
-          <div class="sv-alert sv-alert--danger" role="alert">{state.error}</div>
+          <div class="sv-alert sv-alert--danger" role="alert">
+            {state.error}
+          </div>
         ) : !state.reports || state.reports.items.length === 0 ? (
           <div class="sv-empty">{m(props.i18n, "ui.my-reports.empty")}</div>
         ) : (
@@ -100,21 +133,50 @@ export default component$<Props>((props) => {
                     <th scope="col">{m(props.i18n, "ui.field.reason")}</th>
                     <th scope="col">{m(props.i18n, "ui.field.comment")}</th>
                     <th scope="col">{m(props.i18n, "ui.field.status")}</th>
-                    <th scope="col"><span class="sv-visually-hidden">{m(props.i18n, "ui.field.actions")}</span></th>
+                    <th scope="col">
+                      <span class="sv-visually-hidden">
+                        {m(props.i18n, "ui.field.actions")}
+                      </span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.reports.items.map((report) => (
-                    <tr key={`${report.id}:${report.status}:${report.reason}:${report.comment ?? ""}:${report.resolutionNote ?? ""}`} data-ctx={`report:${report.id}`}>
-                      <td><time dateTime={report.createdAt}>{formatDate(report.createdAt, props.i18n.resolvedLanguage)}</time></td>
-                      <td><BookmarkContext i18n={props.i18n} bookmarkId={report.bookmarkId} /></td>
-                      <td><span class="sv-badge">{m(props.i18n, `ui.report.reason.${report.reason}`)}</span></td>
+                    <tr
+                      key={`${report.id}:${report.status}:${report.reason}:${report.comment ?? ""}:${report.resolutionNote ?? ""}`}
+                      data-ctx={`report:${report.id}`}
+                    >
+                      <td>
+                        <time dateTime={report.createdAt}>
+                          {formatDate(
+                            report.createdAt,
+                            props.i18n.resolvedLanguage,
+                          )}
+                        </time>
+                      </td>
+                      <td>
+                        <BookmarkContext
+                          i18n={props.i18n}
+                          bookmarkId={report.bookmarkId}
+                        />
+                      </td>
+                      <td>
+                        <span class="sv-badge">
+                          {m(props.i18n, `ui.report.reason.${report.reason}`)}
+                        </span>
+                      </td>
                       <td>{report.comment}</td>
                       <td>
-                        <span class={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}>
+                        <span
+                          class={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}
+                        >
                           {m(props.i18n, `ui.report.status.${report.status}`)}
                         </span>
-                        {report.resolutionNote ? <div class="sv-field-hint">{report.resolutionNote}</div> : null}
+                        {report.resolutionNote ? (
+                          <div class="sv-field-hint">
+                            {report.resolutionNote}
+                          </div>
+                        ) : null}
                       </td>
                       <td class="sv-cell-actions">
                         {report.status === "open" ? (
@@ -160,7 +222,11 @@ export default component$<Props>((props) => {
       </section>
 
       {state.editing ? (
-        <Dialog title={m(props.i18n, "ui.my-reports.dialog.edit")} ctx={`report:${state.editing.id}`} onClose$={() => (state.editing = null)}>
+        <Dialog
+          title={m(props.i18n, "ui.my-reports.dialog.edit")}
+          ctx={`report:${state.editing.id}`}
+          onClose$={() => (state.editing = null)}
+        >
           <form
             class="sv-form"
             preventdefault:submit
@@ -176,14 +242,19 @@ export default component$<Props>((props) => {
                   reason: editReason.value,
                   ...(editComment.value ? { comment: editComment.value } : {}),
                 };
-                const updatedReport = await api<Report>(`/api/v1/reports/${state.editing.id}`, {
-                  method: "PUT",
-                  ...jsonBody(body),
-                });
+                const updatedReport = await api<Report>(
+                  `/api/v1/reports/${state.editing.id}`,
+                  {
+                    method: "PUT",
+                    ...jsonBody(body),
+                  },
+                );
                 if (state.reports) {
                   state.reports = {
                     ...state.reports,
-                    items: state.reports.items.map((report) => (report.id === updatedReport.id ? updatedReport : report)),
+                    items: state.reports.items.map((report) =>
+                      report.id === updatedReport.id ? updatedReport : report,
+                    ),
                   };
                 }
                 state.editing = null;
@@ -195,24 +266,57 @@ export default component$<Props>((props) => {
               }
             }}
           >
-            <Field label={m(props.i18n, "ui.field.reason")} error={fieldErrorFor(editError.value, "reason")}>
-              <select name="reason" class="sv-select" value={editReason.value} onChange$={(event: Event) => (editReason.value = (event.target as HTMLInputElement).value as ReportReason)}>
+            <Field
+              label={m(props.i18n, "ui.field.reason")}
+              error={fieldErrorFor(editError.value, "reason")}
+            >
+              <select
+                name="reason"
+                class="sv-select"
+                value={editReason.value}
+                onChange$={(event: Event) =>
+                  (editReason.value = (event.target as HTMLInputElement)
+                    .value as ReportReason)
+                }
+              >
                 {REPORT_REASONS.map((option) => (
-                  <option key={option} value={option}>{m(props.i18n, `ui.report.reason.${option}`)}</option>
+                  <option key={option} value={option}>
+                    {m(props.i18n, `ui.report.reason.${option}`)}
+                  </option>
                 ))}
               </select>
             </Field>
-            <Field label={m(props.i18n, "ui.field.comment")} error={fieldErrorFor(editError.value, "comment")}>
-              <textarea name="comment" class="sv-textarea" value={editComment.value} onInput$={(event: Event) => (editComment.value = (event.target as HTMLInputElement).value)} />
+            <Field
+              label={m(props.i18n, "ui.field.comment")}
+              error={fieldErrorFor(editError.value, "comment")}
+            >
+              <textarea
+                name="comment"
+                class="sv-textarea"
+                value={editComment.value}
+                onInput$={(event: Event) =>
+                  (editComment.value = (event.target as HTMLInputElement).value)
+                }
+              />
             </Field>
             {apiStatus(editError.value) === 409 ? (
-              <div class="sv-alert sv-alert--warning" role="alert">{apiMessage(editError.value)}</div>
+              <div class="sv-alert sv-alert--warning" role="alert">
+                {apiMessage(editError.value)}
+              </div>
             ) : null}
             <div class="sv-form-actions">
-              <button type="button" class="sv-button" onClick$={() => (state.editing = null)}>
+              <button
+                type="button"
+                class="sv-button"
+                onClick$={() => (state.editing = null)}
+              >
                 {m(props.i18n, "ui.action.cancel")}
               </button>
-              <button type="submit" class="sv-button sv-button--primary" disabled={editPending.value}>
+              <button
+                type="submit"
+                class="sv-button sv-button--primary"
+                disabled={editPending.value}
+              >
                 {m(props.i18n, "ui.action.save")}
               </button>
             </div>
@@ -230,13 +334,18 @@ export default component$<Props>((props) => {
           onConfirm$={async () => {
             if (!state.withdrawing) return;
             try {
-              await api<void>(`/api/v1/reports/${state.withdrawing.id}`, { method: "DELETE" });
+              await api<void>(`/api/v1/reports/${state.withdrawing.id}`, {
+                method: "DELETE",
+              });
               removeReported(state.withdrawing.bookmarkId);
               state.withdrawing = null;
               await props.toast$(m(props.i18n, "ui.toast.report-withdrawn"));
               await load$();
             } catch (caught) {
-              await props.toast$(caught instanceof Error ? caught.message : String(caught), "danger");
+              await props.toast$(
+                caught instanceof Error ? caught.message : String(caught),
+                "danger",
+              );
             }
           }}
           onClose$={() => (state.withdrawing = null)}

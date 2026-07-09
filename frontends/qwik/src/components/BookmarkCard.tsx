@@ -62,15 +62,26 @@ export default component$<Props>((props) => {
           ) : null}
         </div>
       </div>
-      <a class="sv-bookmark-url" href={props.bookmark.url} target="_blank" rel="noreferrer">
+      <a
+        class="sv-bookmark-url"
+        href={props.bookmark.url}
+        target="_blank"
+        rel="noreferrer"
+      >
         {props.bookmark.url}
       </a>
-      {props.bookmark.notes ? <p class="sv-bookmark-notes">{props.bookmark.notes}</p> : null}
+      {props.bookmark.notes ? (
+        <p class="sv-bookmark-notes">{props.bookmark.notes}</p>
+      ) : null}
       <div class="sv-bookmark-meta">
-        <span>{m(props.i18n, `ui.visibility.${props.bookmark.visibility}`)}</span>
+        <span>
+          {m(props.i18n, `ui.visibility.${props.bookmark.visibility}`)}
+        </span>
         <span>{props.bookmark.owner}</span>
         <time dateTime={props.bookmark.createdAt}>
-          {new Date(props.bookmark.createdAt).toLocaleDateString(props.i18n.resolvedLanguage)}
+          {new Date(props.bookmark.createdAt).toLocaleDateString(
+            props.i18n.resolvedLanguage,
+          )}
         </time>
       </div>
       {props.bookmark.tags.length > 0 ? (

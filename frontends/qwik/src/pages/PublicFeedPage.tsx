@@ -1,4 +1,10 @@
-import { $, component$, useStore, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
+import {
+  $,
+  component$,
+  useStore,
+  useVisibleTask$,
+  type PropFunction,
+} from "@builder.io/qwik";
 import BookmarkCard from "../components/BookmarkCard";
 import ReportDialog from "../components/ReportDialog";
 import { loadBookmarkCursor } from "../lib/bookmarkCursor";
@@ -71,7 +77,9 @@ export default component$<Props>((props) => {
             class="sv-input"
             placeholder={m(props.i18n, "ui.bookmarks.search.placeholder")}
             value={state.q}
-            onInput$={(event: Event) => (state.q = (event.target as HTMLInputElement).value)}
+            onInput$={(event: Event) =>
+              (state.q = (event.target as HTMLInputElement).value)
+            }
             onChange$={() => {
               void load$();
             }}
@@ -79,9 +87,13 @@ export default component$<Props>((props) => {
         </div>
 
         {state.loading && state.bookmarks.length === 0 ? (
-          <div class="sv-loading"><span class="sv-spinner" /></div>
+          <div class="sv-loading">
+            <span class="sv-spinner" />
+          </div>
         ) : state.error ? (
-          <div class="sv-alert sv-alert--danger" role="alert">{state.error}</div>
+          <div class="sv-alert sv-alert--danger" role="alert">
+            {state.error}
+          </div>
         ) : state.bookmarks.length === 0 ? (
           <div class="sv-empty">{m(props.i18n, "ui.bookmarks.no-matches")}</div>
         ) : (
@@ -106,7 +118,12 @@ export default component$<Props>((props) => {
             </ul>
             {state.nextCursor ? (
               <div class="sv-load-more">
-                <button type="button" class="sv-button" disabled={state.loading} onClick$={() => void load$(false)}>
+                <button
+                  type="button"
+                  class="sv-button"
+                  disabled={state.loading}
+                  onClick$={() => void load$(false)}
+                >
                   {m(props.i18n, "ui.action.load-more")}
                 </button>
               </div>

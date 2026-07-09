@@ -48,7 +48,9 @@ export default component$<{ i18n: I18nState }>((props) => {
         `/api/v1/admin/audit-log${queryString({
           actor: state.actor,
           action: state.action,
-          from: state.from ? new Date(`${state.from}T00:00:00`).toISOString() : "",
+          from: state.from
+            ? new Date(`${state.from}T00:00:00`).toISOString()
+            : "",
           to: state.to ? endOfDayIso(state.to) : "",
           page: state.page,
         })}`,
@@ -89,7 +91,7 @@ export default component$<{ i18n: I18nState }>((props) => {
           class="sv-input"
           placeholder={m(props.i18n, "ui.audit.action.placeholder")}
           aria-label={m(props.i18n, "ui.audit.action.placeholder")}
-          list="audit-log-known-actions"
+          {...{ list: "audit-log-known-actions" }}
           value={state.action}
           onInput$={(event: Event) => {
             state.action = (event.target as HTMLInputElement).value;
@@ -97,7 +99,9 @@ export default component$<{ i18n: I18nState }>((props) => {
           }}
         />
         <datalist id="audit-log-known-actions">
-          {knownActions.map((item) => <option key={item} value={item} />)}
+          {knownActions.map((item) => (
+            <option key={item} value={item} />
+          ))}
         </datalist>
         <label class="sv-toolbar-field">
           <span class="sv-label">{m(props.i18n, "ui.field.from")}</span>
@@ -140,9 +144,13 @@ export default component$<{ i18n: I18nState }>((props) => {
       </div>
 
       {state.loading && !state.audit ? (
-        <div class="sv-loading"><span class="sv-spinner" /></div>
+        <div class="sv-loading">
+          <span class="sv-spinner" />
+        </div>
       ) : state.error ? (
-        <div class="sv-alert sv-alert--danger" role="alert">{state.error}</div>
+        <div class="sv-alert sv-alert--danger" role="alert">
+          {state.error}
+        </div>
       ) : state.audit ? (
         <>
           <div class="sv-table-wrap">
@@ -158,10 +166,21 @@ export default component$<{ i18n: I18nState }>((props) => {
               <tbody>
                 {state.audit.items.map((entry) => (
                   <tr key={entry.id}>
-                    <td><time dateTime={entry.createdAt}>{formatDate(entry.createdAt, props.i18n.resolvedLanguage)}</time></td>
+                    <td>
+                      <time dateTime={entry.createdAt}>
+                        {formatDate(
+                          entry.createdAt,
+                          props.i18n.resolvedLanguage,
+                        )}
+                      </time>
+                    </td>
                     <td>{entry.actor}</td>
-                    <td><span class="sv-badge">{entry.action}</span></td>
-                    <td class="sv-cell-mono">{entry.targetType}/{entry.targetId.slice(0, 8)}</td>
+                    <td>
+                      <span class="sv-badge">{entry.action}</span>
+                    </td>
+                    <td class="sv-cell-mono">
+                      {entry.targetType}/{entry.targetId.slice(0, 8)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

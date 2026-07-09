@@ -1,4 +1,10 @@
-import { $, component$, useStore, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
+import {
+  $,
+  component$,
+  useStore,
+  useVisibleTask$,
+  type PropFunction,
+} from "@builder.io/qwik";
 import BookmarkCard from "../components/BookmarkCard";
 import BookmarkFormDialog from "../components/BookmarkFormDialog";
 import ConfirmDialog from "../components/ConfirmDialog";
@@ -90,7 +96,9 @@ export default component$<Props>((props) => {
               class="sv-input"
               placeholder={m(props.i18n, "ui.bookmarks.search.placeholder")}
               value={state.q}
-              onInput$={(event: Event) => (state.q = (event.target as HTMLInputElement).value)}
+              onInput$={(event: Event) =>
+                (state.q = (event.target as HTMLInputElement).value)
+              }
               onChange$={() => {
                 void load$();
               }}
@@ -105,9 +113,13 @@ export default component$<Props>((props) => {
           </div>
 
           {state.loading && state.bookmarks.length === 0 ? (
-            <div class="sv-loading"><span class="sv-spinner" /></div>
+            <div class="sv-loading">
+              <span class="sv-spinner" />
+            </div>
           ) : state.error ? (
-            <div class="sv-alert sv-alert--danger" role="alert">{state.error}</div>
+            <div class="sv-alert sv-alert--danger" role="alert">
+              {state.error}
+            </div>
           ) : state.bookmarks.length === 0 ? (
             <div class="sv-empty">
               {state.q || state.selectedTag
@@ -123,14 +135,21 @@ export default component$<Props>((props) => {
                     i18n={props.i18n}
                     bookmark={bookmark}
                     mode="own"
-                    onEdit$={(item) => (state.dialog = { mode: "edit", bookmark: item })}
+                    onEdit$={(item) =>
+                      (state.dialog = { mode: "edit", bookmark: item })
+                    }
                     onDelete$={(item) => (state.deleting = item)}
                   />
                 ))}
               </ul>
               {state.nextCursor ? (
                 <div class="sv-load-more">
-                  <button type="button" class="sv-button" disabled={state.loading} onClick$={() => void load$(false)}>
+                  <button
+                    type="button"
+                    class="sv-button"
+                    disabled={state.loading}
+                    onClick$={() => void load$(false)}
+                  >
                     {m(props.i18n, "ui.action.load-more")}
                   </button>
                 </div>
@@ -143,7 +162,9 @@ export default component$<Props>((props) => {
       {state.dialog ? (
         <BookmarkFormDialog
           i18n={props.i18n}
-          bookmark={state.dialog.mode === "edit" ? state.dialog.bookmark : undefined}
+          bookmark={
+            state.dialog.mode === "edit" ? state.dialog.bookmark : undefined
+          }
           onSaved$={async () => {
             await load$();
             state.tagReloadKey += 1;
@@ -162,13 +183,18 @@ export default component$<Props>((props) => {
           onConfirm$={async () => {
             if (!state.deleting) return;
             try {
-              await api<void>(`/api/v1/bookmarks/${state.deleting.id}`, { method: "DELETE" });
+              await api<void>(`/api/v1/bookmarks/${state.deleting.id}`, {
+                method: "DELETE",
+              });
               await props.toast$(m(props.i18n, "ui.toast.bookmark-deleted"));
               state.deleting = null;
               await load$();
               state.tagReloadKey += 1;
             } catch (caught) {
-              await props.toast$(caught instanceof Error ? caught.message : String(caught), "danger");
+              await props.toast$(
+                caught instanceof Error ? caught.message : String(caught),
+                "danger",
+              );
             }
           }}
           onClose$={() => (state.deleting = null)}
