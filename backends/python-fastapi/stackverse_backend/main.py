@@ -90,7 +90,7 @@ def build_app() -> FastAPI:
         return problem_response(exc.status, exc.title, detail)
 
     @app.exception_handler(RequestValidationError)
-    async def request_validation_handler(_request: Request, _exc: RequestValidationError):
+    async def request_validation_handler(request: Request, exc: RequestValidationError):
         log_event(
             "info",
             "input_validation_failed",
@@ -98,7 +98,23 @@ def build_app() -> FastAPI:
             "Request validation failed",
             error_code="request_validation_failed",
         )
-        return problem_response(400, "Bad Request", "Request validation failed.")
+        violations = _request_validation_violations(request.url.path, exc)
+        if not violations:
+            return problem_response(400, "Bad Request", "Request validation failed.")
+        language = await run_in_threadpool(
+            resolve_language,
+            first_param(request, "lang"),
+            request.headers.get("accept-language"),
+        )
+        errors = [
+            {
+                "field": field,
+                "messageKey": message_key,
+                "message": await run_in_threadpool(localize, message_key, language),
+            }
+            for field, message_key in violations
+        ]
+        return problem_response(400, "Bad Request", "Request validation failed.", errors)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(_request: Request, exc: StarletteHTTPException):
@@ -123,6 +139,43 @@ def build_app() -> FastAPI:
     register_routes(app)
     configure_telemetry(app)
     return app
+
+
+def _request_validation_violations(path: str, exc: RequestValidationError) -> list[tuple[str, str]]:
+    violations: list[tuple[str, str]] = []
+    for error in exc.errors():
+        location = error.get("loc", ())
+        if len(location) < 2 or location[0] != "body" or not isinstance(location[1], str):
+            continue
+        field = location[1]
+        message_key = _structural_message_key(path, field)
+        violation = (field, message_key) if message_key is not None else None
+        if violation is not None and violation not in violations:
+            violations.append(violation)
+    return violations
+
+
+def _structural_message_key(path: str, field: str) -> str | None:
+    common = {
+        "url": "validation.url.invalid",
+        "title": "validation.title.required",
+        "notes": "validation.notes.too-long",
+        "tags": "validation.tag.invalid",
+        "key": "validation.message.key.invalid",
+        "language": "validation.message.language.invalid",
+        "text": "validation.message.text.required",
+        "description": "validation.message.description.too-long",
+        "comment": "validation.report.comment.too-long",
+        "resolution": "validation.resolution.invalid",
+    }
+    if field == "reason":
+        return "validation.block.reason.required" if "/admin/users/" in path else "validation.report.reason.invalid"
+    if field == "note":
+        if "/admin/bookmarks/" in path:
+            return "validation.bookmark-status.note.too-long"
+        if "/admin/reports/" in path:
+            return "validation.resolution.note.too-long"
+    return common.get(field)
 
 
 app = build_app()

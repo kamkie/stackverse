@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Body, Request, Response
+from fastapi import APIRouter, Request, Response
 from psycopg import sql
 
 from ..api import (
@@ -34,10 +34,19 @@ from ..problems import (
     require_valid_paging,
     single_param,
 )
+from ..schemas import (
+    AdminStats,
+    AuditPage,
+    Bookmark,
+    BookmarkStatusInput,
+    UserAccount,
+    UserAccountPage,
+    UserStatusInput,
+    body_payload,
+)
 from ..time import now_utc
 
 router = APIRouter()
-RequestBody = Annotated[Any, Body()]
 
 AUDIT_FILTERS = (
     ("actor", sql.SQL("actor = %s")),
@@ -47,10 +56,10 @@ AUDIT_FILTERS = (
 )
 
 
-@router.put("/api/v1/admin/bookmarks/{bookmark_id}/status")
-def set_bookmark_status(bookmark_id: str, caller: ModeratorCaller, body: RequestBody = None) -> dict[str, Any]:
+@router.put("/api/v1/admin/bookmarks/{bookmark_id}/status", response_model=Bookmark, response_model_exclude_none=True)
+def set_bookmark_status(bookmark_id: str, caller: ModeratorCaller, body: BookmarkStatusInput | None) -> dict[str, Any]:
     parsed_bookmark_id = parse_uuid(bookmark_id)
-    status, note = validate_bookmark_status_input(body)
+    status, note = validate_bookmark_status_input(body_payload(body))
     with transaction() as conn:
         bookmark = conn.execute("select * from bookmarks where id = %s for update", (parsed_bookmark_id,)).fetchone()
         if bookmark is None:
@@ -80,7 +89,7 @@ def set_bookmark_status(bookmark_id: str, caller: ModeratorCaller, body: Request
     return to_bookmark_response(updated)
 
 
-@router.get("/api/v1/admin/users")
+@router.get("/api/v1/admin/users", response_model=UserAccountPage, response_model_exclude_none=True)
 def list_users(request: Request, _caller: AdminCaller) -> dict[str, Any]:
     page, size = require_valid_paging(request)
     q = single_param(request, "q")
@@ -115,7 +124,7 @@ def list_users(request: Request, _caller: AdminCaller) -> dict[str, Any]:
     return page_of(rows, page, size, total, to_user_account_response)
 
 
-@router.get("/api/v1/admin/users/{username}")
+@router.get("/api/v1/admin/users/{username}", response_model=UserAccount, response_model_exclude_none=True)
 def get_user(username: str, _caller: AdminCaller) -> dict[str, Any]:
     account = find_account(username)
     if account is None:
@@ -123,9 +132,9 @@ def get_user(username: str, _caller: AdminCaller) -> dict[str, Any]:
     return to_user_account_response(account)
 
 
-@router.put("/api/v1/admin/users/{username}/status")
-def set_user_status(username: str, caller: AdminCaller, body: RequestBody = None) -> dict[str, Any]:
-    input_data = body if isinstance(body, dict) else {}
+@router.put("/api/v1/admin/users/{username}/status", response_model=UserAccount, response_model_exclude_none=True)
+def set_user_status(username: str, caller: AdminCaller, body: UserStatusInput | None) -> dict[str, Any]:
+    input_data = body_payload(body) or {}
     status = input_data.get("status")
     if status not in {"active", "blocked"}:
         raise BadRequestProblem("status is required")
@@ -170,7 +179,7 @@ def set_user_status(username: str, caller: AdminCaller, body: RequestBody = None
     return to_user_account_response(account)
 
 
-@router.get("/api/v1/admin/audit-log")
+@router.get("/api/v1/admin/audit-log", response_model=AuditPage, response_model_exclude_none=True)
 def audit_log(request: Request, _caller: AdminCaller) -> dict[str, Any]:
     page, size = require_valid_paging(request)
     conditions = [sql.SQL("true")]
@@ -207,7 +216,7 @@ def audit_log(request: Request, _caller: AdminCaller) -> dict[str, Any]:
     return page_of(rows, page, size, total, to_audit_response)
 
 
-@router.get("/api/v1/admin/stats")
+@router.get("/api/v1/admin/stats", response_model=AdminStats)
 def stats(request: Request, _caller: ModeratorCaller) -> Response:
     today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     start = today - timedelta(days=29)

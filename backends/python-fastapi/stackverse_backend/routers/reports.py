@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Body, Request, Response
+from fastapi import APIRouter, Request, Response
 from psycopg import sql
 from psycopg.errors import UniqueViolation
 
@@ -24,16 +24,18 @@ from ..auth import CurrentCaller, ModeratorCaller
 from ..db import one, query, transaction
 from ..logging_setup import log_event
 from ..problems import ConflictProblem, NotFoundProblem, parse_uuid, require_valid_paging, single_param
+from ..schemas import Report, ReportInput, ReportPage, ReportResolutionInput, body_payload
 from ..time import now_utc
 
 router = APIRouter()
-RequestBody = Annotated[Any, Body()]
 
 
-@router.post("/api/v1/bookmarks/{bookmark_id}/reports", status_code=201)
-def report_bookmark(bookmark_id: str, caller: CurrentCaller, body: RequestBody = None) -> dict[str, Any]:
+@router.post(
+    "/api/v1/bookmarks/{bookmark_id}/reports", status_code=201, response_model=Report, response_model_exclude_none=True
+)
+def report_bookmark(bookmark_id: str, caller: CurrentCaller, body: ReportInput | None) -> dict[str, Any]:
     parsed_bookmark_id = parse_uuid(bookmark_id)
-    input_data = validate_report_input(body)
+    input_data = validate_report_input(body_payload(body))
     with transaction() as conn:
         bookmark = conn.execute(
             "select visibility, status from bookmarks where id = %s for update",
@@ -79,7 +81,7 @@ def report_bookmark(bookmark_id: str, caller: CurrentCaller, body: RequestBody =
     return to_report_response(row)
 
 
-@router.get("/api/v1/reports")
+@router.get("/api/v1/reports", response_model=ReportPage, response_model_exclude_none=True)
 def list_my_reports(request: Request, caller: CurrentCaller) -> dict[str, Any]:
     page, size = require_valid_paging(request)
     status = validated_report_status(single_param(request, "status"))
@@ -105,10 +107,10 @@ def list_my_reports(request: Request, caller: CurrentCaller) -> dict[str, Any]:
     return page_of(rows, page, size, total, to_report_response)
 
 
-@router.put("/api/v1/reports/{report_id}")
-def update_my_report(report_id: str, caller: CurrentCaller, body: RequestBody = None) -> dict[str, Any]:
+@router.put("/api/v1/reports/{report_id}", response_model=Report, response_model_exclude_none=True)
+def update_my_report(report_id: str, caller: CurrentCaller, body: ReportInput | None) -> dict[str, Any]:
     parsed_report_id = parse_uuid(report_id)
-    input_data = validate_report_input(body)
+    input_data = validate_report_input(body_payload(body))
     with transaction() as conn:
         report = own_report(conn, caller.username, parsed_report_id)
         require_open(report)
@@ -150,7 +152,7 @@ def withdraw_report(report_id: str, caller: CurrentCaller) -> Response:
     return Response(status_code=204)
 
 
-@router.get("/api/v1/admin/reports")
+@router.get("/api/v1/admin/reports", response_model=ReportPage, response_model_exclude_none=True)
 def list_reports(request: Request, _caller: ModeratorCaller) -> dict[str, Any]:
     page, size = require_valid_paging(request)
     status = validated_report_status(single_param(request, "status")) or "open"
@@ -166,10 +168,10 @@ def list_reports(request: Request, _caller: ModeratorCaller) -> dict[str, Any]:
     return page_of(rows, page, size, total, to_report_response)
 
 
-@router.put("/api/v1/admin/reports/{report_id}")
-def resolve_report(report_id: str, caller: ModeratorCaller, body: RequestBody = None) -> dict[str, Any]:
+@router.put("/api/v1/admin/reports/{report_id}", response_model=Report, response_model_exclude_none=True)
+def resolve_report(report_id: str, caller: ModeratorCaller, body: ReportResolutionInput | None) -> dict[str, Any]:
     parsed_report_id = parse_uuid(report_id)
-    target, note = validate_resolution_input(body)
+    target, note = validate_resolution_input(body_payload(body))
     with transaction() as conn:
         if target == "actioned":
             scalar = conn.execute("select bookmark_id from reports where id = %s", (parsed_report_id,)).fetchone()

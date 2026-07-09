@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Body, Request, Response
+from fastapi import APIRouter, Request, Response
 from psycopg import sql
 from psycopg.errors import UniqueViolation
 
@@ -30,13 +30,13 @@ from ..problems import (
     require_valid_paging,
     single_param,
 )
+from ..schemas import Message, MessageBundle, MessageInput, MessagePage, body_payload
 from ..time import now_utc
 
 router = APIRouter()
-RequestBody = Annotated[Any, Body()]
 
 
-@router.get("/api/v1/messages")
+@router.get("/api/v1/messages", response_model=MessagePage, response_model_exclude_none=True)
 def list_messages(request: Request, _caller: OptionalCaller) -> Response:
     page, size = require_valid_paging(request)
     key = single_param(request, "key")
@@ -66,7 +66,7 @@ def list_messages(request: Request, _caller: OptionalCaller) -> Response:
     return response_with_etag(request, page_of(rows, page, size, total, to_message_response))
 
 
-@router.get("/api/v1/messages/bundle")
+@router.get("/api/v1/messages/bundle", response_model=MessageBundle)
 def get_bundle(request: Request, _caller: OptionalCaller) -> Response:
     language = resolve_language(first_param(request, "lang"), request.headers.get("accept-language"))
     return response_with_etag(
@@ -76,7 +76,7 @@ def get_bundle(request: Request, _caller: OptionalCaller) -> Response:
     )
 
 
-@router.get("/api/v1/messages/{message_id}")
+@router.get("/api/v1/messages/{message_id}", response_model=Message, response_model_exclude_none=True)
 def get_message(request: Request, message_id: str, _caller: OptionalCaller) -> Response:
     message = one("select * from messages where id = %s", (parse_uuid(message_id),))
     if message is None:
@@ -84,9 +84,9 @@ def get_message(request: Request, message_id: str, _caller: OptionalCaller) -> R
     return response_with_etag(request, to_message_response(message))
 
 
-@router.post("/api/v1/messages", status_code=201)
-def create_message(response: Response, caller: AdminCaller, body: RequestBody = None) -> dict[str, Any]:
-    input_data = validate_message_input(body)
+@router.post("/api/v1/messages", status_code=201, response_model=Message, response_model_exclude_none=True)
+def create_message(response: Response, caller: AdminCaller, body: MessageInput | None) -> dict[str, Any]:
+    input_data = validate_message_input(body_payload(body))
     message_id = str(uuid4())
     now = now_utc()
     with transaction() as conn:
@@ -121,10 +121,10 @@ def create_message(response: Response, caller: AdminCaller, body: RequestBody = 
     return to_message_response(row)
 
 
-@router.put("/api/v1/messages/{message_id}")
-def update_message(message_id: str, caller: AdminCaller, body: RequestBody = None) -> dict[str, Any]:
+@router.put("/api/v1/messages/{message_id}", response_model=Message, response_model_exclude_none=True)
+def update_message(message_id: str, caller: AdminCaller, body: MessageInput | None) -> dict[str, Any]:
     parsed_message_id = parse_uuid(message_id)
-    input_data = validate_message_input(body)
+    input_data = validate_message_input(body_payload(body))
     with transaction() as conn:
         existing = conn.execute("select 1 from messages where id = %s", (parsed_message_id,)).fetchone()
         if existing is None:
