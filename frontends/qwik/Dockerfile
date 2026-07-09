@@ -6,7 +6,7 @@
 # The final image is a long-running static-file server on port 8080. It stays
 # internal to compose; the gateway proxies browser traffic to it.
 
-FROM node:26.4.0-alpine AS build
+FROM node:26.5.0-alpine AS build
 RUN npm install -g corepack && corepack enable
 WORKDIR /build/frontends/qwik
 COPY frontends/qwik/package.json frontends/qwik/yarn.lock frontends/qwik/.yarnrc.yml ./
