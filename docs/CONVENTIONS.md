@@ -369,7 +369,7 @@ issue closes.
 | [Apache APISIX](../gateways/apisix/README.md) | Test::Nginx (TAP), busted, or APISIX plugin test harnesses | Hand-rolled Lua harness with ngx mock via resty; bespoke debug-hook LCOV | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | stdlib testing + httptest fakes for upstreams; table-driven | testing + httptest harness faking backend/frontend/OIDC; gotestsum in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | Vitest or node:test running Fastify in-process with injected requests | Vitest suite hosting buildApp in-process with MemorySessionStore and stubbed fetch | ✅ idiomatic |
-| [OpenResty (Lua)](../gateways/openresty/README.md) | Test::Nginx (TAP) or busted | Busted native-proxy configuration specs plus a mocked contract smoke harness and debug-hook LCOV | ✅ idiomatic |
+| [OpenResty (Lua)](../gateways/openresty/README.md) | Test::Nginx (TAP) or busted | Busted config specs, live native-proxy integration, mocked contract smoke harness, and debug-hook LCOV | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | pytest with Starlette TestClient or httpx ASGI transport | pytest hosts Starlette in-process with MemorySessionStore and stubbed httpx client | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | cargo test with tower::ServiceExt and local stub services | cargo test runs helper units plus Axum in-process requests against local stub backend/IdP servers | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | xUnit + WebApplicationFactory integration tests | xUnit + WebApplicationFactory + Testcontainers (real Keycloak/Redis) | ✅ idiomatic |
