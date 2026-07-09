@@ -23,11 +23,6 @@ issue closes.
 - 🔴 **Scala http4s** pins the commit-style Cats Effect build `3.7-4972921`
   instead of a normal stable release
   ([#337](https://github.com/kamkie/stackverse/issues/337)).
-- 🟡 **Qwik** type-checks against local Qwik declaration shims because the current
-  Qwik/TypeScript combination is incompatible. The workaround is documented in the
-  variant README, but it weakens the value of the typecheck until compatible real
-  package declarations are used
-  ([#342](https://github.com/kamkie/stackverse/issues/342)).
 
 ## Backends
 
@@ -474,7 +469,7 @@ issue closes.
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vitest plus @open-wc/testing or Testing Library for custom elements | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
-| [Qwik](../frontends/qwik/README.md) | Vitest with Qwik/browser component testing for UI behavior | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | Vitest with Qwik/browser component testing for UI behavior | Vitest helper tests plus Qwik `createDOM` component rendering; shared e2e covers full behavior | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom for lib stores/helpers; no component tests | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
@@ -487,7 +482,7 @@ issue closes.
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | No ESLint/Prettier; strict `tsc` is the static gate | 🟡 deliberate |
-| [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
+| [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | No ESLint/Prettier config; a svelte-check script exists but neither the build script nor CI invokes it | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |
