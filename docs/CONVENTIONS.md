@@ -17,9 +17,6 @@ listed separately because dependency freshness is not otherwise scored as a full
 per-variant table in this document. Update or remove each bullet when its tracking
 issue closes.
 
-- 🔴 **Play Scala** uses Play 2.9 even though Play 3 is the current stable line and
-  avoids Play 2.9's default EOL Akka 2.6 runtime by moving to Apache Pekko
-  ([#336](https://github.com/kamkie/stackverse/issues/336)).
 - 🔴 **Scala http4s** pins the commit-style Cats Effect build `3.7-4972921`
   instead of a normal stable release
   ([#337](https://github.com/kamkie/stackverse/issues/337)).
@@ -50,7 +47,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | Standard Laravel app layout: routes, Http middleware/controllers, providers, database/migrations | API-only Laravel layout with routes/api.php, controllers, services, support helpers, and migrations | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | APIRouter per resource module, routers included on the app | `routers/` APIRouter modules by resource area, included from app setup | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Django project + app layout, urls.py route table, models/migrations in the app | `stackverse_django` project plus `stackverse_api` app with models, migrations, DRF views, and helpers | ✅ idiomatic |
-| [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Conventional directories, but all endpoints remain in one ~953-line StackverseController | 🟡 deliberate |
+| [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Separate health, identity, bookmark, message, moderation, and admin controllers delegate to injected collaborators | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Standard sbt layout, but config, wiring, auth, routes, DB, wire helpers, and logging share one ~1,754-line Main.scala | 🔴 undocumented |
 | [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Maven layout; thin JAX-RS resources delegate the entire application to one ~2,043-line StackverseService | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one ~2,769-line handlers.rs | 🔴 undocumented |
@@ -100,7 +97,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | Laravel service container with constructor injection into controllers, middleware, and commands | Container-injected middleware, controllers, commands, and services | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | FastAPI Depends() for db sessions, current user, config | Depends for optional/current/role callers; db remains module-global pool | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | Django apps/settings plus request-scoped view functions/classes; no DI container | Settings/apps wire framework services; DRF views call focused helper modules | ✅ idiomatic |
-| [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, and controller components | ✅ idiomatic |
+| [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, action service, and focused controllers | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Cats Effect `Resource` wiring or tagless-final algebras passed explicitly | Resource-managed object graph with explicit config/logger/DB/auth/routes construction | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | @ApplicationScoped service, constructor @Inject, @Provider filters/mappers | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Axum/Tower state extractors; no DI container | Cloned AppState injected through State and middleware state | ✅ idiomatic |
@@ -150,7 +147,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | Exceptions configured in bootstrap/app.php or renderable handlers | bootstrap exception renderers map ApiProblem/ValidationProblem to RFC 9457 problem+json | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | Raise HTTPException; FastAPI serializes the detail body | Custom AppProblem hierarchy + exception_handlers emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | DRF custom exception handler maps API exceptions to responses | AppProblem/ValidationProblem handled by DRF exception handler emitting RFC 9457 problem+json | ✅ idiomatic |
-| [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Custom ApiProblem hierarchy caught in controller api() wrapper, emits RFC 7807 problem+json | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Shared injected action service recovers ApiProblem/validation failures into exact RFC 9457 responses | 🟡 deliberate |
 | [Scala http4s](../backends/scala-http4s/README.md) | `HttpRoutes` returning `EitherT`/typed errors or centralized error recovery | Typed ApiProblem/ValidationProblem caught by a route wrapper, emits RFC 9457 problem+json | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | JAX-RS ExceptionMapper providers translating exceptions to responses | ExceptionMapper providers emit RFC 9457 application/problem+json | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Implement IntoResponse for app errors and use Result<T, E> handlers | AppError implements IntoResponse; handlers short-circuit with Result<Response, AppError> | ✅ idiomatic |
@@ -200,7 +197,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | FormRequest / Validator facade with validation rules | Hand-rolled Validator collecting localized FieldViolations | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | Pydantic models bind and validate request bodies | Bodies bound as `Annotated[Any, Body()]`; hand-rolled Validator functions | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | DRF serializers validate request bodies and query parameters | DRF parses bodies; hand-rolled Validator functions preserve localized contract keys | 🟡 deliberate |
-| [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Manual Validator accumulator over Play-JSON asOpt lookups with message keys | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Typed request case classes with contract-aware Reads preserving localized message keys | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe decoders/refined types, cats-validated, or explicit validation | Manual Validator accumulator over Circe JsonObject lookups with message keys | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Manual Validator over raw Jackson JsonNode collecting FieldViolations | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | validator crate or explicit domain validation | Hand-written Validator collecting localized FieldViolations | 🟡 deliberate |
@@ -225,7 +222,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | PHPUnit or Pest through `php artisan test`, often with HTTP feature tests | PHPUnit helper/unit tests via `php artisan test`; contract via shared conformance suite | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | pytest with TestClient/httpx exercising the ASGI app end-to-end | pytest unit tests of helpers plus a small TestClient route smoke; no DB integration | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | pytest/pytest-django or Django TestCase with APIClient integration tests | pytest unit tests of helpers; HTTP/DB acceptance lives in shared conformance | 🟡 deliberate |
-| [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | ScalaTest AnyFunSuite unit tests of helpers; ResultSet faked via JDK dynamic proxies | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | ScalaTestPlusPlay Guice application/route tests plus focused helper and codec unit tests | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | MUnit/Cats Effect testing or ScalaTest with http4s route tests | ScalaTest AnyFunSuite unit tests of helpers; ResultSet faked via JDK dynamic proxies | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | Plain JUnit 5 unit tests with JDK dynamic-proxy mocks; contract via external conformance suite | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | cargo test covers helpers, validation, pagination, language, and AppError rendering | ✅ idiomatic |
@@ -250,7 +247,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | Laravel Pint for code style | Pint check wired through `composer lint` and CI | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
-| [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | scalafmt config checked by CI; Scala compilation uses deprecation/feature warnings with `-Werror` | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
@@ -275,7 +272,7 @@ issue closes.
 | [PHP Laravel](../backends/php-laravel/README.md) | Eloquent API resources / JsonResource DTOs or arrays | Hand-built response arrays, lowercase wire strings, omitNulls helper | 🟡 deliberate |
 | [FastAPI](../backends/python-fastapi/README.md) | Pydantic models as request/response schemas with response_model | Plain dict[str, Any] in/out; dataclasses only for Caller and Config | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | Django models plus DRF serializers for request/response DTOs | Django models for domain; manual response dict mappers omit optional null fields | 🟡 deliberate |
-| [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Case-class rows plus manual JsObject builders (Wire.obj/Responses); string-typed enums | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Typed request Reads and row OWrites; explicit wire builders preserve omission and string-enum contract details | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe codecs/DTO case classes and typed domain values | Case-class rows plus manual Circe Json builders; wire enums kept as strings | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Records/POJOs as request and response DTOs, framework-serialized | Records for domain/inputs; responses hand-built as LinkedHashMap, requests read from JsonNode | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Serde DTO structs, enums for closed sets, typed IDs | Serde request/response structs and FromRow rows; wire values kept as strings | ✅ idiomatic |
