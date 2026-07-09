@@ -42,7 +42,9 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-frontend-svelte-
       - name: Install dependencies
         run: yarn install --immutable
-      - name: Build
+      - name: Lint and format
+        run: yarn lint && yarn format:check
+      - name: Typecheck and build
         run: yarn build
       - name: Unit tests
         run: yarn test --coverage
