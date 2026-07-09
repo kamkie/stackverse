@@ -9,7 +9,10 @@
   import BookmarkCard from "../components/BookmarkCard.svelte";
   import ReportDialog from "../components/ReportDialog.svelte";
 
-  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
+  let {
+    toast,
+  }: { toast: (message: string, tone?: "success" | "danger") => void } =
+    $props();
 
   let bookmarks: Bookmark[] = $state([]);
   let nextCursor: string | undefined = $state(undefined);
@@ -64,7 +67,9 @@
   {:else if error}
     <div class="sv-alert sv-alert--danger" role="alert">{error.message}</div>
   {:else if bookmarks.length === 0}
-    <div class="sv-empty">{m(i18nState.current, "ui.bookmarks.no-matches")}</div>
+    <div class="sv-empty">
+      {m(i18nState.current, "ui.bookmarks.no-matches")}
+    </div>
   {:else}
     <ul class="sv-card-list">
       {#each bookmarks as bookmark (bookmark.id)}
@@ -72,13 +77,20 @@
           {bookmark}
           mode="feed"
           reported={isReported(bookmark.id)}
-          onReport={sessionState.current?.authenticated ? (item) => (reporting = item) : undefined}
+          onReport={sessionState.current?.authenticated
+            ? (item) => (reporting = item)
+            : undefined}
         />
       {/each}
     </ul>
     {#if nextCursor}
       <div class="sv-load-more">
-        <button type="button" class="sv-button" disabled={loading} onclick={() => load(false)}>
+        <button
+          type="button"
+          class="sv-button"
+          disabled={loading}
+          onclick={() => load(false)}
+        >
           {m(i18nState.current, "ui.action.load-more")}
         </button>
       </div>

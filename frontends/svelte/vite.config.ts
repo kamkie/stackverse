@@ -8,11 +8,13 @@ const FORWARDED_LEVELS = new Set(["log", "info", "warn", "error", "debug"]);
 const MAX_FIELD_CHARS = 4096;
 
 function sanitizeLogField(value: unknown): string {
-  return String(value)
-    .slice(0, MAX_FIELD_CHARS)
-    .replace(/\r?\n/g, "\\n")
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+  return (
+    String(value)
+      .slice(0, MAX_FIELD_CHARS)
+      .replace(/\r?\n/g, "\\n")
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "")
+  );
 }
 
 function clientLogForwarder(): Plugin {
@@ -48,10 +50,14 @@ function clientLogForwarder(): Plugin {
               time: string;
             }[];
             for (const entry of entries) {
-              const level = FORWARDED_LEVELS.has(entry.level) ? entry.level : "log";
+              const level = FORWARDED_LEVELS.has(entry.level)
+                ? entry.level
+                : "log";
               const time = sanitizeLogField(entry.time);
               const message = sanitizeLogField(entry.message);
-              console.log(`[browser] ${time} ${level.toUpperCase().padEnd(5)} ${message}`);
+              console.log(
+                `[browser] ${time} ${level.toUpperCase().padEnd(5)} ${message}`,
+              );
             }
           } catch {
             // malformed batch — drop it, never crash the dev server

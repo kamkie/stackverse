@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
+  import {
+    ApiError,
+    api,
+    fieldErrorFor,
+    jsonBody,
+    queryString,
+  } from "../../lib/api";
   import { i18n, m, refreshBundle, SUPPORTED_LANGUAGES } from "../../lib/i18n";
   import type { Message, MessageInput, Page } from "../../lib/types";
   import ConfirmDialog from "../../components/ConfirmDialog.svelte";
@@ -9,7 +15,10 @@
   import Pagination from "../../components/Pagination.svelte";
   import { fromStore } from "svelte/store";
 
-  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
+  let {
+    toast,
+  }: { toast: (message: string, tone?: "success" | "danger") => void } =
+    $props();
 
   let q = $state("");
   let language = $state("");
@@ -68,7 +77,10 @@
     };
     try {
       if (editing === "new") {
-        await api<Message>("/api/v1/messages", { method: "POST", ...jsonBody(body) });
+        await api<Message>("/api/v1/messages", {
+          method: "POST",
+          ...jsonBody(body),
+        });
         toast(m(i18nState.current, "ui.toast.message-created"));
       } else if (editing) {
         await api<Message>(`/api/v1/messages/${editing.id}`, {
@@ -131,15 +143,25 @@
       void load();
     }}
   >
-    <option value="">{m(i18nState.current, "ui.messages.filter.all-languages")}</option>
-    {#each SUPPORTED_LANGUAGES as code}
+    <option value=""
+      >{m(i18nState.current, "ui.messages.filter.all-languages")}</option
+    >
+    {#each SUPPORTED_LANGUAGES as code (code)}
       <option value={code}>{code}</option>
     {/each}
   </select>
-  <button type="button" class="sv-button sv-button--ghost" onclick={clearFilters}>
+  <button
+    type="button"
+    class="sv-button sv-button--ghost"
+    onclick={clearFilters}
+  >
     {m(i18nState.current, "ui.action.clear-filters")}
   </button>
-  <button type="button" class="sv-button sv-button--primary" onclick={openCreate}>
+  <button
+    type="button"
+    class="sv-button sv-button--primary"
+    onclick={openCreate}
+  >
     {m(i18nState.current, "ui.action.add")}
   </button>
 </div>
@@ -158,7 +180,11 @@
           <th scope="col">{m(i18nState.current, "ui.field.key")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.language")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.text")}</th>
-          <th scope="col"><span class="sv-visually-hidden">{m(i18nState.current, "ui.field.actions")}</span></th>
+          <th scope="col"
+            ><span class="sv-visually-hidden"
+              >{m(i18nState.current, "ui.field.actions")}</span
+            ></th
+          >
         </tr>
       </thead>
       <tbody>
@@ -168,10 +194,18 @@
             <td><span class="sv-badge">{message.language}</span></td>
             <td>{message.text}</td>
             <td class="sv-cell-actions">
-              <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={() => openEdit(message)}>
+              <button
+                type="button"
+                class="sv-button sv-button--ghost sv-button--sm"
+                onclick={() => openEdit(message)}
+              >
                 {m(i18nState.current, "ui.action.edit")}
               </button>
-              <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={() => (deleting = message)}>
+              <button
+                type="button"
+                class="sv-button sv-button--ghost sv-button--sm"
+                onclick={() => (deleting = message)}
+              >
                 {m(i18nState.current, "ui.action.delete")}
               </button>
             </td>
@@ -192,35 +226,56 @@
 
 {#if editing}
   <Dialog
-    title={m(i18nState.current, editing === "new" ? "ui.messages.dialog.add" : "ui.messages.dialog.edit")}
+    title={m(
+      i18nState.current,
+      editing === "new" ? "ui.messages.dialog.add" : "ui.messages.dialog.edit",
+    )}
     ctx={editing !== "new" ? `message:${editing.id}` : undefined}
     onClose={() => (editing = null)}
   >
     <form class="sv-form" onsubmit={submit}>
-      <Field label={m(i18nState.current, "ui.field.key")} error={fieldErrorFor(formError, "key")}>
+      <Field
+        label={m(i18nState.current, "ui.field.key")}
+        error={fieldErrorFor(formError, "key")}
+      >
         <input class="sv-input" bind:value={key} />
       </Field>
-      <Field label={m(i18nState.current, "ui.field.language")} error={fieldErrorFor(formError, "language")}>
+      <Field
+        label={m(i18nState.current, "ui.field.language")}
+        error={fieldErrorFor(formError, "language")}
+      >
         <select class="sv-select" bind:value={messageLanguage}>
           {#if !SUPPORTED_LANGUAGES.includes(messageLanguage as "en" | "pl")}
             <option value={messageLanguage}>{messageLanguage}</option>
           {/if}
-          {#each SUPPORTED_LANGUAGES as code}
+          {#each SUPPORTED_LANGUAGES as code (code)}
             <option value={code}>{code}</option>
           {/each}
         </select>
       </Field>
-      <Field label={m(i18nState.current, "ui.field.text")} error={fieldErrorFor(formError, "text")}>
+      <Field
+        label={m(i18nState.current, "ui.field.text")}
+        error={fieldErrorFor(formError, "text")}
+      >
         <textarea class="sv-textarea" bind:value={text}></textarea>
       </Field>
-      <Field label={m(i18nState.current, "ui.field.description")} error={fieldErrorFor(formError, "description")}>
+      <Field
+        label={m(i18nState.current, "ui.field.description")}
+        error={fieldErrorFor(formError, "description")}
+      >
         <textarea class="sv-textarea" bind:value={description}></textarea>
       </Field>
       {#if formError instanceof ApiError && formError.status === 409}
-        <div class="sv-alert sv-alert--warning" role="alert">{formError.message}</div>
+        <div class="sv-alert sv-alert--warning" role="alert">
+          {formError.message}
+        </div>
       {/if}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" onclick={() => (editing = null)}>
+        <button
+          type="button"
+          class="sv-button"
+          onclick={() => (editing = null)}
+        >
           {m(i18nState.current, "ui.action.cancel")}
         </button>
         <button type="submit" class="sv-button sv-button--primary">

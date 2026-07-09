@@ -12,17 +12,26 @@ last segment so admins can fill translations through the Messages screen.
 ```sh
 yarn install
 yarn dev              # dev server on :5173, /api and /auth proxied to a gateway on :8000
-yarn test             # vitest unit tests
-yarn build            # static production bundle in dist/
+yarn lint             # ESLint with TypeScript and Svelte rules
+yarn format:check     # verify Svelte-aware Prettier formatting
+yarn test             # Vitest helper and Svelte component tests
+yarn typecheck        # svelte-check diagnostics
+yarn build            # typecheck + static production bundle in dist/
+yarn check            # lint + format + tests + typecheck + production build
 ```
 
 Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
-through `.pnp.cjs` and packages live in the global cache. On Windows,
-`svelte-check` can hit Yarn PnP path-casing issues when the global cache is on
-another drive; `yarn build` uses the Vite/Svelte compiler path that works
-locally and in CI. Like the Angular frontend, this implementation has no mock
-mode: run it against a real gateway or through the root dev-stack recipe and
-replace the frontend tab with `yarn dev` in this directory.
+through `.pnp.cjs` and packages live in the global cache. Like the Angular
+frontend, this implementation has no mock mode: run it against a real gateway
+or through the root dev-stack recipe and replace the frontend tab with
+`yarn dev` in this directory.
+
+## Deliberate routing boundary
+
+The app remains a static Vite SPA, so it uses the small History API store in
+`src/lib/route.ts` rather than SvelteKit's file-based router and server runtime.
+That keeps this frontend deployable as the same pluggable static asset served by
+every gateway while retaining Svelte 5 runes and components inside each page.
 
 ## Dev action log
 
@@ -38,20 +47,20 @@ bundles.
 
 Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10.
 
-| Requirement | Status |
-|---|---|
-| stdout-only logging | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | n/a |
-| lifecycle events at `INFO` | n/a |
-| expected 4xx not logged as errors | n/a |
-| secrets kept out of logs | ✅ |
-| `LOG_LEVEL` honored | n/a |
-| trace id on console lines when tracing on | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | n/a |
-| JSON console by default (`LOG_FORMAT`) | n/a |
-| dev-only console forwarding, sanitized | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅ |
+| Requirement                                                                | Status |
+| -------------------------------------------------------------------------- | ------ |
+| stdout-only logging                                                        | n/a    |
+| OTLP log export behind `OTEL_SDK_DISABLED`                                 | n/a    |
+| lifecycle events at `INFO`                                                 | n/a    |
+| expected 4xx not logged as errors                                          | n/a    |
+| secrets kept out of logs                                                   | ✅     |
+| `LOG_LEVEL` honored                                                        | n/a    |
+| trace id on console lines when tracing on                                  | n/a    |
+| stable `event` names (§5: lifecycle, session, security, moderation)        | n/a    |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`)        | n/a    |
+| JSON console by default (`LOG_FORMAT`)                                     | n/a    |
+| dev-only console forwarding, sanitized                                     | ✅     |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅     |
 
 ## API types are hand-written from the contract
 

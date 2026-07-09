@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { i18n, loadBundle, m, mc, setLanguage, type I18nState } from "./i18n";
 import type { MessageBundle } from "./types";
 
-function bundle(language: string, messages: Record<string, string>): MessageBundle {
+function bundle(
+  language: string,
+  messages: Record<string, string>,
+): MessageBundle {
   return { language, messages };
 }
 
@@ -58,7 +61,9 @@ describe("loadBundle", () => {
     });
     expect(document.documentElement.lang).toBe("pl");
     expect(document.title).toBe("Stackverse PL");
-    expect(JSON.parse(localStorage.getItem("stackverse.bundle.pl") ?? "{}")).toEqual({
+    expect(
+      JSON.parse(localStorage.getItem("stackverse.bundle.pl") ?? "{}"),
+    ).toEqual({
       etag: '"pl-v1"',
       bundle: responseBundle,
     });
@@ -70,7 +75,9 @@ describe("loadBundle", () => {
       bundle: bundle("en", { "ui.app.title": "Stackverse Cached" }),
     };
     localStorage.setItem("stackverse.bundle.auto", JSON.stringify(cached));
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 304 }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 304 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await loadBundle(null);
@@ -100,7 +107,11 @@ describe("setLanguage", () => {
   it("persists the selected language before loading it", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(jsonResponse(bundle("pl", { "ui.app.title": "Tytul" }))),
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(bundle("pl", { "ui.app.title": "Tytul" })),
+        ),
     );
 
     await setLanguage("pl");

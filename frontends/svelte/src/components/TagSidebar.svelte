@@ -31,7 +31,7 @@
 <aside class="sv-sidebar">
   <h2 class="sv-sidebar-title">{m(i18nState.current, "ui.nav.tags")}</h2>
   <ul class="sv-tag-list">
-    {#each tags as item}
+    {#each tags as item (item.tag)}
       <li>
         <button
           type="button"

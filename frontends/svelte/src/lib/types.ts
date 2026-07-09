@@ -130,5 +130,4 @@ export interface AdminStats {
 }
 
 export type Session =
-  | { authenticated: true; username: string }
-  | { authenticated: false };
+  { authenticated: true; username: string } | { authenticated: false };

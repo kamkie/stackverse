@@ -10,7 +10,10 @@
   import TagSidebar from "../components/TagSidebar.svelte";
   import { fromStore } from "svelte/store";
 
-  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
+  let {
+    toast,
+  }: { toast: (message: string, tone?: "success" | "danger") => void } =
+    $props();
 
   let bookmarks: Bookmark[] = $state([]);
   let nextCursor: string | undefined = $state(undefined);
@@ -18,7 +21,8 @@
   let error: Error | null = $state(null);
   let q = $state("");
   let selectedTag = $state("");
-  let dialog: { mode: "create" } | { mode: "edit"; bookmark: Bookmark } | null = $state(null);
+  let dialog: { mode: "create" } | { mode: "edit"; bookmark: Bookmark } | null =
+    $state(null);
   let deleting: Bookmark | null = $state(null);
   let tagSidebar: TagSidebar | undefined = $state();
   const i18nState = fromStore(i18n);
@@ -53,7 +57,10 @@
       await load();
       await tagSidebar?.reload();
     } catch (caught) {
-      toast(caught instanceof Error ? caught.message : String(caught), "danger");
+      toast(
+        caught instanceof Error ? caught.message : String(caught),
+        "danger",
+      );
     }
   }
 
@@ -68,7 +75,11 @@
 </script>
 
 <div class="sv-layout">
-  <TagSidebar bind:this={tagSidebar} selected={selectedTag} onSelect={selectTag} />
+  <TagSidebar
+    bind:this={tagSidebar}
+    selected={selectedTag}
+    onSelect={selectTag}
+  />
   <section class="sv-content">
     <h1 class="sv-page-title">{m(i18nState.current, "ui.nav.my-bookmarks")}</h1>
     <div class="sv-toolbar">
@@ -79,7 +90,11 @@
         bind:value={q}
         onchange={() => load()}
       />
-      <button type="button" class="sv-button sv-button--primary" onclick={() => (dialog = { mode: "create" })}>
+      <button
+        type="button"
+        class="sv-button sv-button--primary"
+        onclick={() => (dialog = { mode: "create" })}
+      >
         {m(i18nState.current, "ui.action.add")}
       </button>
     </div>
@@ -90,7 +105,9 @@
       <div class="sv-alert sv-alert--danger" role="alert">{error.message}</div>
     {:else if bookmarks.length === 0}
       <div class="sv-empty">
-        {q || selectedTag ? m(i18nState.current, "ui.bookmarks.no-matches") : m(i18nState.current, "ui.bookmarks.empty")}
+        {q || selectedTag
+          ? m(i18nState.current, "ui.bookmarks.no-matches")
+          : m(i18nState.current, "ui.bookmarks.empty")}
       </div>
     {:else}
       <ul class="sv-card-list">
@@ -105,7 +122,12 @@
       </ul>
       {#if nextCursor}
         <div class="sv-load-more">
-          <button type="button" class="sv-button" disabled={loading} onclick={() => load(false)}>
+          <button
+            type="button"
+            class="sv-button"
+            disabled={loading}
+            onclick={() => load(false)}
+          >
             {m(i18nState.current, "ui.action.load-more")}
           </button>
         </div>

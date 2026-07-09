@@ -2,7 +2,13 @@
   import { onMount } from "svelte";
   import { fromStore } from "svelte/store";
   import ToastRegion, { type Toast } from "./components/ToastRegion.svelte";
-  import { i18n, loadBundle, m, setLanguage, SUPPORTED_LANGUAGES } from "./lib/i18n";
+  import {
+    i18n,
+    loadBundle,
+    m,
+    setLanguage,
+    SUPPORTED_LANGUAGES,
+  } from "./lib/i18n";
   import { goto, installRouteListener, route } from "./lib/route";
   import {
     LOGIN_URL,
@@ -13,7 +19,12 @@
     refreshSession,
     session,
   } from "./lib/session";
-  import { applyTheme, readStoredTheme, THEME_OPTIONS, type ThemeOption } from "./lib/theme";
+  import {
+    applyTheme,
+    readStoredTheme,
+    THEME_OPTIONS,
+    type ThemeOption,
+  } from "./lib/theme";
   import MyBookmarksPage from "./pages/MyBookmarksPage.svelte";
   import MyReportsPage from "./pages/MyReportsPage.svelte";
   import PublicFeedPage from "./pages/PublicFeedPage.svelte";
@@ -33,7 +44,9 @@
 
   function navClass(path: string, exact = true): string {
     const currentRoute = routeState.current;
-    const active = exact ? currentRoute === path : currentRoute === path || currentRoute.startsWith(`${path}/`);
+    const active = exact
+      ? currentRoute === path
+      : currentRoute === path || currentRoute.startsWith(`${path}/`);
     return `sv-nav-link${active ? " is-active" : ""}`;
   }
 
@@ -79,11 +92,7 @@
 {:else}
   <div class="sv-app">
     <header class="sv-header">
-      <a
-        href="/"
-        class="sv-brand"
-        onclick={navigateClick("/feed")}
-      >
+      <a href="/" class="sv-brand" onclick={navigateClick("/feed")}>
         {m(i18nState.current, "ui.app.title")}
       </a>
       <nav class="sv-nav">
@@ -121,8 +130,12 @@
         {/if}
       </nav>
       <div class="sv-header-actions">
-        <div class="sv-theme-switch" role="group" aria-label={m(i18nState.current, "ui.theme.label")}>
-          {#each THEME_OPTIONS as option}
+        <div
+          class="sv-theme-switch"
+          role="group"
+          aria-label={m(i18nState.current, "ui.theme.label")}
+        >
+          {#each THEME_OPTIONS as option (option)}
             <button
               type="button"
               class={`sv-theme-option${theme === option ? " is-active" : ""}`}
@@ -133,7 +146,7 @@
           {/each}
         </div>
         <div class="sv-lang-switch" role="group" aria-label="language">
-          {#each SUPPORTED_LANGUAGES as code}
+          {#each SUPPORTED_LANGUAGES as code (code)}
             <button
               type="button"
               lang={code}
@@ -146,11 +159,18 @@
         </div>
         {#if sessionState.current.authenticated}
           <span class="sv-username">{sessionState.current.username}</span>
-          <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={doLogout}>
+          <button
+            type="button"
+            class="sv-button sv-button--ghost sv-button--sm"
+            onclick={doLogout}
+          >
             {m(i18nState.current, "ui.action.logout")}
           </button>
         {:else}
-          <a class="sv-button sv-button--primary sv-button--sm" href={LOGIN_URL}>
+          <a
+            class="sv-button sv-button--primary sv-button--sm"
+            href={LOGIN_URL}
+          >
             {m(i18nState.current, "ui.action.login")}
           </a>
         {/if}
@@ -176,22 +196,44 @@
         {:else}
           <div class="sv-layout">
             <aside class="sv-sidebar">
-              <h2 class="sv-sidebar-title">{m(i18nState.current, "ui.nav.admin")}</h2>
+              <h2 class="sv-sidebar-title">
+                {m(i18nState.current, "ui.nav.admin")}
+              </h2>
               <nav class="sv-nav sv-nav--vertical" aria-label="Admin">
-                <a href="/admin" class={navClass("/admin")} onclick={navigateClick("/admin")}>
+                <a
+                  href="/admin"
+                  class={navClass("/admin")}
+                  onclick={navigateClick("/admin")}
+                >
                   {m(i18nState.current, "ui.admin.dashboard")}
                 </a>
-                <a href="/admin/reports" class={navClass("/admin/reports")} onclick={navigateClick("/admin/reports")}>
+                <a
+                  href="/admin/reports"
+                  class={navClass("/admin/reports")}
+                  onclick={navigateClick("/admin/reports")}
+                >
                   {m(i18nState.current, "ui.admin.reports")}
                 </a>
                 {#if isAdmin(meState.current)}
-                  <a href="/admin/users" class={navClass("/admin/users")} onclick={navigateClick("/admin/users")}>
+                  <a
+                    href="/admin/users"
+                    class={navClass("/admin/users")}
+                    onclick={navigateClick("/admin/users")}
+                  >
                     {m(i18nState.current, "ui.admin.users")}
                   </a>
-                  <a href="/admin/audit" class={navClass("/admin/audit")} onclick={navigateClick("/admin/audit")}>
+                  <a
+                    href="/admin/audit"
+                    class={navClass("/admin/audit")}
+                    onclick={navigateClick("/admin/audit")}
+                  >
                     {m(i18nState.current, "ui.admin.audit")}
                   </a>
-                  <a href="/admin/messages" class={navClass("/admin/messages")} onclick={navigateClick("/admin/messages")}>
+                  <a
+                    href="/admin/messages"
+                    class={navClass("/admin/messages")}
+                    onclick={navigateClick("/admin/messages")}
+                  >
                     {m(i18nState.current, "ui.admin.messages")}
                   </a>
                 {/if}
