@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM composer:2.10.1 AS vendor
+FROM composer:2.10.2 AS vendor
 
 WORKDIR /app/backends/php-laravel
 COPY backends/php-laravel/composer.json backends/php-laravel/composer.lock ./
