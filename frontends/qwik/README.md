@@ -12,8 +12,12 @@ last segment so admins can fill translations through the Messages screen.
 ```sh
 yarn install
 yarn dev              # dev server on :5173, /api and /auth proxied to a gateway on :8000
-yarn test             # vitest unit tests
+yarn lint             # ESLint with TypeScript and Qwik rules
+yarn format:check     # verify Prettier formatting
+yarn test             # Vitest helper and Qwik component tests
+yarn typecheck        # strict TypeScript against installed Qwik declarations
 yarn build            # typecheck + static production bundle in dist/
+yarn check            # lint + format + typecheck + tests + production build
 ```
 
 Yarn Berry with Plug'n'Play - there is no `node_modules`; resolution goes
@@ -36,20 +40,20 @@ bundles.
 
 Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10.
 
-| Requirement | Status |
-|---|---|
-| stdout-only logging | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | n/a |
-| lifecycle events at `INFO` | n/a |
-| expected 4xx not logged as errors | n/a |
-| secrets kept out of logs | ✅ |
-| `LOG_LEVEL` honored | n/a |
-| trace id on console lines when tracing on | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | n/a |
-| JSON console by default (`LOG_FORMAT`) | n/a |
-| dev-only console forwarding, sanitized | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅ |
+| Requirement                                                                | Status |
+| -------------------------------------------------------------------------- | ------ |
+| stdout-only logging                                                        | n/a    |
+| OTLP log export behind `OTEL_SDK_DISABLED`                                 | n/a    |
+| lifecycle events at `INFO`                                                 | n/a    |
+| expected 4xx not logged as errors                                          | n/a    |
+| secrets kept out of logs                                                   | ✅     |
+| `LOG_LEVEL` honored                                                        | n/a    |
+| trace id on console lines when tracing on                                  | n/a    |
+| stable `event` names (§5: lifecycle, session, security, moderation)        | n/a    |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`)        | n/a    |
+| JSON console by default (`LOG_FORMAT`)                                     | n/a    |
+| dev-only console forwarding, sanitized                                     | ✅     |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅     |
 
 ## API types are hand-written from the contract
 
@@ -68,15 +72,23 @@ dispatch in a small History API helper instead of adopting Qwik City.
 
 API types are hand-written rather than generated from OpenAPI to match the
 lightweight sibling implementations that keep the wire shapes visible in one
-file. Unit tests focus on reusable helpers and contract edges (CSRF, i18n,
-session, routing); full component behavior is covered by the shared Playwright
-e2e suite. There is no ESLint/Prettier setup yet, so `yarn build`/`yarn test`
-are the enforced local gates.
+file. Vitest covers reusable helpers, contract edges (CSRF, i18n, session,
+routing), and representative Qwik component rendering; the shared Playwright
+e2e suite remains the full behavior gate.
 
-The typecheck uses local Qwik declaration shims through
-`tsconfig.typecheck.json`: Qwik 1.19.x/1.20.x publish a `core.d.ts` form that
-TypeScript 5.9 rejects before `skipLibCheck` can help. Vite still resolves the
-real Qwik package for development and production builds.
+TypeScript resolves the installed Qwik package directly; there are no local
+framework declarations or path overrides. `skipLibCheck` avoids re-validating
+Qwik's generated declaration internals while application code is still checked
+against the package's exported types. ESLint uses the Qwik and TypeScript rules,
+and Prettier supplies the formatting gate.
+
+Qwik 1.20 supports Vite versions below 8, and its generated declarations are not
+compatible with TypeScript 6. This variant therefore pins Vite 7.3 and TypeScript
+5.9 until a Qwik release supports those next major lines. The application is a
+deliberate static CSR build, so its client lifecycle/data-loading code uses
+`useVisibleTask$`; the Qwik lint rule that discourages it for SSR applications is
+disabled while all other recommended Qwik rules remain enforced with zero
+warnings allowed.
 
 ## Production
 

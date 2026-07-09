@@ -43,7 +43,12 @@ export default component$<{ i18n: I18nState; bookmarkId: string }>((props) => {
     <>
       <strong>{state.bookmark.title}</strong>
       <div>
-        <a class="sv-bookmark-url" href={state.bookmark.url} target="_blank" rel="noreferrer">
+        <a
+          class="sv-bookmark-url"
+          href={state.bookmark.url}
+          target="_blank"
+          rel="noreferrer"
+        >
           {state.bookmark.url}
         </a>
       </div>

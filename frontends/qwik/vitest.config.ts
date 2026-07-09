@@ -1,6 +1,8 @@
+import { qwikVite } from "@builder.io/qwik/optimizer";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  plugins: [qwikVite({ csr: true })],
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

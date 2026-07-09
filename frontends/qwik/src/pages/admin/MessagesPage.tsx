@@ -1,11 +1,30 @@
-import { $, component$, useSignal, useStore, useVisibleTask$, type PropFunction } from "@builder.io/qwik";
+import {
+  $,
+  component$,
+  useSignal,
+  useStore,
+  useVisibleTask$,
+  type PropFunction,
+} from "@builder.io/qwik";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import Dialog from "../../components/Dialog";
 import Field from "../../components/Field";
 import Pagination from "../../components/Pagination";
-import { api, apiMessage, apiStatus, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
+import {
+  api,
+  apiMessage,
+  apiStatus,
+  fieldErrorFor,
+  jsonBody,
+  queryString,
+} from "../../lib/api";
 import { formText } from "../../lib/form";
-import { loadBundle, m, SUPPORTED_LANGUAGES, type I18nState } from "../../lib/i18n";
+import {
+  loadBundle,
+  m,
+  SUPPORTED_LANGUAGES,
+  type I18nState,
+} from "../../lib/i18n";
 import type { Message, MessageInput, Page } from "../../lib/types";
 
 interface Props {
@@ -46,10 +65,14 @@ export default component$<Props>((props) => {
     state.loading = true;
     state.error = "";
     try {
-      let nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: state.q, language: state.language, page: state.page })}`);
+      let nextMessages = await api<Page<Message>>(
+        `/api/v1/messages${queryString({ q: state.q, language: state.language, page: state.page })}`,
+      );
       if (nextMessages.items.length === 0 && state.page > 0) {
         state.page = Math.max(0, nextMessages.totalPages - 1);
-        nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: state.q, language: state.language, page: state.page })}`);
+        nextMessages = await api<Page<Message>>(
+          `/api/v1/messages${queryString({ q: state.q, language: state.language, page: state.page })}`,
+        );
       }
       state.messages = nextMessages;
     } catch (caught) {
@@ -110,8 +133,14 @@ export default component$<Props>((props) => {
             void load$();
           }}
         >
-          <option value="">{m(props.i18n, "ui.messages.filter.all-languages")}</option>
-          {SUPPORTED_LANGUAGES.map((code) => <option key={code} value={code}>{code}</option>)}
+          <option value="">
+            {m(props.i18n, "ui.messages.filter.all-languages")}
+          </option>
+          {SUPPORTED_LANGUAGES.map((code) => (
+            <option key={code} value={code}>
+              {code}
+            </option>
+          ))}
         </select>
         <button
           type="button"
@@ -125,15 +154,23 @@ export default component$<Props>((props) => {
         >
           {m(props.i18n, "ui.action.clear-filters")}
         </button>
-        <button type="button" class="sv-button sv-button--primary" onClick$={openCreate$}>
+        <button
+          type="button"
+          class="sv-button sv-button--primary"
+          onClick$={openCreate$}
+        >
           {m(props.i18n, "ui.action.add")}
         </button>
       </div>
 
       {state.loading && !state.messages ? (
-        <div class="sv-loading"><span class="sv-spinner" /></div>
+        <div class="sv-loading">
+          <span class="sv-spinner" />
+        </div>
       ) : state.error ? (
-        <div class="sv-alert sv-alert--danger" role="alert">{state.error}</div>
+        <div class="sv-alert sv-alert--danger" role="alert">
+          {state.error}
+        </div>
       ) : !state.messages || state.messages.items.length === 0 ? (
         <div class="sv-empty">{m(props.i18n, "ui.messages.empty")}</div>
       ) : (
@@ -145,20 +182,37 @@ export default component$<Props>((props) => {
                   <th scope="col">{m(props.i18n, "ui.field.key")}</th>
                   <th scope="col">{m(props.i18n, "ui.field.language")}</th>
                   <th scope="col">{m(props.i18n, "ui.field.text")}</th>
-                  <th scope="col"><span class="sv-visually-hidden">{m(props.i18n, "ui.field.actions")}</span></th>
+                  <th scope="col">
+                    <span class="sv-visually-hidden">
+                      {m(props.i18n, "ui.field.actions")}
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {state.messages.items.map((message) => (
-                  <tr key={`${message.id}:${message.updatedAt}:${message.text}`} data-ctx={`message:${message.id}`}>
+                  <tr
+                    key={`${message.id}:${message.updatedAt}:${message.text}`}
+                    data-ctx={`message:${message.id}`}
+                  >
                     <td class="sv-cell-mono">{message.key}</td>
-                    <td><span class="sv-badge">{message.language}</span></td>
+                    <td>
+                      <span class="sv-badge">{message.language}</span>
+                    </td>
                     <td>{message.text}</td>
                     <td class="sv-cell-actions">
-                      <button type="button" class="sv-button sv-button--ghost sv-button--sm" onClick$={() => openEdit$(message)}>
+                      <button
+                        type="button"
+                        class="sv-button sv-button--ghost sv-button--sm"
+                        onClick$={() => openEdit$(message)}
+                      >
                         {m(props.i18n, "ui.action.edit")}
                       </button>
-                      <button type="button" class="sv-button sv-button--ghost sv-button--sm" onClick$={() => (state.deleting = message)}>
+                      <button
+                        type="button"
+                        class="sv-button sv-button--ghost sv-button--sm"
+                        onClick$={() => (state.deleting = message)}
+                      >
                         {m(props.i18n, "ui.action.delete")}
                       </button>
                     </td>
@@ -181,8 +235,15 @@ export default component$<Props>((props) => {
 
       {state.editing ? (
         <Dialog
-          title={m(props.i18n, state.editing === "new" ? "ui.messages.dialog.add" : "ui.messages.dialog.edit")}
-          ctx={state.editing !== "new" ? `message:${state.editing.id}` : undefined}
+          title={m(
+            props.i18n,
+            state.editing === "new"
+              ? "ui.messages.dialog.add"
+              : "ui.messages.dialog.edit",
+          )}
+          ctx={
+            state.editing !== "new" ? `message:${state.editing.id}` : undefined
+          }
           onClose$={() => (state.editing = null)}
         >
           <form
@@ -199,22 +260,35 @@ export default component$<Props>((props) => {
                 key: key.value,
                 language: messageLanguage.value,
                 text: text.value,
-                ...(description.value ? { description: description.value } : {}),
+                ...(description.value
+                  ? { description: description.value }
+                  : {}),
               };
               const editing = state.editing;
               try {
                 if (editing === "new") {
-                  const createdMessage = await api<Message>("/api/v1/messages", { method: "POST", ...jsonBody(body) });
+                  const createdMessage = await api<Message>(
+                    "/api/v1/messages",
+                    { method: "POST", ...jsonBody(body) },
+                  );
                   if (state.messages && state.page === 0) {
                     const q = state.q.trim().toLowerCase();
-                    const matchesQuery = q === "" || createdMessage.key.toLowerCase().includes(q) || createdMessage.text.toLowerCase().includes(q);
-                    const matchesLanguage = state.language === "" || createdMessage.language === state.language;
+                    const matchesQuery =
+                      q === "" ||
+                      createdMessage.key.toLowerCase().includes(q) ||
+                      createdMessage.text.toLowerCase().includes(q);
+                    const matchesLanguage =
+                      state.language === "" ||
+                      createdMessage.language === state.language;
                     if (matchesQuery && matchesLanguage) {
                       const totalItems = state.messages.totalItems + 1;
                       const size = state.messages.size || 20;
                       state.messages = {
                         ...state.messages,
-                        items: [createdMessage, ...state.messages.items].slice(0, size),
+                        items: [createdMessage, ...state.messages.items].slice(
+                          0,
+                          size,
+                        ),
                         totalItems,
                         totalPages: Math.max(1, Math.ceil(totalItems / size)),
                       };
@@ -222,14 +296,21 @@ export default component$<Props>((props) => {
                   }
                   await props.toast$(m(props.i18n, "ui.toast.message-created"));
                 } else if (editing) {
-                  const updatedMessage = await api<Message>(`/api/v1/messages/${editing.id}`, {
-                    method: "PUT",
-                    ...jsonBody(body),
-                  });
+                  const updatedMessage = await api<Message>(
+                    `/api/v1/messages/${editing.id}`,
+                    {
+                      method: "PUT",
+                      ...jsonBody(body),
+                    },
+                  );
                   if (state.messages) {
                     state.messages = {
                       ...state.messages,
-                      items: state.messages.items.map((message) => (message.id === updatedMessage.id ? updatedMessage : message)),
+                      items: state.messages.items.map((message) =>
+                        message.id === updatedMessage.id
+                          ? updatedMessage
+                          : message,
+                      ),
                     };
                   }
                   await props.toast$(m(props.i18n, "ui.toast.message-updated"));
@@ -241,28 +322,84 @@ export default component$<Props>((props) => {
               }
             }}
           >
-            <Field label={m(props.i18n, "ui.field.key")} error={fieldErrorFor(formError.value, "key")}>
-              <input name="key" class="sv-input" value={key.value} onInput$={(event: Event) => (key.value = (event.target as HTMLInputElement).value)} />
+            <Field
+              label={m(props.i18n, "ui.field.key")}
+              error={fieldErrorFor(formError.value, "key")}
+            >
+              <input
+                name="key"
+                class="sv-input"
+                value={key.value}
+                onInput$={(event: Event) =>
+                  (key.value = (event.target as HTMLInputElement).value)
+                }
+              />
             </Field>
-            <Field label={m(props.i18n, "ui.field.language")} error={fieldErrorFor(formError.value, "language")}>
-              <select name="language" class="sv-select" value={messageLanguage.value} onChange$={(event: Event) => (messageLanguage.value = (event.target as HTMLInputElement).value)}>
-                {!SUPPORTED_LANGUAGES.includes(messageLanguage.value as "en" | "pl") ? (
-                  <option value={messageLanguage.value}>{messageLanguage.value}</option>
+            <Field
+              label={m(props.i18n, "ui.field.language")}
+              error={fieldErrorFor(formError.value, "language")}
+            >
+              <select
+                name="language"
+                class="sv-select"
+                value={messageLanguage.value}
+                onChange$={(event: Event) =>
+                  (messageLanguage.value = (
+                    event.target as HTMLInputElement
+                  ).value)
+                }
+              >
+                {!SUPPORTED_LANGUAGES.includes(
+                  messageLanguage.value as "en" | "pl",
+                ) ? (
+                  <option value={messageLanguage.value}>
+                    {messageLanguage.value}
+                  </option>
                 ) : null}
-                {SUPPORTED_LANGUAGES.map((code) => <option key={code} value={code}>{code}</option>)}
+                {SUPPORTED_LANGUAGES.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
               </select>
             </Field>
-            <Field label={m(props.i18n, "ui.field.text")} error={fieldErrorFor(formError.value, "text")}>
-              <textarea name="text" class="sv-textarea" value={text.value} onInput$={(event: Event) => (text.value = (event.target as HTMLInputElement).value)} />
+            <Field
+              label={m(props.i18n, "ui.field.text")}
+              error={fieldErrorFor(formError.value, "text")}
+            >
+              <textarea
+                name="text"
+                class="sv-textarea"
+                value={text.value}
+                onInput$={(event: Event) =>
+                  (text.value = (event.target as HTMLInputElement).value)
+                }
+              />
             </Field>
-            <Field label={m(props.i18n, "ui.field.description")} error={fieldErrorFor(formError.value, "description")}>
-              <textarea name="description" class="sv-textarea" value={description.value} onInput$={(event: Event) => (description.value = (event.target as HTMLInputElement).value)} />
+            <Field
+              label={m(props.i18n, "ui.field.description")}
+              error={fieldErrorFor(formError.value, "description")}
+            >
+              <textarea
+                name="description"
+                class="sv-textarea"
+                value={description.value}
+                onInput$={(event: Event) =>
+                  (description.value = (event.target as HTMLInputElement).value)
+                }
+              />
             </Field>
             {apiStatus(formError.value) === 409 ? (
-              <div class="sv-alert sv-alert--warning" role="alert">{apiMessage(formError.value)}</div>
+              <div class="sv-alert sv-alert--warning" role="alert">
+                {apiMessage(formError.value)}
+              </div>
             ) : null}
             <div class="sv-form-actions">
-              <button type="button" class="sv-button" onClick$={() => (state.editing = null)}>
+              <button
+                type="button"
+                class="sv-button"
+                onClick$={() => (state.editing = null)}
+              >
                 {m(props.i18n, "ui.action.cancel")}
               </button>
               <button type="submit" class="sv-button sv-button--primary">
@@ -282,7 +419,9 @@ export default component$<Props>((props) => {
           cancelLabel={m(props.i18n, "ui.action.cancel")}
           onConfirm$={async () => {
             if (!state.deleting) return;
-            await api<void>(`/api/v1/messages/${state.deleting.id}`, { method: "DELETE" });
+            await api<void>(`/api/v1/messages/${state.deleting.id}`, {
+              method: "DELETE",
+            });
             state.deleting = null;
             await props.toast$(m(props.i18n, "ui.toast.message-deleted"));
             await refreshBundle$();

@@ -7,9 +7,11 @@ loader.src = qwikLoaderUrl;
 document.head.appendChild(loader);
 
 if (import.meta.env.DEV) {
-  void import("./dev/forwardConsoleToDevServer").then(({ forwardConsoleToDevServer }) => {
-    forwardConsoleToDevServer();
-  });
+  void import("./dev/forwardConsoleToDevServer").then(
+    ({ forwardConsoleToDevServer }) => {
+      forwardConsoleToDevServer();
+    },
+  );
   void import("./dev/logUserActions").then(({ logUserActions }) => {
     logUserActions();
   });

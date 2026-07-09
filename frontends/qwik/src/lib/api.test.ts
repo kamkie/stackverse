@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, api, apiStatus, fieldErrorFor, jsonBody, queryString } from "./api";
+import {
+  ApiError,
+  api,
+  apiStatus,
+  fieldErrorFor,
+  jsonBody,
+  queryString,
+} from "./api";
 import { endOfDayIso } from "./format";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
@@ -19,9 +26,9 @@ afterEach(() => {
 
 describe("queryString", () => {
   it("skips empty values and repeats array params", () => {
-    expect(queryString({ q: "text", tag: ["a", "b"], empty: "", nil: null })).toBe(
-      "?q=text&tag=a&tag=b",
-    );
+    expect(
+      queryString({ q: "text", tag: ["a", "b"], empty: "", nil: null }),
+    ).toBe("?q=text&tag=a&tag=b");
   });
 
   it("serializes falsy-but-meaningful values", () => {
@@ -60,7 +67,9 @@ describe("api", () => {
     const fetchMock = vi.fn().mockImplementation(() => {
       if (fetchMock.mock.calls.length === 1) {
         document.cookie = "XSRF-TOKEN=fresh-token; path=/";
-        return Promise.resolve(jsonResponse({ title: "Forbidden", status: 403 }, { status: 403 }));
+        return Promise.resolve(
+          jsonResponse({ title: "Forbidden", status: 403 }, { status: 403 }),
+        );
       }
       return Promise.resolve(jsonResponse({ ok: true }));
     });
@@ -75,13 +84,19 @@ describe("api", () => {
 
     const [, firstInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
     const [, secondInit] = fetchMock.mock.calls[1] as [URL, RequestInit];
-    expect((firstInit.headers as Headers).get("X-XSRF-TOKEN")).toBe("old-token");
-    expect((secondInit.headers as Headers).get("X-XSRF-TOKEN")).toBe("fresh-token");
+    expect((firstInit.headers as Headers).get("X-XSRF-TOKEN")).toBe(
+      "old-token",
+    );
+    expect((secondInit.headers as Headers).get("X-XSRF-TOKEN")).toBe(
+      "fresh-token",
+    );
   });
 
   it("does not add a CSRF header outside the API proxy", async () => {
     document.cookie = "XSRF-TOKEN=csrf-token; path=/";
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await api<void>("/auth/logout", { method: "POST" });
@@ -91,7 +106,10 @@ describe("api", () => {
   });
 
   it("returns undefined for empty successful responses", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 304 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 304 })),
+    );
 
     await expect(api<void>("/api/v1/messages/bundle")).resolves.toBeUndefined();
   });
