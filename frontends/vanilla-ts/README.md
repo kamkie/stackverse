@@ -2,8 +2,8 @@
 
 Vanilla TypeScript (strict) with Vite: no SPA framework, no router library, no
 state library, and no UI kit. Routing, rendering, form state, validation display,
-runtime i18n, and ETag-aware bundle fetching are hand-written in `src/main.ts`
-and small local modules. Plain CSS comes from the shared design package
+runtime i18n, and ETag-aware bundle fetching are hand-written in focused local
+modules. Plain CSS comes from the shared design package
 ([spec/design/](../../spec/design)), imported verbatim — this app has no
 stylesheets of its own.
 
@@ -11,9 +11,12 @@ stylesheets of its own.
 
 ```sh
 yarn install
-yarn dev       # dev server on :5173, /api and /auth proxied to a gateway on :8000
-yarn test      # vitest unit tests
-yarn build     # type-check + static production bundle in dist/
+yarn dev              # dev server on :5173, /api and /auth proxied to a gateway on :8000
+yarn lint             # ESLint with TypeScript rules
+yarn format:check     # verify Prettier formatting
+yarn test             # Vitest unit tests
+yarn build            # type-check + static production bundle in dist/
+yarn check            # lint + format + typecheck + tests + production build
 ```
 
 Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
@@ -24,6 +27,15 @@ breaks PnP, switch `.yarnrc.yml` to `nodeLinker: node-modules`.
 **No mock mode.** This implementation expects a running gateway on :8000 in dev
 mode. Mocking is a per-implementation convenience, not part of the frontend
 contract.
+
+## Module boundaries
+
+`main.ts` only composes the shared CSS and application controller. The controller
+owns bootstrap and delegated DOM events, while state, reusable view primitives,
+navigation, bookmark pages/cards, admin pages, and dialogs/forms live in focused
+modules. The implementation remains explicit platform TypeScript: templates are
+escaped strings, routing uses the History API, and no UI framework or state library
+is introduced.
 
 ## Dev action log
 
@@ -48,20 +60,20 @@ and none of this ships in the production bundle.
 Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
 `❌` rows are this implementation's agreed, visible backlog.
 
-| Requirement | Status |
-|---|---|
-| stdout-only logging | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | n/a |
-| lifecycle events at `INFO` | n/a |
-| expected 4xx not logged as errors | n/a |
-| secrets kept out of logs | ✅ |
-| `LOG_LEVEL` honored | n/a |
-| trace id on console lines when tracing on | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | n/a |
-| JSON console by default (`LOG_FORMAT`) | n/a |
-| dev-only console forwarding, sanitized | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅ |
+| Requirement                                                                | Status |
+| -------------------------------------------------------------------------- | ------ |
+| stdout-only logging                                                        | n/a    |
+| OTLP log export behind `OTEL_SDK_DISABLED`                                 | n/a    |
+| lifecycle events at `INFO`                                                 | n/a    |
+| expected 4xx not logged as errors                                          | n/a    |
+| secrets kept out of logs                                                   | ✅     |
+| `LOG_LEVEL` honored                                                        | n/a    |
+| trace id on console lines when tracing on                                  | n/a    |
+| stable `event` names (§5: lifecycle, session, security, moderation)        | n/a    |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`)        | n/a    |
+| JSON console by default (`LOG_FORMAT`)                                     | n/a    |
+| dev-only console forwarding, sanitized                                     | ✅     |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅     |
 
 ## API types are hand-written from the contract
 
@@ -77,8 +89,7 @@ there is no server-side rendering and no runtime configuration — all API calls
 are relative (`/api/...`, `/auth/...`) and carry the session cookie.
 
 The `Dockerfile` builds the same bundle into a long-running nginx image
-(`stackverse/frontend-vanilla-ts:local`) that serves the SPA on internal port
-8080. `compose.yaml` plugs it in via `FRONTEND_IMAGE` and keeps it behind the
+(`stackverse/frontend-vanilla-ts:local`) that serves the SPA on internal port 8080. `compose.yaml` plugs it in via `FRONTEND_IMAGE` and keeps it behind the
 gateway. Build it with the **repo root** as context (it bundles `spec/design`;
 see [docs/RUNNING.md](../../docs/RUNNING.md)):
 

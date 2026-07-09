@@ -13,7 +13,7 @@ function elementLabel(element: Element): string {
   const name = visibleText(element);
   if (name) return `${role ?? tag} "${name}"`;
   const id = element.getAttribute("id");
-  return id ? `${role ?? tag}#${id}` : role ?? tag;
+  return id ? `${role ?? tag}#${id}` : (role ?? tag);
 }
 
 function contextFor(element: Element): string {
@@ -22,7 +22,9 @@ function contextFor(element: Element): string {
 }
 
 function log(message: string): void {
-  console.debug(`${message} @ ${window.location.pathname}${window.location.search}`);
+  console.debug(
+    `${message} @ ${window.location.pathname}${window.location.search}`,
+  );
 }
 
 export function installUserActionLog(): void {
@@ -38,7 +40,9 @@ export function installUserActionLog(): void {
         log("[action] click (non-interactive)");
         return;
       }
-      log(`[action] click ${elementLabel(interactive)}${contextFor(interactive)}`);
+      log(
+        `[action] click ${elementLabel(interactive)}${contextFor(interactive)}`,
+      );
     },
     { capture: true },
   );
@@ -46,9 +50,11 @@ export function installUserActionLog(): void {
   document.addEventListener(
     "submit",
     (event) => {
-      const form = event.target instanceof HTMLFormElement ? event.target : null;
+      const form =
+        event.target instanceof HTMLFormElement ? event.target : null;
       if (!form) return;
-      const submitter = event.submitter instanceof Element ? event.submitter : null;
+      const submitter =
+        event.submitter instanceof Element ? event.submitter : null;
       const via = submitter ? ` via ${elementLabel(submitter)}` : "";
       log(`[action] submit form${via}${contextFor(form)}`);
     },
@@ -69,4 +75,3 @@ export function installUserActionLog(): void {
   };
   window.addEventListener("popstate", () => log("[nav] popstate"));
 }
-

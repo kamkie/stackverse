@@ -30,7 +30,9 @@ describe("installUserActionLog", () => {
       </article>
     `;
 
-    document.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document
+      .querySelector("button")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(debug).toHaveBeenCalledWith(
       '[action] click button "Dismiss report" in report:123 @ /admin/reports?status=open',
@@ -40,7 +42,9 @@ describe("installUserActionLog", () => {
   it("logs dead clicks without reading field values", () => {
     document.body.innerHTML = `<div><input value="secret"><span>empty space</span></div>`;
 
-    document.querySelector("span")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    document
+      .querySelector("span")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(debug).toHaveBeenCalledWith(
       "[action] click (non-interactive) @ /admin/reports?status=open",
@@ -58,7 +62,11 @@ describe("installUserActionLog", () => {
     const button = document.querySelector("button");
 
     form?.dispatchEvent(
-      new SubmitEvent("submit", { bubbles: true, cancelable: true, submitter: button }),
+      new SubmitEvent("submit", {
+        bubbles: true,
+        cancelable: true,
+        submitter: button,
+      }),
     );
 
     expect(debug).toHaveBeenCalledWith(
@@ -71,8 +79,12 @@ describe("installUserActionLog", () => {
     history.replaceState(null, "", "/feed");
     window.dispatchEvent(new PopStateEvent("popstate"));
 
-    expect(debug).toHaveBeenCalledWith("[nav] push /admin/reports -> /bookmarks @ /bookmarks");
-    expect(debug).toHaveBeenCalledWith("[nav] replace /bookmarks -> /feed @ /feed");
+    expect(debug).toHaveBeenCalledWith(
+      "[nav] push /admin/reports -> /bookmarks @ /bookmarks",
+    );
+    expect(debug).toHaveBeenCalledWith(
+      "[nav] replace /bookmarks -> /feed @ /feed",
+    );
     expect(debug).toHaveBeenCalledWith("[nav] popstate @ /feed");
   });
 });
