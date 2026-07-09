@@ -38,9 +38,7 @@ import type {
   Visibility,
 } from "./types";
 
-const rootElement = document.getElementById("app");
-if (!(rootElement instanceof HTMLElement)) throw new Error("#app not found");
-const root = rootElement;
+let root: HTMLElement;
 
 let pendingInputRender: number | undefined;
 
@@ -599,58 +597,86 @@ async function handleAction(element: HTMLElement): Promise<void> {
   }
 }
 
-document.addEventListener("click", (event) => {
-  const target = event.target instanceof Element ? event.target : null;
-  if (!target) return;
+export async function startAppController(
+  rootElement: HTMLElement,
+  options: { enableDevInstrumentation?: boolean } = {},
+): Promise<() => void> {
+  root = rootElement;
+  const controller = new AbortController();
+  const listenerOptions = { signal: controller.signal };
 
-  const link = target.closest<HTMLAnchorElement>("a[data-link]");
-  if (link) {
-    event.preventDefault();
-    navigate(new URL(link.href).pathname);
-    return;
-  }
+  document.addEventListener(
+    "click",
+    (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target) return;
 
-  const action = target.closest<HTMLElement>("[data-action]");
-  if (action) {
-    event.preventDefault();
-    void handleAction(action);
-  }
-});
+      const link = target.closest<HTMLAnchorElement>("a[data-link]");
+      if (link) {
+        event.preventDefault();
+        navigate(new URL(link.href).pathname);
+        return;
+      }
 
-document.addEventListener("input", (event) => {
-  const input = event.target as
-    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-  if (input.form?.dataset.form) rememberDialogValues(input.form);
-  const bind = input.dataset.bind;
-  if (!bind) return;
-  const immediate =
-    input.tagName === "SELECT" || input.getAttribute("type") === "date";
-  updateBoundValue(bind, input.value, immediate);
-});
+      const action = target.closest<HTMLElement>("[data-action]");
+      if (action) {
+        event.preventDefault();
+        void handleAction(action);
+      }
+    },
+    listenerOptions,
+  );
 
-document.addEventListener("change", (event) => {
-  const input = event.target as HTMLInputElement | HTMLSelectElement;
-  if (input.form?.dataset.form) rememberDialogValues(input.form);
-  const bind = input.dataset.bind;
-  if (!bind) return;
-  if (input.tagName === "SELECT" || input.getAttribute("type") === "date") {
-    updateBoundValue(bind, input.value, true);
-  }
-});
+  document.addEventListener(
+    "input",
+    (event) => {
+      const input = event.target as
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+      if (input.form?.dataset.form) rememberDialogValues(input.form);
+      const bind = input.dataset.bind;
+      if (!bind) return;
+      const immediate =
+        input.tagName === "SELECT" || input.getAttribute("type") === "date";
+      updateBoundValue(bind, input.value, immediate);
+    },
+    listenerOptions,
+  );
 
-document.addEventListener("submit", (event) => {
-  const form = event.target instanceof HTMLFormElement ? event.target : null;
-  if (!form) return;
-  event.preventDefault();
-  void handleForm(form);
-});
+  document.addEventListener(
+    "change",
+    (event) => {
+      const input = event.target as HTMLInputElement | HTMLSelectElement;
+      if (input.form?.dataset.form) rememberDialogValues(input.form);
+      const bind = input.dataset.bind;
+      if (!bind) return;
+      if (input.tagName === "SELECT" || input.getAttribute("type") === "date") {
+        updateBoundValue(bind, input.value, true);
+      }
+    },
+    listenerOptions,
+  );
 
-window.addEventListener("popstate", () => {
-  void renderApp();
-});
+  document.addEventListener(
+    "submit",
+    (event) => {
+      const form =
+        event.target instanceof HTMLFormElement ? event.target : null;
+      if (!form) return;
+      event.preventDefault();
+      void handleForm(form);
+    },
+    listenerOptions,
+  );
 
-async function bootstrap(): Promise<void> {
-  if (import.meta.env.DEV) {
+  window.addEventListener(
+    "popstate",
+    () => {
+      void renderApp();
+    },
+    listenerOptions,
+  );
+
+  if (options.enableDevInstrumentation ?? import.meta.env.DEV) {
     const [{ forwardConsoleToDevServer }, { installUserActionLog }] =
       await Promise.all([
         import("./dev/forwardConsoleToDevServer"),
@@ -662,6 +688,12 @@ async function bootstrap(): Promise<void> {
   await i18n.load();
   await loadSessionAndMe();
   await renderApp();
-}
 
-void bootstrap();
+  return () => {
+    controller.abort();
+    if (pendingInputRender !== undefined) {
+      window.clearTimeout(pendingInputRender);
+      pendingInputRender = undefined;
+    }
+  };
+}

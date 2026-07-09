@@ -3,4 +3,9 @@
 import "../../../spec/design/tokens.css";
 import "../../../spec/design/stackverse.css";
 
-import "./app-controller";
+import { startAppController } from "./app-controller";
+
+const root = document.getElementById("app");
+if (!(root instanceof HTMLElement)) throw new Error("#app not found");
+
+void startAppController(root);
