@@ -17,13 +17,21 @@
     <version.liberty-maven-plugin>3.12.0</version.liberty-maven-plugin>
     <version.jackson>2.22.1</version.jackson>
     <version.flyway>12.11.0</version.flyway>
+    <version.google-java-format>1.35.0</version.google-java-format>
+    <version.spotless>3.8.0</version.spotless>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>jakarta.platform</groupId>
       <artifactId>jakarta.jakartaee-api</artifactId>
-      <version>11.0.0</version>
+      <version>10.0.0</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.microprofile.jwt</groupId>
+      <artifactId>microprofile-jwt-auth-api</artifactId>
+      <version>2.1</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -57,11 +65,6 @@
       <version>${version.jackson}</version>
     </dependency>
     <dependency>
-      <groupId>com.nimbusds</groupId>
-      <artifactId>nimbus-jose-jwt</artifactId>
-      <version>10.9.1</version>
-    </dependency>
-    <dependency>
       <groupId>io.opentelemetry</groupId>
       <artifactId>opentelemetry-api</artifactId>
       <version>1.63.0</version>
@@ -75,6 +78,18 @@
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <version>6.1.1</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.validator</groupId>
+      <artifactId>hibernate-validator</artifactId>
+      <version>9.1.2.Final</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.parsson</groupId>
+      <artifactId>parsson</artifactId>
+      <version>1.1.9</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -91,6 +106,42 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.6</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-failsafe-plugin</artifactId>
+        <version>3.5.6</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>integration-test</goal>
+              <goal>verify</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+        <version>${version.spotless}</version>
+        <configuration>
+          <java>
+            <googleJavaFormat>
+              <version>${version.google-java-format}</version>
+              <style>AOSP</style>
+            </googleJavaFormat>
+            <removeUnusedImports/>
+            <formatAnnotations/>
+          </java>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.jacoco</groupId>
@@ -124,6 +175,23 @@
           </runtimeArtifact>
           <serverName>defaultServer</serverName>
         </configuration>
+        <executions>
+          <execution>
+            <id>package-runtime-for-integration-tests</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>create</goal>
+              <goal>install-feature</goal>
+              <goal>deploy</goal>
+              <goal>package</goal>
+            </goals>
+            <configuration>
+              <include>minify</include>
+              <packageName>stackverse-open-liberty-java-server</packageName>
+              <packageType>zip</packageType>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
