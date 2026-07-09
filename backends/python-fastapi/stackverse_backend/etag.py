@@ -3,13 +3,20 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-from typing import Any
 
 from fastapi import Request, Response
 
+from .schemas import ContractModel
 
-def response_with_etag(request: Request, payload: Any, extra_headers: dict[str, str] | None = None) -> Response:
-    body = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+def response_with_etag(
+    request: Request,
+    payload: object,
+    response_model: type[ContractModel],
+    extra_headers: dict[str, str] | None = None,
+) -> Response:
+    serialized = response_model.model_validate(payload).model_dump(by_alias=True, exclude_none=True, mode="json")
+    body = json.dumps(serialized, ensure_ascii=False, separators=(",", ":"))
     digest = base64.urlsafe_b64encode(hashlib.sha256(body.encode("utf-8")).digest()).decode("ascii").rstrip("=")
     etag = f'"{digest}"'
     headers = {"ETag": etag, "Cache-Control": "no-cache", **(extra_headers or {})}

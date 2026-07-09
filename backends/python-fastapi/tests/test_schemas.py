@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 
 from stackverse_backend import main
 from stackverse_backend.auth import Caller, authenticate_request
-from stackverse_backend.routers import bookmarks
+from stackverse_backend.routers import bookmarks, messages
 from stackverse_backend.schemas import Bookmark, BookmarkInput, Message
 
 
@@ -90,6 +90,30 @@ def test_structural_validation_uses_localized_problem_details(monkeypatch) -> No
     ]
 
 
+def test_bookmark_status_structural_errors_stay_localized(monkeypatch) -> None:
+    app = main.build_app()
+    app.dependency_overrides[authenticate_request] = lambda: Caller("moderator", ["moderator"])
+    monkeypatch.setattr(main, "resolve_language", lambda _lang, _header: "en")
+    monkeypatch.setattr(main, "localize", lambda key, _language: f"localized:{key}")
+    client = TestClient(app)
+
+    for payload in ({}, {"status": 42}):
+        response = client.put(
+            "/api/v1/admin/bookmarks/00000000-0000-0000-0000-000000000001/status",
+            headers={"Authorization": "Bearer test"},
+            json=payload,
+        )
+
+        assert response.status_code == 400
+        assert response.json()["errors"] == [
+            {
+                "field": "status",
+                "messageKey": "validation.bookmark-status.invalid",
+                "message": "localized:validation.bookmark-status.invalid",
+            }
+        ]
+
+
 def test_route_response_model_filters_internal_and_absent_fields(monkeypatch) -> None:
     app = main.build_app()
     app.dependency_overrides[authenticate_request] = lambda: Caller("demo", [])
@@ -122,3 +146,44 @@ def test_route_response_model_filters_internal_and_absent_fields(monkeypatch) ->
     assert response.status_code == 201
     assert "notes" not in response.json()
     assert "internal" not in response.json()
+
+
+def test_etag_route_validates_and_filters_through_response_model(monkeypatch) -> None:
+    app = main.build_app()
+    app.dependency_overrides[authenticate_request] = lambda: None
+    monkeypatch.setattr(messages, "one", lambda *_args: {})
+    monkeypatch.setattr(
+        messages,
+        "to_message_response",
+        lambda _row: {
+            "id": "00000000-0000-0000-0000-000000000002",
+            "key": "ui.example",
+            "language": "en",
+            "text": "Example",
+            "description": None,
+            "createdAt": "2026-01-01T00:00:00Z",
+            "updatedAt": "2026-01-01T00:00:00Z",
+            "internal": "must-not-leak",
+        },
+    )
+    client = TestClient(app)
+
+    response = client.get("/api/v1/messages/00000000-0000-0000-0000-000000000002")
+
+    assert response.status_code == 200
+    assert response.headers["ETag"].startswith('"')
+    assert "description" not in response.json()
+    assert "internal" not in response.json()
+
+
+def test_etag_route_rejects_invalid_internal_response(monkeypatch) -> None:
+    app = main.build_app()
+    app.dependency_overrides[authenticate_request] = lambda: None
+    monkeypatch.setattr(messages, "one", lambda *_args: {})
+    monkeypatch.setattr(messages, "to_message_response", lambda _row: {"internal": "invalid"})
+    client = TestClient(app, raise_server_exceptions=False)
+
+    response = client.get("/api/v1/messages/00000000-0000-0000-0000-000000000002")
+
+    assert response.status_code == 500
+    assert response.headers["content-type"].startswith("application/problem+json")

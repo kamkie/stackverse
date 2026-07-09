@@ -63,7 +63,7 @@ def list_messages(request: Request, _caller: OptionalCaller) -> Response:
     total = int(
         one(sql.SQL("select count(*)::int as count from messages where {where}").format(where=where), params)["count"]
     )
-    return response_with_etag(request, page_of(rows, page, size, total, to_message_response))
+    return response_with_etag(request, page_of(rows, page, size, total, to_message_response), MessagePage)
 
 
 @router.get("/api/v1/messages/bundle", response_model=MessageBundle)
@@ -72,6 +72,7 @@ def get_bundle(request: Request, _caller: OptionalCaller) -> Response:
     return response_with_etag(
         request,
         {"language": language, "messages": message_bundle(language)},
+        MessageBundle,
         {"Content-Language": language},
     )
 
@@ -81,7 +82,7 @@ def get_message(request: Request, message_id: str, _caller: OptionalCaller) -> R
     message = one("select * from messages where id = %s", (parse_uuid(message_id),))
     if message is None:
         raise NotFoundProblem()
-    return response_with_etag(request, to_message_response(message))
+    return response_with_etag(request, to_message_response(message), Message)
 
 
 @router.post("/api/v1/messages", status_code=201, response_model=Message, response_model_exclude_none=True)

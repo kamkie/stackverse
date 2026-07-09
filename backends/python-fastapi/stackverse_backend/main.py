@@ -175,6 +175,8 @@ def _structural_message_key(path: str, field: str) -> str | None:
             return "validation.bookmark-status.note.too-long"
         if "/admin/reports/" in path:
             return "validation.resolution.note.too-long"
+    if field == "status" and "/admin/bookmarks/" in path:
+        return "validation.bookmark-status.invalid"
     return common.get(field)
 
 

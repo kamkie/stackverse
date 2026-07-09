@@ -259,4 +259,4 @@ def stats(request: Request, _caller: ModeratorCaller) -> Response:
             """
         ),
     }
-    return response_with_etag(request, payload)
+    return response_with_etag(request, payload, AdminStats)
