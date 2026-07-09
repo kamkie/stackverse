@@ -111,6 +111,7 @@ describe("app controller event boundary", () => {
       });
       expect(state.dialog.error).toBeInstanceOf(ApiError);
       expect((state.dialog.error as ApiError).status).toBe(422);
+      expect(root!.textContent).toContain("must be a valid URL");
     });
 
     const createCall = fetchMock.mock.calls.find(([input, init]) => {
