@@ -291,7 +291,7 @@ issue closes.
 | [Apache APISIX](../gateways/apisix/README.md) | APISIX route/upstream/plugin pipeline, custom plugins for policy | Standalone route enters a custom plugin; Lua relay handles Stackverse token/header/trace policy | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | httputil.ReverseProxy with custom Director/ModifyResponse/ErrorHandler | NewSingleHostReverseProxy; Director strips Cookie/Auth, injects Bearer, per-proxy handlers | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | @fastify/http-proxy or fastify-reply-from plugin for upstream forwarding | @fastify/reply-from proxy with Stackverse-specific header/token/trace policy | ✅ idiomatic |
-| [OpenResty (Lua)](../gateways/openresty/README.md) | Native proxy_pass to an upstream block | Manual lua-resty-http request_uri, buffers/re-emits response in content_by_lua | 🟡 deliberate |
+| [OpenResty (Lua)](../gateways/openresty/README.md) | Native proxy_pass with Lua access-phase policy | access_by_lua prepares sanitized upstream/token/trace variables; proxy_pass streams backend and frontend traffic | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | Starlette catch-all routes with httpx or httpcore upstream forwarding | Starlette handlers stream through httpx with Stackverse header/token/trace policy | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | Axum handlers plus Tower middleware; reqwest or hyper-based upstream forwarding | Axum catch-all routes stream through reqwest with Stackverse header/token/trace policy | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | YARP AddReverseProxy with route/cluster config plus request transforms | AddReverseProxy + AddTransforms; strips Cookie/CSRF/Authorization, injects Bearer | ✅ idiomatic |
@@ -356,7 +356,7 @@ issue closes.
 | [Apache APISIX](../gateways/apisix/README.md) | OpenResty/APISIX non-blocking cosockets and worker lifecycle hooks | Cosocket lua-resty-http/redis, custom plugin init/header/access phases, ngx.timer for OTLP export | ✅ idiomatic |
 | [Go (chi)](../gateways/go/README.md) | goroutine-per-request net/http, context propagation, graceful shutdown | net/http server, signal.NotifyContext + Shutdown, ctx threaded through handlers | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | async/await handlers, native fetch or proxy plugins, stream large payloads | async/await throughout, @fastify/reply-from proxy, @fastify/static SPA files | ✅ idiomatic |
-| [OpenResty (Lua)](../gateways/openresty/README.md) | Non-blocking cosockets (lua-resty-*), ngx.timer for background work | Cosocket lua-resty-http/redis, ngx.timer.at for OTLP export | ✅ idiomatic |
+| [OpenResty (Lua)](../gateways/openresty/README.md) | Native nginx upstream I/O plus non-blocking cosockets for Lua policy/dependencies | proxy_pass streams upstream traffic; cosockets handle OIDC/Redis/OTLP and ngx.timer.at exports logs | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | Async ASGI handlers with httpx and redis asyncio clients | async Starlette handlers, httpx streaming proxy, Redis asyncio sessions, uvicorn runtime | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | Tokio async handlers, Tower layers, reqwest/hyper streams, graceful shutdown | async Axum handlers, reqwest streaming proxy, Redis futures, ctrl-c graceful shutdown | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | async/await end-to-end with CancellationToken propagation | async throughout, ValueTask transforms; hand-rolled refresh may double-refresh | 🟡 deliberate |
@@ -369,7 +369,7 @@ issue closes.
 | [Apache APISIX](../gateways/apisix/README.md) | Test::Nginx (TAP), busted, or APISIX plugin test harnesses | Hand-rolled Lua harness with ngx mock via resty; bespoke debug-hook LCOV | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | stdlib testing + httptest fakes for upstreams; table-driven | testing + httptest harness faking backend/frontend/OIDC; gotestsum in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | Vitest or node:test running Fastify in-process with injected requests | Vitest suite hosting buildApp in-process with MemorySessionStore and stubbed fetch | ✅ idiomatic |
-| [OpenResty (Lua)](../gateways/openresty/README.md) | Test::Nginx (TAP) or busted | Hand-rolled Lua harness with ngx mock via resty; bespoke debug-hook LCOV | 🔴 undocumented |
+| [OpenResty (Lua)](../gateways/openresty/README.md) | Test::Nginx (TAP) or busted | Busted config specs, live native-proxy integration, mocked contract smoke harness, and debug-hook LCOV | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | pytest with Starlette TestClient or httpx ASGI transport | pytest hosts Starlette in-process with MemorySessionStore and stubbed httpx client | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | cargo test with tower::ServiceExt and local stub services | cargo test runs helper units plus Axum in-process requests against local stub backend/IdP servers | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | xUnit + WebApplicationFactory integration tests | xUnit + WebApplicationFactory + Testcontainers (real Keycloak/Redis) | ✅ idiomatic |
@@ -382,7 +382,7 @@ issue closes.
 | [Apache APISIX](../gateways/apisix/README.md) | luacheck and often stylua for Lua plugin code | No linter or formatter configured; CI builds, config-tests, and smoke-tests | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | No ESLint/Prettier/Biome; only .editorconfig and tsc typecheck | 🔴 undocumented |
-| [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | No linter or formatter configured; CI only builds, config-tests, smoke-tests | 🔴 undocumented |
+| [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | luacheck is configured and enforced in the component workflow | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | ruff for lint and format checks, often with pytest in CI | ruff check + ruff format --check + pytest coverage in CI | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | Roslyn analyzers + dotnet format, often warnings-as-errors in CI | Minimal shared .editorconfig only; no analyzers, format check, or warnings-as-errors | 🔴 undocumented |

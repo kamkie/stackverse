@@ -1,6 +1,6 @@
 local config = require("stackverse.config")
 local problem = require("stackverse.problem")
-local proxy = require("stackverse.proxy")
+local telemetry = require("stackverse.telemetry")
 
 local _M = {}
 
@@ -54,7 +54,8 @@ local function extension(path)
   return (path:match("%.([^.]+)$") or "html"):lower()
 end
 
-local function serve_static(cfg)
+function _M.serve_static()
+  local cfg = config.load()
   local method = ngx.req.get_method()
   if method ~= "GET" and method ~= "HEAD" then
     return problem.write(404, "Not Found", "No route matched the request.")
@@ -76,12 +77,16 @@ local function serve_static(cfg)
   return ngx.exit(200)
 end
 
-function _M.handle()
+function _M.prepare()
   local cfg = config.load()
   if cfg.frontend_url then
-    return proxy.request(cfg.frontend_url, "frontend", nil, false, cfg)
+    local traceparent = telemetry.ensure_traceparent(ngx.req.get_headers(0), cfg)
+    ngx.var.stackverse_frontend_url = config.join_url(cfg.frontend_url, ngx.var.request_uri)
+    ngx.var.stackverse_frontend_host = cfg.frontend_host
+    ngx.var.stackverse_frontend_traceparent = traceparent or ""
+    return
   end
-  return serve_static(cfg)
+  return ngx.exec("@spa_static")
 end
 
 return _M

@@ -31,8 +31,60 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build image
         run: docker build -t stackverse/gateway-openresty:local .
+      - name: Lint Lua
+        run: docker run --rm stackverse/gateway-openresty:local luacheck /opt/stackverse/lua --config /opt/stackverse/.luacheckrc
       - name: Validate OpenResty config
         run: docker run --rm stackverse/gateway-openresty:local openresty -t -c /usr/local/openresty/nginx/conf/nginx.conf
+      - name: Exercise native proxying
+        run: |
+          set -eu
+          network="stackverse-openresty-${GITHUB_RUN_ID}"
+          upstream="stackverse-openresty-upstream-${GITHUB_RUN_ID}"
+          gateway="stackverse-openresty-gateway-${GITHUB_RUN_ID}"
+          cleanup() {
+            docker rm -f "$gateway" "$upstream" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker network create "$network" >/dev/null
+          docker run -d --name "$upstream" --network "$network" \
+            stackverse/gateway-openresty:local \
+            openresty -g 'daemon off;' -c /opt/stackverse/test/upstream.conf >/dev/null
+          docker run -d --name "$gateway" --network "$network" -p 18000:8000 \
+            -e "BACKEND_URL=http://${upstream}:18081" \
+            -e "FRONTEND_URL=http://${upstream}:18081" \
+            -e PUBLIC_URL=http://localhost:18000 \
+            stackverse/gateway-openresty:local >/dev/null
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://localhost:18000/healthz >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:18000/healthz >/dev/null
+
+          traceparent=00-11111111111111111111111111111111-2222222222222222-01
+          response=$(curl -fsS -D /tmp/openresty-proxy-headers \
+            -X POST http://localhost:18000/api/v1/messages \
+            -H 'Authorization: Bearer browser-token' \
+            -H 'Cookie: XSRF-TOKEN=test-token; other=browser-cookie' \
+            -H 'Origin: http://localhost:18000' \
+            -H 'Sec-Fetch-Site: same-origin' \
+            -H "traceparent: ${traceparent}" \
+            -H 'X-XSRF-TOKEN: test-token' \
+            --data-binary 'stream-me')
+          echo "$response" | jq -e --arg traceparent "$traceparent" \
+            '.method == "POST" and .body == "stream-me" and .traceparent == $traceparent
+             and .authorization == null and .cookie == null and .xsrf == null'
+          grep -qi '^ETag: "native-proxy"' /tmp/openresty-proxy-headers
+          grep -qi '^Content-Language: en' /tmp/openresty-proxy-headers
+
+          curl -fsS http://localhost:18000/api | jq -e '.path == "/api"'
+          curl -fsS http://localhost:18000/frontend-probe \
+            -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+            | jq -e '.path == "/frontend-probe" and .connection == "upgrade" and .upgrade == "websocket"'
+      - name: Run Busted native proxy specs
+        run: docker run --rm stackverse/gateway-openresty:local busted /opt/stackverse/test/native_proxy_spec.lua
       - name: Run Lua smoke tests with coverage
         run: |
           mkdir -p coverage

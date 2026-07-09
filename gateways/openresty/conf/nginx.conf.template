@@ -38,6 +38,11 @@ http {
   resolver 127.0.0.11 ipv6=off valid=30s;
   resolver_timeout 5s;
 
+  map $http_upgrade $stackverse_connection_upgrade {
+    default upgrade;
+    "" "";
+  }
+
   init_worker_by_lua_block {
     local config = require("stackverse.config").load()
     require("resty.session").init(config.session)
@@ -65,10 +70,6 @@ http {
       require("stackverse.security").apply_headers()
     }
 
-    access_by_lua_block {
-      require("stackverse.security").issue_csrf_cookie()
-    }
-
     location = /healthz {
       default_type text/plain;
       return 200 "ok\n";
@@ -81,44 +82,76 @@ http {
     }
 
     location = /auth/login {
+      include /etc/nginx/templates/csrf-access.conf;
       content_by_lua_block {
         require("stackverse.auth").login()
       }
     }
 
     location = /auth/callback {
+      include /etc/nginx/templates/csrf-access.conf;
       content_by_lua_block {
         require("stackverse.auth").callback()
       }
     }
 
     location = /auth/session {
+      include /etc/nginx/templates/csrf-access.conf;
       content_by_lua_block {
         require("stackverse.auth").session()
       }
     }
 
     location = /auth/logout {
+      include /etc/nginx/templates/csrf-access.conf;
       content_by_lua_block {
         require("stackverse.auth").logout()
       }
     }
 
     location /api/ {
-      content_by_lua_block {
-        require("stackverse.api").handle()
-      }
+      include /etc/nginx/templates/api-proxy.conf;
     }
 
     location = /api {
+      include /etc/nginx/templates/api-proxy.conf;
+    }
+
+    location @api_upstream_failure {
       content_by_lua_block {
-        require("stackverse.api").handle()
+        require("stackverse.upstream").api_failure()
       }
     }
 
     location / {
+      set $stackverse_frontend_url "";
+      set $stackverse_frontend_host "";
+      set $stackverse_frontend_traceparent "";
+
+      access_by_lua_block {
+        require("stackverse.security").issue_csrf_cookie()
+        require("stackverse.spa").prepare()
+      }
+
+      include /etc/nginx/templates/proxy-common.conf;
+      proxy_set_header Host $stackverse_frontend_host;
+      proxy_set_header Authorization "";
+      proxy_set_header Connection $stackverse_connection_upgrade;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header traceparent $stackverse_frontend_traceparent;
+      error_page 502 504 = @frontend_upstream_failure;
+      proxy_pass $stackverse_frontend_url;
+    }
+
+    location @spa_static {
       content_by_lua_block {
-        require("stackverse.spa").handle()
+        require("stackverse.spa").serve_static()
+      }
+    }
+
+    location @frontend_upstream_failure {
+      content_by_lua_block {
+        require("stackverse.upstream").frontend_failure()
       }
     }
   }

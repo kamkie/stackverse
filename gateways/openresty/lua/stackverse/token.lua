@@ -31,7 +31,8 @@ local function refresh_request(config, refresh_token)
 end
 
 local function log_unavailable(started, code)
-  logging.event("error", "dependency_call_failed", "failure", "Keycloak failed during token refresh; the session is kept", {
+  logging.event("error", "dependency_call_failed", "failure",
+    "Keycloak failed during token refresh; the session is kept", {
     dependency = "keycloak",
     duration_ms = math.floor((ngx.now() - started) * 1000),
     error_code = code,
@@ -59,7 +60,8 @@ function _M.ensure_access_token(config, session)
 
   if response.status < 200 or response.status >= 300 then
     if response.status == 400 or response.status == 401 then
-      logging.event("warn", "token_refresh_failed", "failure", "Token refresh rejected by the IdP; treating the session as expired", {
+      logging.event("warn", "token_refresh_failed", "failure",
+        "Token refresh rejected by the IdP; treating the session as expired", {
         error_code = "idp_rejected",
         idp_status = response.status,
       })

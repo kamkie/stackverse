@@ -3,8 +3,8 @@ local session_lib = require("resty.session")
 local config = require("stackverse.config")
 local logging = require("stackverse.logging")
 local problem = require("stackverse.problem")
-local proxy = require("stackverse.proxy")
 local security = require("stackverse.security")
+local telemetry = require("stackverse.telemetry")
 local token = require("stackverse.token")
 
 local _M = {}
@@ -53,7 +53,7 @@ local function load_session(cfg)
   return nil, nil
 end
 
-function _M.handle()
+function _M.prepare()
   local cfg = config.load()
   local headers = ngx.req.get_headers(0)
   if not security.same_origin_state_change(headers) then
@@ -64,7 +64,8 @@ function _M.handle()
     return problem.write(403, "Forbidden", "Cross-origin state-changing requests are not supported.")
   end
   if not security.valid_csrf(headers) then
-    logging.event("info", "csrf_validation_failed", "denied", "Rejected a state-changing /api request without a matching CSRF header", {
+    logging.event("info", "csrf_validation_failed", "denied",
+      "Rejected a state-changing /api request without a matching CSRF header", {
       method = logging.sanitize(ngx.req.get_method(), 32),
       path = logging.sanitize(ngx.var.uri or "", 200),
     })
@@ -89,16 +90,23 @@ function _M.handle()
     elseif status == "rejected" then
       local actor = session:get("stackverse_username")
       clear_or_destroy_session(session)
-      logging.event("info", "session_destroyed", "success", "Session destroyed after a failed token refresh; request degraded to anonymous", {
+      logging.event("info", "session_destroyed", "success",
+        "Session destroyed after a failed token refresh; request degraded to anonymous", {
         reason = "token_refresh_failed",
         actor = actor,
       })
     else
       close_session(session)
     end
+  elseif session then
+    close_session(session)
   end
 
-  return proxy.request(cfg.backend_url, "backend", access_token, true, cfg)
+  local traceparent = telemetry.ensure_traceparent(headers, cfg)
+  ngx.var.stackverse_backend_url = config.join_url(cfg.backend_url, ngx.var.request_uri)
+  ngx.var.stackverse_backend_host = cfg.backend_host
+  ngx.var.stackverse_authorization = access_token and ("Bearer " .. access_token) or ""
+  ngx.var.stackverse_traceparent = traceparent or ""
 end
 
 return _M
