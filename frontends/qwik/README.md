@@ -82,6 +82,14 @@ Qwik's generated declaration internals while application code is still checked
 against the package's exported types. ESLint uses the Qwik and TypeScript rules,
 and Prettier supplies the formatting gate.
 
+Qwik 1.20 supports Vite versions below 8, and its generated declarations are not
+compatible with TypeScript 6. This variant therefore pins Vite 7.3 and TypeScript
+5.9 until a Qwik release supports those next major lines. The application is a
+deliberate static CSR build, so its client lifecycle/data-loading code uses
+`useVisibleTask$`; the Qwik lint rule that discourages it for SSR applications is
+disabled while all other recommended Qwik rules remain enforced with zero
+warnings allowed.
+
 ## Production
 
 `yarn build` emits plain static files (`dist/`) for the frontend static

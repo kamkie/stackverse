@@ -15,6 +15,13 @@ const knownActions = [
   "user.unblocked",
 ];
 
+const auditActionListId = "audit-log-known-actions";
+// Qwik 1.20 filters the readonly HTMLInputElement.list property from its JSX
+// attributes. Keep the standards-valid datalist binding typed and share its id.
+const auditActionListProps = { list: auditActionListId } satisfies {
+  list: string;
+};
+
 export default component$<{ i18n: I18nState }>((props) => {
   const state = useStore<{
     actor: string;
@@ -91,14 +98,14 @@ export default component$<{ i18n: I18nState }>((props) => {
           class="sv-input"
           placeholder={m(props.i18n, "ui.audit.action.placeholder")}
           aria-label={m(props.i18n, "ui.audit.action.placeholder")}
-          {...{ list: "audit-log-known-actions" }}
+          {...auditActionListProps}
           value={state.action}
           onInput$={(event: Event) => {
             state.action = (event.target as HTMLInputElement).value;
             void reloadFirstPage$();
           }}
         />
-        <datalist id="audit-log-known-actions">
+        <datalist id={auditActionListId}>
           {knownActions.map((item) => (
             <option key={item} value={item} />
           ))}

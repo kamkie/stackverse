@@ -26,7 +26,9 @@ export default tseslint.config(
     },
     rules: {
       ...qwik.configs.recommended.rules,
-      "@typescript-eslint/no-explicit-any": "off",
+      // This app is deliberately a static CSR build, so browser lifecycle and
+      // data loading belong in visible tasks rather than SSR-aware tasks.
+      "qwik/no-use-visible-task": "off",
     },
   },
 );

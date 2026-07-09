@@ -2,4 +2,5 @@
 .yarn
 coverage
 dist
+public
 test-results

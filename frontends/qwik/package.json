@@ -6,22 +6,22 @@
   "packageManager": "yarn@4.17.0+sha512.c2957de2f9025ab14d63b24d0d8be1f1655810e22c341042c27f7ecd017b180ec12db73d69ac366d71b304ef9f069349ce462de96f04f8f1da317f4f762c95ae",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.typecheck.json && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.typecheck.json",
-    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "yarn lint && yarn format:check && yarn typecheck && yarn test && vite build"
+    "check": "yarn lint && yarn format:check && yarn test && yarn build"
   },
   "dependencies": {
     "@builder.io/qwik": "1.20.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.0.3",
     "eslint-plugin-qwik": "^1.20.0",
