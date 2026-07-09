@@ -37,7 +37,7 @@ jobs:
           java-version: 25
           cache: maven
       - name: Build and test
-        run: ./mvnw -B -ntp test
+        run: ./mvnw -B -ntp verify
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         continue-on-error: true
