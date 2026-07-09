@@ -64,6 +64,9 @@ function _M.issue_csrf_cookie()
   if path == "/healthz" or path == "/readyz" then
     return
   end
+  if ngx.ctx.stackverse_csrf_cookie_issued then
+    return
+  end
   if cookie_value(XSRF_COOKIE) then
     return
   end
@@ -72,6 +75,7 @@ function _M.issue_csrf_cookie()
     return
   end
   append_set_cookie(XSRF_COOKIE .. "=" .. token .. "; Path=/; SameSite=Lax" .. secure_suffix())
+  ngx.ctx.stackverse_csrf_cookie_issued = true
 end
 
 local function header_value(headers, name)

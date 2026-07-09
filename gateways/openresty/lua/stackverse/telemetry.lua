@@ -2,10 +2,11 @@ local random = require("resty.random")
 local resty_string = require("resty.string")
 
 local _M = {}
+local TRACEPARENT_PATTERN = "^00%-" .. string.rep("%x", 32) .. "%-" .. string.rep("%x", 16) .. "%-%x%x$"
 
 local function valid_traceparent(value)
   return type(value) == "string"
-    and value:match("^00%-%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%-%x%x$")
+    and value:match(TRACEPARENT_PATTERN)
 end
 
 local function new_hex(bytes)

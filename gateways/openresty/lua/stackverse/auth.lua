@@ -98,7 +98,7 @@ end
 function _M.session()
   local cfg = config.load()
   ngx.header["Content-Type"] = "application/json"
-  local session, err, exists = session_lib.open(cfg.session)
+  local session, _, exists = session_lib.open(cfg.session)
   if not exists then
     close_session(session)
     ngx.print(cjson.encode({ authenticated = false }))
@@ -140,7 +140,8 @@ local function logout_idp(cfg, refresh_token)
     return
   end
   if response.status < 200 or response.status >= 300 then
-    logging.event("warn", "idp_logout_failed", "failure", "IdP logout returned a failure; local session destroyed anyway", {
+    logging.event("warn", "idp_logout_failed", "failure",
+      "IdP logout returned a failure; local session destroyed anyway", {
       error_code = "idp_rejected",
       idp_status = response.status,
     })
@@ -155,7 +156,7 @@ function _M.logout()
   local cfg = config.load()
   local session, _, exists = session_lib.open(cfg.session)
   local refresh_token = nil
-  local username = nil
+  local username
   if exists then
     refresh_token = session:get("refresh_token")
     username = session:get("stackverse_username")

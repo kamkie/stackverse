@@ -31,8 +31,12 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build image
         run: docker build -t stackverse/gateway-openresty:local .
+      - name: Lint Lua
+        run: docker run --rm stackverse/gateway-openresty:local luacheck /opt/stackverse/lua --config /opt/stackverse/.luacheckrc
       - name: Validate OpenResty config
         run: docker run --rm stackverse/gateway-openresty:local openresty -t -c /usr/local/openresty/nginx/conf/nginx.conf
+      - name: Run Busted native proxy specs
+        run: docker run --rm stackverse/gateway-openresty:local busted /opt/stackverse/test/native_proxy_spec.lua
       - name: Run Lua smoke tests with coverage
         run: |
           mkdir -p coverage

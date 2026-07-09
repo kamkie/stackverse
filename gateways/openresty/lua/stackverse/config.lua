@@ -69,11 +69,13 @@ local function parse_http_url(raw, name)
   if not ((scheme == "http" and port == 80) or (scheme == "https" and port == 443)) then
     public_port = ":" .. tostring(port)
   end
-  local origin = scheme .. "://" .. bracket_host(host:lower()) .. public_port
+  local upstream_host = bracket_host(host:lower()) .. public_port
+  local origin = scheme .. "://" .. upstream_host
   local normalized = trim_right_slash(scheme .. "://" .. authority .. path)
 
   return {
     raw = normalized,
+    upstream_host = upstream_host,
     scheme = scheme,
     host = host,
     port = port,
@@ -211,7 +213,9 @@ function _M.load()
   cached_config = {
     port = env("PORT", "8000"),
     backend_url = backend.raw,
+    backend_host = backend.upstream_host,
     frontend_url = frontend and frontend.raw or nil,
+    frontend_host = frontend and frontend.upstream_host or nil,
     spa_root = env("SPA_ROOT", "/opt/stackverse/static"),
     public_url = public.raw,
     public_origin = public.origin,

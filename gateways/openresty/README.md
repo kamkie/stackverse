@@ -15,8 +15,8 @@ Route contract, cookie rules, and the login sequence live in
 | `GET /auth/callback` | same OpenID Connect handler consumes the callback, validates the ID token, and redirects to `/` |
 | `POST /auth/logout` | local `lua-resty-session` destruction first, best-effort server-to-server Keycloak logout, `204` |
 | `GET /auth/session` | reads the Redis-backed session behind `stackverse_session` |
-| `/api/**` | Lua proxy to `BACKEND_URL`, stripping browser credentials and attaching a bearer token when the session has one |
-| `/**` | proxies `FRONTEND_URL` when set; otherwise serves `SPA_ROOT` or the bundled placeholder |
+| `/api/**` | access-phase Lua applies session/refresh/CSRF policy, then native `proxy_pass` streams to `BACKEND_URL` with browser credentials stripped and a session bearer token attached when present |
+| `/**` | native `proxy_pass` streams to `FRONTEND_URL` when set; otherwise Lua serves `SPA_ROOT` or the bundled placeholder |
 
 ## Design notes
 
@@ -37,6 +37,13 @@ Route contract, cookie rules, and the login sequence live in
   backend owns authorization; the gateway only attaches a token when one is
   available. Client-supplied `Authorization`, `Cookie`, and `X-XSRF-TOKEN`
   headers are stripped before proxying.
+- **Native streaming data plane.** Lua runs in the access phase to establish
+  sanitized upstream URL, host, authorization, and trace variables. nginx's
+  `proxy_pass` sends request bodies and responses with buffering disabled, so
+  application Lua never reads, stores, or re-emits normal proxied bodies.
+  Native proxy handling retains nginx backpressure, connection reuse, and
+  hop-by-hop behavior. nginx-generated upstream failures enter small Lua error
+  handlers so API failures remain RFC 9457 problem documents.
 - **CSRF and same-origin boundary.** State-changing `/api/**` requests require
   the readable `XSRF-TOKEN` cookie to match `X-XSRF-TOKEN`, and browser
   `Origin` / `Sec-Fetch-Site` signals must match `PUBLIC_URL`.
@@ -99,14 +106,23 @@ GATEWAY_IMAGE=stackverse/gateway-openresty:local docker compose --profile app up
 
 ## Test
 
-The component check builds the image, validates the rendered OpenResty config,
-and runs Lua smoke tests inside the image.
+The component check builds the image, runs `luacheck`, validates the rendered
+OpenResty config, runs Busted specs for the native proxy configuration, and
+runs the Lua contract smoke suite with coverage inside the image.
 
 ```sh
 docker build -t stackverse/gateway-openresty:local .
+docker run --rm stackverse/gateway-openresty:local luacheck /opt/stackverse/lua --config /opt/stackverse/.luacheckrc
 docker run --rm stackverse/gateway-openresty:local openresty -t -c /usr/local/openresty/nginx/conf/nginx.conf
+docker run --rm stackverse/gateway-openresty:local busted /opt/stackverse/test/native_proxy_spec.lua
 docker run --rm stackverse/gateway-openresty:local resty -I /opt/stackverse/lua /opt/stackverse/test/smoke.lua
 ```
+
+The focused Busted suite verifies that gateway policy stays in the access
+phase, normal upstream traffic uses native `proxy_pass`, request/response
+buffering is disabled, and browser credentials are stripped. The broader
+smoke harness keeps the contract decision matrix fast and deterministic with
+mocked Redis, OIDC, and nginx request state.
 
 ## Docker
 

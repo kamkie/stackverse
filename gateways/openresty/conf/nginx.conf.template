@@ -105,20 +105,75 @@ http {
     }
 
     location /api/ {
-      content_by_lua_block {
-        require("stackverse.api").handle()
+      set $stackverse_backend_url "";
+      set $stackverse_backend_host "";
+      set $stackverse_authorization "";
+      set $stackverse_traceparent "";
+
+      access_by_lua_block {
+        require("stackverse.security").issue_csrf_cookie()
+        require("stackverse.api").prepare()
       }
+
+      include /etc/nginx/templates/proxy-common.conf;
+      proxy_set_header Host $stackverse_backend_host;
+      proxy_set_header Authorization $stackverse_authorization;
+      proxy_set_header traceparent $stackverse_traceparent;
+      error_page 502 504 = @api_upstream_failure;
+      proxy_pass $stackverse_backend_url;
     }
 
     location = /api {
+      set $stackverse_backend_url "";
+      set $stackverse_backend_host "";
+      set $stackverse_authorization "";
+      set $stackverse_traceparent "";
+
+      access_by_lua_block {
+        require("stackverse.security").issue_csrf_cookie()
+        require("stackverse.api").prepare()
+      }
+
+      include /etc/nginx/templates/proxy-common.conf;
+      proxy_set_header Host $stackverse_backend_host;
+      proxy_set_header Authorization $stackverse_authorization;
+      proxy_set_header traceparent $stackverse_traceparent;
+      error_page 502 504 = @api_upstream_failure;
+      proxy_pass $stackverse_backend_url;
+    }
+
+    location @api_upstream_failure {
       content_by_lua_block {
-        require("stackverse.api").handle()
+        require("stackverse.upstream").api_failure()
       }
     }
 
     location / {
+      set $stackverse_frontend_url "";
+      set $stackverse_frontend_host "";
+
+      access_by_lua_block {
+        require("stackverse.security").issue_csrf_cookie()
+        require("stackverse.spa").prepare()
+      }
+
+      include /etc/nginx/templates/proxy-common.conf;
+      proxy_set_header Host $stackverse_frontend_host;
+      proxy_set_header Authorization "";
+      proxy_set_header traceparent "";
+      error_page 502 504 = @frontend_upstream_failure;
+      proxy_pass $stackverse_frontend_url;
+    }
+
+    location @spa_static {
       content_by_lua_block {
-        require("stackverse.spa").handle()
+        require("stackverse.spa").serve_static()
+      }
+    }
+
+    location @frontend_upstream_failure {
+      content_by_lua_block {
+        require("stackverse.upstream").frontend_failure()
       }
     }
   }

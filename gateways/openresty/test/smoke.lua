@@ -74,6 +74,10 @@ local function set_ngx(overrides)
       read_body = function() end,
     },
     encode_args = encode_args,
+    exec = function(location)
+      fake.executed = location
+      return location
+    end,
     exit = function(status)
       return status
     end,
@@ -185,6 +189,7 @@ local function test_config_defaults()
   local config = require("stackverse.config")
   local cfg = config.load()
   assert_equal(cfg.backend_url, "http://localhost:8080")
+  assert_equal(cfg.backend_host, "localhost:8080")
   assert_equal(cfg.public_origin, "http://localhost:8000")
   assert_match(cfg.oidc.discovery.authorization_endpoint, "/protocol/openid%-connect/auth$")
   assert_match(cfg.oidc.discovery.token_endpoint, "/protocol/openid%-connect/token$")
@@ -479,90 +484,33 @@ local function test_token_refresh_paths()
   end)
 end
 
-local function test_proxy_request()
-  local response
-  local captured_request
-  local fake_http = {
-    new = function()
-      return {
-        set_timeout = function() end,
-        request_uri = function(_, url, options)
-          captured_request = { url = url, options = options }
-          return response
-        end,
-      }
-    end,
-  }
+local function test_native_proxy_configuration_and_failures()
+  local template_path = os.getenv("STACKVERSE_NGINX_TEMPLATE") or "/etc/nginx/templates/stackverse.conf.template"
+  local common_path = os.getenv("STACKVERSE_PROXY_COMMON") or "/etc/nginx/templates/proxy-common.conf"
+  local template_file = assert(io.open(template_path, "rb"))
+  local template = template_file:read("*a")
+  template_file:close()
+  local common_file = assert(io.open(common_path, "rb"))
+  local common = common_file:read("*a")
+  common_file:close()
 
-  with_modules({ ["resty.http"] = fake_http }, { "stackverse.proxy" }, function()
-    local proxy = require("stackverse.proxy")
-    response = {
-      status = 200,
-      headers = {
-        Connection = "close",
-        ETag = '"abc"',
-        ["Content-Language"] = "en",
-      },
-      body = '{"ok":true}',
-    }
-    local traceparent = "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
-    local _, body = set_ngx({
-      req = {
-        get_body_data = function()
-          return "request-body"
-        end,
-        get_headers = function()
-          return {
-            Accept = "application/json",
-            Authorization = "client-token",
-            Connection = "close",
-            Cookie = "stackverse_session=abc",
-            traceparent = traceparent,
-            ["X-XSRF-TOKEN"] = "csrf",
-          }
-        end,
-        get_method = function()
-          return "POST"
-        end,
-        read_body = function() end,
-      },
-      var = {
-        request_uri = "/api/v1/messages?lang=en",
-        uri = "/api/v1/messages",
-      },
-    })
-    assert_equal(proxy.request("http://backend:8080/", "backend", "server-token", true), 200)
-    assert_equal(captured_request.url, "http://backend:8080/api/v1/messages?lang=en")
-    assert_equal(captured_request.options.method, "POST")
-    assert_equal(captured_request.options.body, "request-body")
-    assert_equal(captured_request.options.headers.Authorization, "Bearer server-token")
-    assert_equal(captured_request.options.headers.Cookie, nil)
-    assert_equal(captured_request.options.headers.Connection, nil)
-    assert_equal(captured_request.options.headers["X-XSRF-TOKEN"], nil)
-    assert_equal(captured_request.options.headers.traceparent, traceparent)
-    assert_equal(ngx.header.ETag, '"abc"')
-    assert_equal(ngx.header.Connection, nil)
-    assert_equal(body(), '{"ok":true}')
+  assert_match(template, 'require%("stackverse.api"%)%.prepare%(%)')
+  assert_match(template, 'proxy_pass %$stackverse_backend_url;')
+  assert_match(template, 'proxy_pass %$stackverse_frontend_url;')
+  assert_match(common, "proxy_request_buffering off;")
+  assert_match(common, "proxy_buffering off;")
+  assert_match(common, 'proxy_set_header Cookie "";')
+  assert_match(common, 'proxy_set_header X%-XSRF%-TOKEN "";')
 
-    response = nil
-    local _, error_body = set_ngx({
-      req = {
-        get_headers = function()
-          return {}
-        end,
-        get_method = function()
-          return "GET"
-        end,
-      },
-      var = {
-        request_uri = "/api/v1/bookmarks",
-        uri = "/api/v1/bookmarks",
-      },
-    })
-    assert_equal(proxy.request("http://backend:8080", "backend", nil, true), 502)
-    assert_equal(ngx.header["Content-Type"], "application/problem+json")
-    assert_equal(assert(cjson.decode(error_body())).title, "Bad Gateway")
-  end)
+  local upstream = require("stackverse.upstream")
+  local _, body = set_ngx({ ctx = { stackverse_upstream_started = 999 } })
+  assert_equal(upstream.api_failure(), 502)
+  assert_equal(assert(cjson.decode(body())).title, "Bad Gateway")
+
+  _, body = set_ngx({ ctx = { stackverse_upstream_started = 999 } })
+  assert_equal(upstream.frontend_failure(), 502)
+  assert_equal(ngx.header["Content-Type"], "text/plain; charset=utf-8")
+  assert_equal(body(), "The upstream service is unavailable.")
 end
 
 local function write_file(path, body)
@@ -586,11 +534,6 @@ local function test_spa_static_and_proxy_modes()
 
   with_modules({
     ["stackverse.config"] = { load = static_config },
-    ["stackverse.proxy"] = {
-      request = function()
-        error("static SPA tests must not proxy")
-      end,
-    },
   }, { "stackverse.spa" }, function()
     local spa = require("stackverse.spa")
 
@@ -598,7 +541,7 @@ local function test_spa_static_and_proxy_modes()
       req = { get_method = function() return "GET" end },
       var = { uri = "/assets/app.js" },
     })
-    assert_equal(spa.handle(), 200)
+    assert_equal(spa.serve_static(), 200)
     assert_equal(ngx.header["Content-Type"], "text/javascript; charset=utf-8")
     assert_equal(body(), "console.log('ok');")
 
@@ -606,66 +549,67 @@ local function test_spa_static_and_proxy_modes()
       req = { get_method = function() return "GET" end },
       var = { uri = "/missing/route" },
     })
-    assert_equal(spa.handle(), 200)
+    assert_equal(spa.serve_static(), 200)
     assert_equal(body(), "<main>index</main>")
 
     _, body = set_ngx({
       req = { get_method = function() return "GET" end },
       var = { uri = "/../secret.txt" },
     })
-    assert_equal(spa.handle(), 200)
+    assert_equal(spa.serve_static(), 200)
     assert_equal(body(), "<main>index</main>")
 
     _, body = set_ngx({
       req = { get_method = function() return "HEAD" end },
       var = { uri = "/assets/app.js" },
     })
-    assert_equal(spa.handle(), 200)
+    assert_equal(spa.serve_static(), 200)
     assert_equal(body(), "")
 
     _, body = set_ngx({
       req = { get_method = function() return "POST" end },
       var = { uri = "/" },
     })
-    assert_equal(spa.handle(), 404)
+    assert_equal(spa.serve_static(), 404)
     assert_equal(assert(cjson.decode(body())).title, "Not Found")
   end)
 
-  local proxy_call
   with_modules({
     ["stackverse.config"] = {
       load = function()
         return {
           frontend_url = "http://frontend:5173",
+          frontend_host = "frontend:5173",
           spa_root = root,
         }
       end,
-    },
-    ["stackverse.proxy"] = {
-      request = function(base_url, dependency, access_token, api)
-        proxy_call = {
-          access_token = access_token,
-          api = api,
-          base_url = base_url,
-          dependency = dependency,
-        }
-        return "proxied"
+      join_url = function(base, request_uri)
+        return base .. request_uri
       end,
     },
   }, { "stackverse.spa" }, function()
     local spa = require("stackverse.spa")
+    set_ngx({ var = { request_uri = "/assets/app.js?dev=1" } })
+    assert_equal(spa.prepare(), nil)
+    assert_equal(ngx.var.stackverse_frontend_url, "http://frontend:5173/assets/app.js?dev=1")
+    assert_equal(ngx.var.stackverse_frontend_host, "frontend:5173")
+  end)
+
+  with_modules({
+    ["stackverse.config"] = { load = static_config },
+  }, { "stackverse.spa" }, function()
+    local spa = require("stackverse.spa")
     set_ngx()
-    assert_equal(spa.handle(), "proxied")
-    assert_equal(proxy_call.base_url, "http://frontend:5173")
-    assert_equal(proxy_call.dependency, "frontend")
-    assert_equal(proxy_call.access_token, nil)
-    assert_equal(proxy_call.api, false)
+    assert_equal(spa.prepare(), "@spa_static")
+    assert_equal(ngx.executed, "@spa_static")
   end)
 end
 
 local function test_api_session_and_csrf_decisions()
   local cfg = {
     backend_url = "http://backend:8080",
+    backend_host = "backend:8080",
+    otel_disabled = "true",
     session = {},
   }
   local security = {
@@ -696,27 +640,16 @@ local function test_api_session_and_csrf_decisions()
       return token_value, token_status
     end,
   }
-  local proxy_call
-  local proxy = {
-    request = function(base_url, dependency, access_token, api)
-      proxy_call = {
-        access_token = access_token,
-        api = api,
-        base_url = base_url,
-        dependency = dependency,
-      }
-      return 200
-    end,
-  }
-
   with_modules({
     ["resty.session"] = session_lib,
     ["stackverse.config"] = {
       load = function()
         return cfg
       end,
+      join_url = function(base, request_uri)
+        return base .. request_uri
+      end,
     },
-    ["stackverse.proxy"] = proxy,
     ["stackverse.security"] = security,
     ["stackverse.token"] = token_module,
   }, { "stackverse.api" }, function()
@@ -728,7 +661,7 @@ local function test_api_session_and_csrf_decisions()
       req = { get_headers = function() return {} end, get_method = function() return "POST" end },
       var = { uri = "/api/v1/bookmarks" },
     })
-    assert_equal(api.handle(), 403)
+    assert_equal(api.prepare(), 403)
     assert_equal(assert(cjson.decode(body())).detail, "Cross-origin state-changing requests are not supported.")
 
     security.origin = true
@@ -737,7 +670,7 @@ local function test_api_session_and_csrf_decisions()
       req = { get_headers = function() return {} end, get_method = function() return "POST" end },
       var = { uri = "/api/v1/bookmarks" },
     })
-    assert_equal(api.handle(), 403)
+    assert_equal(api.prepare(), 403)
     assert_equal(assert(cjson.decode(body())).detail, "Missing or mismatched X-XSRF-TOKEN header.")
 
     security.csrf = true
@@ -748,7 +681,7 @@ local function test_api_session_and_csrf_decisions()
       req = { get_headers = function() return {} end, get_method = function() return "GET" end },
       var = { http_cookie = "stackverse_session=abc", uri = "/api/v1/bookmarks" },
     })
-    assert_equal(api.handle(), 503)
+    assert_equal(api.prepare(), 503)
     assert_equal(assert(cjson.decode(body())).detail, "Session storage is temporarily unavailable.")
 
     local rejected_session = new_session({
@@ -760,29 +693,27 @@ local function test_api_session_and_csrf_decisions()
     session_state.exists = true
     token_value = nil
     token_status = "rejected"
-    proxy_call = nil
     set_ngx({
       req = { get_headers = function() return {} end, get_method = function() return "GET" end },
       var = { uri = "/api/v1/bookmarks", request_uri = "/api/v1/bookmarks" },
     })
-    assert_equal(api.handle(), 200)
+    assert_equal(api.prepare(), nil)
     assert_equal(rejected_session.destroyed, true)
-    assert_equal(proxy_call.access_token, nil)
+    assert_equal(ngx.var.stackverse_authorization, "")
+    assert_equal(ngx.var.stackverse_backend_url, "http://backend:8080/api/v1/bookmarks")
 
     local good_session = new_session({ authenticated = true })
     session_state.session = good_session
     token_value = "access-token"
     token_status = nil
-    proxy_call = nil
     set_ngx({
       req = { get_headers = function() return {} end, get_method = function() return "GET" end },
       var = { uri = "/api/v1/me", request_uri = "/api/v1/me" },
     })
-    assert_equal(api.handle(), 200)
+    assert_equal(api.prepare(), nil)
     assert_equal(good_session.closed, true)
-    assert_equal(proxy_call.access_token, "access-token")
-    assert_equal(proxy_call.dependency, "backend")
-    assert_equal(proxy_call.api, true)
+    assert_equal(ngx.var.stackverse_authorization, "Bearer access-token")
+    assert_equal(ngx.var.stackverse_backend_host, "backend:8080")
 
     token_value = nil
     token_status = "unavailable"
@@ -791,7 +722,7 @@ local function test_api_session_and_csrf_decisions()
       req = { get_headers = function() return {} end, get_method = function() return "GET" end },
       var = { uri = "/api/v1/me", request_uri = "/api/v1/me" },
     })
-    assert_equal(api.handle(), 503)
+    assert_equal(api.prepare(), 503)
     assert_equal(assert(cjson.decode(body())).detail, "Authentication is temporarily unavailable; please retry.")
   end)
 end
@@ -962,7 +893,7 @@ test_security_contract_checks()
 test_logging_and_telemetry()
 test_readyz_module()
 test_token_refresh_paths()
-test_proxy_request()
+test_native_proxy_configuration_and_failures()
 test_spa_static_and_proxy_modes()
 test_api_session_and_csrf_decisions()
 test_auth_session_logout_and_callback_paths()
