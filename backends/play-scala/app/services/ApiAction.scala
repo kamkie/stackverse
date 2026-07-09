@@ -10,8 +10,8 @@ import scala.concurrent.Future
 
 /** Play-native API action boundary.
   *
-  * Controllers remain synchronous JDBC clients, but every API action is dispatched onto the
-  * dedicated database execution context and every domain/validation failure is translated here.
+  * Controllers remain synchronous JDBC clients, but every API action is dispatched onto the dedicated database
+  * execution context and every domain/validation failure is translated here.
   */
 @Singleton
 class ApiAction @Inject() (
