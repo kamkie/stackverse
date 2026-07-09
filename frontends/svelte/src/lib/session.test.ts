@@ -29,7 +29,9 @@ describe("refreshSession", () => {
     const fetchMock = vi.fn((input: URL) => {
       const path = input.pathname;
       if (path === "/auth/session") {
-        return Promise.resolve(jsonResponse({ authenticated: true, username: "demo" }));
+        return Promise.resolve(
+          jsonResponse({ authenticated: true, username: "demo" }),
+        );
       }
       if (path === "/api/v1/me") {
         return Promise.resolve(
@@ -67,7 +69,9 @@ describe("refreshSession", () => {
 
 describe("logout", () => {
   it("posts to the gateway and clears local session state", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
     session.set({ authenticated: true, username: "demo" });
     me.set({ username: "demo", roles: ["admin"] });

@@ -11,7 +11,9 @@ export async function refreshSession(): Promise<Session> {
   let next: Session;
   try {
     const response = await fetch(new URL("/auth/session", location.origin));
-    next = response.ok ? ((await response.json()) as Session) : { authenticated: false };
+    next = response.ok
+      ? ((await response.json()) as Session)
+      : { authenticated: false };
   } catch {
     next = { authenticated: false };
   }
@@ -36,15 +38,17 @@ export async function refreshMe(): Promise<User | null> {
 }
 
 export async function logout(): Promise<void> {
-  await fetch(new URL("/auth/logout", location.origin), { method: "POST" }).catch(
-    () => {},
-  );
+  await fetch(new URL("/auth/logout", location.origin), {
+    method: "POST",
+  }).catch(() => {});
   session.set({ authenticated: false });
   me.set(null);
 }
 
 export function isModerator(user: User | null | undefined): boolean {
-  return Boolean(user?.roles.includes("moderator") || user?.roles.includes("admin"));
+  return Boolean(
+    user?.roles.includes("moderator") || user?.roles.includes("admin"),
+  );
 }
 
 export function isAdmin(user: User | null | undefined): boolean {

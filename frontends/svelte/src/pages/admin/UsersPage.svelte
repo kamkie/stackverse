@@ -45,16 +45,22 @@
 
   async function setStatus(username: string, status: "active" | "blocked") {
     if (status === "blocked" && reason.trim() === "") {
-      blockReasonError = m(i18nState.current, "validation.block.reason.required");
+      blockReasonError = m(
+        i18nState.current,
+        "validation.block.reason.required",
+      );
       return;
     }
     blockError = undefined;
     blockReasonError = undefined;
     try {
-      await api<UserAccount>(`/api/v1/admin/users/${encodeURIComponent(username)}/status`, {
-        method: "PUT",
-        ...jsonBody({ status, ...(status === "blocked" ? { reason } : {}) }),
-      });
+      await api<UserAccount>(
+        `/api/v1/admin/users/${encodeURIComponent(username)}/status`,
+        {
+          method: "PUT",
+          ...jsonBody({ status, ...(status === "blocked" ? { reason } : {}) }),
+        },
+      );
       blocking = null;
       await load();
     } catch (caught) {
@@ -101,29 +107,54 @@
           <th scope="col">{m(i18nState.current, "ui.field.last-seen")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.bookmarks")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.status")}</th>
-          <th scope="col"><span class="sv-visually-hidden">{m(i18nState.current, "ui.field.actions")}</span></th>
+          <th scope="col"
+            ><span class="sv-visually-hidden"
+              >{m(i18nState.current, "ui.field.actions")}</span
+            ></th
+          >
         </tr>
       </thead>
       <tbody>
         {#each users.items as user (user.username)}
           <tr data-ctx={`user:${user.username}`}>
             <td>{user.username}</td>
-            <td><time dateTime={user.lastSeen}>{formatDate(user.lastSeen, i18nState.current.resolvedLanguage)}</time></td>
+            <td
+              ><time dateTime={user.lastSeen}
+                >{formatDate(
+                  user.lastSeen,
+                  i18nState.current.resolvedLanguage,
+                )}</time
+              ></td
+            >
             <td>{user.bookmarkCount}</td>
             <td>
               {#if user.status === "blocked"}
-                <span class="sv-badge sv-badge--danger" title={user.blockedReason}>{m(i18nState.current, "ui.user.status.blocked")}</span>
+                <span
+                  class="sv-badge sv-badge--danger"
+                  title={user.blockedReason}
+                  >{m(i18nState.current, "ui.user.status.blocked")}</span
+                >
               {:else}
-                <span class="sv-badge sv-badge--success">{m(i18nState.current, "ui.user.status.active")}</span>
+                <span class="sv-badge sv-badge--success"
+                  >{m(i18nState.current, "ui.user.status.active")}</span
+                >
               {/if}
             </td>
             <td class="sv-cell-actions">
               {#if user.status === "blocked"}
-                <button type="button" class="sv-button sv-button--sm" onclick={() => setStatus(user.username, "active")}>
+                <button
+                  type="button"
+                  class="sv-button sv-button--sm"
+                  onclick={() => setStatus(user.username, "active")}
+                >
                   {m(i18nState.current, "ui.action.unblock")}
                 </button>
               {:else if meState.current && meState.current.username !== user.username}
-                <button type="button" class="sv-button sv-button--sm" onclick={() => openBlock(user)}>
+                <button
+                  type="button"
+                  class="sv-button sv-button--sm"
+                  onclick={() => openBlock(user)}
+                >
                   {m(i18nState.current, "ui.action.block")}
                 </button>
               {/if}
@@ -144,13 +175,24 @@
 {/if}
 
 {#if blocking}
-  <Dialog title={`${m(i18nState.current, "ui.action.block")} - ${blocking.username}`} ctx={`user:${blocking.username}`} onClose={() => (blocking = null)}>
+  <Dialog
+    title={`${m(i18nState.current, "ui.action.block")} - ${blocking.username}`}
+    ctx={`user:${blocking.username}`}
+    onClose={() => (blocking = null)}
+  >
     <form class="sv-form" onsubmit={submitBlock}>
-      <Field label={m(i18nState.current, "ui.field.reason")} error={fieldErrorFor(blockError, "reason") ?? blockReasonError}>
+      <Field
+        label={m(i18nState.current, "ui.field.reason")}
+        error={fieldErrorFor(blockError, "reason") ?? blockReasonError}
+      >
         <textarea class="sv-textarea" bind:value={reason}></textarea>
       </Field>
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" onclick={() => (blocking = null)}>
+        <button
+          type="button"
+          class="sv-button"
+          onclick={() => (blocking = null)}
+        >
           {m(i18nState.current, "ui.action.cancel")}
         </button>
         <button type="submit" class="sv-button sv-button--danger">

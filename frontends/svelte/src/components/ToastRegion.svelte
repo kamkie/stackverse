@@ -10,7 +10,9 @@
 
 <div class="sv-toast-region" role="status" aria-live="polite">
   {#each toasts as toast (toast.id)}
-    <div class={`sv-toast ${toast.tone === "success" ? "sv-toast--success" : "sv-toast--danger"}`}>
+    <div
+      class={`sv-toast ${toast.tone === "success" ? "sv-toast--success" : "sv-toast--danger"}`}
+    >
       {toast.message}
     </div>
   {/each}

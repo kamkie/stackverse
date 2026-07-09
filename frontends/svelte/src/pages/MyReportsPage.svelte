@@ -1,10 +1,22 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../lib/api";
+  import {
+    ApiError,
+    api,
+    fieldErrorFor,
+    jsonBody,
+    queryString,
+  } from "../lib/api";
   import { formatDate } from "../lib/format";
   import { i18n, m } from "../lib/i18n";
   import { removeReported } from "../lib/reportedStore";
-  import type { Page, Report, ReportInput, ReportReason, ReportStatus } from "../lib/types";
+  import type {
+    Page,
+    Report,
+    ReportInput,
+    ReportReason,
+    ReportStatus,
+  } from "../lib/types";
   import { REPORT_REASONS, REPORT_STATUSES } from "../lib/types";
   import BookmarkContext from "../components/BookmarkContext.svelte";
   import ConfirmDialog from "../components/ConfirmDialog.svelte";
@@ -13,7 +25,10 @@
   import Pagination from "../components/Pagination.svelte";
   import { fromStore } from "svelte/store";
 
-  let { toast }: { toast: (message: string, tone?: "success" | "danger") => void } = $props();
+  let {
+    toast,
+  }: { toast: (message: string, tone?: "success" | "danger") => void } =
+    $props();
 
   const statuses = REPORT_STATUSES;
   const reasons = REPORT_REASONS;
@@ -84,7 +99,10 @@
       toast(m(i18nState.current, "ui.toast.report-withdrawn"));
       await load();
     } catch (caught) {
-      toast(caught instanceof Error ? caught.message : String(caught), "danger");
+      toast(
+        caught instanceof Error ? caught.message : String(caught),
+        "danger",
+      );
     }
   }
 
@@ -105,9 +123,13 @@
         void load();
       }}
     >
-      <option value="">{m(i18nState.current, "ui.my-reports.filter.all-statuses")}</option>
-      {#each statuses as option}
-        <option value={option}>{m(i18nState.current, `ui.report.status.${option}`)}</option>
+      <option value=""
+        >{m(i18nState.current, "ui.my-reports.filter.all-statuses")}</option
+      >
+      {#each statuses as option (option)}
+        <option value={option}
+          >{m(i18nState.current, `ui.report.status.${option}`)}</option
+        >
       {/each}
     </select>
   </div>
@@ -128,18 +150,38 @@
             <th scope="col">{m(i18nState.current, "ui.field.reason")}</th>
             <th scope="col">{m(i18nState.current, "ui.field.comment")}</th>
             <th scope="col">{m(i18nState.current, "ui.field.status")}</th>
-            <th scope="col"><span class="sv-visually-hidden">{m(i18nState.current, "ui.field.actions")}</span></th>
+            <th scope="col"
+              ><span class="sv-visually-hidden"
+                >{m(i18nState.current, "ui.field.actions")}</span
+              ></th
+            >
           </tr>
         </thead>
         <tbody>
           {#each reports.items as report (report.id)}
             <tr data-ctx={`report:${report.id}`}>
-              <td><time dateTime={report.createdAt}>{formatDate(report.createdAt, i18nState.current.resolvedLanguage)}</time></td>
+              <td
+                ><time dateTime={report.createdAt}
+                  >{formatDate(
+                    report.createdAt,
+                    i18nState.current.resolvedLanguage,
+                  )}</time
+                ></td
+              >
               <td><BookmarkContext bookmarkId={report.bookmarkId} /></td>
-              <td><span class="sv-badge">{m(i18nState.current, `ui.report.reason.${report.reason}`)}</span></td>
+              <td
+                ><span class="sv-badge"
+                  >{m(
+                    i18nState.current,
+                    `ui.report.reason.${report.reason}`,
+                  )}</span
+                ></td
+              >
               <td>{report.comment}</td>
               <td>
-                <span class={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}>
+                <span
+                  class={`sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}`}
+                >
                   {m(i18nState.current, `ui.report.status.${report.status}`)}
                 </span>
                 {#if report.resolutionNote}
@@ -148,10 +190,18 @@
               </td>
               <td class="sv-cell-actions">
                 {#if report.status === "open"}
-                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={() => openEdit(report)}>
+                  <button
+                    type="button"
+                    class="sv-button sv-button--ghost sv-button--sm"
+                    onclick={() => openEdit(report)}
+                  >
                     {m(i18nState.current, "ui.action.edit")}
                   </button>
-                  <button type="button" class="sv-button sv-button--ghost sv-button--sm" onclick={() => (withdrawing = report)}>
+                  <button
+                    type="button"
+                    class="sv-button sv-button--ghost sv-button--sm"
+                    onclick={() => (withdrawing = report)}
+                  >
                     {m(i18nState.current, "ui.action.withdraw")}
                   </button>
                 {/if}
@@ -173,26 +223,48 @@
 </section>
 
 {#if editing}
-  <Dialog title={m(i18nState.current, "ui.my-reports.dialog.edit")} ctx={`report:${editing.id}`} onClose={() => (editing = null)}>
+  <Dialog
+    title={m(i18nState.current, "ui.my-reports.dialog.edit")}
+    ctx={`report:${editing.id}`}
+    onClose={() => (editing = null)}
+  >
     <form class="sv-form" onsubmit={saveEdit}>
-      <Field label={m(i18nState.current, "ui.field.reason")} error={fieldErrorFor(editError, "reason")}>
+      <Field
+        label={m(i18nState.current, "ui.field.reason")}
+        error={fieldErrorFor(editError, "reason")}
+      >
         <select class="sv-select" bind:value={editReason}>
-          {#each reasons as option}
-            <option value={option}>{m(i18nState.current, `ui.report.reason.${option}`)}</option>
+          {#each reasons as option (option)}
+            <option value={option}
+              >{m(i18nState.current, `ui.report.reason.${option}`)}</option
+            >
           {/each}
         </select>
       </Field>
-      <Field label={m(i18nState.current, "ui.field.comment")} error={fieldErrorFor(editError, "comment")}>
+      <Field
+        label={m(i18nState.current, "ui.field.comment")}
+        error={fieldErrorFor(editError, "comment")}
+      >
         <textarea class="sv-textarea" bind:value={editComment}></textarea>
       </Field>
       {#if editError instanceof ApiError && editError.status === 409}
-        <div class="sv-alert sv-alert--warning" role="alert">{editError.message}</div>
+        <div class="sv-alert sv-alert--warning" role="alert">
+          {editError.message}
+        </div>
       {/if}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" onclick={() => (editing = null)}>
+        <button
+          type="button"
+          class="sv-button"
+          onclick={() => (editing = null)}
+        >
           {m(i18nState.current, "ui.action.cancel")}
         </button>
-        <button type="submit" class="sv-button sv-button--primary" disabled={editPending}>
+        <button
+          type="submit"
+          class="sv-button sv-button--primary"
+          disabled={editPending}
+        >
           {m(i18nState.current, "ui.action.save")}
         </button>
       </div>

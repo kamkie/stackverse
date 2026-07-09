@@ -35,7 +35,9 @@
   <form class="sv-form" onsubmit={submit}>
     <p>{body}</p>
     <div class="sv-form-actions">
-      <button type="button" class="sv-button" onclick={onClose}>{cancelLabel}</button>
+      <button type="button" class="sv-button" onclick={onClose}
+        >{cancelLabel}</button
+      >
       <button
         type="submit"
         class={`sv-button ${danger ? "sv-button--danger" : "sv-button--primary"}`}

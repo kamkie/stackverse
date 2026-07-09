@@ -8,7 +8,12 @@
     children: Snippet;
   }
 
-  let { label, hint = undefined, error = undefined, children }: Props = $props();
+  let {
+    label,
+    hint = undefined,
+    error = undefined,
+    children,
+  }: Props = $props();
 </script>
 
 <label class={`sv-field${error ? " is-invalid" : ""}`}>

@@ -2,7 +2,12 @@
   import { ApiError, api, fieldErrorFor, jsonBody } from "../lib/api";
   import { i18n, m } from "../lib/i18n";
   import { markReported } from "../lib/reportedStore";
-  import type { Bookmark, Report, ReportInput, ReportReason } from "../lib/types";
+  import type {
+    Bookmark,
+    Report,
+    ReportInput,
+    ReportReason,
+  } from "../lib/types";
   import { REPORT_REASONS } from "../lib/types";
   import { fromStore } from "svelte/store";
   import Dialog from "./Dialog.svelte";
@@ -53,23 +58,39 @@
   }
 </script>
 
-<Dialog title={m(i18nState.current, "ui.action.report")} ctx={`bookmark:${bookmark.id}`} {onClose}>
+<Dialog
+  title={m(i18nState.current, "ui.action.report")}
+  ctx={`bookmark:${bookmark.id}`}
+  {onClose}
+>
   <form class="sv-form" onsubmit={submit}>
-    <Field label={m(i18nState.current, "ui.field.reason")} error={fieldErrorFor(error, "reason")}>
+    <Field
+      label={m(i18nState.current, "ui.field.reason")}
+      error={fieldErrorFor(error, "reason")}
+    >
       <select class="sv-select" bind:value={reason}>
-        {#each reasons as option}
-          <option value={option}>{m(i18nState.current, `ui.report.reason.${option}`)}</option>
+        {#each reasons as option (option)}
+          <option value={option}
+            >{m(i18nState.current, `ui.report.reason.${option}`)}</option
+          >
         {/each}
       </select>
     </Field>
-    <Field label={m(i18nState.current, "ui.field.comment")} error={fieldErrorFor(error, "comment")}>
+    <Field
+      label={m(i18nState.current, "ui.field.comment")}
+      error={fieldErrorFor(error, "comment")}
+    >
       <textarea class="sv-textarea" bind:value={comment}></textarea>
     </Field>
     <div class="sv-form-actions">
       <button type="button" class="sv-button" onclick={onClose}>
         {m(i18nState.current, "ui.action.cancel")}
       </button>
-      <button type="submit" class="sv-button sv-button--primary" disabled={pending}>
+      <button
+        type="submit"
+        class="sv-button sv-button--primary"
+        disabled={pending}
+      >
         {m(i18nState.current, "ui.action.report")}
       </button>
     </div>

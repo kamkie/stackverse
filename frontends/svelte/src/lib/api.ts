@@ -14,7 +14,10 @@ export class ApiError extends Error {
   }
 }
 
-export function fieldErrorFor(error: unknown, field: string): string | undefined {
+export function fieldErrorFor(
+  error: unknown,
+  field: string,
+): string | undefined {
   if (!(error instanceof ApiError)) return undefined;
   return error.problem?.errors?.find((entry) => entry.field === field)?.message;
 }

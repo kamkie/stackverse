@@ -13,6 +13,11 @@
     "noEmit": true,
     "types": ["svelte", "vite/client", "vitest/globals"]
   },
-  "include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts", "vitest.config.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.svelte",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
   "references": []
 }

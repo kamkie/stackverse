@@ -67,18 +67,30 @@
 </script>
 
 <Dialog
-  title={m(i18nState.current, bookmark ? "ui.bookmarks.dialog.edit" : "ui.bookmarks.dialog.add")}
+  title={m(
+    i18nState.current,
+    bookmark ? "ui.bookmarks.dialog.edit" : "ui.bookmarks.dialog.add",
+  )}
   ctx={bookmark ? `bookmark:${bookmark.id}` : undefined}
   {onClose}
 >
   <form class="sv-form" onsubmit={submit}>
-    <Field label={m(i18nState.current, "ui.field.url")} error={fieldErrorFor(error, "url")}>
+    <Field
+      label={m(i18nState.current, "ui.field.url")}
+      error={fieldErrorFor(error, "url")}
+    >
       <input class="sv-input" bind:value={url} />
     </Field>
-    <Field label={m(i18nState.current, "ui.field.title")} error={fieldErrorFor(error, "title")}>
+    <Field
+      label={m(i18nState.current, "ui.field.title")}
+      error={fieldErrorFor(error, "title")}
+    >
       <input class="sv-input" bind:value={title} />
     </Field>
-    <Field label={m(i18nState.current, "ui.field.notes")} error={fieldErrorFor(error, "notes")}>
+    <Field
+      label={m(i18nState.current, "ui.field.notes")}
+      error={fieldErrorFor(error, "notes")}
+    >
       <textarea class="sv-textarea" bind:value={notes}></textarea>
     </Field>
     <Field
@@ -88,10 +100,17 @@
     >
       <input class="sv-input" bind:value={tags} />
     </Field>
-    <Field label={m(i18nState.current, "ui.field.visibility")} error={fieldErrorFor(error, "visibility")}>
+    <Field
+      label={m(i18nState.current, "ui.field.visibility")}
+      error={fieldErrorFor(error, "visibility")}
+    >
       <select class="sv-select" bind:value={visibility}>
-        <option value="private">{m(i18nState.current, "ui.visibility.private")}</option>
-        <option value="public">{m(i18nState.current, "ui.visibility.public")}</option>
+        <option value="private"
+          >{m(i18nState.current, "ui.visibility.private")}</option
+        >
+        <option value="public"
+          >{m(i18nState.current, "ui.visibility.public")}</option
+        >
       </select>
     </Field>
     {#if error instanceof ApiError && error.status === 409}
@@ -103,7 +122,11 @@
       <button type="button" class="sv-button" onclick={onClose}>
         {m(i18nState.current, "ui.action.cancel")}
       </button>
-      <button type="submit" class="sv-button sv-button--primary" disabled={pending}>
+      <button
+        type="submit"
+        class="sv-button sv-button--primary"
+        disabled={pending}
+      >
         {m(i18nState.current, "ui.action.save")}
       </button>
     </div>

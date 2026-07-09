@@ -424,7 +424,7 @@ issue closes.
 | [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/main.ts` | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
-| [Svelte 5](../frontends/svelte/README.md) | SvelteKit file-based routing under src/routes | Hand-rolled History-API router (lib/route.ts store) with `{#if}` page dispatch in App.svelte | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | SvelteKit file-based routing under src/routes | Static Vite SPA with a documented History API store and `{#if}` page dispatch in App.svelte | 🟡 deliberate |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Hand-rolled History API router; no router library | History API + popstate, data-link delegation, path switch in routeHtml | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | vue-router with createWebHistory and nested routes | vue-router createWebHistory, nested /admin children | ✅ idiomatic |
 
@@ -476,7 +476,7 @@ issue closes.
 | [Lit (Web Components)](../frontends/lit/README.md) | Vitest plus @open-wc/testing or Testing Library for custom elements | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | Vitest with Qwik/browser component testing for UI behavior | Vitest helper tests plus Qwik `createDOM` component rendering; shared e2e covers full behavior | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
-| [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom for lib stores/helpers; no component tests | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom helper tests and Testing Library component interactions | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | Vitest + jsdom with @vue/test-utils for mounting | Vitest + jsdom, manual createApp mount helper, no @vue/test-utils | 🔴 undocumented |
 
@@ -489,6 +489,6 @@ issue closes.
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | No ESLint/Prettier; strict `tsc` is the static gate | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
-| [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | No ESLint/Prettier config; a svelte-check script exists but neither the build script nor CI invokes it | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | ESLint flat config, Svelte-aware Prettier, and svelte-check enforced by build/CI | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |

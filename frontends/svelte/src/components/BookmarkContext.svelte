@@ -29,13 +29,20 @@
 {#if bookmark}
   <strong>{bookmark.title}</strong>
   <div>
-    <a class="sv-bookmark-url" href={bookmark.url} target="_blank" rel="noreferrer">
+    <a
+      class="sv-bookmark-url"
+      href={bookmark.url}
+      target="_blank"
+      rel="noreferrer"
+    >
       {bookmark.url}
     </a>
   </div>
 {:else}
   <span class="sv-cell-mono">{bookmarkId}</span>
   {#if failed}
-    <div class="sv-field-hint">{m(i18nState.current, "ui.reports.bookmark-unavailable")}</div>
+    <div class="sv-field-hint">
+      {m(i18nState.current, "ui.reports.bookmark-unavailable")}
+    </div>
   {/if}
 {/if}

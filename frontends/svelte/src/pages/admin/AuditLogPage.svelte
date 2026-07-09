@@ -127,7 +127,7 @@
     }}
   />
   <datalist id="audit-log-known-actions">
-    {#each knownActions as item}
+    {#each knownActions as item (item)}
       <option value={item}></option>
     {/each}
   </datalist>
@@ -155,7 +155,11 @@
       }}
     />
   </label>
-  <button type="button" class="sv-button sv-button--ghost" onclick={clearFilters}>
+  <button
+    type="button"
+    class="sv-button sv-button--ghost"
+    onclick={clearFilters}
+  >
     {m(i18nState.current, "ui.action.clear-filters")}
   </button>
 </div>
@@ -178,10 +182,19 @@
       <tbody>
         {#each audit.items as entry (entry.id)}
           <tr>
-            <td><time dateTime={entry.createdAt}>{formatDate(entry.createdAt, i18nState.current.resolvedLanguage)}</time></td>
+            <td
+              ><time dateTime={entry.createdAt}
+                >{formatDate(
+                  entry.createdAt,
+                  i18nState.current.resolvedLanguage,
+                )}</time
+              ></td
+            >
             <td>{entry.actor}</td>
             <td><span class="sv-badge">{entry.action}</span></td>
-            <td class="sv-cell-mono">{entry.targetType}/{entry.targetId.slice(0, 8)}</td>
+            <td class="sv-cell-mono"
+              >{entry.targetType}/{entry.targetId.slice(0, 8)}</td
+            >
           </tr>
         {/each}
       </tbody>

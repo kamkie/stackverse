@@ -8,9 +8,8 @@ import App from "./App.svelte";
 
 async function bootstrap() {
   if (import.meta.env.DEV) {
-    const { forwardConsoleToDevServer } = await import(
-      "./dev/forwardConsoleToDevServer"
-    );
+    const { forwardConsoleToDevServer } =
+      await import("./dev/forwardConsoleToDevServer");
     forwardConsoleToDevServer();
     const { logUserActions } = await import("./dev/logUserActions");
     logUserActions();
