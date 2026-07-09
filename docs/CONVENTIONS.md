@@ -23,6 +23,11 @@ issue closes.
 - 🔴 **Scala http4s** pins the commit-style Cats Effect build `3.7-4972921`
   instead of a normal stable release
   ([#337](https://github.com/kamkie/stackverse/issues/337)).
+- 🟡 **Qwik** pins TypeScript 5.9 and Vite 7 because Qwik 1.20's generated
+  declarations are incompatible with TypeScript 6 and its peer range excludes
+  Vite 8. Application code now type-checks against the installed Qwik declarations;
+  the remaining version constraint is documented in the variant README
+  ([#342](https://github.com/kamkie/stackverse/issues/342)).
 
 ## Backends
 
