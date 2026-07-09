@@ -10,6 +10,8 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +23,7 @@ import java.util.UUID;
 import tools.jackson.databind.ObjectMapper;
 
 @Controller
+@ExecuteOn(TaskExecutors.BLOCKING)
 final class MessagesController {
     private static final Logger LOG = LoggerFactory.getLogger(MessagesController.class);
 
@@ -29,13 +32,16 @@ final class MessagesController {
     private final AuditService audit;
     private final SecuritySupport security;
     private final ObjectMapper mapper;
+    private final InputValidator inputs;
 
-    MessagesController(Database db, MessageCatalog messages, AuditService audit, SecuritySupport security, ObjectMapper mapper) {
+    MessagesController(Database db, MessageCatalog messages, AuditService audit, SecuritySupport security,
+                       ObjectMapper mapper, InputValidator inputs) {
         this.db = db;
         this.messages = messages;
         this.audit = audit;
         this.security = security;
         this.mapper = mapper;
+        this.inputs = inputs;
     }
 
     @Get("/api/v1/messages")
@@ -140,18 +146,11 @@ final class MessagesController {
     }
 
     private ValidMessage validate(MessageInput body) {
-        Validator validator = new Validator();
+        inputs.validate(body);
         String key = WebSupport.trim(body == null ? null : body.key());
-        validator.check(WebSupport.KEY_PATTERN.matcher(key).matches() && WebSupport.length(key) <= 150,
-                "key", "validation.message.key.invalid");
         String language = WebSupport.trim(body == null ? null : body.language());
-        validator.check(WebSupport.LANGUAGE_PATTERN.matcher(language).matches(), "language", "validation.message.language.invalid");
         String text = body == null ? null : body.text();
-        validator.check(text != null && !text.isEmpty(), "text", "validation.message.text.required");
-        validator.check(WebSupport.length(text) <= 2000, "text", "validation.message.text.too-long");
         String description = body == null ? null : body.description();
-        validator.check(WebSupport.length(description) <= 1000, "description", "validation.message.description.too-long");
-        validator.throwIfInvalid();
         return new ValidMessage(key, language, text, description);
     }
 
