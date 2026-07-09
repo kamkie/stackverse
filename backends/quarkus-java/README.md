@@ -58,9 +58,9 @@ standard Quarkus layout.
 
 - **Quarkus build-time wiring with explicit JDBC** — REST resources and CDI are
   Quarkus-native, while SQL remains visible and contract-shaped.
-- **One resource over the full contract** — the routes share helpers for
-  pagination, RFC 9457 problem documents, localization, ETags, audit writes, and
-  transaction handling.
+- **Focused resources over the full contract** — five REST resources delegate
+  to a shared application service and reuse helpers for pagination, RFC 9457
+  problem documents, localization, ETags, audit writes, and transaction handling.
 - **JWT validation by configuration** — SmallRye JWT validates issuer, audience,
   signature, and expiry from `OIDC_ISSUER_URI` / `OIDC_JWKS_URI`; the code derives
   identity from `preferred_username` and roles from `realm_access.roles`.

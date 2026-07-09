@@ -6,9 +6,28 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 **Status legend:** ✅ idiomatic · 🟡 deliberate deviation (documented in the variant's README) · 🔴 undocumented deviation · — not applicable.
 
-> Source trail: the per-variant issues (#145, #163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind this snapshot. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
+> Source trail: the per-variant issues (#145, #163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind the original snapshot. A 2026-07 current-state review corrected later drift and recorded newly discovered follow-up work in #329–#344. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
 >
 > Maintenance note: unlike most shared docs this file is O(N) in the number of implementations — a new variant adds one row to each table in its layer section. Keep cells terse; put the *why* in the variant README, not here.
+
+## Cross-cutting dependency / toolchain exceptions
+
+These are concrete current-version exceptions found by the 2026-07 review. They are
+listed separately because dependency freshness is not otherwise scored as a full
+per-variant table in this document. Update or remove each bullet when its tracking
+issue closes.
+
+- 🔴 **Play Scala** uses Play 2.9 even though Play 3 is the current stable line and
+  avoids Play 2.9's default EOL Akka 2.6 runtime by moving to Apache Pekko
+  ([#336](https://github.com/kamkie/stackverse/issues/336)).
+- 🔴 **Scala http4s** pins the commit-style Cats Effect build `3.7-4972921`
+  instead of a normal stable release
+  ([#337](https://github.com/kamkie/stackverse/issues/337)).
+- 🟡 **Qwik** type-checks against local Qwik declaration shims because the current
+  Qwik/TypeScript combination is incompatible. The workaround is documented in the
+  variant README, but it weakens the value of the typecheck until compatible real
+  package declarations are used
+  ([#342](https://github.com/kamkie/stackverse/issues/342)).
 
 ## Backends
 
@@ -31,10 +50,10 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [PHP Laravel](../backends/php-laravel/README.md) | Standard Laravel app layout: routes, Http middleware/controllers, providers, database/migrations | API-only Laravel layout with routes/api.php, controllers, services, support helpers, and migrations | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | APIRouter per resource module, routers included on the app | `routers/` APIRouter modules by resource area, included from app setup | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Django project + app layout, urls.py route table, models/migrations in the app | `stackverse_django` project plus `stackverse_api` app with models, migrations, DRF views, and helpers | ✅ idiomatic |
-| [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to app/controllers, models, services in standard app/* packages | Conventional Play layout: conf/routes, app/{controllers,services,repositories,models,support} | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, small modules as needed | Standard sbt layout; compact dev.stackverse.http4s package with routes, DB, auth, logging, and helpers | ✅ idiomatic |
-| [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources per aggregate under one package | Maven layout; thin JAX-RS resources all delegate to one StackverseService | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with flat src/*.rs modules; workspace only when splitting libs | Single binary crate, flat modules (auth, config, db, error, handlers, logging) | ✅ idiomatic |
+| [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Conventional directories, but all endpoints remain in one ~953-line StackverseController | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Standard sbt layout, but config, wiring, auth, routes, DB, wire helpers, and logging share one ~1,754-line Main.scala | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Maven layout; thin JAX-RS resources delegate the entire application to one ~2,043-line StackverseService | 🔴 undocumented |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one ~2,769-line handlers.rs | 🔴 undocumented |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails API app with app/controllers, app/models, app/services, config/routes.rb | Standard Rails API layout; controllers plus contract-heavy services under app/services/stackverse | ✅ idiomatic |
 
 ### Persistence / data access
@@ -174,7 +193,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (chi)](../backends/go/README.md) | struct-tag validator (go-playground/validator) common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
 | [Go (Echo)](../backends/go-echo/README.md) | Echo binding plus go-playground/validator common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
 | [Grails](../backends/grails/README.md) | Domain constraints or @Validateable command objects | Manual validation in services building problem-detail error lists | 🟡 deliberate |
-| [Micronaut](../backends/micronaut-java/README.md) | Bean Validation: @Valid on @Body with jakarta.validation constraints | Hand-rolled Validator collecting field violations; no @Valid despite http-validation dep | 🔴 undocumented |
+| [Micronaut](../backends/micronaut-java/README.md) | Bean Validation: @Valid on @Body with jakarta.validation constraints | Hand-rolled Validator collecting field violations; no @Valid or Micronaut Validation dependency | 🔴 undocumented |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Zod/TypeBox or Fastify JSON-schema type provider for request validation | hand-rolled Validator collecting field violations; no schema framework | 🟡 deliberate |
 | [NestJS](../backends/node-nestjs/README.md) | class-validator/class-transformer DTOs with a global ValidationPipe | Hand-rolled Validator collector, no pipes, no DTO decorators | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Bean Validation (@Valid / Hibernate Validator) on inputs | Hand-rolled Validator collecting FieldViolations, keyed message localization | 🟡 deliberate |
@@ -221,8 +240,8 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .editorconfig only (whitespace); no dotnet format or analyzer gate in CI | 🔴 undocumented |
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | mix format; Credo/Dialyzer optional for larger apps | mix format --check-formatted plus compile --warnings-as-errors in CI | ✅ idiomatic |
-| [Go (chi)](../backends/go/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | gofmt + go vet in CI; no golangci-lint config | 🔴 undocumented |
-| [Go (Echo)](../backends/go-echo/README.md) | gofmt/goimports + go vet; golangci-lint typical in CI | go vet in CI; no gofmt check or golangci-lint config | 🔴 undocumented |
+| [Go (chi)](../backends/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
+| [Go (Echo)](../backends/go-echo/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | No CodeNarc or any linter/formatter configured | 🔴 undocumented |
 | [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | tsc --noEmit (strict) only; no ESLint/Prettier/Biome config anywhere | 🔴 undocumented |
@@ -288,7 +307,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [OpenResty (Lua)](../gateways/openresty/README.md) | nginx location blocks (=, prefix) in nginx.conf | Standard location blocks; PORT templated via envsubst at entrypoint | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | Starlette Route table with explicit methods and path converters | Explicit `/auth/*` routes plus `/api/{path:path}` and SPA fallback routes | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | Axum Router with explicit routes and catch-all fallbacks | Router routes /auth/* explicitly, /api/{*rest} via any(), and fallback for the SPA | ✅ idiomatic |
-| [YARP](../gateways/yarp/README.md) | Routes/clusters bound from appsettings.json ReverseProxy section | Programmatic RouteConfig/ClusterConfig via LoadFromMemory, not appsettings | 🔴 undocumented |
+| [YARP](../gateways/yarp/README.md) | Routes/clusters loaded from configuration or the supported code-first LoadFromMemory model | Programmatic RouteConfig/ClusterConfig via LoadFromMemory | ✅ idiomatic |
 
 ### Session / cookie handling
 
@@ -361,7 +380,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | ktlint, detekt, or spotless wired into the Gradle build | None configured; only shared root .editorconfig for whitespace | 🔴 undocumented |
 | [Apache APISIX](../gateways/apisix/README.md) | luacheck and often stylua for Lua plugin code | No linter or formatter configured; CI builds, config-tests, and smoke-tests | 🟡 deliberate |
-| [Go (chi)](../gateways/go/README.md) | gofmt check plus golangci-lint (staticcheck) with committed config | CI runs go build + go vet only; no gofmt check, no golangci-lint, no config | 🔴 undocumented |
+| [Go (chi)](../gateways/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | No ESLint/Prettier/Biome; only .editorconfig and tsc typecheck | 🔴 undocumented |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | No linter or formatter configured; CI only builds, config-tests, smoke-tests | 🔴 undocumented |
 | [Python Starlette](../gateways/python/README.md) | ruff for lint and format checks, often with pytest in CI | ruff check + ruff format --check + pytest coverage in CI | ✅ idiomatic |
@@ -394,7 +413,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [SolidJS](../frontends/solid/README.md) | Fine-grained signals/memos for local and shared state; context only when needed | Component and module-level `createSignal`/`createMemo`, no global store | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | $state/$derived/$effect for component state; stores retained for shared route/session/i18n state | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Plain mutable object; manual re-render, no reactive runtime | Single `state` object, full renderApp() re-render on every change | ✅ idiomatic |
-| [Vue 3](../frontends/vue/README.md) | Composition API refs; Pinia for shared/global stores | Module-level ref() singletons in plain .ts files; no Pinia | 🔴 undocumented |
+| [Vue 3](../frontends/vue/README.md) | Composition API refs; module-scope reactive store for simple cases or Pinia for shared state | Module-level refs with mutations centralized in named actions; no arbitrary component mutation | ✅ idiomatic |
 
 ### Routing
 
@@ -441,11 +460,11 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, lib modules, and an app entry | Vite SPA layout: `src/main.ts` custom-element shell plus api/i18n/types/dev modules | ✅ idiomatic |
+| [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, lib modules, and an app entry | api/i18n/types/dev helpers are split out, but the component shell, rendering, routing, state, and forms remain in one ~1,688-line main.ts | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
-| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with entry module plus small focused modules | src/ main.ts monolith + api/i18n/types modules and dev/ helpers | ✅ idiomatic |
+| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | api/i18n/types/dev helpers are split out, but rendering, routing, state, and forms remain in one ~1,657-line main.ts | 🟡 deliberate |
 | [Vue 3](../frontends/vue/README.md) | src/ with components, views/pages, router, composables | src/ with components, pages, api, i18n, mocks, dev, test | ✅ idiomatic |
 
 ### Testing
@@ -470,6 +489,6 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | No ESLint/Prettier; strict `tsc` is the static gate | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
-| [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check | No ESLint/Prettier config; svelte-check plus shared EditorConfig coverage | 🔴 undocumented |
+| [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | No ESLint/Prettier config; a svelte-check script exists but neither the build script nor CI invokes it | 🔴 undocumented |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |

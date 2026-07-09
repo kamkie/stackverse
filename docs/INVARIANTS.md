@@ -126,8 +126,11 @@ language/framework and where each variant follows or departs — see
 ## 3. Free to vary
 
 Naming, formatting, import order, file and package layout beyond what §1 and §2 imply,
-and any other purely local choice. Idiomatic style *within* a stack is encouraged;
-none of it is a deviation to document or a finding to raise.
+and any other purely local choice. Idiomatic style *within* a stack is encouraged.
+Purely cosmetic layout differences are not deviations or findings. When structure
+materially bypasses a framework's conventional component or feature boundaries,
+however, [CONVENTIONS.md](CONVENTIONS.md) may record it as a §2 idiom deviation;
+documenting that choice makes it deliberate rather than a contract defect.
 
 ## Using this document
 
