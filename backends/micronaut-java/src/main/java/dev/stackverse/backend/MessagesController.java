@@ -10,6 +10,10 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.validation.Validated;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +25,9 @@ import java.util.UUID;
 import tools.jackson.databind.ObjectMapper;
 
 @Controller
-final class MessagesController {
+@Validated
+@ExecuteOn(TaskExecutors.BLOCKING)
+class MessagesController {
     private static final Logger LOG = LoggerFactory.getLogger(MessagesController.class);
 
     private final Database db;
@@ -67,7 +73,7 @@ final class MessagesController {
     }
 
     @Post("/api/v1/messages")
-    MutableHttpResponse<MessageResponse> create(HttpRequest<?> request, @Body MessageInput body) {
+    MutableHttpResponse<MessageResponse> create(HttpRequest<?> request, @Body @Valid MessageInput body) {
         Identity actor = security.requireRole(request, "admin");
         ValidMessage input = validate(body);
         if (messages.conflicting(input.key(), input.language(), new UUID(0, 0))) {
@@ -92,7 +98,7 @@ final class MessagesController {
     }
 
     @Put("/api/v1/messages/{id}")
-    MessageResponse update(HttpRequest<?> request, @PathVariable String id, @Body MessageInput body) {
+    MessageResponse update(HttpRequest<?> request, @PathVariable String id, @Body @Valid MessageInput body) {
         Identity actor = security.requireRole(request, "admin");
         UUID messageId = WebSupport.uuid(id, "id");
         Message existing = messages.byId(messageId);

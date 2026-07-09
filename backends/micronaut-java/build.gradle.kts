@@ -20,11 +20,13 @@ dependencies {
     annotationProcessor(platform("io.micronaut.platform:micronaut-platform:$micronautVersion"))
     annotationProcessor("io.micronaut:micronaut-inject-java")
     annotationProcessor("io.micronaut:micronaut-http-validation")
+    annotationProcessor("io.micronaut.validation:micronaut-validation-processor")
 
     implementation(platform("io.micronaut.platform:micronaut-platform:$micronautVersion"))
     implementation("io.micronaut:micronaut-http-server-netty")
     implementation("io.micronaut:micronaut-jackson-databind")
     implementation("io.micronaut:micronaut-runtime")
+    implementation("io.micronaut.validation:micronaut-validation")
     implementation("io.micronaut.flyway:micronaut-flyway")
     implementation("io.micronaut.sql:micronaut-jdbc-hikari")
     implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
@@ -35,8 +37,14 @@ dependencies {
     runtimeOnly("org.yaml:snakeyaml")
 
     testImplementation(platform("io.micronaut.platform:micronaut-platform:$micronautVersion"))
+    testAnnotationProcessor(platform("io.micronaut.platform:micronaut-platform:$micronautVersion"))
+    testAnnotationProcessor("io.micronaut:micronaut-inject-java")
+    testAnnotationProcessor("io.micronaut.validation:micronaut-validation-processor")
+    testImplementation("io.micronaut:micronaut-http-client")
+    testImplementation("io.micronaut.test:micronaut-test-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.assertj:assertj-core:3.27.7")
+    testImplementation("org.mockito:mockito-core:5.21.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

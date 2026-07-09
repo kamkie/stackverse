@@ -10,6 +10,10 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.validation.Validated;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +27,9 @@ import java.util.Map;
 import java.util.UUID;
 
 @Controller
-final class ModerationController {
+@Validated
+@ExecuteOn(TaskExecutors.BLOCKING)
+class ModerationController {
     private static final Logger LOG = LoggerFactory.getLogger(ModerationController.class);
 
     private final Database db;
@@ -39,7 +45,7 @@ final class ModerationController {
     }
 
     @Post("/api/v1/bookmarks/{id}/reports")
-    MutableHttpResponse<ReportResponse> report(HttpRequest<?> request, @PathVariable String id, @Body ReportInput body) {
+    MutableHttpResponse<ReportResponse> report(HttpRequest<?> request, @PathVariable String id, @Body @Valid ReportInput body) {
         Identity reporter = security.require(request);
         UUID bookmarkId = WebSupport.uuid(id, "id");
         Bookmark bookmark = bookmarks.byId(bookmarkId);
@@ -87,7 +93,7 @@ final class ModerationController {
     }
 
     @Put("/api/v1/reports/{id}")
-    ReportResponse updateMine(HttpRequest<?> request, @PathVariable String id, @Body ReportInput body) {
+    ReportResponse updateMine(HttpRequest<?> request, @PathVariable String id, @Body @Valid ReportInput body) {
         Identity reporter = security.require(request);
         UUID reportId = WebSupport.uuid(id, "id");
         validateReport(body);
@@ -152,7 +158,7 @@ final class ModerationController {
     }
 
     @Put("/api/v1/admin/reports/{id}")
-    ReportResponse resolve(HttpRequest<?> request, @PathVariable String id, @Body ReportResolutionInput body) {
+    ReportResponse resolve(HttpRequest<?> request, @PathVariable String id, @Body @Valid ReportResolutionInput body) {
         Identity actor = security.requireRole(request, "moderator");
         UUID reportId = WebSupport.uuid(id, "id");
         validateResolution(body);
@@ -187,7 +193,7 @@ final class ModerationController {
     }
 
     @Put("/api/v1/admin/bookmarks/{id}/status")
-    BookmarkResponse setBookmarkStatus(HttpRequest<?> request, @PathVariable String id, @Body BookmarkStatusInput body) {
+    BookmarkResponse setBookmarkStatus(HttpRequest<?> request, @PathVariable String id, @Body @Valid BookmarkStatusInput body) {
         Identity actor = security.requireRole(request, "moderator");
         UUID bookmarkId = WebSupport.uuid(id, "id");
         validateBookmarkStatus(body);

@@ -26,6 +26,10 @@ Tests:
 ./gradlew test
 ```
 
+The suite combines focused JUnit tests with `@MicronautTest` HTTP tests that start
+the real router, filters, serialization, validation advice, and exception handlers
+while replacing external database and identity dependencies with test beans.
+
 Container image (repo root as context - the image ships the message seed):
 
 ```sh
@@ -37,6 +41,13 @@ docker build -t stackverse/backend-micronaut-java:local -f backends/micronaut-ja
 - **Compile-time framework wiring** - controllers, filters, configuration and startup
   listeners are Micronaut beans with annotation processing rather than runtime classpath
   scanning.
+- **Blocking work on the blocking executor** - every controller that can reach JDBC,
+  plus the authentication filter's JWKS/account path, uses
+  `@ExecuteOn(TaskExecutors.BLOCKING)` so Netty event loops never run synchronous I/O.
+- **Bean Validation at HTTP boundaries** - typed request records carry Jakarta
+  constraints and `@Valid`; a Micronaut exception handler preserves Stackverse's exact
+  RFC 9457 field-error keys. Domain-aware normalization and conditional rules remain in
+  the controllers after structural validation.
 - **Plain JDBC as the persistence boundary** - SQL is visible in the feature controllers
   and helpers, with Flyway owning the schema and HikariCP owning connections.
 - **Custom bearer-token filter** - the service validates issuer, audience, expiry and
@@ -52,9 +63,15 @@ docker build -t stackverse/backend-micronaut-java:local -f backends/micronaut-ja
 
 - Micronaut Management is not used for `/healthz` and `/readyz`; the contract wants two
   exact paths, with readiness checking `select 1`.
+- Micronaut Data was evaluated but is not used: the variant deliberately showcases SQL
+  involving PostgreSQL arrays, keyset pagination, row locks, conditional aggregates,
+  and multi-step transactions. Wrapping only the trivial statements in repositories
+  would create two persistence styles without removing the `Database` boundary.
 - `micronaut-security-jwt` / OAuth2 resource-server support is not used. The custom
-  `JwtVerifier` keeps issuer, audience, expiry and JWKS validation visible for
-  cross-stack comparison while still preserving the stateless backend contract.
+  `JwtVerifier` keeps issuer, audience, expiry, JWKS refresh, app-account blocking, and
+  Stackverse problem mapping visible in one stateless request filter. Framework HTTP
+  tests exercise the filter and role boundary; adopting Micronaut Security would leave
+  the account-state filter and contract-specific error mapping custom anyway.
 - The OpenTelemetry Java agent is baked into the container image for traces, metrics and
   logs when `OTEL_SDK_DISABLED=false`; local `./gradlew run` is console-only unless run
   with an agent by hand.

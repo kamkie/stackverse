@@ -10,6 +10,10 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.PathVariable;
 import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
+import io.micronaut.scheduling.TaskExecutors;
+import io.micronaut.scheduling.annotation.ExecuteOn;
+import io.micronaut.validation.Validated;
+import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.sql.Connection;
@@ -21,7 +25,9 @@ import java.util.Locale;
 import java.util.UUID;
 
 @Controller
-final class BookmarksController {
+@Validated
+@ExecuteOn(TaskExecutors.BLOCKING)
+class BookmarksController {
     private final Database db;
     private final SecuritySupport security;
 
@@ -81,7 +87,7 @@ final class BookmarksController {
     }
 
     @Post("/api/v1/bookmarks")
-    MutableHttpResponse<BookmarkResponse> create(HttpRequest<?> request, @Body BookmarkInput body) {
+    MutableHttpResponse<BookmarkResponse> create(HttpRequest<?> request, @Body @Valid BookmarkInput body) {
         Identity caller = security.require(request);
         ValidBookmark input = validateBookmark(body);
         Instant now = WebSupport.now();
@@ -108,7 +114,7 @@ final class BookmarksController {
     }
 
     @Put("/api/v1/bookmarks/{id}")
-    BookmarkResponse update(HttpRequest<?> request, @PathVariable String id, @Body BookmarkInput body) {
+    BookmarkResponse update(HttpRequest<?> request, @PathVariable String id, @Body @Valid BookmarkInput body) {
         Identity caller = security.require(request);
         UUID bookmarkId = WebSupport.uuid(id, "id");
         return BookmarkResponse.from(db.inTx(connection -> {
