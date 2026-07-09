@@ -9,7 +9,6 @@ import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import jakarta.inject.Inject;
-import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,15 +35,18 @@ final class MicronautHttpTest {
     @Inject
     AccountService accounts;
 
-    @Inject
-    Validator validator;
-
     @BeforeEach
     void configureIdentity() {
         reset(verifier, accounts);
-        when(verifier.verify(anyString())).thenReturn(new Identity("demo", "Demo User", "demo@example.test", List.of()));
-        when(accounts.recordSeen("demo")).thenReturn(new Account(
-                "demo", Instant.EPOCH, Instant.EPOCH, Models.USER_ACTIVE, null, 0
+        when(verifier.verify(anyString())).thenAnswer(invocation -> {
+            String token = invocation.getArgument(0);
+            if ("admin-token".equals(token)) {
+                return new Identity("admin", "Admin User", "admin@example.test", List.of("admin"));
+            }
+            return new Identity("demo", "Demo User", "demo@example.test", List.of());
+        });
+        when(accounts.recordSeen(anyString())).thenAnswer(invocation -> new Account(
+                invocation.getArgument(0), Instant.EPOCH, Instant.EPOCH, Models.USER_ACTIVE, null, 0
         ));
     }
 
@@ -77,7 +79,7 @@ final class MicronautHttpTest {
     }
 
     @Test
-    void beanValidationKeepsContractMessageKeys() {
+    void micronautValidationKeepsOrderedContractMessageKeys() {
         var body = new BookmarkInput(
                 "ftp://example.test",
                 "   ",
@@ -96,20 +98,84 @@ final class MicronautHttpTest {
                             .contains("validation.title.required")
                             .contains("validation.notes.too-long")
                             .contains("validation.tag.invalid");
+                    assertThat(response.indexOf("validation.url.invalid"))
+                            .isLessThan(response.indexOf("validation.title.required"));
+                    assertThat(response.indexOf("validation.title.required"))
+                            .isLessThan(response.indexOf("validation.notes.too-long"));
+                    assertThat(response.indexOf("validation.notes.too-long"))
+                            .isLessThan(response.indexOf("validation.tag.invalid"));
                 });
     }
 
     @Test
-    void beanValidationPreservesNormalizationBeforeDomainChecks() {
-        BookmarkInput input = new BookmarkInput(
+    void httpBoundaryPreservesNormalizationAndCodePointLimits() {
+        BookmarkInput body = new BookmarkInput(
                 "  https://example.test/path  ",
                 "  A title  ",
-                null,
+                "😀".repeat(3000),
                 List.of(" TAG ", "tag"),
                 Models.PUBLIC
         );
+        var request = HttpRequest.POST("/api/v1/bookmarks", body).bearerAuth("valid-token");
 
-        assertThat(validator.validate(input)).isEmpty();
+        var response = client.toBlocking().exchange(request, String.class);
+
+        assertThat(response.code()).isEqualTo(HttpStatus.CREATED.getCode());
+        assertThat(response.body())
+                .contains("\"url\":\"https://example.test/path\"")
+                .contains("\"title\":\"A title\"")
+                .contains("\"tags\":[\"tag\"]");
+    }
+
+    @Test
+    void authenticationPrecedesValidation() {
+        BookmarkInput body = new BookmarkInput(null, null, null, null, null);
+
+        assertThatThrownBy(() -> client.toBlocking().exchange(
+                HttpRequest.POST("/api/v1/bookmarks", body), String.class))
+                .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                        assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.UNAUTHORIZED.getCode()));
+    }
+
+    @Test
+    void roleCheckPrecedesValidation() {
+        MessageInput body = new MessageInput(null, null, null, null);
+
+        assertThatThrownBy(() -> client.toBlocking().exchange(
+                HttpRequest.POST("/api/v1/messages", body).bearerAuth("valid-token"), String.class))
+                .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                        assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.FORBIDDEN.getCode()));
+    }
+
+    @Test
+    void messageValidationUsesFrameworkConstraints() {
+        MessageInput body = new MessageInput("Invalid Key", "eng", "", "x".repeat(1001));
+        var request = HttpRequest.POST("/api/v1/messages", body).bearerAuth("admin-token");
+
+        assertThatThrownBy(() -> client.toBlocking().exchange(request, String.class))
+                .isInstanceOfSatisfying(HttpClientResponseException.class, failure -> {
+                    assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
+                    assertThat(failure.getResponse().getBody(String.class).orElse(""))
+                            .contains("validation.message.key.invalid")
+                            .contains("validation.message.language.invalid")
+                            .contains("validation.message.text.required")
+                            .contains("validation.message.description.too-long");
+                });
+    }
+
+    @Test
+    void reportValidationUsesFrameworkConstraints() {
+        ReportInput body = new ReportInput("phishing", "x".repeat(1001));
+        var request = HttpRequest.PUT(
+                "/api/v1/reports/00000000-0000-0000-0000-000000000456", body).bearerAuth("valid-token");
+
+        assertThatThrownBy(() -> client.toBlocking().exchange(request, String.class))
+                .isInstanceOfSatisfying(HttpClientResponseException.class, failure -> {
+                    assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.BAD_REQUEST.getCode());
+                    assertThat(failure.getResponse().getBody(String.class).orElse(""))
+                            .contains("validation.report.reason.invalid")
+                            .contains("validation.report.comment.too-long");
+                });
     }
 
 }

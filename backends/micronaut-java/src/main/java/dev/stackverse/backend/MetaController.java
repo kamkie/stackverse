@@ -7,7 +7,6 @@ import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
 
 @Controller
-@ExecuteOn(TaskExecutors.BLOCKING)
 final class MetaController {
     private final Database db;
 
@@ -21,6 +20,7 @@ final class MetaController {
     }
 
     @Get("/readyz")
+    @ExecuteOn(TaskExecutors.BLOCKING)
     HttpResponse<?> readyz() {
         db.scalarLong("select 1");
         return HttpResponse.ok();

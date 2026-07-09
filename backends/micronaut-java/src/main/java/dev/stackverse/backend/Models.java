@@ -4,7 +4,6 @@ import io.micronaut.core.annotation.Introspected;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
 
 import java.sql.Array;
 import java.sql.ResultSet;
@@ -108,7 +107,7 @@ record Account(String username, Instant firstSeen, Instant lastSeen, String stat
 record BookmarkInput(
         @BookmarkUrl String url,
         @BookmarkTitle String title,
-        @Size(max = 4000, message = "validation.notes.too-long") String notes,
+        @CodePointSize(max = 4000, message = "validation.notes.too-long") String notes,
         @BookmarkTagCount @BookmarkTagSyntax List<String> tags,
         String visibility) {
 }
@@ -133,8 +132,8 @@ record MessageInput(
         @MessageKey String key,
         @MessageLanguage String language,
         @NotEmpty(message = "validation.message.text.required")
-        @Size(max = 2000, message = "validation.message.text.too-long") String text,
-        @Size(max = 1000, message = "validation.message.description.too-long") String description) {
+        @CodePointSize(max = 2000, message = "validation.message.text.too-long") String text,
+        @CodePointSize(max = 1000, message = "validation.message.description.too-long") String description) {
 }
 
 record MessageResponse(UUID id, String key, String language, String text, String description,
@@ -152,21 +151,21 @@ record MessageBundle(String language, Map<String, String> messages) {
 record ReportInput(
         @NotNull(message = "validation.report.reason.invalid")
         @Pattern(regexp = "spam|offensive|broken-link|other", message = "validation.report.reason.invalid") String reason,
-        @Size(max = 1000, message = "validation.report.comment.too-long") String comment) {
+        @CodePointSize(max = 1000, message = "validation.report.comment.too-long") String comment) {
 }
 
 @Introspected
 record ReportResolutionInput(
         @NotNull(message = "validation.resolution.invalid")
         @Pattern(regexp = "open|dismissed|actioned", message = "validation.resolution.invalid") String resolution,
-        @Size(max = 1000, message = "validation.resolution.note.too-long") String note) {
+        @CodePointSize(max = 1000, message = "validation.resolution.note.too-long") String note) {
 }
 
 @Introspected
 record BookmarkStatusInput(
         @NotNull(message = "validation.bookmark-status.invalid")
         @Pattern(regexp = "active|hidden", message = "validation.bookmark-status.invalid") String status,
-        @Size(max = 1000, message = "validation.bookmark-status.note.too-long") String note) {
+        @CodePointSize(max = 1000, message = "validation.bookmark-status.note.too-long") String note) {
 }
 
 record ReportResponse(UUID id, UUID bookmarkId, String reporter, String reason, String comment, String status,

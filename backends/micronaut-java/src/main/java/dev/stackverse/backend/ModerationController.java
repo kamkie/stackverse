@@ -12,8 +12,6 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import io.micronaut.validation.Validated;
-import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,25 +25,27 @@ import java.util.Map;
 import java.util.UUID;
 
 @Controller
-@Validated
 @ExecuteOn(TaskExecutors.BLOCKING)
-class ModerationController {
+final class ModerationController {
     private static final Logger LOG = LoggerFactory.getLogger(ModerationController.class);
 
     private final Database db;
     private final SecuritySupport security;
     private final AuditService audit;
     private final BookmarksController bookmarks;
+    private final InputValidator inputs;
 
-    ModerationController(Database db, SecuritySupport security, AuditService audit, BookmarksController bookmarks) {
+    ModerationController(Database db, SecuritySupport security, AuditService audit, BookmarksController bookmarks,
+                         InputValidator inputs) {
         this.db = db;
         this.security = security;
         this.audit = audit;
         this.bookmarks = bookmarks;
+        this.inputs = inputs;
     }
 
     @Post("/api/v1/bookmarks/{id}/reports")
-    MutableHttpResponse<ReportResponse> report(HttpRequest<?> request, @PathVariable String id, @Body @Valid ReportInput body) {
+    MutableHttpResponse<ReportResponse> report(HttpRequest<?> request, @PathVariable String id, @Body ReportInput body) {
         Identity reporter = security.require(request);
         UUID bookmarkId = WebSupport.uuid(id, "id");
         Bookmark bookmark = bookmarks.byId(bookmarkId);
@@ -93,7 +93,7 @@ class ModerationController {
     }
 
     @Put("/api/v1/reports/{id}")
-    ReportResponse updateMine(HttpRequest<?> request, @PathVariable String id, @Body @Valid ReportInput body) {
+    ReportResponse updateMine(HttpRequest<?> request, @PathVariable String id, @Body ReportInput body) {
         Identity reporter = security.require(request);
         UUID reportId = WebSupport.uuid(id, "id");
         validateReport(body);
@@ -158,7 +158,7 @@ class ModerationController {
     }
 
     @Put("/api/v1/admin/reports/{id}")
-    ReportResponse resolve(HttpRequest<?> request, @PathVariable String id, @Body @Valid ReportResolutionInput body) {
+    ReportResponse resolve(HttpRequest<?> request, @PathVariable String id, @Body ReportResolutionInput body) {
         Identity actor = security.requireRole(request, "moderator");
         UUID reportId = WebSupport.uuid(id, "id");
         validateResolution(body);
@@ -193,7 +193,7 @@ class ModerationController {
     }
 
     @Put("/api/v1/admin/bookmarks/{id}/status")
-    BookmarkResponse setBookmarkStatus(HttpRequest<?> request, @PathVariable String id, @Body @Valid BookmarkStatusInput body) {
+    BookmarkResponse setBookmarkStatus(HttpRequest<?> request, @PathVariable String id, @Body BookmarkStatusInput body) {
         Identity actor = security.requireRole(request, "moderator");
         UUID bookmarkId = WebSupport.uuid(id, "id");
         validateBookmarkStatus(body);
@@ -270,32 +270,15 @@ class ModerationController {
     }
 
     private void validateReport(ReportInput body) {
-        Validator validator = new Validator();
-        validator.check(body != null && validReason(body.reason()), "reason", "validation.report.reason.invalid");
-        validator.check(WebSupport.length(body == null ? null : body.comment()) <= 1000,
-                "comment", "validation.report.comment.too-long");
-        validator.throwIfInvalid();
+        inputs.validate(body);
     }
 
     private void validateResolution(ReportResolutionInput body) {
-        Validator validator = new Validator();
-        validator.check(body != null && validReportStatus(body.resolution()), "resolution", "validation.resolution.invalid");
-        validator.check(WebSupport.length(body == null ? null : body.note()) <= 1000,
-                "note", "validation.resolution.note.too-long");
-        validator.throwIfInvalid();
+        inputs.validate(body);
     }
 
     private void validateBookmarkStatus(BookmarkStatusInput body) {
-        Validator validator = new Validator();
-        validator.check(body != null && (Models.ACTIVE.equals(body.status()) || Models.HIDDEN.equals(body.status())),
-                "status", "validation.bookmark-status.invalid");
-        validator.check(WebSupport.length(body == null ? null : body.note()) <= 1000,
-                "note", "validation.bookmark-status.note.too-long");
-        validator.throwIfInvalid();
-    }
-
-    private boolean validReason(String reason) {
-        return List.of("spam", "offensive", "broken-link", "other").contains(reason);
+        inputs.validate(body);
     }
 
     private boolean validReportStatus(String status) {

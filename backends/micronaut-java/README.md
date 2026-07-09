@@ -45,9 +45,10 @@ docker build -t stackverse/backend-micronaut-java:local -f backends/micronaut-ja
   plus the authentication filter's JWKS/account path, uses
   `@ExecuteOn(TaskExecutors.BLOCKING)` so Netty event loops never run synchronous I/O.
 - **Bean Validation at HTTP boundaries** - typed request records carry Jakarta
-  constraints and `@Valid`; a Micronaut exception handler preserves Stackverse's exact
-  RFC 9457 field-error keys. Domain-aware normalization and conditional rules remain in
-  the controllers after structural validation.
+  constraints and an injected Micronaut `Validator` performs structural validation at
+  the contract-selected point after authentication and resource lookup. A small adapter
+  preserves Stackverse's deterministic RFC 9457 field-error keys; domain-aware
+  normalization and conditional rules remain in controllers.
 - **Plain JDBC as the persistence boundary** - SQL is visible in the feature controllers
   and helpers, with Flyway owning the schema and HikariCP owning connections.
 - **Custom bearer-token filter** - the service validates issuer, audience, expiry and

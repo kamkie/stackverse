@@ -12,8 +12,6 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import io.micronaut.validation.Validated;
-import jakarta.validation.Valid;
 
 import java.net.URI;
 import java.sql.Connection;
@@ -25,15 +23,16 @@ import java.util.Locale;
 import java.util.UUID;
 
 @Controller
-@Validated
 @ExecuteOn(TaskExecutors.BLOCKING)
-class BookmarksController {
+final class BookmarksController {
     private final Database db;
     private final SecuritySupport security;
+    private final InputValidator inputs;
 
-    BookmarksController(Database db, SecuritySupport security) {
+    BookmarksController(Database db, SecuritySupport security, InputValidator inputs) {
         this.db = db;
         this.security = security;
+        this.inputs = inputs;
     }
 
     @Get("/api/v1/bookmarks")
@@ -87,7 +86,7 @@ class BookmarksController {
     }
 
     @Post("/api/v1/bookmarks")
-    MutableHttpResponse<BookmarkResponse> create(HttpRequest<?> request, @Body @Valid BookmarkInput body) {
+    MutableHttpResponse<BookmarkResponse> create(HttpRequest<?> request, @Body BookmarkInput body) {
         Identity caller = security.require(request);
         ValidBookmark input = validateBookmark(body);
         Instant now = WebSupport.now();
@@ -114,7 +113,7 @@ class BookmarksController {
     }
 
     @Put("/api/v1/bookmarks/{id}")
-    BookmarkResponse update(HttpRequest<?> request, @PathVariable String id, @Body @Valid BookmarkInput body) {
+    BookmarkResponse update(HttpRequest<?> request, @PathVariable String id, @Body BookmarkInput body) {
         Identity caller = security.require(request);
         UUID bookmarkId = WebSupport.uuid(id, "id");
         return BookmarkResponse.from(db.inTx(connection -> {
@@ -202,31 +201,15 @@ class BookmarksController {
     }
 
     private ValidBookmark validateBookmark(BookmarkInput body) {
-        Validator validator = new Validator();
         String url = WebSupport.trim(body == null ? null : body.url());
-        if (url.isBlank()) {
-            validator.reject("url", "validation.url.required");
-        } else {
-            validator.check(WebSupport.length(url) <= 2000 && WebSupport.isHttpUrl(url), "url", "validation.url.invalid");
-        }
         String title = WebSupport.trim(body == null ? null : body.title());
-        validator.check(!title.isBlank(), "title", "validation.title.required");
-        validator.check(WebSupport.length(title) <= 200, "title", "validation.title.too-long");
         String notes = body == null ? null : body.notes();
-        validator.check(WebSupport.length(notes) <= 4000, "notes", "validation.notes.too-long");
         List<String> tags = WebSupport.normalizeTags(body == null ? null : body.tags());
-        validator.check(tags.size() <= 10, "tags", "validation.tags.too-many");
-        for (String tag : tags) {
-            if (!WebSupport.TAG_PATTERN.matcher(tag).matches()) {
-                validator.reject("tags", "validation.tag.invalid");
-                break;
-            }
-        }
         String visibility = body == null || body.visibility() == null ? Models.PRIVATE : body.visibility();
         if (!List.of(Models.PRIVATE, Models.PUBLIC).contains(visibility)) {
             throw Problems.badRequest("visibility must be one of: private, public");
         }
-        validator.throwIfInvalid();
+        inputs.validate(body);
         return new ValidBookmark(url, title, notes, tags, visibility);
     }
 

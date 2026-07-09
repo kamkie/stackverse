@@ -8,12 +8,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 final class BlockingExecutionTest {
     @Test
-    void everyJdbcControllerRunsOnTheBlockingExecutor() {
+    void everyJdbcRouteRunsOnTheBlockingExecutor() throws NoSuchMethodException {
         assertBlocking(AdminController.class);
         assertBlocking(BookmarksController.class);
         assertBlocking(MessagesController.class);
-        assertBlocking(MetaController.class);
         assertBlocking(ModerationController.class);
+
+        ExecuteOn readiness = MetaController.class.getDeclaredMethod("readyz").getAnnotation(ExecuteOn.class);
+        assertThat(readiness).isNotNull();
+        assertThat(readiness.value()).isEqualTo(TaskExecutors.BLOCKING);
+        assertThat(MetaController.class.getDeclaredMethod("healthz").getAnnotation(ExecuteOn.class)).isNull();
     }
 
     @Test

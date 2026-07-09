@@ -12,8 +12,6 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.annotation.Put;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.scheduling.annotation.ExecuteOn;
-import io.micronaut.validation.Validated;
-import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,9 +23,8 @@ import java.util.UUID;
 import tools.jackson.databind.ObjectMapper;
 
 @Controller
-@Validated
 @ExecuteOn(TaskExecutors.BLOCKING)
-class MessagesController {
+final class MessagesController {
     private static final Logger LOG = LoggerFactory.getLogger(MessagesController.class);
 
     private final Database db;
@@ -35,13 +32,16 @@ class MessagesController {
     private final AuditService audit;
     private final SecuritySupport security;
     private final ObjectMapper mapper;
+    private final InputValidator inputs;
 
-    MessagesController(Database db, MessageCatalog messages, AuditService audit, SecuritySupport security, ObjectMapper mapper) {
+    MessagesController(Database db, MessageCatalog messages, AuditService audit, SecuritySupport security,
+                       ObjectMapper mapper, InputValidator inputs) {
         this.db = db;
         this.messages = messages;
         this.audit = audit;
         this.security = security;
         this.mapper = mapper;
+        this.inputs = inputs;
     }
 
     @Get("/api/v1/messages")
@@ -73,7 +73,7 @@ class MessagesController {
     }
 
     @Post("/api/v1/messages")
-    MutableHttpResponse<MessageResponse> create(HttpRequest<?> request, @Body @Valid MessageInput body) {
+    MutableHttpResponse<MessageResponse> create(HttpRequest<?> request, @Body MessageInput body) {
         Identity actor = security.requireRole(request, "admin");
         ValidMessage input = validate(body);
         if (messages.conflicting(input.key(), input.language(), new UUID(0, 0))) {
@@ -98,7 +98,7 @@ class MessagesController {
     }
 
     @Put("/api/v1/messages/{id}")
-    MessageResponse update(HttpRequest<?> request, @PathVariable String id, @Body @Valid MessageInput body) {
+    MessageResponse update(HttpRequest<?> request, @PathVariable String id, @Body MessageInput body) {
         Identity actor = security.requireRole(request, "admin");
         UUID messageId = WebSupport.uuid(id, "id");
         Message existing = messages.byId(messageId);
@@ -146,18 +146,11 @@ class MessagesController {
     }
 
     private ValidMessage validate(MessageInput body) {
-        Validator validator = new Validator();
+        inputs.validate(body);
         String key = WebSupport.trim(body == null ? null : body.key());
-        validator.check(WebSupport.KEY_PATTERN.matcher(key).matches() && WebSupport.length(key) <= 150,
-                "key", "validation.message.key.invalid");
         String language = WebSupport.trim(body == null ? null : body.language());
-        validator.check(WebSupport.LANGUAGE_PATTERN.matcher(language).matches(), "language", "validation.message.language.invalid");
         String text = body == null ? null : body.text();
-        validator.check(text != null && !text.isEmpty(), "text", "validation.message.text.required");
-        validator.check(WebSupport.length(text) <= 2000, "text", "validation.message.text.too-long");
         String description = body == null ? null : body.description();
-        validator.check(WebSupport.length(description) <= 1000, "description", "validation.message.description.too-long");
-        validator.throwIfInvalid();
         return new ValidMessage(key, language, text, description);
     }
 

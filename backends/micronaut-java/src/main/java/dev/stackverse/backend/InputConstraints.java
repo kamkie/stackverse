@@ -6,6 +6,7 @@ import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.Introspected;
 import io.micronaut.validation.validator.constraints.ConstraintValidator;
 import io.micronaut.validation.validator.constraints.ConstraintValidatorContext;
+import jakarta.inject.Singleton;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
@@ -23,6 +24,7 @@ public final class InputConstraints {
     }
 
     @Introspected
+    @Singleton
     public static final class BookmarkUrlValidator implements ConstraintValidator<BookmarkUrl, String> {
         @Override
         public boolean isValid(String value, AnnotationValue<BookmarkUrl> annotation,
@@ -41,6 +43,7 @@ public final class InputConstraints {
     }
 
     @Introspected
+    @Singleton
     public static final class BookmarkTitleValidator implements ConstraintValidator<BookmarkTitle, String> {
         @Override
         public boolean isValid(String value, AnnotationValue<BookmarkTitle> annotation,
@@ -59,6 +62,7 @@ public final class InputConstraints {
     }
 
     @Introspected
+    @Singleton
     public static final class BookmarkTagCountValidator implements ConstraintValidator<BookmarkTagCount, List<String>> {
         @Override
         public boolean isValid(List<String> value, AnnotationValue<BookmarkTagCount> annotation,
@@ -68,6 +72,7 @@ public final class InputConstraints {
     }
 
     @Introspected
+    @Singleton
     public static final class BookmarkTagSyntaxValidator implements ConstraintValidator<BookmarkTagSyntax, List<String>> {
         @Override
         public boolean isValid(List<String> value, AnnotationValue<BookmarkTagSyntax> annotation,
@@ -78,6 +83,7 @@ public final class InputConstraints {
     }
 
     @Introspected
+    @Singleton
     public static final class MessageKeyValidator implements ConstraintValidator<MessageKey, String> {
         @Override
         public boolean isValid(String value, AnnotationValue<MessageKey> annotation,
@@ -88,6 +94,7 @@ public final class InputConstraints {
     }
 
     @Introspected
+    @Singleton
     public static final class MessageLanguageValidator implements ConstraintValidator<MessageLanguage, String> {
         @Override
         public boolean isValid(String value, AnnotationValue<MessageLanguage> annotation,
@@ -95,6 +102,34 @@ public final class InputConstraints {
             return WebSupport.LANGUAGE_PATTERN.matcher(WebSupport.trim(value)).matches();
         }
     }
+
+    @Introspected
+    @Singleton
+    public static final class CodePointSizeValidator implements ConstraintValidator<CodePointSize, String> {
+        @Override
+        public boolean isValid(String value, AnnotationValue<CodePointSize> annotation,
+                               ConstraintValidatorContext context) {
+            if (value == null) {
+                return true;
+            }
+            int max = annotation.intValue("max").orElseThrow();
+            return WebSupport.length(value) <= max;
+        }
+    }
+}
+
+@Documented
+@Retention(RUNTIME)
+@Target({FIELD, METHOD, PARAMETER, RECORD_COMPONENT})
+@Constraint(validatedBy = InputConstraints.CodePointSizeValidator.class)
+@interface CodePointSize {
+    int max();
+
+    String message();
+
+    Class<?>[] groups() default {};
+
+    Class<? extends Payload>[] payload() default {};
 }
 
 @Documented
