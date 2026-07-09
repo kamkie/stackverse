@@ -72,10 +72,10 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 
 ## Deliberate deviations worth comparing
 
-- The code remains a compact Play/JDBC service rather than package-by-feature:
-  the comparison point here is Play's controller and JSON shape, not a custom
-  application framework. Play/Guice still owns collaborator construction and
-  request offloading.
+- The code remains a compact Play/JDBC service rather than package-by-feature,
+  with every endpoint kept in one `StackverseController`: the comparison point
+  here is Play's controller and JSON shape, not a custom application framework.
+  Play/Guice still owns collaborator construction and request offloading.
 - `LOG_FORMAT=json` controls Stackverse contract events emitted by the application
   logger. Play framework startup lines remain framework-owned console output.
 - OpenTelemetry log export uses the Java SDK autoconfiguration path and is active
