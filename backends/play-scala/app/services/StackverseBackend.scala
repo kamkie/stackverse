@@ -53,30 +53,36 @@ class StackverseBackend @Inject() (
       throw new IllegalStateException(s"Message seed directory not found: ${config.seedMessagesDir}")
     }
     val files = Files.list(config.seedMessagesDir)
-    try {
-      files.iterator().asScala.filter(path => path.getFileName.toString.endsWith(".json")).toSeq.sortBy(_.getFileName.toString).foreach { file =>
-        val language = file.getFileName.toString.stripSuffix(".json")
-        val entries = Json.parse(Files.readString(file)).as[JsObject].fields.map { case (key, value) => key -> value.as[String] }
-        val inserted = db.withConnection { conn =>
-          val sql =
-            """insert into messages (id, key, language, text, created_at, updated_at)
+    try
+      files
+        .iterator()
+        .asScala
+        .filter(path => path.getFileName.toString.endsWith(".json"))
+        .toSeq
+        .sortBy(_.getFileName.toString)
+        .foreach { file =>
+          val language = file.getFileName.toString.stripSuffix(".json")
+          val entries =
+            Json.parse(Files.readString(file)).as[JsObject].fields.map { case (key, value) => key -> value.as[String] }
+          val inserted = db.withConnection { conn =>
+            val sql =
+              """insert into messages (id, key, language, text, created_at, updated_at)
               |select gen_random_uuid(), key, ?, text, now(), now()
               |from unnest(?::text[], ?::text[]) as seed(key, text)
               |on conflict (key, language) do nothing""".stripMargin
-          db.execute(conn, sql, Seq(language, entries.map(_._1), entries.map(_._2)))
+            db.execute(conn, sql, Seq(language, entries.map(_._1), entries.map(_._2)))
+          }
+          logger.event(
+            "info",
+            "message_seed_imported",
+            "success",
+            s"Message seed '$language': $inserted inserted, ${entries.size - inserted} already present",
+            "language" -> JsString(language),
+            "inserted" -> JsNumber(inserted),
+            "skipped" -> JsNumber(entries.size - inserted)
+          )
         }
-        logger.event(
-          "info",
-          "message_seed_imported",
-          "success",
-          s"Message seed '$language': $inserted inserted, ${entries.size - inserted} already present",
-          "language" -> JsString(language),
-          "inserted" -> JsNumber(inserted),
-          "skipped" -> JsNumber(entries.size - inserted)
-        )
-      }
-    } finally {
+    finally
       files.close()
-    }
   }
 }

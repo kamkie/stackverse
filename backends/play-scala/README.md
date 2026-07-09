@@ -1,8 +1,8 @@
 # Backend · Play Framework (Scala)
 
-The Stackverse backend in Scala 3 on Play Framework 2.9: Play routes/controllers,
-Play JSON, plain JDBC through HikariCP, Flyway migrations, PostgreSQL, and Nimbus
-JWT validation against Keycloak's JWKS.
+The Stackverse backend in Scala 3 on Play Framework 3.0.11: Play
+routes/controllers on Apache Pekko, typed Play JSON, plain JDBC through HikariCP,
+Flyway migrations, PostgreSQL, and Nimbus JWT validation against Keycloak's JWKS.
 
 Shared behavior, endpoints, and environment variables are documented once in
 [backends/README.md](../README.md) and the contract documents it points to. This file
@@ -25,13 +25,10 @@ local-development application secret for deployed runs. Migrations apply on star
 so the database must be one this backend owns. When switching from another backend,
 reset the compose database volume first.
 
-Keep this implementation on sbt 1.12.x while it uses Play Framework 2.9; the Play 2.9
-sbt plugin is published for sbt 1, not sbt 2.
-
 Tests:
 
 ```sh
-sbt test
+sbt scalafmtCheckAll test
 ```
 
 Conformance, with infra and this backend running:
@@ -48,10 +45,16 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 
 ## What this implementation demonstrates
 
-- **Conventional Play source layout over raw SQL** — `conf/routes` maps to
-  `app/controllers`, while configuration, services, repositories, models, and JSON
-  helpers live in their usual `app/*` packages. Business rules stay explicit in
-  Scala instead of disappearing into an ORM.
+- **Play 3 on Apache Pekko** — the application uses the current open-source Play
+  line and its `org.playframework` sbt plugin, with no Akka runtime dependency.
+- **Focused injected controllers** — `conf/routes` maps health, identity, bookmark,
+  message, moderation, and admin resources to separate Guice-constructed
+  controllers. They delegate action execution to `StackverseActions`, while
+  configuration, persistence, authentication, i18n, input codecs, and wire codecs
+  remain separate collaborators under their conventional `app/*` packages.
+- **Typed Play JSON boundaries** — request case classes have contract-aware `Reads`
+  that retain localized RFC 9457 message keys, and row case classes expose typed
+  `OWrites` while continuing to omit absent optional fields.
 - **Environment-owned configuration** — `PORT`, `DB_*`, `OIDC_*`, `LOG_*`, and
   `SEED_MESSAGES_DIR` are read from the environment; Play's config file only wires
   the framework.
@@ -69,13 +72,18 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
 - **Nimbus JWT validation** — signature keys come from `OIDC_JWKS_URI` when set,
   otherwise from OIDC discovery. The expected issuer remains `OIDC_ISSUER_URI`,
   and identity is always `preferred_username`.
+- **ScalaTestPlusPlay application testing** — Guice application tests compile the
+  route graph and exercise the focused health controller without requiring a
+  database; focused unit tests cover codecs and SQL/wire helpers.
+- **Warnings and formatting as gates** — compilation uses `-Werror`, and scalafmt is
+  checked locally and in the component workflow.
 
 ## Deliberate deviations worth comparing
 
-- The code remains a compact Play/JDBC service rather than package-by-feature,
-  with every endpoint kept in one `StackverseController`: the comparison point
-  here is Play's controller and JSON shape, not a custom application framework.
-  Play/Guice still owns collaborator construction and request offloading.
+- The focused controllers intentionally stay as route adapters; the shared
+  `StackverseActions` service owns the action/error boundary so localized problem
+  handling and JDBC dispatcher offloading are defined once. Persistence remains
+  grouped in a thin raw-JDBC repository rather than adopting Slick or Anorm.
 - `LOG_FORMAT=json` controls Stackverse contract events emitted by the application
   logger. Play framework startup lines remain framework-owned console output.
 - OpenTelemetry log export uses the Java SDK autoconfiguration path and is active

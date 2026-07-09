@@ -35,7 +35,7 @@ object BackendConfig {
       throw new IllegalArgumentException(s"$name must be an integer")
     }
 
-  private def seedDir: Path = {
+  private def seedDir: Path =
     Option(System.getenv("SEED_MESSAGES_DIR")).map(Paths.get(_)).getOrElse {
       val candidates = Seq(
         Paths.get("../../spec/messages"),
@@ -44,7 +44,6 @@ object BackendConfig {
       )
       candidates.find(Files.isDirectory(_)).getOrElse(candidates.head)
     }
-  }
 
   def load(): BackendConfig = BackendConfig(
     port = intEnv("PORT", 8080),

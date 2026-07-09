@@ -25,12 +25,17 @@ class Db @Inject() (config: BackendConfig, logger: EventLogger) {
     hikari.setPassword(config.dbPassword)
     // Keep in sync with conf/application.conf database-dispatcher fixed-pool-size.
     hikari.setMaximumPoolSize(10)
+    hikari.setMinimumIdle(0)
+    // Startup migrations still fail the application eagerly; delaying the first pool connection
+    // keeps Guice application tests and liveness wiring independent from a running PostgreSQL.
+    hikari.setInitializationFailTimeout(-1)
     hikari.setPoolName("stackverse-play-scala")
     new HikariDataSource(hikari)
   }
 
   def migrate(): Unit = {
-    val result = Flyway.configure()
+    val result = Flyway
+      .configure()
       .dataSource(dataSource)
       .locations("classpath:db/migration")
       .load()
@@ -65,9 +70,7 @@ class Db @Inject() (config: BackendConfig, logger: EventLogger) {
       case error: Throwable =>
         scala.util.Try(conn.rollback())
         throw error
-    } finally {
-      conn.setAutoCommit(oldAutoCommit)
-    }
+    } finally conn.setAutoCommit(oldAutoCommit)
   }
 
   def query[T](conn: Connection, sql: String, params: Seq[Any] = Seq.empty)(map: ResultSet => T): Seq[T] =
@@ -95,17 +98,17 @@ class Db @Inject() (config: BackendConfig, logger: EventLogger) {
   }
 
   private def setParam(conn: Connection, ps: PreparedStatement, index: Int, value: Any): Unit = value match {
-    case null => ps.setObject(index, null)
-    case None => ps.setObject(index, null)
-    case Some(v) => setParam(conn, ps, index, v)
-    case value: String => ps.setString(index, value)
-    case value: Int => ps.setInt(index, value)
-    case value: Long => ps.setLong(index, value)
-    case value: Boolean => ps.setBoolean(index, value)
-    case value: UUID => ps.setObject(index, value)
-    case value: Instant => ps.setTimestamp(index, Timestamp.from(value))
+    case null             => ps.setObject(index, null)
+    case None             => ps.setObject(index, null)
+    case Some(v)          => setParam(conn, ps, index, v)
+    case value: String    => ps.setString(index, value)
+    case value: Int       => ps.setInt(index, value)
+    case value: Long      => ps.setLong(index, value)
+    case value: Boolean   => ps.setBoolean(index, value)
+    case value: UUID      => ps.setObject(index, value)
+    case value: Instant   => ps.setTimestamp(index, Timestamp.from(value))
     case value: LocalDate => ps.setObject(index, value)
-    case value: JsObject =>
+    case value: JsObject  =>
       val pg = new PGobject()
       pg.setType("jsonb")
       pg.setValue(Json.stringify(value))

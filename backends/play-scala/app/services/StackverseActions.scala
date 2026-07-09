@@ -1,11 +1,22 @@
-package controllers
+package services
 
 import models._
 import play.api.libs.json._
 import play.api.mvc._
 import repositories.{Db, Rows}
-import services.{AuthService, DatabaseExecutionContext, EventLogger, I18n}
-import support.{CursorCodec, Responses, Wire}
+import support.{
+  BookmarkInput,
+  BookmarkStatusInput,
+  CursorCodec,
+  InputJson,
+  MessageInput,
+  ReportInput,
+  ResolutionInput,
+  Responses,
+  UserStatusInput,
+  Wire
+}
+import support.InputJson.given
 
 import java.sql.{Connection, SQLException}
 import java.time.{Instant, LocalDate, ZoneOffset}
@@ -15,20 +26,17 @@ import scala.concurrent.Future
 import scala.util.Try
 
 @Singleton
-class StackverseController @Inject() (
+class StackverseActions @Inject() (
     cc: ControllerComponents,
     db: Db,
     auth: AuthService,
     i18n: I18n,
     logger: EventLogger,
     databaseExecutionContext: DatabaseExecutionContext
-)
-    extends AbstractController(cc) {
+) extends AbstractController(cc) {
   import Wire._
 
   private val TagPattern = "^[a-z0-9-]{1,30}$".r
-  private val KeyPattern = "^[a-z0-9-]+(\\.[a-z0-9-]+)*$".r
-  private val LanguagePattern = "^[a-z]{2}$".r
   private val UtcDayMillis = 24L * 60L * 60L * 1000L
 
   def healthz: Action[AnyContent] = Action {
@@ -114,7 +122,7 @@ class StackverseController @Inject() (
       } else None
       Wire.obj(
         "items" -> Some(JsArray(items.map(Responses.bookmark))),
-        "nextCursor" -> nextCursor.map(JsString)
+        "nextCursor" -> nextCursor.map(JsString.apply)
       )
     }
     Ok(payload)
@@ -122,7 +130,7 @@ class StackverseController @Inject() (
 
   def createBookmark: Action[AnyContent] = api { implicit request =>
     val caller = auth.requireCaller(request)
-    val input = validateBookmarkInput(jsonBody(request))
+    val input = InputJson.read[BookmarkInput](request)
     val now = Instant.now()
     val id = UUID.randomUUID()
     val row = db.withConnection { conn =>
@@ -140,7 +148,11 @@ class StackverseController @Inject() (
     val caller = auth.optional(request)
     val uuid = parseUuid(id)
     val row = db.withConnection(conn => findBookmark(conn, uuid))
-    val visible = row.exists(bookmark => bookmark.owner == caller.map(_.username).orNull || (bookmark.visibility == "public" && bookmark.status == "active"))
+    val visible = row.exists(bookmark =>
+      bookmark.owner == caller
+        .map(_.username)
+        .orNull || (bookmark.visibility == "public" && bookmark.status == "active")
+    )
     if (!visible) throw new NotFoundProblem
     Ok(Responses.bookmark(row.get))
   }
@@ -148,12 +160,15 @@ class StackverseController @Inject() (
   def updateBookmark(id: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireCaller(request)
     val uuid = parseUuid(id)
-    val input = validateBookmarkInput(jsonBody(request))
+    val input = InputJson.read[BookmarkInput](request)
     val row = db.transaction { conn =>
       val existing = db.one(conn, "select * from bookmarks where id = ? for update", Seq(uuid))(Rows.bookmark)
       val bookmark = existing.filter(_.owner == caller.username).getOrElse(throw new NotFoundProblem)
       if (bookmark.status == "hidden" && input.visibility == "public") {
-        throw new ConflictProblem("This bookmark was hidden by moderation and cannot be made public.", Some("error.bookmark.hidden-publish"))
+        throw new ConflictProblem(
+          "This bookmark was hidden by moderation and cannot be made public.",
+          Some("error.bookmark.hidden-publish")
+        )
       }
       db.returning(
         conn,
@@ -226,7 +241,11 @@ class StackverseController @Inject() (
   def messageBundle: Action[AnyContent] = api { implicit request =>
     auth.optional(request)
     val language = requestLanguage(request)
-    withEtag(request, Json.obj("language" -> language, "messages" -> i18n.bundle(language)), "Content-Language" -> language)
+    withEtag(
+      request,
+      Json.obj("language" -> language, "messages" -> i18n.bundle(language)),
+      "Content-Language" -> language
+    )
   }
 
   def getMessage(id: String): Action[AnyContent] = api { implicit request =>
@@ -240,19 +259,28 @@ class StackverseController @Inject() (
 
   def createMessage: Action[AnyContent] = api { implicit request =>
     val caller = auth.requireRole(request, "admin")
-    val input = validateMessageInput(jsonBody(request))
+    val input = InputJson.read[MessageInput](request)
     val row = db.transaction { conn =>
       if (messageDuplicate(conn, input.key, input.language, None)) throw duplicateMessage(input)
-      val inserted = try {
-        db.returning(
-          conn,
-          """insert into messages (id, key, language, text, description, created_at, updated_at)
+      val inserted =
+        try
+          db.returning(
+            conn,
+            """insert into messages (id, key, language, text, description, created_at, updated_at)
             |values (?, ?, ?, ?, ?, ?, ?) returning *""".stripMargin,
-          Seq(UUID.randomUUID(), input.key, input.language, input.text, input.description, Instant.now(), Instant.now())
-        )(Rows.message)
-      } catch {
-        case error: SQLException if sqlState(error).contains("23505") => throw duplicateMessage(input)
-      }
+            Seq(
+              UUID.randomUUID(),
+              input.key,
+              input.language,
+              input.text,
+              input.description,
+              Instant.now(),
+              Instant.now()
+            )
+          )(Rows.message)
+        catch {
+          case error: SQLException if sqlState(error).contains("23505") => throw duplicateMessage(input)
+        }
       recordAudit(conn, caller.username, "message.created", "message", inserted.id.toString, messageSnapshot(inserted))
       inserted
     }
@@ -263,20 +291,21 @@ class StackverseController @Inject() (
   def updateMessage(id: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireRole(request, "admin")
     val uuid = parseUuid(id)
-    val input = validateMessageInput(jsonBody(request))
+    val input = InputJson.read[MessageInput](request)
     val row = db.transaction { conn =>
       db.one(conn, "select 1 from messages where id = ?", Seq(uuid))(_ => true).getOrElse(throw new NotFoundProblem)
       if (messageDuplicate(conn, input.key, input.language, Some(uuid))) throw duplicateMessage(input)
-      val updated = try {
-        db.returning(
-          conn,
-          """update messages set key = ?, language = ?, text = ?, description = ?, updated_at = ?
+      val updated =
+        try
+          db.returning(
+            conn,
+            """update messages set key = ?, language = ?, text = ?, description = ?, updated_at = ?
             |where id = ? returning *""".stripMargin,
-          Seq(input.key, input.language, input.text, input.description, Instant.now(), uuid)
-        )(Rows.message)
-      } catch {
-        case error: SQLException if sqlState(error).contains("23505") => throw duplicateMessage(input)
-      }
+            Seq(input.key, input.language, input.text, input.description, Instant.now(), uuid)
+          )(Rows.message)
+        catch {
+          case error: SQLException if sqlState(error).contains("23505") => throw duplicateMessage(input)
+        }
       recordAudit(conn, caller.username, "message.updated", "message", updated.id.toString, messageSnapshot(updated))
       updated
     }
@@ -288,7 +317,9 @@ class StackverseController @Inject() (
     val caller = auth.requireRole(request, "admin")
     val uuid = parseUuid(id)
     val row = db.transaction { conn =>
-      val deleted = db.one(conn, "delete from messages where id = ? returning *", Seq(uuid))(Rows.message).getOrElse(throw new NotFoundProblem)
+      val deleted = db
+        .one(conn, "delete from messages where id = ? returning *", Seq(uuid))(Rows.message)
+        .getOrElse(throw new NotFoundProblem)
       recordAudit(conn, caller.username, "message.deleted", "message", deleted.id.toString, messageSnapshot(deleted))
       deleted
     }
@@ -299,26 +330,30 @@ class StackverseController @Inject() (
   def createReport(id: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireCaller(request)
     val bookmarkId = parseUuid(id)
-    val input = validateReportInput(jsonBody(request))
+    val input = InputJson.read[ReportInput](request)
     val row = db.transaction { conn =>
-      val visible = db.one(conn, "select visibility, status from bookmarks where id = ? for update", Seq(bookmarkId)) { rs =>
-        rs.getString("visibility") == "public" && rs.getString("status") == "active"
-      }.getOrElse(false)
+      val visible = db
+        .one(conn, "select visibility, status from bookmarks where id = ? for update", Seq(bookmarkId)) { rs =>
+          rs.getString("visibility") == "public" && rs.getString("status") == "active"
+        }
+        .getOrElse(false)
       if (!visible) throw new NotFoundProblem
-      val open = db.one(
-        conn,
-        "select 1 from reports where bookmark_id = ? and reporter = ? and status = 'open'",
-        Seq(bookmarkId, caller.username)
-      )(_ => true).getOrElse(false)
+      val open = db
+        .one(
+          conn,
+          "select 1 from reports where bookmark_id = ? and reporter = ? and status = 'open'",
+          Seq(bookmarkId, caller.username)
+        )(_ => true)
+        .getOrElse(false)
       if (open) throw new ConflictProblem("You already have an open report on this bookmark.")
-      try {
+      try
         db.returning(
           conn,
           """insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)
             |values (?, ?, ?, ?, ?, 'open', ?) returning *""".stripMargin,
           Seq(UUID.randomUUID(), bookmarkId, caller.username, input.reason, input.comment, Instant.now())
         )(Rows.report)
-      } catch {
+      catch {
         case error: SQLException if sqlState(error).contains("23505") =>
           throw new ConflictProblem("You already have an open report on this bookmark.")
       }
@@ -343,7 +378,7 @@ class StackverseController @Inject() (
     val status = validatedReportStatus(single(request.queryString, "status"))
     val (where, params) = status match {
       case Some(value) => ("reporter = ? and status = ?", Seq(caller.username, value))
-      case None => ("reporter = ?", Seq(caller.username))
+      case None        => ("reporter = ?", Seq(caller.username))
     }
     val payload = db.withConnection { conn =>
       val rows = db.query(
@@ -360,11 +395,15 @@ class StackverseController @Inject() (
   def updateMyReport(id: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireCaller(request)
     val uuid = parseUuid(id)
-    val input = validateReportInput(jsonBody(request))
+    val input = InputJson.read[ReportInput](request)
     val row = db.transaction { conn =>
       val report = ownReport(conn, caller.username, uuid)
       requireOpen(report)
-      db.returning(conn, "update reports set reason = ?, comment = ? where id = ? returning *", Seq(input.reason, input.comment, uuid))(Rows.report)
+      db.returning(
+        conn,
+        "update reports set reason = ?, comment = ? where id = ? returning *",
+        Seq(input.reason, input.comment, uuid)
+      )(Rows.report)
     }
     logger.event(
       "info",
@@ -421,39 +460,49 @@ class StackverseController @Inject() (
   def resolveReport(id: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireRole(request, "moderator")
     val uuid = parseUuid(id)
-    val body = jsonBody(request)
-    val validator = new Validator()
-    val target = (body \ "resolution").asOpt[String]
-    validator.check(target.exists(Seq("open", "dismissed", "actioned").contains), "resolution", "validation.resolution.invalid")
-    val note = (body \ "note").asOpt[String]
-    validator.check(note.forall(_.length <= 1000), "note", "validation.resolution.note.too-long")
-    validator.throwIfInvalid()
-    val resolution = target.get
+    val input = InputJson.read[ResolutionInput](request)
+    val resolution = input.resolution
+    val note = input.note
     val row = db.transaction { conn =>
       if (resolution == "actioned") {
-        val bookmarkId = db.one(conn, "select bookmark_id from reports where id = ?", Seq(uuid))(_.getObject("bookmark_id", classOf[UUID]))
+        val bookmarkId = db
+          .one(conn, "select bookmark_id from reports where id = ?", Seq(uuid))(
+            _.getObject("bookmark_id", classOf[UUID])
+          )
           .getOrElse(throw new NotFoundProblem)
         db.one(conn, "select id from bookmarks where id = ? for update", Seq(bookmarkId))(_ => true)
       }
-      val report = db.one(conn, "select * from reports where id = ? for update", Seq(uuid))(Rows.report).getOrElse(throw new NotFoundProblem)
+      val report = db
+        .one(conn, "select * from reports where id = ? for update", Seq(uuid))(Rows.report)
+        .getOrElse(throw new NotFoundProblem)
       if (resolution == "open") {
-        val conflict = db.one(
-          conn,
-          "select 1 from reports where bookmark_id = ? and reporter = ? and status = 'open' and id <> ?",
-          Seq(report.bookmarkId, report.reporter, uuid)
-        )(_ => true).getOrElse(false)
-        if (conflict) throw new ConflictProblem("The reporter already has another open report on this bookmark.")
-        val reopened = try {
-          db.returning(
+        val conflict = db
+          .one(
             conn,
-            "update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null where id = ? returning *",
-            Seq(uuid)
-          )(Rows.report)
-        } catch {
-          case error: SQLException if sqlState(error).contains("23505") =>
-            throw new ConflictProblem("The reporter already has another open report on this bookmark.")
-        }
-        recordAudit(conn, caller.username, "report.reopened", "report", uuid.toString, Json.obj("bookmarkId" -> report.bookmarkId.toString))
+            "select 1 from reports where bookmark_id = ? and reporter = ? and status = 'open' and id <> ?",
+            Seq(report.bookmarkId, report.reporter, uuid)
+          )(_ => true)
+          .getOrElse(false)
+        if (conflict) throw new ConflictProblem("The reporter already has another open report on this bookmark.")
+        val reopened =
+          try
+            db.returning(
+              conn,
+              "update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null where id = ? returning *",
+              Seq(uuid)
+            )(Rows.report)
+          catch {
+            case error: SQLException if sqlState(error).contains("23505") =>
+              throw new ConflictProblem("The reporter already has another open report on this bookmark.")
+          }
+        recordAudit(
+          conn,
+          caller.username,
+          "report.reopened",
+          "report",
+          uuid.toString,
+          Json.obj("bookmarkId" -> report.bookmarkId.toString)
+        )
         logger.event(
           "info",
           "report_reopened",
@@ -485,17 +534,26 @@ class StackverseController @Inject() (
   def setBookmarkStatus(id: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireRole(request, "moderator")
     val uuid = parseUuid(id)
-    val body = jsonBody(request)
-    val validator = new Validator()
-    val status = (body \ "status").asOpt[String]
-    validator.check(status.exists(value => value == "active" || value == "hidden"), "status", "validation.bookmark-status.invalid")
-    val note = (body \ "note").asOpt[String]
-    validator.check(note.forall(_.length <= 1000), "note", "validation.bookmark-status.note.too-long")
-    validator.throwIfInvalid()
+    val input = InputJson.read[BookmarkStatusInput](request)
+    val status = input.status
+    val note = input.note
     val row = db.transaction { conn =>
-      val existing = db.one(conn, "select * from bookmarks where id = ? for update", Seq(uuid))(Rows.bookmark).getOrElse(throw new NotFoundProblem)
-      val updated = db.returning(conn, "update bookmarks set status = ?, updated_at = ? where id = ? returning *", Seq(status.get, Instant.now(), uuid))(Rows.bookmark)
-      recordAudit(conn, caller.username, "bookmark.status-changed", "bookmark", uuid.toString, Json.obj("from" -> existing.status, "to" -> status.get, "note" -> note))
+      val existing = db
+        .one(conn, "select * from bookmarks where id = ? for update", Seq(uuid))(Rows.bookmark)
+        .getOrElse(throw new NotFoundProblem)
+      val updated = db.returning(
+        conn,
+        "update bookmarks set status = ?, updated_at = ? where id = ? returning *",
+        Seq(status, Instant.now(), uuid)
+      )(Rows.bookmark)
+      recordAudit(
+        conn,
+        caller.username,
+        "bookmark.status-changed",
+        "bookmark",
+        uuid.toString,
+        Json.obj("from" -> existing.status, "to" -> status, "note" -> note)
+      )
       logger.event(
         "info",
         "bookmark_status_changed",
@@ -505,7 +563,7 @@ class StackverseController @Inject() (
         "resource_type" -> JsString("bookmark"),
         "resource_id" -> JsString(uuid.toString),
         "from" -> JsString(existing.status),
-        "to" -> JsString(status.get)
+        "to" -> JsString(status)
       )
       updated
     }
@@ -518,7 +576,8 @@ class StackverseController @Inject() (
     val q = single(request.queryString, "q")
     maxLength(q, 100, "q")
     val status = single(request.queryString, "status")
-    if (status.exists(value => value != "active" && value != "blocked")) throw new BadRequestProblem(s"unknown status: ${status.get}")
+    if (status.exists(value => value != "active" && value != "blocked"))
+      throw new BadRequestProblem(s"unknown status: ${status.get}")
     val clauses = scala.collection.mutable.ArrayBuffer("true")
     val params = scala.collection.mutable.ArrayBuffer.empty[Any]
     q.filter(_.trim.nonEmpty).foreach { value =>
@@ -551,24 +610,28 @@ class StackverseController @Inject() (
 
   def setUserStatus(username: String): Action[AnyContent] = api { implicit request =>
     val caller = auth.requireRole(request, "admin")
-    val body = jsonBody(request)
-    val status = (body \ "status").asOpt[String].getOrElse(throw new BadRequestProblem("status is required"))
-    if (status != "active" && status != "blocked") throw new BadRequestProblem("status is required")
-    val reason = (body \ "reason").asOpt[String].map(_.trim)
+    val input = InputJson.read[UserStatusInput](request)
+    val status = input.status
+    val reason = input.reason
     if (status == "blocked") {
-      val validator = new Validator()
-      validator.check(reason.exists(_.nonEmpty), "reason", "validation.block.reason.required")
-      validator.check(reason.forall(_.length <= 1000), "reason", "validation.block.reason.too-long")
-      validator.throwIfInvalid()
       if (username == caller.username) throw new ConflictProblem("Admins cannot block themselves.")
     }
     db.transaction { conn =>
-      db.one(conn, "select username from user_accounts where username = ? for update", Seq(username))(_ => true).getOrElse(throw new NotFoundProblem)
+      db.one(conn, "select username from user_accounts where username = ? for update", Seq(username))(_ => true)
+        .getOrElse(throw new NotFoundProblem)
       if (status == "blocked") {
-        db.execute(conn, "update user_accounts set status = 'blocked', blocked_reason = ? where username = ?", Seq(reason, username))
+        db.execute(
+          conn,
+          "update user_accounts set status = 'blocked', blocked_reason = ? where username = ?",
+          Seq(reason, username)
+        )
         recordAudit(conn, caller.username, "user.blocked", "user", username, Json.obj("reason" -> reason))
       } else {
-        db.execute(conn, "update user_accounts set status = 'active', blocked_reason = null where username = ?", Seq(username))
+        db.execute(
+          conn,
+          "update user_accounts set status = 'active', blocked_reason = null where username = ?",
+          Seq(username)
+        )
         recordAudit(conn, caller.username, "user.unblocked", "user", username)
       }
     }
@@ -590,11 +653,12 @@ class StackverseController @Inject() (
     val (page, size) = paging(request.queryString)
     val clauses = scala.collection.mutable.ArrayBuffer("true")
     val params = scala.collection.mutable.ArrayBuffer.empty[Any]
-    Seq("actor" -> "actor", "action" -> "action", "targetType" -> "target_type", "targetId" -> "target_id").foreach { case (param, column) =>
-      single(request.queryString, param).foreach { value =>
-        clauses += s"$column = ?"
-        params += value
-      }
+    Seq("actor" -> "actor", "action" -> "action", "targetType" -> "target_type", "targetId" -> "target_id").foreach {
+      case (param, column) =>
+        single(request.queryString, param).foreach { value =>
+          clauses += s"$column = ?"
+          params += value
+        }
     }
     single(request.queryString, "from").foreach { value =>
       clauses += "created_at >= ?"
@@ -661,9 +725,9 @@ class StackverseController @Inject() (
 
   private def api(block: Request[AnyContent] => Result): Action[AnyContent] = Action.async { request =>
     Future {
-      try {
+      try
         block(request)
-      } catch {
+      catch {
         case problem: ValidationProblem =>
           logger.event(
             "info",
@@ -701,64 +765,14 @@ class StackverseController @Inject() (
     }(using databaseExecutionContext)
   }
 
-  private case class BookmarkInput(url: String, title: String, notes: Option[String], tags: Seq[String], visibility: String)
-  private case class MessageInput(key: String, language: String, text: String, description: Option[String])
-  private case class ReportInput(reason: String, comment: Option[String])
   private case class ListFilters(tags: Seq[String], q: Option[String], visibility: Option[String])
-
-  private def validateBookmarkInput(body: JsObject): BookmarkInput = {
-    val validator = new Validator()
-    val url = (body \ "url").asOpt[String].map(_.trim).getOrElse("")
-    if (url.isEmpty) validator.reject("url", "validation.url.required")
-    else validator.check(url.length <= 2000 && isHttpUrl(url), "url", "validation.url.invalid")
-    val title = (body \ "title").asOpt[String].map(_.trim).getOrElse("")
-    validator.check(title.nonEmpty, "title", "validation.title.required")
-    validator.check(title.length <= 200, "title", "validation.title.too-long")
-    val notes = (body \ "notes").asOpt[String]
-    validator.check(notes.forall(_.length <= 4000), "notes", "validation.notes.too-long")
-    val rawTags = (body \ "tags").asOpt[Seq[JsValue]].getOrElse(Seq.empty)
-    val tags = rawTags.map {
-      case JsString(value) => value
-      case other => Json.stringify(other)
-    }.map(_.trim.toLowerCase).distinct
-    validator.check(tags.length <= 10, "tags", "validation.tags.too-many")
-    validator.check(tags.forall(tag => TagPattern.matches(tag)), "tags", "validation.tag.invalid")
-    val visibility = (body \ "visibility").asOpt[String].getOrElse("private")
-    if (visibility != "private" && visibility != "public") throw new BadRequestProblem(s"unknown visibility: $visibility")
-    validator.throwIfInvalid()
-    BookmarkInput(url, title, notes, tags, visibility)
-  }
-
-  private def validateMessageInput(body: JsObject): MessageInput = {
-    val validator = new Validator()
-    val key = (body \ "key").asOpt[String].map(_.trim).getOrElse("")
-    validator.check(KeyPattern.matches(key) && key.length <= 150, "key", "validation.message.key.invalid")
-    val language = (body \ "language").asOpt[String].map(_.trim).getOrElse("")
-    validator.check(LanguagePattern.matches(language), "language", "validation.message.language.invalid")
-    val text = (body \ "text").asOpt[String].getOrElse("")
-    validator.check(text.nonEmpty, "text", "validation.message.text.required")
-    validator.check(text.length <= 2000, "text", "validation.message.text.too-long")
-    val description = (body \ "description").asOpt[String]
-    validator.check(description.forall(_.length <= 1000), "description", "validation.message.description.too-long")
-    validator.throwIfInvalid()
-    MessageInput(key, language, text, description)
-  }
-
-  private def validateReportInput(body: JsObject): ReportInput = {
-    val validator = new Validator()
-    val reason = (body \ "reason").asOpt[String]
-    validator.check(reason.exists(Seq("spam", "offensive", "broken-link", "other").contains), "reason", "validation.report.reason.invalid")
-    val comment = (body \ "comment").asOpt[String]
-    validator.check(comment.forall(_.length <= 1000), "comment", "validation.report.comment.too-long")
-    validator.throwIfInvalid()
-    ReportInput(reason.get, comment)
-  }
 
   private def parseListFilters(query: Map[String, Seq[String]]): ListFilters = {
     val q = single(query, "q")
     maxLength(q, 200, "q")
     val visibility = single(query, "visibility")
-    if (visibility.exists(value => value != "private" && value != "public")) throw new BadRequestProblem(s"unknown visibility: ${visibility.get}")
+    if (visibility.exists(value => value != "private" && value != "public"))
+      throw new BadRequestProblem(s"unknown visibility: ${visibility.get}")
     ListFilters(validateQueryTags(multi(query, "tag")), q, visibility)
   }
 
@@ -797,14 +811,6 @@ class StackverseController @Inject() (
     (clauses.mkString(" and "), params.toSeq)
   }
 
-  private def isHttpUrl(value: String): Boolean =
-    Try(new java.net.URI(value)).toOption.exists(uri =>
-      (uri.getScheme == "http" || uri.getScheme == "https") && Option(uri.getHost).exists(_.nonEmpty)
-    )
-
-  private def jsonBody(request: Request[AnyContent]): JsObject =
-    request.body.asJson.collect { case obj: JsObject => obj }.getOrElse(Json.obj())
-
   private def requestLanguage(request: RequestHeader): String =
     i18n.resolve(first(request.queryString, "lang"), request.headers.get("Accept-Language"))
 
@@ -833,9 +839,12 @@ class StackverseController @Inject() (
   private def messageDuplicate(conn: Connection, key: String, language: String, except: Option[UUID]): Boolean =
     except match {
       case Some(id) =>
-        db.one(conn, "select 1 from messages where key = ? and language = ? and id <> ?", Seq(key, language, id))(_ => true).getOrElse(false)
+        db.one(conn, "select 1 from messages where key = ? and language = ? and id <> ?", Seq(key, language, id))(_ =>
+          true
+        ).getOrElse(false)
       case None =>
-        db.one(conn, "select 1 from messages where key = ? and language = ?", Seq(key, language))(_ => true).getOrElse(false)
+        db.one(conn, "select 1 from messages where key = ? and language = ?", Seq(key, language))(_ => true)
+          .getOrElse(false)
     }
 
   private def duplicateMessage(input: MessageInput): ConflictProblem =
@@ -846,7 +855,7 @@ class StackverseController @Inject() (
       "key" -> Some(JsString(row.key)),
       "language" -> Some(JsString(row.language)),
       "text" -> Some(JsString(row.text)),
-      "description" -> row.description.map(JsString)
+      "description" -> row.description.map(JsString.apply)
     )
 
   private def logMessage(event: String, description: String, actor: String, row: MessageRow): Unit =
@@ -862,15 +871,32 @@ class StackverseController @Inject() (
       "language" -> JsString(row.language)
     )
 
-  private def recordAudit(conn: Connection, actor: String, action: String, targetType: String, targetId: String, detail: JsObject = Json.obj()): Unit =
+  private def recordAudit(
+      conn: Connection,
+      actor: String,
+      action: String,
+      targetType: String,
+      targetId: String,
+      detail: JsObject = Json.obj()
+  ): Unit =
     db.execute(
       conn,
       "insert into audit_entries (id, actor, action, target_type, target_id, detail, created_at) values (?, ?, ?, ?, ?, ?, ?)",
-      Seq(UUID.randomUUID(), actor, action, targetType, targetId, if (detail.fields.isEmpty) None else Some(detail), Instant.now())
+      Seq(
+        UUID.randomUUID(),
+        actor,
+        action,
+        targetType,
+        targetId,
+        if (detail.fields.isEmpty) None else Some(detail),
+        Instant.now()
+      )
     )
 
   private def ownReport(conn: Connection, reporter: String, id: UUID): ReportRow = {
-    val row = db.one(conn, "select * from reports where id = ? for update", Seq(id))(Rows.report).getOrElse(throw new NotFoundProblem)
+    val row = db
+      .one(conn, "select * from reports where id = ? for update", Seq(id))(Rows.report)
+      .getOrElse(throw new NotFoundProblem)
     if (row.reporter != reporter) throw new NotFoundProblem
     row
   }
@@ -880,7 +906,8 @@ class StackverseController @Inject() (
 
   private def validatedReportStatus(value: Option[String]): Option[String] =
     value.map { status =>
-      if (!Seq("open", "dismissed", "actioned").contains(status)) throw new BadRequestProblem(s"unknown status: $status")
+      if (!Seq("open", "dismissed", "actioned").contains(status))
+        throw new BadRequestProblem(s"unknown status: $status")
       status
     }
 
@@ -897,12 +924,19 @@ class StackverseController @Inject() (
       "update reports set status = ?, resolved_by = ?, resolved_at = ?, resolution_note = ? where id = ? returning *",
       Seq(resolution, actor, Instant.now(), note, report.id)
     )(Rows.report)
-    recordAudit(conn, actor, "report.resolved", "report", report.id.toString, Json.obj(
-      "bookmarkId" -> report.bookmarkId.toString,
-      "resolution" -> resolution,
-      "note" -> note,
-      "autoResolved" -> autoResolved
-    ))
+    recordAudit(
+      conn,
+      actor,
+      "report.resolved",
+      "report",
+      report.id.toString,
+      Json.obj(
+        "bookmarkId" -> report.bookmarkId.toString,
+        "resolution" -> resolution,
+        "note" -> note,
+        "autoResolved" -> autoResolved
+      )
+    )
     logger.event(
       "info",
       "report_resolved",
@@ -921,8 +955,19 @@ class StackverseController @Inject() (
   private def hideBookmark(conn: Connection, actor: String, bookmarkId: UUID, note: Option[String]): Unit = {
     val bookmark = findBookmark(conn, bookmarkId).getOrElse(throw new NotFoundProblem)
     if (bookmark.status == "hidden") return
-    db.execute(conn, "update bookmarks set status = 'hidden', updated_at = ? where id = ?", Seq(Instant.now(), bookmarkId))
-    recordAudit(conn, actor, "bookmark.status-changed", "bookmark", bookmarkId.toString, Json.obj("from" -> "active", "to" -> "hidden", "note" -> note))
+    db.execute(
+      conn,
+      "update bookmarks set status = 'hidden', updated_at = ? where id = ?",
+      Seq(Instant.now(), bookmarkId)
+    )
+    recordAudit(
+      conn,
+      actor,
+      "bookmark.status-changed",
+      "bookmark",
+      bookmarkId.toString,
+      Json.obj("from" -> "active", "to" -> "hidden", "note" -> note)
+    )
     logger.event(
       "info",
       "bookmark_status_changed",
@@ -941,13 +986,14 @@ class StackverseController @Inject() (
       conn,
       s"select ($column at time zone 'UTC')::date::text as day, count(*) as count from $table where $column >= ? group by day",
       Seq(from)
-    )(rs => rs.getString("day") -> rs.getLong("count")).toMap
+    )(rs => rs.getString("day") -> rs.getLong("count"))
+      .toMap
 
   private def parseInstantParam(value: String, name: String): Instant =
     Try(Instant.parse(value)).getOrElse(throw new BadRequestProblem(s"$name must be an RFC 3339 date-time"))
 
   private def sqlState(error: Throwable): Option[String] = error match {
     case sql: SQLException => Option(sql.getSQLState).orElse(Option(sql.getCause).flatMap(sqlState))
-    case other => Option(other.getCause).flatMap(sqlState)
+    case other             => Option(other.getCause).flatMap(sqlState)
   }
 }

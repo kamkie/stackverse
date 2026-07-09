@@ -10,8 +10,8 @@ object Responses {
     "id" -> Some(JsString(row.id.toString)),
     "url" -> Some(JsString(row.url)),
     "title" -> Some(JsString(row.title)),
-    "notes" -> row.notes.map(JsString),
-    "tags" -> Some(JsArray(row.tags.map(JsString))),
+    "notes" -> row.notes.map(JsString.apply),
+    "tags" -> Some(JsArray(row.tags.map(JsString.apply))),
     "visibility" -> Some(JsString(row.visibility)),
     "status" -> Some(JsString(row.status)),
     "owner" -> Some(JsString(row.owner)),
@@ -24,7 +24,7 @@ object Responses {
     "key" -> Some(JsString(row.key)),
     "language" -> Some(JsString(row.language)),
     "text" -> Some(JsString(row.text)),
-    "description" -> row.description.map(JsString),
+    "description" -> row.description.map(JsString.apply),
     "createdAt" -> Some(instant(row.createdAt)),
     "updatedAt" -> Some(instant(row.updatedAt))
   )
@@ -34,12 +34,12 @@ object Responses {
     "bookmarkId" -> Some(JsString(row.bookmarkId.toString)),
     "reporter" -> Some(JsString(row.reporter)),
     "reason" -> Some(JsString(row.reason)),
-    "comment" -> row.comment.map(JsString),
+    "comment" -> row.comment.map(JsString.apply),
     "status" -> Some(JsString(row.status)),
     "createdAt" -> Some(instant(row.createdAt)),
-    "resolvedBy" -> row.resolvedBy.map(JsString),
+    "resolvedBy" -> row.resolvedBy.map(JsString.apply),
     "resolvedAt" -> row.resolvedAt.map(instant),
-    "resolutionNote" -> row.resolutionNote.map(JsString)
+    "resolutionNote" -> row.resolutionNote.map(JsString.apply)
   )
 
   def user(row: UserAccountRow): JsObject = obj(
@@ -47,7 +47,7 @@ object Responses {
     "firstSeen" -> Some(instant(row.firstSeen)),
     "lastSeen" -> Some(instant(row.lastSeen)),
     "status" -> Some(JsString(row.status)),
-    "blockedReason" -> row.blockedReason.map(JsString),
+    "blockedReason" -> row.blockedReason.map(JsString.apply),
     "bookmarkCount" -> Some(JsNumber(row.bookmarkCount))
   )
 
@@ -60,4 +60,10 @@ object Responses {
     "detail" -> row.detail,
     "createdAt" -> Some(instant(row.createdAt))
   )
+
+  given OWrites[BookmarkRow] = OWrites(bookmark)
+  given OWrites[MessageRow] = OWrites(message)
+  given OWrites[ReportRow] = OWrites(report)
+  given OWrites[UserAccountRow] = OWrites(user)
+  given OWrites[AuditRow] = OWrites(audit)
 }

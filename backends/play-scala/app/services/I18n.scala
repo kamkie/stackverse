@@ -13,7 +13,10 @@ class I18n @Inject() (db: Db) {
   def resolve(queryLang: Option[String], acceptLanguage: Option[String]): String =
     db.withConnection { conn =>
       val supported = db.query(conn, "select distinct language from messages")(rs => rs.getString("language")).toSet
-      queryLang.filter(supported.contains).orElse(parseAcceptLanguage(acceptLanguage).find(supported.contains)).getOrElse(DefaultLanguage)
+      queryLang
+        .filter(supported.contains)
+        .orElse(parseAcceptLanguage(acceptLanguage).find(supported.contains))
+        .getOrElse(DefaultLanguage)
     }
 
   def localize(key: String, language: String): String =
@@ -22,7 +25,8 @@ class I18n @Inject() (db: Db) {
         conn,
         "select text from messages where key = ? and language = any(?::text[]) order by case when language = ? then 0 else 1 end limit 1",
         Seq(key, Seq(language, DefaultLanguage).distinct, language)
-      )(_.getString("text")).getOrElse(key)
+      )(_.getString("text"))
+        .getOrElse(key)
     }
 
   def bundle(language: String): JsObject =
@@ -42,12 +46,19 @@ class I18n @Inject() (db: Db) {
     }
 
   private def parseAcceptLanguage(header: Option[String]): Seq[String] =
-    header.toSeq.flatMap(_.split(",").toSeq.zipWithIndex).flatMap { case (part, index) =>
-      val pieces = part.trim.split(";").map(_.trim)
-      val code = pieces.headOption.getOrElse("").toLowerCase.split("-").headOption.getOrElse("")
-      val q = pieces.drop(1).collectFirst {
-        case value if value.startsWith("q=") => Try(value.stripPrefix("q=").toDouble).getOrElse(0.0)
-      }.getOrElse(1.0)
-      if (code.matches("^[a-z]{1,8}$")) Some((code, q, index)) else None
-    }.sortBy { case (_, q, index) => (-q, index) }.map(_._1)
+    header.toSeq
+      .flatMap(_.split(",").toSeq.zipWithIndex)
+      .flatMap { case (part, index) =>
+        val pieces = part.trim.split(";").map(_.trim)
+        val code = pieces.headOption.getOrElse("").toLowerCase.split("-").headOption.getOrElse("")
+        val q = pieces
+          .drop(1)
+          .collectFirst {
+            case value if value.startsWith("q=") => Try(value.stripPrefix("q=").toDouble).getOrElse(0.0)
+          }
+          .getOrElse(1.0)
+        if (code.matches("^[a-z]{1,8}$")) Some((code, q, index)) else None
+      }
+      .sortBy { case (_, q, index) => (-q, index) }
+      .map(_._1)
 }

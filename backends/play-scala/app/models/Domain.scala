@@ -6,12 +6,18 @@ import java.time.Instant
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 
-class ApiProblem(val status: Int, val title: String, val detail: Option[String] = None, val detailKey: Option[String] = None)
-    extends RuntimeException(detail.getOrElse(title))
+class ApiProblem(
+    val status: Int,
+    val title: String,
+    val detail: Option[String] = None,
+    val detailKey: Option[String] = None
+) extends RuntimeException(detail.getOrElse(title))
 
 class NotFoundProblem extends ApiProblem(404, "Not Found")
-class UnauthorizedProblem(detail: String = "Authentication is required.") extends ApiProblem(401, "Unauthorized", Some(detail))
-class ForbiddenProblem(detail: String, key: Option[String] = None) extends ApiProblem(403, "Forbidden", Some(detail), key)
+class UnauthorizedProblem(detail: String = "Authentication is required.")
+    extends ApiProblem(401, "Unauthorized", Some(detail))
+class ForbiddenProblem(detail: String, key: Option[String] = None)
+    extends ApiProblem(403, "Forbidden", Some(detail), key)
 class ConflictProblem(detail: String, key: Option[String] = None) extends ApiProblem(409, "Conflict", Some(detail), key)
 class BadRequestProblem(detail: String) extends ApiProblem(400, "Bad Request", Some(detail))
 
