@@ -1,11 +1,15 @@
 package controllers
 
-import play.api.mvc.{Action, AnyContent}
-import services.StackverseActions
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
+import services.{ApiAction, AuthService}
 
 import javax.inject.{Inject, Singleton}
 
 @Singleton
-class IdentityController @Inject() (actions: StackverseActions) {
-  def me: Action[AnyContent] = actions.me
+class IdentityController @Inject() (cc: ControllerComponents, api: ApiAction, auth: AuthService)
+    extends AbstractController(cc) {
+
+  def me: Action[AnyContent] = api { implicit request =>
+    Ok(auth.me(auth.requireCaller(request)))
+  }
 }

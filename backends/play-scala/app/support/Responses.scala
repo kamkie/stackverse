@@ -6,7 +6,7 @@ import play.api.libs.json._
 object Responses {
   import Wire._
 
-  def bookmark(row: BookmarkRow): JsObject = obj(
+  private def bookmark(row: BookmarkRow): JsObject = obj(
     "id" -> Some(JsString(row.id.toString)),
     "url" -> Some(JsString(row.url)),
     "title" -> Some(JsString(row.title)),
@@ -19,7 +19,7 @@ object Responses {
     "updatedAt" -> Some(instant(row.updatedAt))
   )
 
-  def message(row: MessageRow): JsObject = obj(
+  private def message(row: MessageRow): JsObject = obj(
     "id" -> Some(JsString(row.id.toString)),
     "key" -> Some(JsString(row.key)),
     "language" -> Some(JsString(row.language)),
@@ -29,7 +29,7 @@ object Responses {
     "updatedAt" -> Some(instant(row.updatedAt))
   )
 
-  def report(row: ReportRow): JsObject = obj(
+  private def report(row: ReportRow): JsObject = obj(
     "id" -> Some(JsString(row.id.toString)),
     "bookmarkId" -> Some(JsString(row.bookmarkId.toString)),
     "reporter" -> Some(JsString(row.reporter)),
@@ -42,7 +42,7 @@ object Responses {
     "resolutionNote" -> row.resolutionNote.map(JsString.apply)
   )
 
-  def user(row: UserAccountRow): JsObject = obj(
+  private def user(row: UserAccountRow): JsObject = obj(
     "username" -> Some(JsString(row.username)),
     "firstSeen" -> Some(instant(row.firstSeen)),
     "lastSeen" -> Some(instant(row.lastSeen)),
@@ -51,7 +51,7 @@ object Responses {
     "bookmarkCount" -> Some(JsNumber(row.bookmarkCount))
   )
 
-  def audit(row: AuditRow): JsObject = obj(
+  private def audit(row: AuditRow): JsObject = obj(
     "id" -> Some(JsString(row.id.toString)),
     "actor" -> Some(JsString(row.actor)),
     "action" -> Some(JsString(row.action)),

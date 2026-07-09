@@ -1,7 +1,9 @@
 package controllers
 
 import config.BackendConfig
+import models.BadRequestProblem
 import modules.StackverseModule
+import org.apache.pekko.stream.Materializer
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -10,9 +12,11 @@ import play.api.Application
 import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.Json
+import play.api.mvc.{AnyContent, Request, Results}
 import play.api.test.FakeRequest
 import play.api.test.Helpers.*
 import repositories.Db
+import services.ApiAction
 
 import java.nio.file.Paths
 
@@ -36,6 +40,44 @@ class ApplicationSpec extends AnyWordSpec with Matchers with GuiceOneAppPerSuite
       route(app, FakeRequest(GET, "/api/v1/bookmarks")).isDefined.shouldBe(true)
       route(app, FakeRequest(GET, "/api/v1/messages")).isDefined.shouldBe(true)
       route(app, FakeRequest(GET, "/api/v1/admin/stats")).isDefined.shouldBe(true)
+    }
+
+    "keep feature actions in focused controllers without a residual god service" in {
+      val controllers = Seq(
+        classOf[IdentityController],
+        classOf[BookmarkController],
+        classOf[MessageController],
+        classOf[ModerationController],
+        classOf[AdminController]
+      )
+
+      controllers.foreach { controller =>
+        val dependencies = controller.getConstructors.flatMap(_.getParameterTypes)
+        dependencies.should(contain(classOf[ApiAction]))
+        dependencies.map(_.getName).exists(_.endsWith("StackverseActions")).shouldBe(false)
+      }
+      a[ClassNotFoundException].shouldBe(thrownBy(Class.forName("services.StackverseActions")))
+    }
+
+    "translate controller failures through the Play API action boundary" in {
+      given Materializer = app.materializer
+      val api = app.injector.instanceOf[ApiAction]
+      val action = api((_: Request[AnyContent]) => throw new BadRequestProblem("synthetic boundary failure"))
+      val response = call(action, FakeRequest(GET, "/test-boundary"))
+
+      status(response).shouldBe(BAD_REQUEST)
+      contentType(response).shouldBe(Some("application/problem+json"))
+      (contentAsJson(response) \ "title").as[String].shouldBe("Bad Request")
+      (contentAsJson(response) \ "detail").as[String].shouldBe("synthetic boundary failure")
+    }
+
+    "offload controller blocks through the database dispatcher" in {
+      given Materializer = app.materializer
+      val api = app.injector.instanceOf[ApiAction]
+      val action = api((_: Request[AnyContent]) => Results.Ok(Json.obj("thread" -> Thread.currentThread().getName)))
+      val response = call(action, FakeRequest(GET, "/test-dispatcher"))
+
+      (contentAsJson(response) \ "thread").as[String].should(include("database-dispatcher"))
     }
   }
 

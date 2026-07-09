@@ -9,6 +9,7 @@ import play.api.mvc.Result
 import play.api.test.FakeRequest
 import repositories.Rows
 import services.{AuthService, EventLogger}
+import support.Responses.given
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
@@ -173,7 +174,7 @@ class StackverseHelpersSpec extends AnyFunSuite {
       createdAt = fixedInstant,
       updatedAt = fixedInstant
     )
-    val bookmarkJson = Responses.bookmark(bookmark)
+    val bookmarkJson = Json.toJson(bookmark)
 
     assert((bookmarkJson \ "notes").toOption.isEmpty)
     assert((bookmarkJson \ "tags").as[Seq[String]] == Seq("scala", "play"))
@@ -191,12 +192,12 @@ class StackverseHelpersSpec extends AnyFunSuite {
       resolutionNote = None,
       createdAt = fixedInstant
     )
-    val reportJson = Responses.report(report)
+    val reportJson = Json.toJson(report)
 
     assert((reportJson \ "comment").toOption.isEmpty)
     assert((reportJson \ "resolvedBy").toOption.isEmpty)
     assert(
-      (Responses.report(
+      (Json.toJson(
         report.copy(status = "actioned", resolvedBy = Some("mod"), resolvedAt = Some(fixedInstant))
       ) \ "resolvedBy").as[String] == "mod"
     )

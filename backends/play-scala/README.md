@@ -49,20 +49,23 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
   line and its `org.playframework` sbt plugin, with no Akka runtime dependency.
 - **Focused injected controllers** — `conf/routes` maps health, identity, bookmark,
   message, moderation, and admin resources to separate Guice-constructed
-  controllers. They delegate action execution to `StackverseActions`, while
-  configuration, persistence, authentication, i18n, input codecs, and wire codecs
-  remain separate collaborators under their conventional `app/*` packages.
+  controllers. Each controller owns its feature's endpoint orchestration and SQL,
+  while configuration, authentication, i18n, input codecs, wire codecs, and
+  cross-cutting action/audit concerns remain focused collaborators under their
+  conventional `app/*` packages.
 - **Typed Play JSON boundaries** — request case classes have contract-aware `Reads`
-  that retain localized RFC 9457 message keys, and row case classes expose typed
-  `OWrites` while continuing to omit absent optional fields.
+  that retain localized RFC 9457 message keys. Production controller results use
+  row `OWrites`, which continue to omit absent optional fields.
 - **Environment-owned configuration** — `PORT`, `DB_*`, `OIDC_*`, `LOG_*`, and
   `SEED_MESSAGES_DIR` are read from the environment; Play's config file only wires
   the framework.
 - **Guice-owned component wiring** — configuration, logging, database access,
-  i18n, auth, startup, and controllers are constructor-injected components rather
-  than a hand-built singleton graph.
-- **Dedicated JDBC dispatcher** — controller actions use `Action.async` and run the
-  blocking JDBC work on the bounded `database-dispatcher`, sized to the Hikari pool.
+  i18n, auth, startup, the `ApiAction` action builder, audit recording, and
+  controllers are constructor-injected components rather than a hand-built
+  singleton graph.
+- **Play-native action boundary** — controllers build actions through an injected
+  `ActionBuilder` that centralizes localized RFC 9457 recovery and runs blocking
+  JDBC work on the bounded `database-dispatcher`, sized to the Hikari pool.
 - **PostgreSQL arrays for tags** — `tags text[]` with a GIN index, matching the
   thin SQL variants and keeping tag filtering as array containment.
 - **Flyway-owned schema** — migrations live under this implementation and run on
@@ -73,17 +76,18 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
   otherwise from OIDC discovery. The expected issuer remains `OIDC_ISSUER_URI`,
   and identity is always `preferred_username`.
 - **ScalaTestPlusPlay application testing** — Guice application tests compile the
-  route graph and exercise the focused health controller without requiring a
-  database; focused unit tests cover codecs and SQL/wire helpers.
+  route graph, reject a residual all-feature action service, and exercise the
+  shared API error boundary without requiring a database; focused unit tests cover
+  codecs and SQL/wire helpers.
 - **Warnings and formatting as gates** — compilation uses `-Werror`, and scalafmt is
   checked locally and in the component workflow.
 
 ## Deliberate deviations worth comparing
 
-- The focused controllers intentionally stay as route adapters; the shared
-  `StackverseActions` service owns the action/error boundary so localized problem
-  handling and JDBC dispatcher offloading are defined once. Persistence remains
-  grouped in a thin raw-JDBC repository rather than adopting Slick or Anorm.
+- Feature controllers intentionally use the thin raw-JDBC `Db` helper rather than
+  adopting Slick or Anorm. The shared `ApiAction` owns only Play action/error
+  mechanics and dispatcher offloading; feature orchestration stays in the owning
+  controller.
 - `LOG_FORMAT=json` controls Stackverse contract events emitted by the application
   logger. Play framework startup lines remain framework-owned console output.
 - OpenTelemetry log export uses the Java SDK autoconfiguration path and is active

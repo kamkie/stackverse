@@ -21,6 +21,15 @@ object Wire {
   def obj(fields: (String, Option[JsValue])*): JsObject =
     JsObject(fields.collect { case (key, Some(value)) => key -> value })
 
+  def page(items: Seq[JsValue], page: Int, size: Int, totalItems: Long): JsObject =
+    Json.obj(
+      "items" -> items,
+      "page" -> page,
+      "size" -> size,
+      "totalItems" -> totalItems,
+      "totalPages" -> math.ceil(totalItems.toDouble / size.toDouble).toInt
+    )
+
   def problem(status: Int, title: String, detail: Option[String] = None, errors: Option[Seq[JsObject]] = None): Result =
     Results
       .Status(status)(
