@@ -14,16 +14,20 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 These are concrete current-version exceptions found by the 2026-07 review. They are
 listed separately because dependency freshness is not otherwise scored as a full
-per-variant table in this document.
+per-variant table in this document. Update or remove each bullet when its tracking
+issue closes.
 
 - 🔴 **Play Scala** uses Play 2.9 even though Play 3 is the current stable line and
-  avoids Play 2.9's default EOL Akka 2.6 runtime by moving to Apache Pekko.
+  avoids Play 2.9's default EOL Akka 2.6 runtime by moving to Apache Pekko
+  ([#336](https://github.com/kamkie/stackverse/issues/336)).
 - 🔴 **Scala http4s** pins the commit-style Cats Effect build `3.7-4972921`
-  instead of a normal stable release.
+  instead of a normal stable release
+  ([#337](https://github.com/kamkie/stackverse/issues/337)).
 - 🟡 **Qwik** type-checks against local Qwik declaration shims because the current
   Qwik/TypeScript combination is incompatible. The workaround is documented in the
   variant README, but it weakens the value of the typecheck until compatible real
-  package declarations are used.
+  package declarations are used
+  ([#342](https://github.com/kamkie/stackverse/issues/342)).
 
 ## Backends
 
@@ -46,10 +50,10 @@ per-variant table in this document.
 | [PHP Laravel](../backends/php-laravel/README.md) | Standard Laravel app layout: routes, Http middleware/controllers, providers, database/migrations | API-only Laravel layout with routes/api.php, controllers, services, support helpers, and migrations | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | APIRouter per resource module, routers included on the app | `routers/` APIRouter modules by resource area, included from app setup | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Django project + app layout, urls.py route table, models/migrations in the app | `stackverse_django` project plus `stackverse_api` app with models, migrations, DRF views, and helpers | ✅ idiomatic |
-| [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Conventional directories, but all endpoints remain in one 953-line StackverseController | 🟡 deliberate |
-| [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Standard sbt layout, but config, wiring, auth, routes, DB, wire helpers, and logging share one 1,754-line Main.scala | 🔴 undocumented |
-| [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Maven layout; thin JAX-RS resources delegate the entire application to one 2,043-line StackverseService | 🔴 undocumented |
-| [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one 2,769-line handlers.rs | 🔴 undocumented |
+| [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Conventional directories, but all endpoints remain in one ~953-line StackverseController | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Standard sbt layout, but config, wiring, auth, routes, DB, wire helpers, and logging share one ~1,754-line Main.scala | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Maven layout; thin JAX-RS resources delegate the entire application to one ~2,043-line StackverseService | 🔴 undocumented |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one ~2,769-line handlers.rs | 🔴 undocumented |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails API app with app/controllers, app/models, app/services, config/routes.rb | Standard Rails API layout; controllers plus contract-heavy services under app/services/stackverse | ✅ idiomatic |
 
 ### Persistence / data access
@@ -409,7 +413,7 @@ per-variant table in this document.
 | [SolidJS](../frontends/solid/README.md) | Fine-grained signals/memos for local and shared state; context only when needed | Component and module-level `createSignal`/`createMemo`, no global store | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | $state/$derived/$effect for component state; stores retained for shared route/session/i18n state | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Plain mutable object; manual re-render, no reactive runtime | Single `state` object, full renderApp() re-render on every change | ✅ idiomatic |
-| [Vue 3](../frontends/vue/README.md) | Composition API refs; a simple module-scope reactive store is valid at this scale, with Pinia preferred as complexity grows | Module-level refs with mutations centralized in named actions; no arbitrary component mutation | ✅ idiomatic |
+| [Vue 3](../frontends/vue/README.md) | Composition API refs; module-scope reactive store for simple cases or Pinia for shared state | Module-level refs with mutations centralized in named actions; no arbitrary component mutation | ✅ idiomatic |
 
 ### Routing
 
@@ -456,11 +460,11 @@ per-variant table in this document.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, lib modules, and an app entry | Vite SPA layout: `src/main.ts` custom-element shell plus api/i18n/types/dev modules | ✅ idiomatic |
+| [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, lib modules, and an app entry | api/i18n/types/dev helpers are split out, but the component shell, rendering, routing, state, and forms remain in one ~1,688-line main.ts | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
-| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | api/i18n/types/dev helpers are split out, but rendering, routing, state, and forms remain in one 1,657-line main.ts | 🔴 undocumented |
+| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | api/i18n/types/dev helpers are split out, but rendering, routing, state, and forms remain in one ~1,657-line main.ts | 🟡 deliberate |
 | [Vue 3](../frontends/vue/README.md) | src/ with components, views/pages, router, composables | src/ with components, pages, api, i18n, mocks, dev, test | ✅ idiomatic |
 
 ### Testing
