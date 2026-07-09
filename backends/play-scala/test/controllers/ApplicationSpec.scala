@@ -16,11 +16,7 @@ import repositories.Db
 
 import java.nio.file.Paths
 
-class ApplicationSpec
-    extends AnyWordSpec
-    with Matchers
-    with GuiceOneAppPerSuite
-    with BeforeAndAfterAll {
+class ApplicationSpec extends AnyWordSpec with Matchers with GuiceOneAppPerSuite with BeforeAndAfterAll {
 
   override def fakeApplication(): Application =
     new GuiceApplicationBuilder()

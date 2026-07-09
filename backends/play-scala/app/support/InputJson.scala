@@ -194,7 +194,7 @@ object InputJson {
     val json = request.body.asJson.getOrElse(Json.obj())
     json.validate[A] match {
       case JsSuccess(value, _) => value
-      case JsError(errors) =>
+      case JsError(errors)     =>
         val violations = errors.flatMap { case (_, validationErrors) =>
           validationErrors.map { error =>
             val field = error.args.headOption.map(_.toString).getOrElse("body")
