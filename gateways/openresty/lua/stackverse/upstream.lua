@@ -1,17 +1,23 @@
 local logging = require("stackverse.logging")
 local problem = require("stackverse.problem")
+local telemetry = require("stackverse.telemetry")
 
 local _M = {}
 
 local function duration_ms()
-  local started = ngx.ctx.stackverse_upstream_started
-  if not started then
-    return 0
+  local last
+  for value in tostring(ngx.var.upstream_response_time or ""):gmatch("%d+%.?%d*") do
+    last = tonumber(value)
   end
-  return math.max(0, math.floor((ngx.now() - started) * 1000))
+  return last and math.max(0, math.floor(last * 1000)) or 0
 end
 
 local function log_failure(dependency)
+  local traceparent = ngx.var.stackverse_traceparent
+  if not traceparent or traceparent == "" then
+    traceparent = ngx.var.stackverse_frontend_traceparent
+  end
+  telemetry.capture_traceparent(traceparent)
   logging.event("error", "dependency_call_failed", "failure", dependency .. " upstream request failed", {
     dependency = dependency,
     duration_ms = duration_ms(),

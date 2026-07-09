@@ -11,6 +11,8 @@ RUN apt-get update \
 WORKDIR /opt/stackverse
 
 COPY conf/nginx.conf.template /etc/nginx/templates/stackverse.conf.template
+COPY conf/api-proxy.conf /etc/nginx/templates/api-proxy.conf
+COPY conf/csrf-access.conf /etc/nginx/templates/csrf-access.conf
 COPY conf/proxy-common.conf /etc/nginx/templates/proxy-common.conf
 COPY .luacheckrc /opt/stackverse/.luacheckrc
 COPY lua /opt/stackverse/lua

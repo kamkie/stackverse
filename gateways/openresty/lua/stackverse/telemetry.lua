@@ -27,12 +27,20 @@ local function otel_disabled(config)
   return true
 end
 
+function _M.capture_traceparent(value)
+  if not valid_traceparent(value) then
+    return nil
+  end
+  ngx.ctx.stackverse_trace_id = value:sub(4, 35)
+  ngx.ctx.stackverse_span_id = value:sub(37, 52)
+  return value
+end
+
 function _M.ensure_traceparent(headers, config)
   local incoming = headers["traceparent"] or headers["Traceparent"]
-  if valid_traceparent(incoming) then
-    ngx.ctx.stackverse_trace_id = incoming:sub(4, 35)
-    ngx.ctx.stackverse_span_id = incoming:sub(37, 52)
-    return incoming
+  local captured = _M.capture_traceparent(incoming)
+  if captured then
+    return captured
   end
 
   if otel_disabled(config) then

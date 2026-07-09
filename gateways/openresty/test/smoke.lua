@@ -484,33 +484,47 @@ local function test_token_refresh_paths()
   end)
 end
 
-local function test_native_proxy_configuration_and_failures()
-  local template_path = os.getenv("STACKVERSE_NGINX_TEMPLATE") or "/etc/nginx/templates/stackverse.conf.template"
-  local common_path = os.getenv("STACKVERSE_PROXY_COMMON") or "/etc/nginx/templates/proxy-common.conf"
-  local template_file = assert(io.open(template_path, "rb"))
-  local template = template_file:read("*a")
-  template_file:close()
-  local common_file = assert(io.open(common_path, "rb"))
-  local common = common_file:read("*a")
-  common_file:close()
+local function test_upstream_failure_handlers()
+  local events = {}
+  local captured_traceparent
+  with_modules({
+    ["stackverse.logging"] = {
+      event = function(level, event, outcome, message, attrs)
+        events[#events + 1] = { level, event, outcome, message, attrs }
+      end,
+    },
+    ["stackverse.telemetry"] = {
+      capture_traceparent = function(value)
+        captured_traceparent = value
+      end,
+    },
+  }, { "stackverse.upstream" }, function()
+    local upstream = require("stackverse.upstream")
+    local traceparent = "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+    local _, body = set_ngx({
+      var = {
+        stackverse_traceparent = traceparent,
+        upstream_response_time = "0.010, 1.125",
+      },
+    })
+    assert_equal(upstream.api_failure(), 502)
+    assert_equal(assert(cjson.decode(body())).title, "Bad Gateway")
+    assert_equal(captured_traceparent, traceparent)
+    assert_equal(events[1][2], "dependency_call_failed")
+    assert_equal(events[1][5].duration_ms, 1125)
 
-  assert_match(template, 'require%("stackverse.api"%)%.prepare%(%)')
-  assert_match(template, 'proxy_pass %$stackverse_backend_url;')
-  assert_match(template, 'proxy_pass %$stackverse_frontend_url;')
-  assert_match(common, "proxy_request_buffering off;")
-  assert_match(common, "proxy_buffering off;")
-  assert_match(common, 'proxy_set_header Cookie "";')
-  assert_match(common, 'proxy_set_header X%-XSRF%-TOKEN "";')
-
-  local upstream = require("stackverse.upstream")
-  local _, body = set_ngx({ ctx = { stackverse_upstream_started = 999 } })
-  assert_equal(upstream.api_failure(), 502)
-  assert_equal(assert(cjson.decode(body())).title, "Bad Gateway")
-
-  _, body = set_ngx({ ctx = { stackverse_upstream_started = 999 } })
-  assert_equal(upstream.frontend_failure(), 502)
-  assert_equal(ngx.header["Content-Type"], "text/plain; charset=utf-8")
-  assert_equal(body(), "The upstream service is unavailable.")
+    _, body = set_ngx({
+      var = {
+        stackverse_frontend_traceparent = traceparent,
+        stackverse_traceparent = "",
+        upstream_response_time = "-",
+      },
+    })
+    assert_equal(upstream.frontend_failure(), 502)
+    assert_equal(ngx.header["Content-Type"], "text/plain; charset=utf-8")
+    assert_equal(body(), "The upstream service is unavailable.")
+    assert_equal(events[2][5].duration_ms, 0)
+  end)
 end
 
 local function write_file(path, body)
@@ -893,7 +907,7 @@ test_security_contract_checks()
 test_logging_and_telemetry()
 test_readyz_module()
 test_token_refresh_paths()
-test_native_proxy_configuration_and_failures()
+test_upstream_failure_handlers()
 test_spa_static_and_proxy_modes()
 test_api_session_and_csrf_decisions()
 test_auth_session_logout_and_callback_paths()

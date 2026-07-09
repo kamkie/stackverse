@@ -1,5 +1,6 @@
 local config = require("stackverse.config")
 local problem = require("stackverse.problem")
+local telemetry = require("stackverse.telemetry")
 
 local _M = {}
 
@@ -79,9 +80,10 @@ end
 function _M.prepare()
   local cfg = config.load()
   if cfg.frontend_url then
+    local traceparent = telemetry.ensure_traceparent(ngx.req.get_headers(0), cfg)
     ngx.var.stackverse_frontend_url = config.join_url(cfg.frontend_url, ngx.var.request_uri)
     ngx.var.stackverse_frontend_host = cfg.frontend_host
-    ngx.ctx.stackverse_upstream_started = ngx.now()
+    ngx.var.stackverse_frontend_traceparent = traceparent or ""
     return
   end
   return ngx.exec("@spa_static")

@@ -107,7 +107,6 @@ function _M.prepare()
   ngx.var.stackverse_backend_host = cfg.backend_host
   ngx.var.stackverse_authorization = access_token and ("Bearer " .. access_token) or ""
   ngx.var.stackverse_traceparent = traceparent or ""
-  ngx.ctx.stackverse_upstream_started = ngx.now()
 end
 
 return _M

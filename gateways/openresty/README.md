@@ -41,9 +41,10 @@ Route contract, cookie rules, and the login sequence live in
   sanitized upstream URL, host, authorization, and trace variables. nginx's
   `proxy_pass` sends request bodies and responses with buffering disabled, so
   application Lua never reads, stores, or re-emits normal proxied bodies.
-  Native proxy handling retains nginx backpressure, connection reuse, and
-  hop-by-hop behavior. nginx-generated upstream failures enter small Lua error
-  handlers so API failures remain RFC 9457 problem documents.
+  Native proxy handling retains nginx backpressure and hop-by-hop behavior;
+  upstream TLS uses SNI plus system-CA certificate verification. nginx-generated
+  upstream failures enter small Lua error handlers so API failures remain RFC
+  9457 problem documents.
 - **CSRF and same-origin boundary.** State-changing `/api/**` requests require
   the readable `XSRF-TOKEN` cookie to match `X-XSRF-TOKEN`, and browser
   `Origin` / `Sec-Fetch-Site` signals must match `PUBLIC_URL`.
@@ -107,8 +108,10 @@ GATEWAY_IMAGE=stackverse/gateway-openresty:local docker compose --profile app up
 ## Test
 
 The component check builds the image, runs `luacheck`, validates the rendered
-OpenResty config, runs Busted specs for the native proxy configuration, and
-runs the Lua contract smoke suite with coverage inside the image.
+OpenResty config, curls through live gateway/upstream containers to exercise
+native forwarding and header policy, runs Busted specs for the proxy
+configuration, and runs the Lua contract smoke suite with coverage inside the
+image.
 
 ```sh
 docker build -t stackverse/gateway-openresty:local .
@@ -120,9 +123,11 @@ docker run --rm stackverse/gateway-openresty:local resty -I /opt/stackverse/lua 
 
 The focused Busted suite verifies that gateway policy stays in the access
 phase, normal upstream traffic uses native `proxy_pass`, request/response
-buffering is disabled, and browser credentials are stripped. The broader
-smoke harness keeps the contract decision matrix fast and deterministic with
-mocked Redis, OIDC, and nginx request state.
+buffering is disabled, upstream TLS is verified, and browser credentials are
+stripped. The live container check verifies request-body forwarding, selective
+request/response headers, the bare `/api` route, trace propagation, and frontend
+upgrade handling. The broader smoke harness keeps the contract decision matrix
+fast and deterministic with mocked Redis, OIDC, and nginx request state.
 
 ## Docker
 
