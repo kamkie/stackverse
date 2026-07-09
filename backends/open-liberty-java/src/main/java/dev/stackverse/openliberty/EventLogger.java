@@ -47,9 +47,28 @@ public class EventLogger {
             String message,
             Throwable throwable,
             Map<String, ?> fields) {
+        failure("error", event, outcome, message, throwable, fields);
+    }
+
+    void fatal(
+            String event,
+            String outcome,
+            String message,
+            Throwable throwable,
+            Map<String, ?> fields) {
+        failure("fatal", event, outcome, message, throwable, fields);
+    }
+
+    private void failure(
+            String level,
+            String event,
+            String outcome,
+            String message,
+            Throwable throwable,
+            Map<String, ?> fields) {
         Map<String, Object> withError = new LinkedHashMap<>(fields);
         withError.put("stack_trace", stackTrace(throwable));
-        event("error", event, outcome, message, withError);
+        event(level, event, outcome, message, withError);
     }
 
     void dependencyFailure(String dependency, Throwable throwable, long durationMs) {

@@ -75,7 +75,7 @@ public class RuntimeSupport {
             if (EventLogger.causedBySqlFailure(ex)) {
                 log.dependencyFailure("postgres", ex, durationMs);
             }
-            log.error(
+            log.fatal(
                     "application_start",
                     "failure",
                     "Stackverse Open Liberty backend failed to start",
