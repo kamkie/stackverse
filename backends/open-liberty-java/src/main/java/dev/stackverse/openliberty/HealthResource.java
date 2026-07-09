@@ -13,6 +13,7 @@ import java.sql.SQLException;
 @RequestScoped
 public class HealthResource {
     @Inject JdbcRepository runtime;
+    @Inject EventLogger log;
 
     @GET
     @Path("healthz")
@@ -23,12 +24,18 @@ public class HealthResource {
     @GET
     @Path("readyz")
     public Response readyz() {
+        return databaseReady() ? Response.ok().build() : Response.status(503).build();
+    }
+
+    boolean databaseReady() {
+        long startedAt = System.nanoTime();
         try (Connection connection = runtime.connection();
                 PreparedStatement statement = connection.prepareStatement("select 1")) {
             statement.execute();
-            return Response.ok().build();
-        } catch (SQLException ex) {
-            return Response.status(503).build();
+            return true;
+        } catch (SQLException | RuntimeException ex) {
+            log.dependencyFailure("postgres", ex, EventLogger.elapsedMillis(startedAt));
+            return false;
         }
     }
 }

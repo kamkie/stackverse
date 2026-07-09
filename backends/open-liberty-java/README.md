@@ -128,7 +128,7 @@ Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
 | dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |
 
 ¹ JWT discovery/JWKS traffic belongs to Open Liberty's MicroProfile JWT
-facility rather than an application-owned dependency client. Database startup
-failures fail the app before listening; readiness checks expose database
-availability through `/readyz`. There are no retry loops, so
-`retry_exhausted` has no occurrence to log.
+facility rather than an application-owned dependency client. Database startup,
+readiness, and request failures emit `dependency_call_failed` with latency and a
+stable error code. There are no retry loops, so `retry_exhausted` has no
+occurrence to log.

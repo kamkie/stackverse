@@ -6,6 +6,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.Initialized;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,10 +37,17 @@ public class RuntimeSupport {
 
     private HikariDataSource dataSource;
 
+    /** Forces this normal-scoped bean to initialize while CDI starts the application context. */
+    void onApplicationStart(@Observes @Initialized(ApplicationScoped.class) Object event) {
+        // Receiving the observer requires CDI to create this bean, so @PostConstruct has completed.
+    }
+
     @PostConstruct
     void start() {
-        HikariDataSource candidate = createDataSource();
+        long startedAt = System.nanoTime();
+        HikariDataSource candidate = null;
         try {
+            candidate = createDataSource();
             dataSource = candidate;
             Flyway.configure()
                     .dataSource(dataSource)
@@ -62,7 +71,19 @@ public class RuntimeSupport {
                             "db_host", config.dbHost(),
                             "oidc_issuer_uri", config.issuerUri()));
         } catch (RuntimeException | Error ex) {
-            candidate.close();
+            long durationMs = EventLogger.elapsedMillis(startedAt);
+            if (EventLogger.causedBySqlFailure(ex)) {
+                log.dependencyFailure("postgres", ex, durationMs);
+            }
+            log.error(
+                    "application_start",
+                    "failure",
+                    "Stackverse Open Liberty backend failed to start",
+                    ex,
+                    Map.of("duration_ms", durationMs, "error_code", EventLogger.errorCode(ex)));
+            if (candidate != null) {
+                candidate.close();
+            }
             dataSource = null;
             throw ex;
         }

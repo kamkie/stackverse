@@ -6,8 +6,10 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /** Stackverse structured-event logger with CDI-managed configuration. */
@@ -48,6 +50,42 @@ public class EventLogger {
         Map<String, Object> withError = new LinkedHashMap<>(fields);
         withError.put("stack_trace", stackTrace(throwable));
         event("error", event, outcome, message, withError);
+    }
+
+    void dependencyFailure(String dependency, Throwable throwable, long durationMs) {
+        error(
+                "dependency_call_failed",
+                "failure",
+                "Dependency call failed",
+                throwable,
+                Map.of(
+                        "dependency", dependency,
+                        "duration_ms", durationMs,
+                        "error_code", errorCode(throwable)));
+    }
+
+    static boolean causedBySqlFailure(Throwable throwable) {
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if (current instanceof SQLException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static String errorCode(Throwable throwable) {
+        Throwable root = throwable;
+        while (root.getCause() != null) {
+            root = root.getCause();
+        }
+        if (root instanceof SQLException sql && sql.getSQLState() != null) {
+            return "sqlstate_" + sql.getSQLState().toLowerCase(Locale.ROOT);
+        }
+        return root.getClass().getSimpleName().toLowerCase(Locale.ROOT);
+    }
+
+    static long elapsedMillis(long startedAtNanos) {
+        return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L);
     }
 
     private boolean enabled(String level) {

@@ -87,12 +87,16 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
                             null,
                             null));
         }
-        log.error(
-                "request_failed",
-                "failure",
-                "Unhandled request failure",
-                ex,
-                Map.of("error_code", ex.getClass().getSimpleName()));
+        if (EventLogger.causedBySqlFailure(ex)) {
+            log.dependencyFailure("postgres", ex, RequestTimingFilter.elapsedMillis(request));
+        } else {
+            log.error(
+                    "request_failed",
+                    "failure",
+                    "Unhandled request failure",
+                    ex,
+                    Map.of("error_code", EventLogger.errorCode(ex)));
+        }
         return withRouteHeaders(
                 JsonSupport.problem(
                         500, "Internal Server Error", "Unexpected server error.", null));
