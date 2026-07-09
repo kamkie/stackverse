@@ -3,7 +3,7 @@ module github.com/kamkie/stackverse/gateways/go
 go 1.26.4
 
 require (
-	github.com/coreos/go-oidc/v3 v3.19.0
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/redis/go-redis/v9 v9.21.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.19.0
