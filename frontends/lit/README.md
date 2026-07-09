@@ -11,9 +11,12 @@ this app has no stylesheets of its own.
 
 ```sh
 yarn install
-yarn dev       # dev server on :5173, /api and /auth proxied to a gateway on :8000
-yarn test      # vitest unit tests
-yarn build     # type-check + static production bundle in dist/
+yarn dev              # dev server on :5173, /api and /auth proxied to a gateway on :8000
+yarn lint             # ESLint with Lit, Web Components, and TypeScript rules
+yarn format:check     # verify Prettier formatting
+yarn test             # Vitest helper and Open WC fixture-based component tests
+yarn build            # type-check + static production bundle in dist/
+yarn check            # lint + format + typecheck + tests + production build
 ```
 
 Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
@@ -31,15 +34,17 @@ contract.
   shared design is a global stylesheet that every frontend consumes verbatim.
   This variant renders into light DOM so `spec/design/*.css` remains the single
   source of visual truth.
-- **Route-level template helpers.** The app keeps a single custom-element shell
-  plus local route/form template helpers instead of one custom element per card,
-  dialog, and table row. That keeps the cross-stack markup easy to compare and
-  avoids duplicating the shared design inside shadow roots.
+- **Focused light-DOM modules.** `main.ts` only composes the shared CSS and app
+  element. State, navigation, view primitives, bookmark pages/cards, admin pages,
+  dialogs, and the Lit shell/controller live in focused modules. They retain
+  delegated actions and light-DOM markup so the shared stylesheet stays byte-for-byte
+  authoritative without turning every small template into a custom element.
 - **Hand-written API types.** Generated OpenAPI types are common in larger Lit
   apps. This variant keeps the frontend self-contained by transcribing the small
   Stackverse contract into `src/types.ts`; the OpenAPI spec remains canonical.
-- **No formatter/linter toolchain.** As with several other frontend siblings,
-  strict TypeScript plus the build/test workflow is the static gate for now.
+- **Canonical tooling.** ESLint applies the Lit and Web Components recommended
+  rules alongside TypeScript, Prettier enforces formatting, and Open WC's testing
+  helpers mount the real custom element in light DOM.
 
 ## Dev action log
 
@@ -64,20 +69,20 @@ and none of this ships in the production bundle.
 Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
 `❌` rows are this implementation's agreed, visible backlog.
 
-| Requirement | Status |
-|---|---|
-| stdout-only logging | n/a |
-| OTLP log export behind `OTEL_SDK_DISABLED` | n/a |
-| lifecycle events at `INFO` | n/a |
-| expected 4xx not logged as errors | n/a |
-| secrets kept out of logs | ✅ |
-| `LOG_LEVEL` honored | n/a |
-| trace id on console lines when tracing on | n/a |
-| stable `event` names (§5: lifecycle, session, security, moderation) | n/a |
-| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | n/a |
-| JSON console by default (`LOG_FORMAT`) | n/a |
-| dev-only console forwarding, sanitized | ✅ |
-| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅ |
+| Requirement                                                                | Status |
+| -------------------------------------------------------------------------- | ------ |
+| stdout-only logging                                                        | n/a    |
+| OTLP log export behind `OTEL_SDK_DISABLED`                                 | n/a    |
+| lifecycle events at `INFO`                                                 | n/a    |
+| expected 4xx not logged as errors                                          | n/a    |
+| secrets kept out of logs                                                   | ✅     |
+| `LOG_LEVEL` honored                                                        | n/a    |
+| trace id on console lines when tracing on                                  | n/a    |
+| stable `event` names (§5: lifecycle, session, security, moderation)        | n/a    |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`)        | n/a    |
+| JSON console by default (`LOG_FORMAT`)                                     | n/a    |
+| dev-only console forwarding, sanitized                                     | ✅     |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅     |
 
 ## API types are hand-written from the contract
 

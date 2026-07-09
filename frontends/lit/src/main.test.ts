@@ -1,13 +1,14 @@
+import { fixture } from "@open-wc/testing-helpers";
+import { html } from "lit";
+
 describe("stackverse-app custom element", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    document.body.innerHTML = "";
     localStorage.clear();
     sessionStorage.clear();
   });
 
   it("renders the app shell in light DOM", async () => {
-    document.body.innerHTML = "<stackverse-app></stackverse-app>";
     vi.spyOn(console, "debug").mockImplementation(() => undefined);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -43,8 +44,9 @@ describe("stackverse-app custom element", () => {
     });
 
     await import("./main");
-
-    const host = document.querySelector("stackverse-app");
+    const host = await fixture<HTMLElement>(
+      html`<stackverse-app></stackverse-app>`,
+    );
     expect(host?.shadowRoot).toBeNull();
     await vi.waitFor(() => {
       expect(host?.querySelector(".sv-app")).not.toBeNull();

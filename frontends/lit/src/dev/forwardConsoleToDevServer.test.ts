@@ -26,7 +26,9 @@ describe("forwardConsoleToDevServer", () => {
     forwardConsoleToDevServer();
     console.warn("first line\nsecond line", { ok: true });
 
-    expect(originalWarn).toHaveBeenCalledWith("first line\nsecond line", { ok: true });
+    expect(originalWarn).toHaveBeenCalledWith("first line\nsecond line", {
+      ok: true,
+    });
     await vi.advanceTimersByTimeAsync(120);
 
     expect(fetchMock).toHaveBeenCalledWith("/__client-log", {
@@ -52,14 +54,18 @@ describe("forwardConsoleToDevServer", () => {
   it("describes errors and ignores forwarding failures", async () => {
     vi.useFakeTimers();
     console.error = vi.fn();
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockRejectedValue(new Error("offline"));
 
     forwardConsoleToDevServer();
     console.error(new TypeError("boom"));
     await vi.advanceTimersByTimeAsync(120);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as { message: string }[];
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as {
+      message: string;
+    }[];
     expect(body[0]!.message).toBe("TypeError: boom");
   });
 });
