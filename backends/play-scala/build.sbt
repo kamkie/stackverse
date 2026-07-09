@@ -12,9 +12,9 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       guice,
       "com.zaxxer" % "HikariCP" % "7.1.0",
-      "org.postgresql" % "postgresql" % "42.7.12",
-      "org.flywaydb" % "flyway-core" % "12.10.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "12.10.0",
+      "org.postgresql" % "postgresql" % "42.7.13",
+      "org.flywaydb" % "flyway-core" % "12.11.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "12.11.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.9.1",
       "io.opentelemetry" % "opentelemetry-api" % "1.63.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.63.0",
