@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   {
     ignores: [
-      ".pnp.cjs",
+      ".pnp.*",
       ".yarn/**",
       "coverage/**",
       "dist/**",
@@ -18,15 +18,23 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   ...svelte.configs.recommended,
   {
+    files: ["src/**/*.{ts,svelte}"],
     languageOptions: {
-      globals: {
-        ...globals.browser,
-        ...globals.node,
-      },
+      globals: globals.browser,
+    },
+  },
+  {
+    files: ["**/*.svelte"],
+    languageOptions: {
       parserOptions: {
         parser: tseslint.parser,
-        extraFileExtensions: [".svelte"],
       },
+    },
+  },
+  {
+    files: ["*.config.{js,ts}", "vite.config.ts", "vitest.config.ts"],
+    languageOptions: {
+      globals: globals.node,
     },
   },
 );

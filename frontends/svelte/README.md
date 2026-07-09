@@ -26,6 +26,11 @@ frontend, this implementation has no mock mode: run it against a real gateway
 or through the root dev-stack recipe and replace the frontend tab with
 `yarn dev` in this directory.
 
+On Windows, `svelte-check` can report Yarn PnP path-casing errors when the
+global cache and checkout are on different drives. `yarn build` deliberately
+keeps typechecking mandatory; if this environment-specific error occurs, align
+Yarn's `globalFolder` with the checkout drive rather than bypassing the check.
+
 ## Deliberate routing boundary
 
 The app remains a static Vite SPA, so it uses the small History API store in

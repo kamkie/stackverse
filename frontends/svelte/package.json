@@ -9,12 +9,13 @@
     "build": "yarn typecheck && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "yarn lint && yarn format:check && yarn test && yarn build"
+    "check": "yarn lint && yarn format:check && yarn build && yarn test:coverage"
   },
   "dependencies": {
     "svelte": "^5.56.4"
