@@ -702,5 +702,3 @@ async function bootstrap(): Promise<void> {
   await loadSessionAndMe();
   await renderApp();
 }
-
-void bootstrap();
