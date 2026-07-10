@@ -1,7 +1,7 @@
 # Backend - Grails (Groovy)
 
-Grails 7.2 · Groovy · Java 25 · Spring Security resource server · JDBC ·
-Flyway · PostgreSQL.
+Grails 7.2 · Groovy · Java 25 · GORM/Hibernate · Spring Security resource
+server · Flyway · PostgreSQL.
 
 Shared behavior, endpoints, and environment variables are documented in
 [backends/README.md](../README.md) and the contract documents it points to.
@@ -24,8 +24,10 @@ or from `SEED_MESSAGES_DIR` when set.
 Tests:
 
 ```sh
-./gradlew test
+./gradlew build
 ```
+
+`build` runs the Spock suite, CodeNarc, packaging, and coverage generation.
 
 Conformance, with the backend running:
 
@@ -44,14 +46,18 @@ docker build -t stackverse/backend-grails:local -f backends/grails/Dockerfile .
 - **Grails controllers and services over a contract-first API** - URL mappings
   stay explicit because the route contract is fixed by OpenAPI, not by resource
   scaffolding.
-- **Spring resource-server JWT validation inside Grails** - issuer, JWKS, and
-  audience validation use Spring Security; controllers ask for `moderator` or
-  `admin` directly and leave role hierarchy to Keycloak.
-- **JDBC persistence with Grails services** - SQL is kept in feature services so
-  the moderation state machine, keyset predicate, partial unique index, and
-  audit writes are visible comparison material.
-- **Flyway-owned schema** - this backend has its own lowercase wire-value schema
-  and applies migrations on startup.
+- **GORM/Hibernate persistence** - typed Grails domain classes and dynamic
+  finders own normal bookmark, message, report, and user-account CRUD.
+- **Command-object validation** - request writes bind to `@Validateable`
+  command objects; Grails constraints preserve the contract's localized field
+  keys before feature services run.
+- **Spring resource-server JWT validation inside Grails** - issuer, JWKS,
+  audience, and realm-role conversion use Spring Security; controllers enforce
+  the contract's optional-auth and role-specific boundaries.
+- **Flyway-owned schema** - `dbCreate: none` keeps GORM from mutating the
+  schema; Flyway applies the variant's lowercase wire-value tables on startup.
+- **CodeNarc in `check`** - a focused correctness/security ruleset runs for
+  production and test Groovy as part of every Gradle build.
 - **Stateless ETags** - message and stats reads hash deterministic JSON bodies,
   so revalidation works across instances without cache coordination.
 - **Java-agent observability** - the container includes the OpenTelemetry Java
@@ -60,9 +66,15 @@ docker build -t stackverse/backend-grails:local -f backends/grails/Dockerfile .
 
 ## Deliberate deviations worth comparing
 
-- The implementation uses JDBC rather than GORM domain classes. That keeps the
-  contract-heavy SQL behavior explicit while still using Grails controllers,
-  services, configuration, and packaging.
+- `JdbcTemplate` remains only at SQL-shaped boundaries: dynamic offset/keyset
+  filters, batched normalized-tag hydration, moderation row-lock/cascade
+  updates, JSONB audit writes, aggregate statistics, and idempotent seed
+  upserts. Ordinary persistence goes through GORM.
+- The Grails Spring Security plugin is not used. Stackverse is a stateless OAuth
+  2 resource server rather than a form/session application, so Spring
+  Security's native resource-server support is the direct fit for issuer,
+  audience, and JWKS validation. Explicit controller role checks preserve the
+  API's optional-auth routes and localized problem/error precedence.
 - Enum-like values are stored as lowercase wire strings (`public`, `open`,
   `hidden`) to avoid a mapping layer between database and API.
 - Malformed UUID path segments answer `404`; the contract pins valid UUID

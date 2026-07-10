@@ -4,6 +4,8 @@ import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.bookmark.BookmarkService
 import dev.stackverse.backend.config.EventLogger
 import dev.stackverse.backend.message.MessageService
+import dev.stackverse.backend.persistence.Bookmark
+import dev.stackverse.backend.persistence.Report
 import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.ReportRows
@@ -24,92 +26,68 @@ class ModerationService {
     Map listMine(String username, Map params) {
         int page = Paging.page(params.page)
         int size = Paging.size(params.size)
-        List args = [username]
-        String statusClause = ""
+        def criteria = Report.where { reporter == username }
         if (params.status) {
-            statusClause = "and status = ?"
-            args << params.status.toString()
+            String statusValue = params.status.toString()
+            criteria = criteria.where { status == statusValue }
         }
-        Long total = jdbcTemplate.queryForObject("select count(*) from reports where reporter = ? ${statusClause}", Long, args as Object[])
-        List pageArgs = args + [size, page * size]
-        List items = jdbcTemplate.query("""
-            select id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at
-            from reports
-            where reporter = ? ${statusClause}
-            order by created_at desc, id desc
-            limit ? offset ?
-        """, { rs, rowNum -> ReportRows.row(rs) }, pageArgs as Object[])
+        Long total = criteria.count()
+        List items = criteria.list(max: size, offset: page * size) {
+            order('createdAt', 'desc')
+            order('id', 'desc')
+        }.collect { Report report -> reportMap(report) }
         Paging.resultPage(items, page, size, total)
     }
 
     @Transactional
-    Map updateMine(UUID id, Map input, String username, String explicitLang, String acceptLanguage) {
-        Map existing = find(id)
+    Map updateMine(UUID id, Map input, String username) {
+        Report existing = Report.get(id)
         if (!existing || existing.reporter != username) {
             throw ApiError.notFound()
         }
-        if (existing.status != "open") {
+        if (existing.status != 'open') {
             throw ApiError.conflict("Only open reports can be changed.")
         }
-        validateReportInput(input, explicitLang, acceptLanguage)
-        jdbcTemplate.update("update reports set reason = ?, comment = ? where id = ?", input.reason, input.comment, id)
+        existing.reason = input.reason
+        existing.comment = input.comment
+        existing.save(failOnError: true, flush: true)
         eventLogger.info("report_updated", "success", "Report updated", [actor: username, resource_type: "report", resource_id: id.toString()])
         find(id)
     }
 
     @Transactional
     void withdraw(UUID id, String username) {
-        Map existing = find(id)
+        Report existing = Report.get(id)
         if (!existing || existing.reporter != username) {
             throw ApiError.notFound()
         }
         if (existing.status != "open") {
             throw ApiError.conflict("Only open reports can be withdrawn.")
         }
-        jdbcTemplate.update("delete from reports where id = ?", id)
+        existing.delete(flush: true)
         eventLogger.info("report_withdrawn", "success", "Report withdrawn", [actor: username, resource_type: "report", resource_id: id.toString()])
     }
 
     Map listQueue(Map params) {
         int page = Paging.page(params.page)
         int size = Paging.size(params.size)
-        String status = params.status ?: "open"
-        List args = []
-        String where = ""
-        if (status) {
-            where = "where status = ?"
-            args << status
-        }
-        Long total = jdbcTemplate.queryForObject("select count(*) from reports ${where}", Long, args as Object[])
-        String order = status == "open" ? "created_at asc, id asc" : "created_at desc, id desc"
-        List pageArgs = args + [size, page * size]
-        List items = jdbcTemplate.query("""
-            select id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at
-            from reports
-            ${where}
-            order by ${order}
-            limit ? offset ?
-        """, { rs, rowNum -> ReportRows.row(rs) }, pageArgs as Object[])
+        String queueStatus = params.status ?: "open"
+        def criteria = Report.where { status == queueStatus }
+        Long total = criteria.count()
+        List items = criteria.list(max: size, offset: page * size) {
+            order('createdAt', queueStatus == 'open' ? 'asc' : 'desc')
+            order('id', queueStatus == 'open' ? 'asc' : 'desc')
+        }.collect { Report report -> reportMap(report) }
         Paging.resultPage(items, page, size, total)
     }
 
     @Transactional
-    Map resolve(UUID id, Map input, String actor, String explicitLang, String acceptLanguage) {
+    Map resolve(UUID id, Map input, String actor) {
         Map existing = find(id)
         if (!existing) {
             throw ApiError.notFound()
         }
-        List errors = []
         String resolution = input.resolution
-        if (!(resolution in ["open", "dismissed", "actioned"])) {
-            errors << messageService.validationError("resolution", "validation.resolution.invalid", explicitLang, acceptLanguage)
-        }
-        if (input.note != null && input.note.toString().size() > 1000) {
-            errors << messageService.validationError("note", "validation.resolution.note.too-long", explicitLang, acceptLanguage)
-        }
-        if (errors) {
-            throw ApiError.badRequest("Validation failed.", errors)
-        }
         if (resolution == "open") {
             jdbcTemplate.update("""
                 update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null
@@ -138,46 +116,38 @@ class ModerationService {
     }
 
     @Transactional
-    Map setBookmarkStatus(UUID id, Map input, String actor, String explicitLang, String acceptLanguage) {
-        Map existing = bookmarkService.find(id)
+    Map setBookmarkStatus(UUID id, Map input, String actor) {
+        Bookmark existing = Bookmark.get(id)
         if (!existing) {
             throw ApiError.notFound()
         }
-        List errors = []
         String status = input.status
-        if (!(status in ["active", "hidden"])) {
-            errors << messageService.validationError("status", "validation.bookmark-status.invalid", explicitLang, acceptLanguage)
-        }
-        if (input.note != null && input.note.toString().size() > 1000) {
-            errors << messageService.validationError("note", "validation.bookmark-status.note.too-long", explicitLang, acceptLanguage)
-        }
-        if (errors) {
-            throw ApiError.badRequest("Validation failed.", errors)
-        }
-        jdbcTemplate.update("update bookmarks set status = ?, updated_at = ? where id = ?", status, Timestamp.from(timeSource.now()), id)
+        existing.status = status
+        existing.updatedAt = timeSource.now()
+        existing.save(failOnError: true, flush: true)
         auditService.record(actor, "bookmark.status-changed", "bookmark", id.toString(), [status: status, note: input.note])
         eventLogger.info("bookmark_status_changed", "success", "Bookmark status changed", [actor: actor, resource_type: "bookmark", resource_id: id.toString()])
         bookmarkService.find(id)
     }
 
     Map find(UUID id) {
-        List rows = jdbcTemplate.query("""
-            select id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at
-            from reports where id = ?
-        """, { rs, rowNum -> ReportRows.row(rs) }, id)
-        rows ? rows[0] : null
+        Report report = Report.get(id)
+        report ? reportMap(report) : null
     }
 
-    void validateReportInput(Map input, String explicitLang, String acceptLanguage) {
-        List errors = []
-        if (!(input.reason in ["spam", "offensive", "broken-link", "other"])) {
-            errors << messageService.validationError("reason", "validation.report.reason.invalid", explicitLang, acceptLanguage)
-        }
-        if (input.comment != null && input.comment.toString().size() > 1000) {
-            errors << messageService.validationError("comment", "validation.report.comment.too-long", explicitLang, acceptLanguage)
-        }
-        if (errors) {
-            throw ApiError.badRequest("Validation failed.", errors)
-        }
+    private static Map reportMap(Report report) {
+        [
+            id            : report.id.toString(),
+            bookmarkId    : report.bookmarkId.toString(),
+            reporter      : report.reporter,
+            reason        : report.reason,
+            comment       : report.comment,
+            status        : report.status,
+            resolvedBy    : report.resolvedBy,
+            resolvedAt    : report.resolvedAt?.toString(),
+            resolutionNote: report.resolutionNote,
+            createdAt     : report.createdAt.toString()
+        ]
     }
+
 }

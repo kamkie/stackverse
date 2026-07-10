@@ -1,6 +1,7 @@
 plugins {
     id "groovy"
     id "org.apache.grails.gradle.grails-web" version "7.2.0"
+    id "codenarc"
     id "jacoco"
 }
 
@@ -32,6 +33,7 @@ dependencies {
     implementation "org.apache.grails:grails-converters"
     implementation "org.apache.grails:grails-logging"
     implementation "org.apache.grails:grails-databinding"
+    implementation "org.apache.grails:grails-data-hibernate5-spring-boot"
 
     runtimeOnly "org.postgresql:postgresql"
     implementation "com.zaxxer:HikariCP"
@@ -51,6 +53,18 @@ tasks.withType(Test).configureEach {
 
 jacoco {
     toolVersion = "0.8.15"
+}
+
+codenarc {
+    toolVersion = "3.6.0-groovy-4.0"
+    configFile = file("config/codenarc/rules.groovy")
+}
+
+tasks.withType(CodeNarc).configureEach {
+    reports {
+        html.required = true
+        text.required = true
+    }
 }
 
 tasks.jacocoTestReport {

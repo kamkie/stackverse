@@ -7,13 +7,11 @@ import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.config.EventLogger
-import org.springframework.jdbc.core.JdbcTemplate
+import dev.stackverse.backend.persistence.Bookmark
+import dev.stackverse.backend.persistence.UserAccount
 import org.springframework.transaction.annotation.Transactional
 
-import java.sql.Timestamp
-
 class UserAccountService {
-    JdbcTemplate jdbcTemplate
     TimeSource timeSource
     AuditService auditService
     EventLogger eventLogger
@@ -21,22 +19,24 @@ class UserAccountService {
     @Transactional
     Map touch(String username) {
         def now = timeSource.now()
-        jdbcTemplate.update("""
-            insert into user_accounts (username, first_seen, last_seen, status)
-            values (?, ?, ?, 'active')
-            on conflict (username) do update set last_seen = excluded.last_seen
-        """, username, Timestamp.from(now), Timestamp.from(now))
+        UserAccount account = UserAccount.get(username)
+        if (account) {
+            account.lastSeen = now
+        } else {
+            account = new UserAccount(
+                username: username,
+                firstSeen: now,
+                lastSeen: now,
+                status: 'active'
+            )
+        }
+        account.save(failOnError: true, flush: true)
         find(username)
     }
 
     Map find(String username) {
-        List rows = jdbcTemplate.query("""
-            select u.username, u.first_seen, u.last_seen, u.status, u.blocked_reason,
-                   (select count(*) from bookmarks b where b.owner = u.username) as bookmark_count
-            from user_accounts u
-            where u.username = ?
-        """, { rs, rowNum -> accountRow(rs) }, username)
-        rows ? rows[0] : null
+        UserAccount account = UserAccount.get(username)
+        account ? accountMap(account, Bookmark.countByOwner(username)) : null
     }
 
     Map require(String username) {
@@ -48,71 +48,58 @@ class UserAccountService {
     }
 
     Map list(Map filters, int page, int size) {
-        List args = []
-        List clauses = []
+        def criteria = UserAccount.where {}
         if (filters.q) {
-            clauses << "lower(u.username) like ? escape '\\'"
-            args << "%${SqlLike.escape(filters.q.toString().toLowerCase(Locale.ROOT))}%"
+            String query = "%${SqlLike.escape(filters.q.toString().toLowerCase(Locale.ROOT))}%"
+            criteria = criteria.where { ilike('username', query) }
         }
         if (filters.status) {
-            clauses << "u.status = ?"
-            args << filters.status
+            String statusValue = filters.status.toString()
+            criteria = criteria.where { status == statusValue }
         }
-        String where = clauses ? "where ${clauses.join(' and ')}" : ""
-        Long total = jdbcTemplate.queryForObject("select count(*) from user_accounts u ${where}", Long, args as Object[])
-        List pageArgs = args + [size, page * size]
-        List items = jdbcTemplate.query("""
-            select u.username, u.first_seen, u.last_seen, u.status, u.blocked_reason,
-                   (select count(*) from bookmarks b where b.owner = u.username) as bookmark_count
-            from user_accounts u
-            ${where}
-            order by u.last_seen desc, u.username asc
-            limit ? offset ?
-        """, { rs, rowNum -> accountRow(rs) }, pageArgs as Object[])
+        Long total = criteria.count()
+        List items = criteria.list(max: size, offset: page * size) {
+            order('lastSeen', 'desc')
+            order('username', 'asc')
+        }.collect { UserAccount account -> accountMap(account, Bookmark.countByOwner(account.username)) }
         Paging.resultPage(items, page, size, total)
     }
 
     @Transactional
     Map setStatus(String username, String actor, Map input) {
-        Map account = require(username)
+        UserAccount account = UserAccount.get(username)
+        if (!account) {
+            throw ApiError.notFound()
+        }
         String status = input.status
         String reason = input.reason
-        if (!(status in ["active", "blocked"])) {
-            throw validation("status", "validation.user-status.invalid", "Status is invalid.")
-        }
         if (status == "blocked") {
-            if (!reason) {
-                throw validation("reason", "validation.block.reason.required", "A reason is required when blocking a user.")
-            }
-            if (reason.size() > 1000) {
-                throw validation("reason", "validation.block.reason.too-long", "Block reason must be at most 1000 characters.")
-            }
             if (username == actor) {
                 throw ApiError.conflict("Admins cannot block themselves.")
             }
-            jdbcTemplate.update("update user_accounts set status = 'blocked', blocked_reason = ? where username = ?", reason, username)
+            account.status = 'blocked'
+            account.blockedReason = reason
+            account.save(failOnError: true, flush: true)
             auditService.record(actor, "user.blocked", "user", username, [reason: reason])
             eventLogger.info("user_blocked", "success", "User blocked", [actor: actor, resource_type: "user", resource_id: username])
         } else {
-            jdbcTemplate.update("update user_accounts set status = 'active', blocked_reason = null where username = ?", username)
+            account.status = 'active'
+            account.blockedReason = null
+            account.save(failOnError: true, flush: true)
             auditService.record(actor, "user.unblocked", "user", username)
             eventLogger.info("user_unblocked", "success", "User unblocked", [actor: actor, resource_type: "user", resource_id: username])
         }
         find(username)
     }
 
-    private static Map accountRow(rs) {
+    private static Map accountMap(UserAccount account, Long bookmarkCount) {
         [
-            username     : rs.getString("username"),
-            firstSeen    : SqlRows.rfc3339(SqlRows.instant(rs, "first_seen")),
-            lastSeen     : SqlRows.rfc3339(SqlRows.instant(rs, "last_seen")),
-            status       : rs.getString("status"),
-            blockedReason: rs.getString("blocked_reason"),
-            bookmarkCount: rs.getLong("bookmark_count")
+            username     : account.username,
+            firstSeen    : SqlRows.rfc3339(account.firstSeen),
+            lastSeen     : SqlRows.rfc3339(account.lastSeen),
+            status       : account.status,
+            blockedReason: account.blockedReason,
+            bookmarkCount: bookmarkCount
         ]
-    }
-
-    private static ApiError validation(String field, String key, String message) {
-        ApiError.badRequest("Validation failed.", [[field: field, messageKey: key, message: message]])
     }
 }

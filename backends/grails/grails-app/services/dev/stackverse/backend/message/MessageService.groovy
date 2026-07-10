@@ -2,6 +2,7 @@ package dev.stackverse.backend.message
 
 import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.config.EventLogger
+import dev.stackverse.backend.persistence.Message
 import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.SqlLike
@@ -11,6 +12,7 @@ import groovy.json.JsonSlurper
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.transaction.annotation.Transactional
 
@@ -20,7 +22,6 @@ import java.sql.Timestamp
 import java.util.regex.Pattern
 
 class MessageService implements ApplicationRunner {
-    private static final Pattern KEY = ~/^[a-z0-9-]+(\.[a-z0-9-]+)*$/
     private static final Pattern LANG = ~/^[a-z]{2}$/
 
     JdbcTemplate jdbcTemplate
@@ -81,32 +82,24 @@ class MessageService implements ApplicationRunner {
     Map list(Map params) {
         int page = Paging.page(params.page)
         int size = Paging.size(params.size)
-        List clauses = []
-        List args = []
+        def criteria = Message.where {}
         if (params.key) {
-            clauses << "key = ?"
-            args << params.key.toString()
+            String keyValue = params.key.toString()
+            criteria = criteria.where { key == keyValue }
         }
         if (params.language) {
-            clauses << "language = ?"
-            args << params.language.toString()
+            String languageValue = params.language.toString()
+            criteria = criteria.where { language == languageValue }
         }
         if (params.q) {
-            clauses << "(lower(key) like ? escape '\\' or lower(text) like ? escape '\\')"
             String q = "%${SqlLike.escape(params.q.toString().toLowerCase(Locale.ROOT))}%"
-            args << q
-            args << q
+            criteria = criteria.where { ilike('key', q) || ilike('text', q) }
         }
-        String where = clauses ? "where ${clauses.join(' and ')}" : ""
-        Long total = jdbcTemplate.queryForObject("select count(*) from messages ${where}", Long, args as Object[])
-        List pageArgs = args + [size, page * size]
-        List items = jdbcTemplate.query("""
-            select id, key, language, text, description, created_at, updated_at
-            from messages
-            ${where}
-            order by key asc, language asc
-            limit ? offset ?
-        """, { rs, rowNum -> messageRow(rs) }, pageArgs as Object[])
+        Long total = criteria.count()
+        List items = criteria.list(max: size, offset: page * size) {
+            order('key', 'asc')
+            order('language', 'asc')
+        }.collect { messageMap(it as Message) }
         Paging.resultPage(items, page, size, total)
     }
 
@@ -121,25 +114,28 @@ class MessageService implements ApplicationRunner {
     }
 
     Map get(UUID id) {
-        List rows = jdbcTemplate.query("select id, key, language, text, description, created_at, updated_at from messages where id = ?",
-            { rs, rowNum -> messageRow(rs) }, id)
-        if (!rows) {
+        Message message = Message.get(id)
+        if (!message) {
             throw ApiError.notFound()
         }
-        rows[0]
+        messageMap(message)
     }
 
     @Transactional
-    Map create(Map input, String actor, String explicitLang, String acceptLanguage) {
-        validate(input, explicitLang, acceptLanguage)
+    Map create(Map input, String actor) {
         UUID id = UUID.randomUUID()
         def now = timeSource.now()
         try {
-            jdbcTemplate.update("""
-                insert into messages (id, key, language, text, description, created_at, updated_at)
-                values (?, ?, ?, ?, ?, ?, ?)
-            """, id, input.key, input.language, input.text, input.description, Timestamp.from(now), Timestamp.from(now))
-        } catch (org.springframework.dao.DuplicateKeyException ignored) {
+            new Message(
+                id: id,
+                key: input.key,
+                language: input.language,
+                text: input.text,
+                description: input.description,
+                createdAt: now,
+                updatedAt: now
+            ).save(failOnError: true, flush: true)
+        } catch (DataIntegrityViolationException ignored) {
             throw ApiError.conflict("A message with this key and language already exists.")
         }
         auditService.record(actor, "message.created", "message", id.toString(), [key: input.key, language: input.language])
@@ -148,16 +144,19 @@ class MessageService implements ApplicationRunner {
     }
 
     @Transactional
-    Map update(UUID id, Map input, String actor, String explicitLang, String acceptLanguage) {
-        get(id)
-        validate(input, explicitLang, acceptLanguage)
-        def now = timeSource.now()
+    Map update(UUID id, Map input, String actor) {
+        Message message = Message.get(id)
+        if (!message) {
+            throw ApiError.notFound()
+        }
+        message.key = input.key
+        message.language = input.language
+        message.text = input.text
+        message.description = input.description
+        message.updatedAt = timeSource.now()
         try {
-            jdbcTemplate.update("""
-                update messages set key = ?, language = ?, text = ?, description = ?, updated_at = ?
-                where id = ?
-            """, input.key, input.language, input.text, input.description, Timestamp.from(now), id)
-        } catch (org.springframework.dao.DuplicateKeyException ignored) {
+            message.save(failOnError: true, flush: true)
+        } catch (DataIntegrityViolationException ignored) {
             throw ApiError.conflict("A message with this key and language already exists.")
         }
         auditService.record(actor, "message.updated", "message", id.toString(), [key: input.key, language: input.language])
@@ -167,46 +166,31 @@ class MessageService implements ApplicationRunner {
 
     @Transactional
     void delete(UUID id, String actor) {
-        get(id)
-        jdbcTemplate.update("delete from messages where id = ?", id)
+        Message message = Message.get(id)
+        if (!message) {
+            throw ApiError.notFound()
+        }
+        message.delete(flush: true)
         auditService.record(actor, "message.deleted", "message", id.toString())
         eventLogger.info("message_deleted", "success", "Message deleted", [actor: actor, resource_type: "message", resource_id: id.toString()])
     }
 
-    private void validate(Map input, String explicitLang, String acceptLanguage) {
-        List errors = []
-        if (!(input.key instanceof String) || !(input.key ==~ KEY) || input.key.size() > 150) {
-            errors << validationError("key", "validation.message.key.invalid", explicitLang, acceptLanguage)
-        }
-        if (!(input.language instanceof String) || !(input.language ==~ LANG)) {
-            errors << validationError("language", "validation.message.language.invalid", explicitLang, acceptLanguage)
-        }
-        if (!(input.text instanceof String) || input.text.size() == 0) {
-            errors << validationError("text", "validation.message.text.required", explicitLang, acceptLanguage)
-        } else if (input.text.size() > 2000) {
-            errors << validationError("text", "validation.message.text.too-long", explicitLang, acceptLanguage)
-        }
-        if (input.description != null && input.description.toString().size() > 1000) {
-            errors << validationError("description", "validation.message.description.too-long", explicitLang, acceptLanguage)
-        }
-        if (errors) {
-            throw ApiError.badRequest("Validation failed.", errors)
-        }
+    protected String lookup(String key, String language) {
+        Message.findByKeyAndLanguage(key, language)?.text
     }
 
-    private String lookup(String key, String language) {
-        List rows = jdbcTemplate.queryForList("select text from messages where key = ? and language = ?", String, key, language)
-        rows ? rows[0] : null
+    protected Set<String> supportedLanguages() {
+        Message.createCriteria().list {
+            projections {
+                distinct('language')
+            }
+        } as Set<String>
     }
 
-    private Set<String> supportedLanguages() {
-        jdbcTemplate.queryForList("select distinct language from messages", String) as Set<String>
-    }
-
-    private Map<String, String> messagesForLanguage(String language) {
+    protected Map<String, String> messagesForLanguage(String language) {
         LinkedHashMap values = new LinkedHashMap()
-        jdbcTemplate.queryForList("select key, text from messages where language = ? order by key asc", language).each { row ->
-            values[row.key as String] = row.text as String
+        Message.findAllByLanguage(language, [sort: 'key', order: 'asc']).each { Message message ->
+            values[message.key] = message.text
         }
         values
     }
@@ -245,6 +229,18 @@ class MessageService implements ApplicationRunner {
             description: rs.getString("description"),
             createdAt  : SqlRows.rfc3339(SqlRows.instant(rs, "created_at")),
             updatedAt  : SqlRows.rfc3339(SqlRows.instant(rs, "updated_at"))
+        ]
+    }
+
+    private static Map messageMap(Message message) {
+        [
+            id         : message.id.toString(),
+            key        : message.key,
+            language   : message.language,
+            text       : message.text,
+            description: message.description,
+            createdAt  : SqlRows.rfc3339(message.createdAt),
+            updatedAt  : SqlRows.rfc3339(message.updatedAt)
         ]
     }
 }
