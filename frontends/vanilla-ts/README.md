@@ -47,8 +47,9 @@ danger toast, and preserve the current dialog or page state for retry.
 as transactions: a requested language is published to memory and local storage
 only after its bundle loads (or a valid cached bundle is selected), and only the
 latest concurrent request may update the cache, runtime bundle, or document
-metadata. Cached bundles also keep bootstrap available when a refresh fails at
-the HTTP or transport layer.
+metadata. Refreshes inherit an in-flight language choice so incidental bundle
+updates cannot silently cancel the user's selection. Cached bundles also keep
+bootstrap available when a refresh fails at the HTTP or transport layer.
 
 ## Dev action log
 

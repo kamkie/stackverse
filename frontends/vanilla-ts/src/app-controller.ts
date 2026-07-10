@@ -334,7 +334,10 @@ function messageBody(values: FormValues): MessageInput {
   };
 }
 
-async function handleForm(form: HTMLFormElement): Promise<void> {
+async function handleForm(
+  form: HTMLFormElement,
+  signal: AbortSignal,
+): Promise<void> {
   if (!state.dialog) return;
   const values = formValues(form);
   try {
@@ -417,7 +420,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
           );
           pushToast(t("ui.toast.message-created"));
         }
-        await i18n.load();
+        await i18n.load(undefined, { signal });
         state.dialog = null;
         break;
       }
@@ -648,7 +651,7 @@ async function handleAction(
         if (state.dialog === submittedDialog) state.dialog = null;
         await renderApp();
         try {
-          await i18n.load(i18n.lang, { signal });
+          await i18n.load(undefined, { signal });
         } catch (error) {
           if (!(
             error instanceof ApiNetworkError ||
@@ -800,7 +803,7 @@ export async function startAppController(
         event.target instanceof HTMLFormElement ? event.target : null;
       if (!form) return;
       event.preventDefault();
-      void handleForm(form);
+      void handleForm(form, controller.signal);
     },
     listenerOptions,
   );

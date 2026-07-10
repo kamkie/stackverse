@@ -278,6 +278,115 @@ describe("i18n helpers", () => {
     expect(document.title).toBe("English Stackverse");
   });
 
+  it("lets a concurrent refresh complete the pending language selection", async () => {
+    localStorage.setItem("stackverse.lang", "en");
+    const switchResponse = deferred<Response>();
+    const refreshResponse = deferred<Response>();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => switchResponse.promise)
+      .mockImplementationOnce(async () => refreshResponse.promise);
+
+    const i18n = new RuntimeI18n();
+    const languageSwitch = i18n.setLanguage("pl");
+    const bundleRefresh = i18n.load();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      new URL(String(fetchMock.mock.calls[0]![0])).searchParams.get("lang"),
+    ).toBe("pl");
+    expect(
+      new URL(String(fetchMock.mock.calls[1]![0])).searchParams.get("lang"),
+    ).toBe("pl");
+
+    refreshResponse.resolve(
+      new Response(
+        JSON.stringify({
+          language: "pl",
+          messages: { "ui.app.title": "Wybrany Stackverse" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ETag: 'W/"pl-new"' },
+        },
+      ),
+    );
+    await bundleRefresh;
+
+    switchResponse.resolve(
+      new Response(
+        JSON.stringify({
+          language: "pl",
+          messages: { "ui.app.title": "Stary Stackverse" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ETag: 'W/"pl-old"' },
+        },
+      ),
+    );
+    await languageSwitch;
+
+    expect(i18n.lang).toBe("pl");
+    expect(i18n.resolvedLanguage).toBe("pl");
+    expect(i18n.t("ui.app.title")).toBe("Wybrany Stackverse");
+    expect(readStoredLanguage()).toBe("pl");
+    expect(document.documentElement.lang).toBe("pl");
+    expect(document.title).toBe("Wybrany Stackverse");
+    expect(localStorage.getItem("stackverse.bundle.pl")).toContain(
+      "Wybrany Stackverse",
+    );
+    expect(localStorage.getItem("stackverse.bundle.pl")).not.toContain(
+      "Stary Stackverse",
+    );
+  });
+
+  it("clears an aborted pending selection without changing the committed language", async () => {
+    localStorage.setItem("stackverse.lang", "en");
+    const polish = deferred<Response>();
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementationOnce(async () => polish.promise)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            language: "en",
+            messages: { "ui.app.title": "English Stackverse" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    const controller = new AbortController();
+    const i18n = new RuntimeI18n();
+
+    const languageSwitch = i18n.setLanguage("pl", {
+      signal: controller.signal,
+    });
+    controller.abort();
+    polish.resolve(
+      new Response(
+        JSON.stringify({
+          language: "pl",
+          messages: { "ui.app.title": "Stale Stackverse" },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    await expect(languageSwitch).resolves.toBeUndefined();
+    await i18n.load();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      new URL(String(fetchMock.mock.calls[1]![0])).searchParams.get("lang"),
+    ).toBe("en");
+    expect(i18n.lang).toBe("en");
+    expect(i18n.resolvedLanguage).toBe("en");
+    expect(readStoredLanguage()).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("English Stackverse");
+    expect(localStorage.getItem("stackverse.bundle.pl")).toBeNull();
+  });
+
   it("lets only the latest concurrent language request publish state", async () => {
     const polish = deferred<Response>();
     const english = deferred<Response>();
