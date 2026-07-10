@@ -33,13 +33,14 @@ dependencies {
     implementation "org.apache.grails:grails-converters"
     implementation "org.apache.grails:grails-logging"
     implementation "org.apache.grails:grails-databinding"
-    implementation "org.apache.grails:grails-data-hibernate5-spring-boot"
+    implementation "org.apache.grails:grails-data-hibernate5"
 
     runtimeOnly "org.postgresql:postgresql"
     implementation "com.zaxxer:HikariCP"
     runtimeOnly "org.fusesource.jansi:jansi"
 
     testImplementation "org.apache.grails:grails-testing-support-web"
+    testImplementation "org.apache.grails:grails-testing-support-datamapping"
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testImplementation "org.springframework.security:spring-security-test"
     testImplementation "org.spockframework:spock-core"
