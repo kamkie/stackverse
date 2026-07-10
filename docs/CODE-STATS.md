@@ -72,6 +72,6 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | react | 5636 | 1021 | 0.18 | 47 | 20 | 251 | 93 | 13 | TSX, TypeScript, JavaScript |
 | solid | 2704 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
 | svelte | 2124 | 484 | 0.23 | 34 | 7 | 230 | 72 | 13 | Svelte, TypeScript, HTML |
-| vanilla-ts | 2776 | 2160 | 0.78 | 16 | 8 | 199 | 91 | 13 | TypeScript, HTML, JavaScript |
+| vanilla-ts | 2848 | 2530 | 0.89 | 16 | 9 | 199 | 94 | 13 | TypeScript, HTML, JavaScript |
 | vue | 3477 | 550 | 0.16 | 36 | 7 | 183 | 82 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 26351 | 7410 | | 264 | 75 | 1666 | 670 | 104 | |
+| **subtotal** | 26423 | 7780 | | 264 | 76 | 1666 | 673 | 104 | |
