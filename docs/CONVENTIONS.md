@@ -464,7 +464,7 @@ issue closes.
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
-| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | api/i18n/types/dev helpers are split out, but rendering, routing, state, and forms remain in one ~1,657-line main.ts | 🟡 deliberate |
+| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | Composition-only main.ts plus controller (including routing), state, header, view, bookmark, admin, and dialog modules | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | src/ with components, views/pages, router, composables | src/ with components, pages, api, i18n, mocks, dev, test | ✅ idiomatic |
 
 ### Testing
@@ -490,5 +490,5 @@ issue closes.
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | ESLint flat config, Svelte-aware Prettier, and svelte-check enforced by build/CI | ✅ idiomatic |
-| [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | No ESLint/Prettier; strict tsc is the only static style/safety gate | 🔴 undocumented |
+| [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | ESLint flat config with TypeScript rules plus Prettier, enforced by the local/CI check pipeline | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |

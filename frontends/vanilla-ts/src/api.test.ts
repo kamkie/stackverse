@@ -41,14 +41,26 @@ describe("fieldErrorFor", () => {
   it("matches exact and indexed field paths", () => {
     const problem: Problem = {
       errors: [
-        { field: "url", messageKey: "validation.url.required", message: "URL is required." },
-        { field: "tags[0]", messageKey: "validation.tag.invalid", message: "Bad tag." },
+        {
+          field: "url",
+          messageKey: "validation.url.required",
+          message: "URL is required.",
+        },
+        {
+          field: "tags[0]",
+          messageKey: "validation.tag.invalid",
+          message: "Bad tag.",
+        },
       ],
     };
     const error = new ApiError(400, problem);
 
-    expect(fieldErrorFor(error, "url")?.messageKey).toBe("validation.url.required");
-    expect(fieldErrorFor(error, "tags")?.messageKey).toBe("validation.tag.invalid");
+    expect(fieldErrorFor(error, "url")?.messageKey).toBe(
+      "validation.url.required",
+    );
+    expect(fieldErrorFor(error, "tags")?.messageKey).toBe(
+      "validation.tag.invalid",
+    );
     expect(fieldErrorFor(error, "title")).toBeUndefined();
   });
 
@@ -70,9 +82,10 @@ describe("fieldErrorFor", () => {
 
 describe("ApiError", () => {
   it("prefers problem detail and falls back to the status text", () => {
-    expect(new ApiError(409, { title: "Conflict", detail: "Already reported." }).message).toBe(
-      "Already reported.",
-    );
+    expect(
+      new ApiError(409, { title: "Conflict", detail: "Already reported." })
+        .message,
+    ).toBe("Already reported.");
     expect(new ApiError(404, { title: "Missing" }).message).toBe("Missing");
     expect(new ApiError(503).message).toBe("HTTP 503");
   });
@@ -98,9 +111,9 @@ describe("apiGet", () => {
       }),
     );
 
-    await expect(apiGet<{ items: unknown[] }>("/api/v2/bookmarks", { tag: ["dev"] })).resolves.toEqual(
-      { items: [] },
-    );
+    await expect(
+      apiGet<{ items: unknown[] }>("/api/v2/bookmarks", { tag: ["dev"] }),
+    ).resolves.toEqual({ items: [] });
 
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(new URL(String(url)).searchParams.getAll("tag")).toEqual(["dev"]);
@@ -117,10 +130,17 @@ describe("apiGet", () => {
           title: "Validation failed",
           detail: "URL is required.",
           errors: [
-            { field: "url", messageKey: "validation.url.required", message: "URL is required." },
+            {
+              field: "url",
+              messageKey: "validation.url.required",
+              message: "URL is required.",
+            },
           ],
         }),
-        { status: 400, headers: { "Content-Type": "application/problem+json" } },
+        {
+          status: 400,
+          headers: { "Content-Type": "application/problem+json" },
+        },
       ),
     );
 
@@ -129,7 +149,11 @@ describe("apiGet", () => {
       status: 400,
       message: "URL is required.",
       fieldErrors: [
-        { field: "url", messageKey: "validation.url.required", message: "URL is required." },
+        {
+          field: "url",
+          messageKey: "validation.url.required",
+          message: "URL is required.",
+        },
       ],
     });
   });
@@ -167,27 +191,35 @@ describe("apiSend", () => {
 
   it("retries one 403 after rereading the CSRF cookie", async () => {
     document.cookie = "XSRF-TOKEN=stale";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      if (fetchMock.mock.calls.length === 1) {
-        document.cookie = "XSRF-TOKEN=fresh";
-        return new Response(JSON.stringify({ title: "Forbidden" }), {
-          status: 403,
-          headers: { "Content-Type": "application/problem+json" },
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => {
+        if (fetchMock.mock.calls.length === 1) {
+          document.cookie = "XSRF-TOKEN=fresh";
+          return new Response(JSON.stringify({ title: "Forbidden" }), {
+            status: 403,
+            headers: { "Content-Type": "application/problem+json" },
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
         });
-      }
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
       });
-    });
 
-    await expect(apiSend<{ ok: boolean }>("PUT", "/api/v1/bookmarks/one", {})).resolves.toEqual({
+    await expect(
+      apiSend<{ ok: boolean }>("PUT", "/api/v1/bookmarks/one", {}),
+    ).resolves.toEqual({
       ok: true,
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0]![1]?.headers).toMatchObject({ "X-XSRF-TOKEN": "stale" });
-    expect(fetchMock.mock.calls[1]![1]?.headers).toMatchObject({ "X-XSRF-TOKEN": "fresh" });
+    expect(fetchMock.mock.calls[0]![1]?.headers).toMatchObject({
+      "X-XSRF-TOKEN": "stale",
+    });
+    expect(fetchMock.mock.calls[1]![1]?.headers).toMatchObject({
+      "X-XSRF-TOKEN": "fresh",
+    });
   });
 
   it("returns undefined for no-content mutations without adding a JSON body", async () => {
@@ -195,7 +227,9 @@ describe("apiSend", () => {
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 204 }));
 
-    await expect(apiSend<void>("DELETE", "/api/v1/bookmarks/one")).resolves.toBeUndefined();
+    await expect(
+      apiSend<void>("DELETE", "/api/v1/bookmarks/one"),
+    ).resolves.toBeUndefined();
 
     const [, init] = fetchMock.mock.calls[0]!;
     expect(init).toMatchObject({
