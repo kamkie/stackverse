@@ -32,6 +32,11 @@ mix compile --warnings-as-errors
 mix test
 ```
 
+CI also starts PostgreSQL and runs the database-tagged `DataCase` regression
+tests. To include those locally, point the standard `DB_*` variables at a test
+database, set `STACKVERSE_DB_TESTS=true`, run
+`MIX_ENV=test mix ecto.migrate`, and then run `MIX_ENV=test mix test`.
+
 Conformance (the acceptance gate), with the backend running:
 
 ```sh
@@ -79,9 +84,9 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 - Responses are explicit maps converted from persistence structs. This keeps
   lowercase wire enums, camel-case field names, and RFC 9457 omission rules at
   the JSON boundary without replacing the typed persistence model.
-- `ConnCase` endpoint/parser tests and `DataCase` input/persistence-schema tests
-  cover Phoenix/Ecto boundaries without requiring a database; the shared
-  black-box conformance suite owns exhaustive live PostgreSQL behavior.
+- `ConnCase` endpoint/parser tests, `DataCase` input/schema tests, and
+  PostgreSQL-backed Repo/query regressions cover Phoenix/Ecto boundaries; the
+  shared black-box conformance suite owns exhaustive live behavior.
 
 ## Logging conformance
 

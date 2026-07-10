@@ -36,7 +36,7 @@ defmodule StackverseBackend.Bookmarks do
     {bookmark.id, Bookmark.to_row(bookmark)}
   end
 
-  def get(id), do: id |> Repo.get(Bookmark) |> Bookmark.to_row()
+  def get(id), do: Bookmark |> Repo.get(id) |> Bookmark.to_row()
 
   def update(owner, id, input) do
     Repo.transaction(fn ->
@@ -114,7 +114,7 @@ defmodule StackverseBackend.Bookmarks do
 
   # The text[] containment operator is the reviewed PostgreSQL-specific filter.
   defp by_tags(query, tags) do
-    where(query, [bookmark], fragment("? @> ?", bookmark.tags, type(^tags, {:array, :string})))
+    where(query, [bookmark], fragment("? @> CAST(? AS text[])", bookmark.tags, ^tags))
   end
 
   defp by_text(query, q) do

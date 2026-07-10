@@ -21,7 +21,7 @@ defmodule StackverseBackend.Messages do
     %{items: items, total: total}
   end
 
-  def get(id), do: id |> Repo.get(Message) |> Message.to_row()
+  def get(id), do: Message |> Repo.get(id) |> Message.to_row()
 
   def create(actor, input) do
     Repo.transaction(fn ->
