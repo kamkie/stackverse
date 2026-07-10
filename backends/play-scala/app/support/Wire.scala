@@ -21,17 +21,27 @@ object Wire {
   def obj(fields: (String, Option[JsValue])*): JsObject =
     JsObject(fields.collect { case (key, Some(value)) => key -> value })
 
-  def problem(status: Int, title: String, detail: Option[String] = None, errors: Option[Seq[JsObject]] = None): Result = {
-    Results.Status(status)(
-      obj(
-        "type" -> Some(JsString("about:blank")),
-        "title" -> Some(JsString(title)),
-        "status" -> Some(JsNumber(status)),
-        "detail" -> detail.map(JsString),
-        "errors" -> errors.map(values => JsArray(values))
+  def page(items: Seq[JsValue], page: Int, size: Int, totalItems: Long): JsObject =
+    Json.obj(
+      "items" -> items,
+      "page" -> page,
+      "size" -> size,
+      "totalItems" -> totalItems,
+      "totalPages" -> math.ceil(totalItems.toDouble / size.toDouble).toInt
+    )
+
+  def problem(status: Int, title: String, detail: Option[String] = None, errors: Option[Seq[JsObject]] = None): Result =
+    Results
+      .Status(status)(
+        obj(
+          "type" -> Some(JsString("about:blank")),
+          "title" -> Some(JsString(title)),
+          "status" -> Some(JsNumber(status)),
+          "detail" -> detail.map(JsString.apply),
+          "errors" -> errors.map(values => JsArray(values))
+        )
       )
-    ).as(ProblemContentType)
-  }
+      .as(ProblemContentType)
 
   def withEtag(request: RequestHeader, payload: JsValue, headers: (String, String)*): Result = {
     val body = Json.stringify(payload)
@@ -45,7 +55,7 @@ object Wire {
         body = play.api.http.HttpEntity.NoEntity
       )
     } else {
-      Results.Ok(body).as(JsonContentType).withHeaders(cacheHeaders: _*)
+      Results.Ok(body).as(JsonContentType).withHeaders(cacheHeaders*)
     }
   }
 
@@ -54,9 +64,9 @@ object Wire {
 
   def single(query: Map[String, Seq[String]], name: String): Option[String] =
     query.get(name).flatMap {
-      case Nil => None
+      case Nil        => None
       case one :: Nil => Some(one)
-      case _ => throw new BadRequestProblem(s"$name must not be repeated")
+      case _          => throw new BadRequestProblem(s"$name must not be repeated")
     }
 
   def first(query: Map[String, Seq[String]], name: String): Option[String] =
@@ -80,5 +90,8 @@ object Wire {
     value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
   private def intParam(value: Option[String], fallback: Int, name: String): Int =
-    value.filter(_.nonEmpty).map(raw => Try(raw.toInt).getOrElse(throw new BadRequestProblem(s"$name must be an integer"))).getOrElse(fallback)
+    value
+      .filter(_.nonEmpty)
+      .map(raw => Try(raw.toInt).getOrElse(throw new BadRequestProblem(s"$name must be an integer")))
+      .getOrElse(fallback)
 }

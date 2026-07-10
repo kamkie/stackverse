@@ -13,7 +13,7 @@ object CursorCodec {
     Base64.getUrlEncoder.withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8))
   }
 
-  def decode(raw: String): BookmarkCursor = {
+  def decode(raw: String): BookmarkCursor =
     try {
       val json = Json.parse(new String(Base64.getUrlDecoder.decode(raw), StandardCharsets.UTF_8))
       val createdAt = Instant.parse((json \ "createdAt").as[String])
@@ -22,5 +22,4 @@ object CursorCodec {
     } catch {
       case _: Exception => throw new BadRequestProblem("cursor is malformed")
     }
-  }
 }

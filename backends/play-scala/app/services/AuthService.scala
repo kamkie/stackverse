@@ -1,7 +1,7 @@
 package services
 
 import com.nimbusds.jose.JWSAlgorithm
-import com.nimbusds.jose.jwk.source.RemoteJWKSet
+import com.nimbusds.jose.jwk.source.JWKSourceBuilder
 import com.nimbusds.jose.proc.{JWSVerificationKeySelector, SecurityContext}
 import com.nimbusds.jwt.proc.DefaultJWTProcessor
 import config.BackendConfig
@@ -11,7 +11,7 @@ import play.api.mvc.RequestHeader
 import repositories.Db
 import support.Wire
 
-import java.net.URL
+import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Instant
 import javax.inject._
@@ -24,29 +24,36 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
   private val Audience = "stackverse-api"
   private val AppRoles = Set("moderator", "admin")
 
-  def optional(request: RequestHeader): Option[Caller] = {
+  def optional(request: RequestHeader): Option[Caller] =
     request.headers.get("Authorization") match {
-      case None => None
+      case None                                          => None
       case Some(header) if !header.startsWith("Bearer ") => None
-      case Some(header) =>
+      case Some(header)                                  =>
         val caller = verify(header.stripPrefix("Bearer ").trim)
         val accountStatus = recordSeen(caller.username)
         if (accountStatus == "blocked") {
-          logger.event("warn", "blocked_user_rejected", "denied", "Refused a request from a blocked account", "actor" -> JsString(caller.username))
-          val language = i18n.resolve(Wire.first(request.queryString, "lang"), request.headers.get("Accept-Language"))
+          logger.event(
+            "warn",
+            "blocked_user_rejected",
+            "denied",
+            "Refused a request from a blocked account",
+            "actor" -> JsString(caller.username)
+          )
+          val language = i18n.resolve(request)
           throw new ForbiddenProblem(i18n.localize("error.account.blocked", language))
         }
         Some(caller)
     }
-  }
 
-  def requireCaller(request: RequestHeader): Caller =
-    optional(request).getOrElse(throw new UnauthorizedProblem)
-
-  def requireRole(request: RequestHeader, role: String): Caller = {
-    val caller = requireCaller(request)
+  def requireRole(caller: Caller, role: String): Caller = {
     if (!caller.roles.contains(role)) {
-      logger.event("info", "authz_denied", "denied", "Denied a request lacking the required role", "actor" -> JsString(caller.username))
+      logger.event(
+        "info",
+        "authz_denied",
+        "denied",
+        "Denied a request lacking the required role",
+        "actor" -> JsString(caller.username)
+      )
       throw new ForbiddenProblem("You do not have the role required for this operation.")
     }
     caller
@@ -55,19 +62,22 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
   def me(caller: Caller): JsObject =
     Wire.obj(
       "username" -> Some(JsString(caller.username)),
-      "name" -> caller.name.map(JsString),
-      "email" -> caller.email.map(JsString),
-      "roles" -> Some(JsArray(caller.roles.filter(AppRoles.contains).sorted.map(JsString)))
+      "name" -> caller.name.map(JsString.apply),
+      "email" -> caller.email.map(JsString.apply),
+      "roles" -> Some(JsArray(caller.roles.filter(AppRoles.contains).sorted.map(JsString.apply)))
     )
 
-  private def verify(token: String): Caller = {
+  private def verify(token: String): Caller =
     try {
       val claims = jwtProcessor.process(token, null)
       val now = Instant.now()
       if (claims.getIssuer != config.oidcIssuerUri) throw new IllegalArgumentException("issuer")
-      if (!Option(claims.getAudience).exists(_.asScala.contains(Audience))) throw new IllegalArgumentException("audience")
-      if (Option(claims.getExpirationTime).exists(_.toInstant.isBefore(now))) throw new IllegalArgumentException("expired")
-      if (Option(claims.getNotBeforeTime).exists(_.toInstant.isAfter(now))) throw new IllegalArgumentException("not_before")
+      if (!Option(claims.getAudience).exists(_.asScala.contains(Audience)))
+        throw new IllegalArgumentException("audience")
+      if (Option(claims.getExpirationTime).exists(_.toInstant.isBefore(now)))
+        throw new IllegalArgumentException("expired")
+      if (Option(claims.getNotBeforeTime).exists(_.toInstant.isAfter(now)))
+        throw new IllegalArgumentException("not_before")
       val username = Option(claims.getStringClaim("preferred_username")).filter(_.nonEmpty).getOrElse {
         throw new IllegalArgumentException("preferred_username")
       }
@@ -76,34 +86,38 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
         .getOrElse(Map.empty[String, Any])
       val roles = realmAccess.get("roles") match {
         case Some(values: java.util.List[_]) => values.asScala.collect { case role: String => role }.toSeq
-        case _ => Seq.empty[String]
+        case _                               => Seq.empty[String]
       }
       Caller(username, roles, Option(claims.getStringClaim("name")), Option(claims.getStringClaim("email")))
     } catch {
       case _: Throwable => throw invalidToken("invalid_token")
     }
-  }
 
   private def jwtProcessor: DefaultJWTProcessor[SecurityContext] = processor match {
     case Some(value) => value
-    case None => synchronized {
-      processor.getOrElse {
-        val jwks = config.oidcJwksUri.getOrElse(discoverJwksUri())
-        val source = new RemoteJWKSet[SecurityContext](new URL(jwks))
-        val created = new DefaultJWTProcessor[SecurityContext]()
-        created.setJWSKeySelector(new JWSVerificationKeySelector[SecurityContext](JWSAlgorithm.RS256, source))
-        processor = Some(created)
-        created
+    case None        =>
+      synchronized {
+        processor.getOrElse {
+          val jwks = config.oidcJwksUri.getOrElse(discoverJwksUri())
+          // Keep Nimbus's default unknown-kid refetch limiter: it preserves the reserved
+          // key-rotation refresh while bounding attacker-controlled JWKS fetches.
+          val source = JWKSourceBuilder.create[SecurityContext](URI.create(jwks).toURL).rateLimited(true).build()
+          val created = new DefaultJWTProcessor[SecurityContext]()
+          created.setJWSKeySelector(new JWSVerificationKeySelector[SecurityContext](JWSAlgorithm.RS256, source))
+          processor = Some(created)
+          created
+        }
       }
-    }
   }
 
   private def discoverJwksUri(): String = {
     val started = System.nanoTime()
     try {
-      val request = HttpRequest.newBuilder(new URL(s"${config.oidcIssuerUri}/.well-known/openid-configuration").toURI).GET().build()
+      val request =
+        HttpRequest.newBuilder(URI.create(s"${config.oidcIssuerUri}/.well-known/openid-configuration")).GET().build()
       val response = http.send(request, HttpResponse.BodyHandlers.ofString())
-      if (response.statusCode() / 100 != 2) throw new RuntimeException(s"OIDC discovery answered ${response.statusCode()}")
+      if (response.statusCode() / 100 != 2)
+        throw new RuntimeException(s"OIDC discovery answered ${response.statusCode()}")
       (Json.parse(response.body()) \ "jwks_uri").as[String]
     } catch {
       case error: Throwable =>
@@ -130,7 +144,8 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
           |on conflict (username) do update set last_seen = excluded.last_seen
           |returning status""".stripMargin,
         Seq(username, now, now)
-      )(_.getString("status")).get
+      )(_.getString("status"))
+        .get
     }
 
   private def invalidToken(code: String): UnauthorizedProblem = {

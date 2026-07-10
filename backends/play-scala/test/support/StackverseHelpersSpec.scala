@@ -9,6 +9,7 @@ import play.api.mvc.Result
 import play.api.test.FakeRequest
 import repositories.Rows
 import services.{AuthService, EventLogger}
+import support.Responses.given
 
 import java.io.{ByteArrayOutputStream, PrintStream}
 import java.lang.reflect.{InvocationHandler, Method, Proxy}
@@ -43,7 +44,8 @@ class StackverseHelpersSpec extends AnyFunSuite {
     )
 
     payloads.foreach { payload =>
-      val raw = java.util.Base64.getUrlEncoder.withoutPadding()
+      val raw = java.util.Base64.getUrlEncoder
+        .withoutPadding()
         .encodeToString(Json.stringify(payload).getBytes(StandardCharsets.UTF_8))
 
       assertThrows[BadRequestProblem] {
@@ -134,10 +136,12 @@ class StackverseHelpersSpec extends AnyFunSuite {
       validator.throwIfInvalid()
     }
 
-    assert(problem.violations == Seq(
-      FieldViolation("url", "validation.url.required"),
-      FieldViolation("title", "validation.title.required")
-    ))
+    assert(
+      problem.violations == Seq(
+        FieldViolation("url", "validation.url.required"),
+        FieldViolation("title", "validation.title.required")
+      )
+    )
   }
 
   test("auth identity response exposes only application roles in sorted order") {
@@ -170,7 +174,7 @@ class StackverseHelpersSpec extends AnyFunSuite {
       createdAt = fixedInstant,
       updatedAt = fixedInstant
     )
-    val bookmarkJson = Responses.bookmark(bookmark)
+    val bookmarkJson = Json.toJson(bookmark)
 
     assert((bookmarkJson \ "notes").toOption.isEmpty)
     assert((bookmarkJson \ "tags").as[Seq[String]] == Seq("scala", "play"))
@@ -188,60 +192,80 @@ class StackverseHelpersSpec extends AnyFunSuite {
       resolutionNote = None,
       createdAt = fixedInstant
     )
-    val reportJson = Responses.report(report)
+    val reportJson = Json.toJson(report)
 
     assert((reportJson \ "comment").toOption.isEmpty)
     assert((reportJson \ "resolvedBy").toOption.isEmpty)
-    assert((Responses.report(report.copy(status = "actioned", resolvedBy = Some("mod"), resolvedAt = Some(fixedInstant))) \ "resolvedBy").as[String] == "mod")
+    assert(
+      (Json.toJson(
+        report.copy(status = "actioned", resolvedBy = Some("mod"), resolvedAt = Some(fixedInstant))
+      ) \ "resolvedBy").as[String] == "mod"
+    )
   }
 
   test("JDBC row mappers preserve nullable columns, arrays, and JSON details") {
-    val bookmark = Rows.bookmark(resultSet(Map(
-      "id" -> fixedId,
-      "owner" -> "demo",
-      "url" -> "https://example.test/play",
-      "title" -> "Play",
-      "notes" -> null,
-      "tags" -> sqlArray(Seq("scala", "play")),
-      "visibility" -> "public",
-      "status" -> "active",
-      "created_at" -> Timestamp.from(fixedInstant),
-      "updated_at" -> Timestamp.from(fixedInstant)
-    )))
+    val bookmark = Rows.bookmark(
+      resultSet(
+        Map(
+          "id" -> fixedId,
+          "owner" -> "demo",
+          "url" -> "https://example.test/play",
+          "title" -> "Play",
+          "notes" -> null,
+          "tags" -> sqlArray(Seq("scala", "play")),
+          "visibility" -> "public",
+          "status" -> "active",
+          "created_at" -> Timestamp.from(fixedInstant),
+          "updated_at" -> Timestamp.from(fixedInstant)
+        )
+      )
+    )
     assert(bookmark.notes.isEmpty)
     assert(bookmark.tags == Seq("scala", "play"))
 
-    val message = Rows.message(resultSet(Map(
-      "id" -> fixedId,
-      "key" -> "ui.title",
-      "language" -> "en",
-      "text" -> "Stackverse",
-      "description" -> null,
-      "created_at" -> Timestamp.from(fixedInstant),
-      "updated_at" -> Timestamp.from(fixedInstant)
-    )))
+    val message = Rows.message(
+      resultSet(
+        Map(
+          "id" -> fixedId,
+          "key" -> "ui.title",
+          "language" -> "en",
+          "text" -> "Stackverse",
+          "description" -> null,
+          "created_at" -> Timestamp.from(fixedInstant),
+          "updated_at" -> Timestamp.from(fixedInstant)
+        )
+      )
+    )
     assert(message.description.isEmpty)
 
-    val user = Rows.user(resultSet(Map(
-      "username" -> "demo",
-      "first_seen" -> Timestamp.from(fixedInstant),
-      "last_seen" -> Timestamp.from(fixedInstant),
-      "status" -> "blocked",
-      "blocked_reason" -> "policy",
-      "bookmark_count" -> Long.box(3L)
-    )))
+    val user = Rows.user(
+      resultSet(
+        Map(
+          "username" -> "demo",
+          "first_seen" -> Timestamp.from(fixedInstant),
+          "last_seen" -> Timestamp.from(fixedInstant),
+          "status" -> "blocked",
+          "blocked_reason" -> "policy",
+          "bookmark_count" -> Long.box(3L)
+        )
+      )
+    )
     assert(user.blockedReason.contains("policy"))
     assert(user.bookmarkCount == 3L)
 
-    val audit = Rows.audit(resultSet(Map(
-      "id" -> fixedId,
-      "actor" -> "admin",
-      "action" -> "bookmark.status-changed",
-      "target_type" -> "bookmark",
-      "target_id" -> fixedId.toString,
-      "detail" -> """{"from":"active","to":"hidden"}""",
-      "created_at" -> Timestamp.from(fixedInstant)
-    )))
+    val audit = Rows.audit(
+      resultSet(
+        Map(
+          "id" -> fixedId,
+          "actor" -> "admin",
+          "action" -> "bookmark.status-changed",
+          "target_type" -> "bookmark",
+          "target_id" -> fixedId.toString,
+          "detail" -> """{"from":"active","to":"hidden"}""",
+          "created_at" -> Timestamp.from(fixedInstant)
+        )
+      )
+    )
     assert((audit.detail.get \ "to").as[String] == "hidden")
   }
 
@@ -249,7 +273,14 @@ class StackverseHelpersSpec extends AnyFunSuite {
     val output = captureStdout {
       val logger = new EventLogger(testConfig(logLevel = "warn"))
       logger.event("info", "report_created", "success", "Report created", "actor" -> JsString("demo"))
-      logger.event("warn", "blocked_user_rejected", "denied", "Blocked user rejected", "actor" -> JsString("blocked"), "secret" -> JsNull)
+      logger.event(
+        "warn",
+        "blocked_user_rejected",
+        "denied",
+        "Blocked user rejected",
+        "actor" -> JsString("blocked"),
+        "secret" -> JsNull
+      )
       logger.shutdown()
     }
     val lines = output.linesIterator.filter(_.nonEmpty).toSeq
@@ -272,6 +303,29 @@ class StackverseHelpersSpec extends AnyFunSuite {
     }
 
     assert(output.trim == "INFO Listening port=8080")
+  }
+
+  test("event logger emits structured request failures with stack and duration") {
+    val output = captureStdout {
+      val logger = new EventLogger(testConfig())
+      logger.eventError(
+        "dependency_call_failed",
+        "failure",
+        "PostgreSQL request failed",
+        new IllegalStateException("connection lost"),
+        "dependency" -> JsString("postgres"),
+        "duration_ms" -> JsNumber(42),
+        "error_code" -> JsString("08006")
+      )
+      logger.shutdown()
+    }
+    val json = Json.parse(output.trim)
+
+    assert((json \ "level").as[String] == "error")
+    assert((json \ "event").as[String] == "dependency_call_failed")
+    assert((json \ "duration_ms").as[Long] == 42L)
+    assert((json \ "error_type").as[String] == "java.lang.IllegalStateException")
+    assert((json \ "stack_trace").as[String].contains("connection lost"))
   }
 
   private def testConfig(logLevel: String = "info", logFormat: String = "json"): BackendConfig =
@@ -300,52 +354,56 @@ class StackverseHelpersSpec extends AnyFunSuite {
 
   private def resultBody(result: Result): String =
     result.body match {
-      case HttpEntity.NoEntity => ""
+      case HttpEntity.NoEntity         => ""
       case HttpEntity.Strict(bytes, _) => bytes.utf8String
       case other => fail(s"Expected a strict response entity but got ${other.getClass.getSimpleName}")
     }
 
   private def resultSet(values: Map[String, Any]): ResultSet =
-    Proxy.newProxyInstance(
-      classOf[ResultSet].getClassLoader,
-      Array(classOf[ResultSet]),
-      new InvocationHandler {
-        override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
-          val name = method.getName
-          if (name == "toString") return "test-result-set"
-          val key = Option(args).flatMap(_.headOption).collect { case value: String => value }.getOrElse {
-            throw new UnsupportedOperationException(s"Unsupported ResultSet call: $method")
-          }
-          values.getOrElse(key, null) match {
-            case null if name == "getLong" => Long.box(0L)
-            case null if name == "getInt" => Integer.valueOf(0)
-            case null => null
-            case value: java.lang.Long if name == "getLong" => value
-            case value: java.lang.Integer if name == "getInt" => value
-            case value: String if name == "getString" => value
-            case value: Timestamp if name == "getTimestamp" => value
-            case value: UUID if name == "getObject" => value
-            case value: SqlArray if name == "getArray" => value
-            case value if name == "getObject" => value.asInstanceOf[AnyRef]
-            case value => throw new UnsupportedOperationException(s"Unsupported ResultSet call $name for $value")
+    Proxy
+      .newProxyInstance(
+        classOf[ResultSet].getClassLoader,
+        Array(classOf[ResultSet]),
+        new InvocationHandler {
+          override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef = {
+            val name = method.getName
+            if (name == "toString") return "test-result-set"
+            val key = Option(args).flatMap(_.headOption).collect { case value: String => value }.getOrElse {
+              throw new UnsupportedOperationException(s"Unsupported ResultSet call: $method")
+            }
+            values.getOrElse(key, null) match {
+              case null if name == "getLong"                    => Long.box(0L)
+              case null if name == "getInt"                     => Integer.valueOf(0)
+              case null                                         => null
+              case value: java.lang.Long if name == "getLong"   => value
+              case value: java.lang.Integer if name == "getInt" => value
+              case value: String if name == "getString"         => value
+              case value: Timestamp if name == "getTimestamp"   => value
+              case value: UUID if name == "getObject"           => value
+              case value: SqlArray if name == "getArray"        => value
+              case value if name == "getObject"                 => value.asInstanceOf[AnyRef]
+              case value => throw new UnsupportedOperationException(s"Unsupported ResultSet call $name for $value")
+            }
           }
         }
-      }
-    ).asInstanceOf[ResultSet]
+      )
+      .asInstanceOf[ResultSet]
 
   private def sqlArray(values: Seq[String]): SqlArray =
-    Proxy.newProxyInstance(
-      classOf[SqlArray].getClassLoader,
-      Array(classOf[SqlArray]),
-      new InvocationHandler {
-        override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef =
-          method.getName match {
-            case "getArray" => values.toArray
-            case "getBaseTypeName" => "text"
-            case "free" => null
-            case "toString" => values.mkString("Array(", ", ", ")")
-            case _ => throw new UnsupportedOperationException(s"Unsupported SQL array call: $method")
-          }
-      }
-    ).asInstanceOf[SqlArray]
+    Proxy
+      .newProxyInstance(
+        classOf[SqlArray].getClassLoader,
+        Array(classOf[SqlArray]),
+        new InvocationHandler {
+          override def invoke(proxy: Any, method: Method, args: Array[AnyRef]): AnyRef =
+            method.getName match {
+              case "getArray"        => values.toArray
+              case "getBaseTypeName" => "text"
+              case "free"            => null
+              case "toString"        => values.mkString("Array(", ", ", ")")
+              case _                 => throw new UnsupportedOperationException(s"Unsupported SQL array call: $method")
+            }
+        }
+      )
+      .asInstanceOf[SqlArray]
 }

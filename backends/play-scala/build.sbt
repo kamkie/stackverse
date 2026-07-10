@@ -8,7 +8,7 @@ lazy val root = (project in file("."))
     name := "stackverse-backend-play-scala",
     organization := "dev.stackverse",
     version := "0.1.0",
-    scalacOptions ++= Seq("-deprecation", "-feature"),
+    scalacOptions ++= Seq("-deprecation", "-feature", "-Werror"),
     libraryDependencies ++= Seq(
       guice,
       "com.zaxxer" % "HikariCP" % "7.1.0",
@@ -20,7 +20,8 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk" % "1.63.0",
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.63.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.63.0",
-      "org.scalatest" %% "scalatest" % "3.2.20" % Test
+      "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test
     ),
-    Test / fork := true
+    Test / fork := true,
+    scalafmtOnCompile := false
   )

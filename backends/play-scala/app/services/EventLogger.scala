@@ -9,6 +9,7 @@ import play.api.libs.json._
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.io.{PrintWriter, StringWriter}
 import javax.inject._
 import scala.util.Try
 
@@ -22,12 +23,24 @@ class EventLogger @Inject() (config: BackendConfig) {
     otelSdk.map(_.getLogsBridge.loggerBuilder("stackverse-backend-play-scala").build())
 
   def event(level: String, event: String, outcome: String, message: String, fields: (String, JsValue)*): Unit =
-    write(level, message, Some(event), Some(outcome), fields: _*)
+    write(level, message, Some(event), Some(outcome), fields*)
 
   def line(level: String, message: String, fields: (String, JsValue)*): Unit =
-    write(level, message, None, None, fields: _*)
+    write(level, message, None, None, fields*)
 
-  private def write(
+  def eventError(
+      event: String,
+      outcome: String,
+      message: String,
+      error: Throwable,
+      fields: (String, JsValue)*
+  ): Unit =
+    write("error", message, Some(event), Some(outcome), (fields ++ exceptionFields(error))*)
+
+  def error(message: String, error: Throwable, fields: (String, JsValue)*): Unit =
+    write("error", message, None, None, (fields ++ exceptionFields(error))*)
+
+  protected def write(
       level: String,
       message: String,
       eventName: Option[String],
@@ -47,11 +60,19 @@ class EventLogger @Inject() (config: BackendConfig) {
     } else {
       println(Json.stringify(obj))
     }
-    exportOtel(level, message, eventName, outcome, fields: _*)
+    exportOtel(level, message, eventName, outcome, fields*)
   }
 
-  def shutdown(): Unit = {
+  def shutdown(): Unit =
     otelSdk.foreach(sdk => Try(sdk.close()))
+
+  private def exceptionFields(error: Throwable): Seq[(String, JsValue)] = {
+    val stack = new StringWriter()
+    error.printStackTrace(new PrintWriter(stack))
+    Seq(
+      "error_type" -> JsString(error.getClass.getName),
+      "stack_trace" -> JsString(stack.toString)
+    )
   }
 
   private def exportOtel(
@@ -60,34 +81,34 @@ class EventLogger @Inject() (config: BackendConfig) {
       eventName: Option[String],
       outcome: Option[String],
       fields: (String, JsValue)*
-  ): Unit = {
+  ): Unit =
     otelLogger.foreach { logger =>
       try {
-        val record = logger.logRecordBuilder()
+        val record = logger
+          .logRecordBuilder()
           .setTimestamp(Instant.now())
           .setSeverity(severity(level))
           .setBody(message)
         eventName.foreach(value => record.setAttribute(AttributeKey.stringKey("event"), value))
         outcome.foreach(value => record.setAttribute(AttributeKey.stringKey("outcome"), value))
         fields.foreach {
-          case (key, JsString(value)) => record.setAttribute(AttributeKey.stringKey(key), value)
-          case (key, JsNumber(value)) => record.setAttribute(AttributeKey.stringKey(key), value.toString)
+          case (key, JsString(value))  => record.setAttribute(AttributeKey.stringKey(key), value)
+          case (key, JsNumber(value))  => record.setAttribute(AttributeKey.stringKey(key), value.toString)
           case (key, JsBoolean(value)) => record.setAttribute(AttributeKey.stringKey(key), value.toString)
-          case (_, JsNull) => ()
-          case (key, value) => record.setAttribute(AttributeKey.stringKey(key), Json.stringify(value))
+          case (_, JsNull)             => ()
+          case (key, value)            => record.setAttribute(AttributeKey.stringKey(key), Json.stringify(value))
         }
         record.emit()
       } catch {
         case _: Throwable => ()
       }
     }
-  }
 
   private def severity(level: String): Severity = level match {
     case "debug" => Severity.DEBUG
-    case "warn" => Severity.WARN
+    case "warn"  => Severity.WARN
     case "error" => Severity.ERROR
     case "fatal" => Severity.FATAL
-    case _ => Severity.INFO
+    case _       => Severity.INFO
   }
 }

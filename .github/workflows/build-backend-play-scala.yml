@@ -45,7 +45,7 @@ jobs:
           key: sbt-${{ runner.os }}-backend-play-scala-${{ hashFiles('backends/play-scala/build.sbt', 'backends/play-scala/project/*.sbt', 'backends/play-scala/project/build.properties') }}
           restore-keys: sbt-${{ runner.os }}-backend-play-scala-
       - name: Test with coverage
-        run: sbt clean coverage test coverageReport
+        run: sbt scalafmtCheckAll clean coverage test coverageReport
       - name: Normalize coverage report path
         run: |
           report="$(find target -path '*/scoverage-report/scoverage.xml' -print -quit)"

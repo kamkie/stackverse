@@ -6,12 +6,18 @@ import java.time.Instant
 import java.util.UUID
 import scala.collection.mutable.ArrayBuffer
 
-class ApiProblem(val status: Int, val title: String, val detail: Option[String] = None, val detailKey: Option[String] = None)
-    extends RuntimeException(detail.getOrElse(title))
+class ApiProblem(
+    val status: Int,
+    val title: String,
+    val detail: Option[String] = None,
+    val detailKey: Option[String] = None
+) extends RuntimeException(detail.getOrElse(title))
 
 class NotFoundProblem extends ApiProblem(404, "Not Found")
-class UnauthorizedProblem(detail: String = "Authentication is required.") extends ApiProblem(401, "Unauthorized", Some(detail))
-class ForbiddenProblem(detail: String, key: Option[String] = None) extends ApiProblem(403, "Forbidden", Some(detail), key)
+class UnauthorizedProblem(detail: String = "Authentication is required.")
+    extends ApiProblem(401, "Unauthorized", Some(detail))
+class ForbiddenProblem(detail: String, key: Option[String] = None)
+    extends ApiProblem(403, "Forbidden", Some(detail), key)
 class ConflictProblem(detail: String, key: Option[String] = None) extends ApiProblem(409, "Conflict", Some(detail), key)
 class BadRequestProblem(detail: String) extends ApiProblem(400, "Bad Request", Some(detail))
 
@@ -23,6 +29,8 @@ class Validator {
   def reject(field: String, key: String): Unit = violations += FieldViolation(field, key)
   def check(condition: Boolean, field: String, key: String): Unit = if (!condition) reject(field, key)
   def throwIfInvalid(): Unit = if (violations.nonEmpty) throw new ValidationProblem(violations.toSeq)
+  def result[A](value: => A): Either[Seq[FieldViolation], A] =
+    if (violations.nonEmpty) Left(violations.toSeq) else Right(value)
 }
 
 case class Caller(username: String, roles: Seq[String], name: Option[String], email: Option[String])
