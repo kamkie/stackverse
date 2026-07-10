@@ -171,6 +171,42 @@ describe("dialog non-field errors", () => {
     );
   });
 
+  it("keeps a general alert when only some violations map to form fields", () => {
+    state.dialog = {
+      kind: "bookmark-form",
+      mode: "create",
+      values: { url: "bad-url", title: "Retry" },
+      error: new ApiError(422, {
+        title: "Validation failed",
+        status: 422,
+        detail: "The request has additional validation errors.",
+        errors: [
+          {
+            field: "url",
+            message: "must be a valid URL",
+            messageKey: "validation.url.invalid",
+          },
+          {
+            field: "global",
+            message: "request combination is invalid",
+            messageKey: "validation.request.invalid",
+          },
+        ],
+      }),
+    };
+    document.body.innerHTML = dialogHtml();
+
+    expect(document.querySelector(".sv-field-error")?.textContent).toBe(
+      "must be a valid URL",
+    );
+    const alerts = document.querySelectorAll('.sv-alert--danger[role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.textContent).toBe(
+      "The request has additional validation errors.",
+    );
+    expect(alerts[0]?.textContent).not.toContain("must be a valid URL");
+  });
+
   it("keeps specialized conflicts without adding a generic danger alert", () => {
     state.dialog = {
       kind: "bookmark-form",

@@ -31,11 +31,16 @@ export function fieldErrorFor(
   field: string,
 ): FieldError | undefined {
   if (!(error instanceof ApiError)) return undefined;
-  return error.fieldErrors.find(
-    (entry) =>
-      entry.field === field ||
-      entry.field.startsWith(`${field}[`) ||
-      entry.field.startsWith(`${field}.`),
+  return error.fieldErrors.find((entry) =>
+    fieldPathMatches(entry.field, field),
+  );
+}
+
+export function fieldPathMatches(errorField: string, field: string): boolean {
+  return (
+    errorField === field ||
+    errorField.startsWith(`${field}[`) ||
+    errorField.startsWith(`${field}.`)
   );
 }
 

@@ -1,4 +1,4 @@
-import { ApiError, messageOf } from "./api";
+import { ApiError, fieldPathMatches, messageOf } from "./api";
 import { state, SUPPORTED_LANGUAGES } from "./app-state";
 import type { DialogState } from "./app-state";
 import {
@@ -90,7 +90,10 @@ function nonFieldErrorHtml(
   if (error === undefined || error === null) return "";
   if (
     error instanceof ApiError &&
-    (fields.some((field) => fieldError(error, field) !== undefined) ||
+    ((error.fieldErrors.length > 0 &&
+      error.fieldErrors.every((entry) =>
+        fields.some((field) => fieldPathMatches(entry.field, field)),
+      )) ||
       handledStatuses.includes(error.status))
   ) {
     return "";
