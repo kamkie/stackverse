@@ -58,7 +58,7 @@ issue closes.
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Spring Data JPA/Hibernate, Flyway migrations, ddl-auto validate | Spring Data JPA + JpaSpecificationExecutor, Flyway V1, ddl-auto=validate, Postgres | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Exposed DSL/DAO over HikariCP, or a coroutine JDBC layer | Hand-written SQL via raw JDBC + HikariCP; Flyway migrations | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | EF Core + Npgsql, code-first migrations, LINQ queries | EF Core 10 + Npgsql, checked-in migrations, Database.Migrate() on startup, text[] tags + GIN | ✅ idiomatic |
-| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto schemas/changesets plus Repo queries and migrations | Embedded input schemas/changesets plus Ecto Repo/migrations; explicit SQL retained for row locks, text[] tags, dynamic filters, and PostgreSQL constraints | 🟡 deliberate |
+| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto schemas/changesets plus Repo queries and migrations | Typed persistence and input schemas, Repo CRUD, Ecto.Query filters/locks/counts, and migrations; SQL limited to array/day aggregates and bulk seed import | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | GORM/Hibernate domain classes with dynamic finders | Raw Spring JdbcTemplate + hand-written SQL, Flyway migrations, no GORM | 🟡 deliberate |
@@ -258,7 +258,7 @@ issue closes.
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Records/DTOs distinct from JPA entities, enums serialized to wire values | Separate request/response records; enums with @JsonValue + WebConfig converters | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | kotlinx.serialization @Serializable data classes | Jackson (ktor-serialization-jackson) over plain data classes | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | records for DTOs, enums, nullable reference types enabled | sealed record DTOs, mutable entity classes, enums, Nullable enabled, global kebab-case enum policy | ✅ idiomatic |
-| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Structs/schemas and JSON views/encoders for DTOs | Response maps over SQL rows, lowercase wire-string enums, nil omission helper | 🟡 deliberate |
+| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Structs/schemas and JSON views/encoders for DTOs | Explicit response maps converted from Ecto persistence structs, lowercase wire-string enums, nil omission helper | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Typed GORM domain classes; JSON views or respond marshalling | Untyped Maps end-to-end, lowercase wire-string enums, manual JSON render | 🟡 deliberate |
