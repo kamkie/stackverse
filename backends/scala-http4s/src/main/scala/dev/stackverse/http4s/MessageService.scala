@@ -14,9 +14,9 @@ trait MessageOperations {
   def listMessages(req: Request[IO]): IO[Response[IO]]
   def messageBundle(req: Request[IO]): IO[Response[IO]]
   def getMessage(req: Request[IO], id: String): IO[Response[IO]]
-  def createMessage(req: Request[IO]): IO[Response[IO]]
-  def updateMessage(req: Request[IO], id: String): IO[Response[IO]]
-  def deleteMessage(req: Request[IO], id: String): IO[Response[IO]]
+  def createMessage(req: Request[IO], caller: Caller): IO[Response[IO]]
+  def updateMessage(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def deleteMessage(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
 }
 
 final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventLogger, repository: SharedRepository)
@@ -75,11 +75,11 @@ final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventL
     withEtag(req, Responses.message(row))
   }
 
-  override def createMessage(req: Request[IO]): IO[Response[IO]] =
+  override def createMessage(req: Request[IO], caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireRole(req, "admin")
+        auth.requireRole(caller, "admin")
         val input = validateMessageInput(body)
         val row = db.transaction { conn =>
           if (messageDuplicate(conn, input.key, input.language, None)) throw duplicateMessage(input)
@@ -117,11 +117,11 @@ final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventL
       }
     } yield response
 
-  override def updateMessage(req: Request[IO], id: String): IO[Response[IO]] =
+  override def updateMessage(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireRole(req, "admin")
+        auth.requireRole(caller, "admin")
         val uuid = parseUuid(id)
         val input = validateMessageInput(body)
         val row = db.transaction { conn =>
@@ -153,8 +153,8 @@ final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventL
       }
     } yield response
 
-  override def deleteMessage(req: Request[IO], id: String): IO[Response[IO]] = IO.blocking {
-    val caller = auth.requireRole(req, "admin")
+  override def deleteMessage(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = IO.blocking {
+    auth.requireRole(caller, "admin")
     val uuid = parseUuid(id)
     val row = db.transaction { conn =>
       val deleted = db

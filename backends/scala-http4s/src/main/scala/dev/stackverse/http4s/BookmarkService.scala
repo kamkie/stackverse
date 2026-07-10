@@ -13,11 +13,11 @@ import scala.util.Try
 trait BookmarkOperations {
   def listBookmarksV1(req: Request[IO]): IO[Response[IO]]
   def listBookmarksV2(req: Request[IO]): IO[Response[IO]]
-  def createBookmark(req: Request[IO]): IO[Response[IO]]
+  def createBookmark(req: Request[IO], caller: Caller): IO[Response[IO]]
   def getBookmark(req: Request[IO], id: String): IO[Response[IO]]
-  def updateBookmark(req: Request[IO], id: String): IO[Response[IO]]
-  def deleteBookmark(req: Request[IO], id: String): IO[Response[IO]]
-  def listTags(req: Request[IO]): IO[Response[IO]]
+  def updateBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def deleteBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def listTags(req: Request[IO], caller: Caller): IO[Response[IO]]
 }
 
 final class BookmarkService(db: Db, auth: AuthService, repository: SharedRepository) extends BookmarkOperations {
@@ -88,11 +88,10 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
     jsonResponse(Status.Ok, payload)
   }
 
-  override def createBookmark(req: Request[IO]): IO[Response[IO]] =
+  override def createBookmark(req: Request[IO], caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireCaller(req)
         val input = validateBookmarkInput(body)
         val now = Instant.now()
         val id = UUID.randomUUID()
@@ -121,11 +120,10 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
     jsonResponse(Status.Ok, Responses.bookmark(row.get))
   }
 
-  override def updateBookmark(req: Request[IO], id: String): IO[Response[IO]] =
+  override def updateBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireCaller(req)
         val uuid = parseUuid(id)
         val input = validateBookmarkInput(body)
         val row = db.transaction { conn =>
@@ -148,8 +146,7 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
       }
     } yield response
 
-  override def deleteBookmark(req: Request[IO], id: String): IO[Response[IO]] = IO.blocking {
-    val caller = auth.requireCaller(req)
+  override def deleteBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = IO.blocking {
     val uuid = parseUuid(id)
     db.withConnection { conn =>
       val bookmark = findBookmark(conn, uuid).filter(_.owner == caller.username).getOrElse(throw NotFoundProblem())
@@ -158,8 +155,7 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
     Response[IO](Status.NoContent)
   }
 
-  override def listTags(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    val caller = auth.requireCaller(req)
+  override def listTags(req: Request[IO], caller: Caller): IO[Response[IO]] = IO.blocking {
     val tags = db.withConnection { conn =>
       db.query(
         conn,

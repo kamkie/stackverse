@@ -13,10 +13,12 @@ final class MessageRoutes(service: MessageOperations, handler: RequestHandler, s
   }
 
   private val secured: AuthedRoutes[Caller, IO] = AuthedRoutes.of {
-    case req @ POST -> Root / "api" / "v1" / "messages" as _     => handler(req.req)(service.createMessage(req.req))
-    case req @ PUT -> Root / "api" / "v1" / "messages" / id as _ => handler(req.req)(service.updateMessage(req.req, id))
-    case req @ DELETE -> Root / "api" / "v1" / "messages" / id as _ =>
-      handler(req.req)(service.deleteMessage(req.req, id))
+    case req @ POST -> Root / "api" / "v1" / "messages" as caller =>
+      handler(req.req)(service.createMessage(req.req, caller))
+    case req @ PUT -> Root / "api" / "v1" / "messages" / id as caller =>
+      handler(req.req)(service.updateMessage(req.req, id, caller))
+    case req @ DELETE -> Root / "api" / "v1" / "messages" / id as caller =>
+      handler(req.req)(service.deleteMessage(req.req, id, caller))
   }
 
   val routes: HttpRoutes[IO] = public <+> security(secured)

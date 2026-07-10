@@ -268,6 +268,27 @@ class StackverseHelpersSpec extends AnyFunSuite {
     assert(output.trim == "INFO Listening port=8080")
   }
 
+  test("event logger emits structured fatal startup failures with a stack trace") {
+    val output = captureStdout {
+      val logger = EventLogger(testConfig())
+      logger.fatal(
+        "application_start",
+        "failure",
+        "Backend refused to start",
+        IllegalStateException("migration failed")
+      )
+      logger.shutdown()
+    }
+    val json = parse(output.trim).toOption.get
+
+    assert(json.hcursor.get[String]("level").toOption.contains("fatal"))
+    assert(json.hcursor.get[String]("event").toOption.contains("application_start"))
+    assert(json.hcursor.get[String]("outcome").toOption.contains("failure"))
+    assert(json.hcursor.get[String]("error_code").toOption.contains("application_start_failed"))
+    assert(json.hcursor.get[String]("error_type").toOption.contains("java.lang.IllegalStateException"))
+    assert(json.hcursor.get[String]("stack_trace").toOption.exists(_.contains("migration failed")))
+  }
+
   private def testConfig(logLevel: String = "info", logFormat: String = "json"): BackendConfig =
     BackendConfig(
       port = 8080,

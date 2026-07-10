@@ -6,6 +6,7 @@ import io.opentelemetry.api.logs.{Logger as OtelLogger, Severity}
 import io.opentelemetry.sdk.OpenTelemetrySdk
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk
 
+import java.io.{PrintWriter, StringWriter}
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import scala.util.Try
@@ -23,6 +24,22 @@ final class EventLogger(config: BackendConfig) extends ProblemEvents {
 
   def line(level: String, message: String, fields: (String, Json)*): Unit =
     write(level, message, None, None, fields*)
+
+  def fatal(event: String, outcome: String, message: String, error: Throwable, fields: (String, Json)*): Unit = {
+    val stack = StringWriter()
+    error.printStackTrace(PrintWriter(stack))
+    write(
+      "fatal",
+      message,
+      Some(event),
+      Some(outcome),
+      (fields ++ Seq(
+        "error_code" -> Json.fromString("application_start_failed"),
+        "error_type" -> Json.fromString(error.getClass.getName),
+        "stack_trace" -> Json.fromString(stack.toString)
+      ))*
+    )
+  }
 
   private def write(
       level: String,

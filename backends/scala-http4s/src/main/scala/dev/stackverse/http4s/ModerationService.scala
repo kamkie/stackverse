@@ -11,13 +11,13 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 trait ModerationOperations {
-  def createReport(req: Request[IO], id: String): IO[Response[IO]]
-  def listMyReports(req: Request[IO]): IO[Response[IO]]
-  def updateMyReport(req: Request[IO], id: String): IO[Response[IO]]
-  def withdrawReport(req: Request[IO], id: String): IO[Response[IO]]
-  def listReports(req: Request[IO]): IO[Response[IO]]
-  def resolveReport(req: Request[IO], id: String): IO[Response[IO]]
-  def setBookmarkStatus(req: Request[IO], id: String): IO[Response[IO]]
+  def createReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def listMyReports(req: Request[IO], caller: Caller): IO[Response[IO]]
+  def updateMyReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def withdrawReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def listReports(req: Request[IO], caller: Caller): IO[Response[IO]]
+  def resolveReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
+  def setBookmarkStatus(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
 }
 
 final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, repository: SharedRepository)
@@ -27,11 +27,10 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
   import Wire.*
   import repository.*
 
-  override def createReport(req: Request[IO], id: String): IO[Response[IO]] =
+  override def createReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireCaller(req)
         val bookmarkId = parseUuid(id)
         val input = validateReportInput(body)
         val row = db.transaction { conn =>
@@ -76,8 +75,7 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
       }
     } yield response
 
-  override def listMyReports(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    val caller = auth.requireCaller(req)
+  override def listMyReports(req: Request[IO], caller: Caller): IO[Response[IO]] = IO.blocking {
     val (page, size) = paging(query(req))
     val status = validatedReportStatus(single(query(req), "status"))
     val (where, params) = status match {
@@ -96,11 +94,10 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
     jsonResponse(Status.Ok, payload)
   }
 
-  override def updateMyReport(req: Request[IO], id: String): IO[Response[IO]] =
+  override def updateMyReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireCaller(req)
         val uuid = parseUuid(id)
         val input = validateReportInput(body)
         val row = db.transaction { conn =>
@@ -127,8 +124,7 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
       }
     } yield response
 
-  override def withdrawReport(req: Request[IO], id: String): IO[Response[IO]] = IO.blocking {
-    val caller = auth.requireCaller(req)
+  override def withdrawReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = IO.blocking {
     val uuid = parseUuid(id)
     val bookmarkId = db.transaction { conn =>
       val report = ownReport(conn, caller.username, uuid)
@@ -149,8 +145,8 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
     Response[IO](Status.NoContent)
   }
 
-  override def listReports(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    auth.requireRole(req, "moderator")
+  override def listReports(req: Request[IO], caller: Caller): IO[Response[IO]] = IO.blocking {
+    auth.requireRole(caller, "moderator")
     val (page, size) = paging(query(req))
     val status = validatedReportStatus(single(query(req), "status")).getOrElse("open")
     val payload = db.withConnection { conn =>
@@ -165,11 +161,11 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
     jsonResponse(Status.Ok, payload)
   }
 
-  override def resolveReport(req: Request[IO], id: String): IO[Response[IO]] =
+  override def resolveReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireRole(req, "moderator")
+        auth.requireRole(caller, "moderator")
         val uuid = parseUuid(id)
         val validator = Validator()
         val target = body("resolution").flatMap(_.asString)
@@ -251,11 +247,11 @@ final class ModerationService(db: Db, auth: AuthService, logger: EventLogger, re
       }
     } yield response
 
-  override def setBookmarkStatus(req: Request[IO], id: String): IO[Response[IO]] =
+  override def setBookmarkStatus(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireRole(req, "moderator")
+        auth.requireRole(caller, "moderator")
         val uuid = parseUuid(id)
         val validator = Validator()
         val status = body("status").flatMap(_.asString)

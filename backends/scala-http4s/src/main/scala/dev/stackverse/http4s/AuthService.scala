@@ -44,8 +44,7 @@ final class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: Event
   def requireCaller(request: Request[IO]): Caller =
     optional(request).getOrElse(throw UnauthorizedProblem())
 
-  def requireRole(request: Request[IO], role: String): Caller = {
-    val caller = requireCaller(request)
+  def requireRole(caller: Caller, role: String): Caller = {
     if (!caller.roles.contains(role)) {
       logger.event(
         "info",

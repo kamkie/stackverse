@@ -39,19 +39,19 @@ class FeatureRoutesSpec extends AnyFunSuite {
 
   test("feature routes execute public and authenticated service behavior") {
     val identity = new IdentityAdapter {
-      override def me(req: Request[IO]): IO[Response[IO]] = response("identity")
+      override def me(caller: Caller): IO[Response[IO]] = response("identity")
     }
     val bookmarks = new BookmarkAdapter {
       override def listBookmarksV1(req: Request[IO]): IO[Response[IO]] = response("bookmarks")
     }
     val messages = new MessageAdapter {
-      override def createMessage(req: Request[IO]): IO[Response[IO]] = response("message-created")
+      override def createMessage(req: Request[IO], caller: Caller): IO[Response[IO]] = response("message-created")
     }
     val moderation = new ModerationAdapter {
-      override def listMyReports(req: Request[IO]): IO[Response[IO]] = response("reports")
+      override def listMyReports(req: Request[IO], caller: Caller): IO[Response[IO]] = response("reports")
     }
     val admin = new AdminAdapter {
-      override def listUsers(req: Request[IO]): IO[Response[IO]] = response("users")
+      override def listUsers(req: Request[IO], caller: Caller): IO[Response[IO]] = response("users")
     }
 
     val cases = Seq(
@@ -81,6 +81,29 @@ class FeatureRoutesSpec extends AnyFunSuite {
     )
   }
 
+  test("authenticated routes verify once and pass the middleware caller to the service") {
+    var authentications = 0
+    var observedCaller = Option.empty[Caller]
+    val countingSecurity = new RouteSecurity(
+      _ => IO { authentications += 1; caller },
+      handler
+    )
+    val service = new IdentityAdapter {
+      override def me(authenticated: Caller): IO[Response[IO]] = {
+        observedCaller = Some(authenticated)
+        response("identity")
+      }
+    }
+
+    assertBody(
+      new IdentityRoutes(service, handler, countingSecurity).routes,
+      request(Method.GET, "/api/v1/me"),
+      "identity"
+    )
+    assert(authentications == 1)
+    assert(observedCaller.contains(caller))
+  }
+
   test("feature modules do not claim routes from sibling domains") {
     val routes = new BookmarkRoutes(new BookmarkAdapter {}, handler, security).routes
 
@@ -106,11 +129,38 @@ class FeatureRoutesSpec extends AnyFunSuite {
     val events = new ServerEvents {
       override def started: IO[Unit] = IO { order += "start"; () }
       override def stopped: IO[Unit] = IO { order += "stop"; () }
+      override def startupFailed(error: Throwable): IO[Unit] = IO { order += "fatal"; () }
     }
 
     ServerLifecycle.attach(server, events).use(_ => IO { order += "use"; () }).unsafeRunSync()
 
     assert(order.toSeq == Seq("acquire", "start", "use", "release", "stop"))
+  }
+
+  test("server lifecycle releases partial startup, logs fatal, and rethrows the cause") {
+    val order = ListBuffer.empty[String]
+    val cause = new IllegalStateException("migration failed")
+    val runtime = Resource
+      .make(IO { order += "acquire"; () })(_ => IO { order += "release"; () })
+      .flatMap(_ => Resource.eval(IO.raiseError[Unit](cause)))
+    var observed = Option.empty[Throwable]
+    val events = new ServerEvents {
+      override def started: IO[Unit] = IO { order += "start"; () }
+      override def stopped: IO[Unit] = IO { order += "stop"; () }
+      override def startupFailed(error: Throwable): IO[Unit] = IO {
+        observed = Some(error)
+        order += "fatal"
+        ()
+      }
+    }
+
+    val thrown = intercept[IllegalStateException] {
+      ServerLifecycle.attach(runtime, events).use(_ => IO.unit).unsafeRunSync()
+    }
+
+    assert(thrown eq cause)
+    assert(observed.contains(cause))
+    assert(order.toSeq == Seq("acquire", "release", "fatal"))
   }
 
   private def assertBody(routes: HttpRoutes[IO], request: Request[IO], expected: String): Unit = {
@@ -128,43 +178,43 @@ class FeatureRoutesSpec extends AnyFunSuite {
   private def unsupported: IO[Response[IO]] = IO.raiseError(new AssertionError("unexpected service call"))
 
   private trait IdentityAdapter extends IdentityOperations {
-    override def me(req: Request[IO]): IO[Response[IO]] = unsupported
+    override def me(caller: Caller): IO[Response[IO]] = unsupported
   }
 
   private trait BookmarkAdapter extends BookmarkOperations {
     override def listBookmarksV1(req: Request[IO]): IO[Response[IO]] = unsupported
     override def listBookmarksV2(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def createBookmark(req: Request[IO]): IO[Response[IO]] = unsupported
+    override def createBookmark(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
     override def getBookmark(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def updateBookmark(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def deleteBookmark(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def listTags(req: Request[IO]): IO[Response[IO]] = unsupported
+    override def updateBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def deleteBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def listTags(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
   }
 
   private trait MessageAdapter extends MessageOperations {
     override def listMessages(req: Request[IO]): IO[Response[IO]] = unsupported
     override def messageBundle(req: Request[IO]): IO[Response[IO]] = unsupported
     override def getMessage(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def createMessage(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def updateMessage(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def deleteMessage(req: Request[IO], id: String): IO[Response[IO]] = unsupported
+    override def createMessage(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
+    override def updateMessage(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def deleteMessage(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
   }
 
   private trait ModerationAdapter extends ModerationOperations {
-    override def createReport(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def listMyReports(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def updateMyReport(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def withdrawReport(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def listReports(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def resolveReport(req: Request[IO], id: String): IO[Response[IO]] = unsupported
-    override def setBookmarkStatus(req: Request[IO], id: String): IO[Response[IO]] = unsupported
+    override def createReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def listMyReports(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
+    override def updateMyReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def withdrawReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def listReports(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
+    override def resolveReport(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def setBookmarkStatus(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
   }
 
   private trait AdminAdapter extends AdminOperations {
-    override def listUsers(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def getUser(req: Request[IO], username: String): IO[Response[IO]] = unsupported
-    override def setUserStatus(req: Request[IO], username: String): IO[Response[IO]] = unsupported
-    override def auditLog(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def stats(req: Request[IO]): IO[Response[IO]] = unsupported
+    override def listUsers(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
+    override def getUser(req: Request[IO], username: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def setUserStatus(req: Request[IO], username: String, caller: Caller): IO[Response[IO]] = unsupported
+    override def auditLog(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
+    override def stats(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
   }
 }

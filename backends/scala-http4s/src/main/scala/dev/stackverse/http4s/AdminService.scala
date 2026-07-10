@@ -11,11 +11,11 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 trait AdminOperations {
-  def listUsers(req: Request[IO]): IO[Response[IO]]
-  def getUser(req: Request[IO], username: String): IO[Response[IO]]
-  def setUserStatus(req: Request[IO], username: String): IO[Response[IO]]
-  def auditLog(req: Request[IO]): IO[Response[IO]]
-  def stats(req: Request[IO]): IO[Response[IO]]
+  def listUsers(req: Request[IO], caller: Caller): IO[Response[IO]]
+  def getUser(req: Request[IO], username: String, caller: Caller): IO[Response[IO]]
+  def setUserStatus(req: Request[IO], username: String, caller: Caller): IO[Response[IO]]
+  def auditLog(req: Request[IO], caller: Caller): IO[Response[IO]]
+  def stats(req: Request[IO], caller: Caller): IO[Response[IO]]
 }
 
 final class AdminService(db: Db, auth: AuthService, logger: EventLogger, repository: SharedRepository)
@@ -24,8 +24,8 @@ final class AdminService(db: Db, auth: AuthService, logger: EventLogger, reposit
   import Wire.*
   import repository.*
 
-  override def listUsers(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    auth.requireRole(req, "admin")
+  override def listUsers(req: Request[IO], caller: Caller): IO[Response[IO]] = IO.blocking {
+    auth.requireRole(caller, "admin")
     val (page, size) = paging(query(req))
     val q = single(query(req), "q")
     maxLength(q, 100, "q")
@@ -55,17 +55,17 @@ final class AdminService(db: Db, auth: AuthService, logger: EventLogger, reposit
     jsonResponse(Status.Ok, payload)
   }
 
-  override def getUser(req: Request[IO], username: String): IO[Response[IO]] = IO.blocking {
-    auth.requireRole(req, "admin")
+  override def getUser(req: Request[IO], username: String, caller: Caller): IO[Response[IO]] = IO.blocking {
+    auth.requireRole(caller, "admin")
     val row = db.withConnection(conn => findUser(conn, username).getOrElse(throw NotFoundProblem()))
     jsonResponse(Status.Ok, Responses.user(row))
   }
 
-  override def setUserStatus(req: Request[IO], username: String): IO[Response[IO]] =
+  override def setUserStatus(req: Request[IO], username: String, caller: Caller): IO[Response[IO]] =
     for {
       body <- jsonBody(req)
       response <- IO.blocking {
-        val caller = auth.requireRole(req, "admin")
+        auth.requireRole(caller, "admin")
         val status = body("status").flatMap(_.asString).getOrElse(throw BadRequestProblem("status is required"))
         if (status != "active" && status != "blocked") throw BadRequestProblem("status is required")
         val reason = body("reason").flatMap(_.asString).map(_.trim)
@@ -116,8 +116,8 @@ final class AdminService(db: Db, auth: AuthService, logger: EventLogger, reposit
       }
     } yield response
 
-  override def auditLog(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    auth.requireRole(req, "admin")
+  override def auditLog(req: Request[IO], caller: Caller): IO[Response[IO]] = IO.blocking {
+    auth.requireRole(caller, "admin")
     val (page, size) = paging(query(req))
     val clauses = ArrayBuffer("true")
     val params = ArrayBuffer.empty[Any]
@@ -149,8 +149,8 @@ final class AdminService(db: Db, auth: AuthService, logger: EventLogger, reposit
     jsonResponse(Status.Ok, payload)
   }
 
-  override def stats(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    auth.requireRole(req, "moderator")
+  override def stats(req: Request[IO], caller: Caller): IO[Response[IO]] = IO.blocking {
+    auth.requireRole(caller, "moderator")
     val today = LocalDate.now(ZoneOffset.UTC)
     val from = today.minusDays(29).atStartOfDay().toInstant(ZoneOffset.UTC)
     val payload = db.withConnection { conn =>

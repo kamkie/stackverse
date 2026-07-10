@@ -61,7 +61,9 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
   logging, and RFC 9457 recovery each have a focused source module.
 - **Kleisli authentication middleware** — secured `AuthedRoutes` run through an
   http4s `AuthMiddleware` built from a `Kleisli`; public reads remain ordinary
-  `HttpRoutes`, while the existing role helpers preserve exact 403 behavior.
+  `HttpRoutes`. The authenticated `Caller` is passed explicitly into each
+  secured feature operation, so JWT/account verification happens once at the
+  HTTP boundary while caller-based role helpers preserve exact 403 behavior.
 - **Blocking JDBC isolated in `IO.blocking`** — the HTTP layer stays effect
   typed while the intentionally thin SQL layer uses PostgreSQL arrays and
   `SELECT ... FOR UPDATE` locks for the contract-sensitive races.
@@ -75,11 +77,13 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
 - **Circe response builders** — wire JSON is built explicitly so optional fields
   are omitted exactly where the OpenAPI contract omits them.
 - **Route-level tests** — ScalaTest exercises real route-to-service behavior
-  through fake operation interfaces, authenticated route execution and denial,
-  liveness, and sibling-route isolation without infrastructure.
-- **Lifecycle logs follow the server resource** — startup is emitted only after
-  migrations, seed import, and Ember bind; shutdown is attached to server
-  resource release.
+  through fake operation interfaces, exactly-once authenticated caller
+  propagation, authentication denial, liveness, and sibling-route isolation
+  without infrastructure.
+- **Lifecycle logs follow the complete runtime resource** — startup is emitted
+  only after database acquisition, migrations, seed import, and Ember bind;
+  shutdown follows resource release. Any acquisition failure is logged once as
+  structured `FATAL application_start` with its stack trace and then rethrown.
 - **Formatting and warnings as gates** — scalafmt is checked in CI and Scala
   compilation enables deprecation/feature warnings with `-Werror`.
 
