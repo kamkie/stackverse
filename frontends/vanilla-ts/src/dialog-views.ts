@@ -176,7 +176,9 @@ function bookmarkFormDialogHtml(
       })}
       ${formErrorHtml(error, Object.values(BOOKMARK_FIELDS), {
         conflictMessage: () =>
-          dialog.mode === "edit" && bookmark?.status === "hidden"
+          dialog.mode === "edit" &&
+          bookmark?.status === "hidden" &&
+          values.visibility === "public"
             ? t("error.bookmark.hidden-publish")
             : undefined,
       })}

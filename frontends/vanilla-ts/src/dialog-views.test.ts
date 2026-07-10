@@ -276,4 +276,24 @@ describe("dialog non-field errors", () => {
     ).not.toBeNull();
     expect(document.querySelector(".sv-alert--danger")).toBeNull();
   });
+
+  it("keeps a hidden bookmark's private-edit conflict detail generic", () => {
+    state.dialog = {
+      kind: "bookmark-form",
+      mode: "edit",
+      bookmark: { ...bookmark, status: "hidden" },
+      values: { visibility: "private" },
+      error: new ApiError(409, {
+        title: "Conflict",
+        status: 409,
+        detail: "The bookmark changed concurrently.",
+      }),
+    };
+    document.body.innerHTML = dialogHtml();
+
+    expect(document.querySelector(".sv-alert--warning")).toBeNull();
+    expect(
+      document.querySelector('.sv-alert--danger[role="alert"]')?.textContent,
+    ).toBe("The bookmark changed concurrently.");
+  });
 });
