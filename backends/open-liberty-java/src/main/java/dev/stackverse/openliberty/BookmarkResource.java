@@ -84,6 +84,7 @@ public class BookmarkResource extends ResourceSupport {
 
     @POST
     @Path("/api/v1/bookmarks")
+    @RequiresCaller
     public Response create(BookmarkInput body) throws SQLException {
         Caller caller = requireCaller();
         BookmarkInput input = bookmarkInput(body);
@@ -132,6 +133,7 @@ public class BookmarkResource extends ResourceSupport {
 
     @PUT
     @Path("/api/v1/bookmarks/{id}")
+    @RequiresCaller
     public Response update(@PathParam("id") String rawId, BookmarkInput body) {
         Caller caller = requireCaller();
         UUID id = uuid(rawId);
@@ -176,6 +178,7 @@ public class BookmarkResource extends ResourceSupport {
 
     @DELETE
     @Path("/api/v1/bookmarks/{id}")
+    @RequiresCaller
     public Response delete(@PathParam("id") String rawId) throws SQLException {
         Caller caller = requireCaller();
         UUID id = uuid(rawId);
@@ -194,6 +197,7 @@ public class BookmarkResource extends ResourceSupport {
 
     @GET
     @Path("/api/v1/tags")
+    @RequiresCaller
     public Response tags() throws SQLException {
         Caller caller = requireCaller();
         List<ApiModels.TagCount> tags = new ArrayList<>();

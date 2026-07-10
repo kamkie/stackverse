@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Path("/")
+@RequiresCaller
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @RequestScoped

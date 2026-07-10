@@ -1,6 +1,7 @@
 package dev.stackverse.openliberty;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import jakarta.json.Json;
 import java.util.List;
@@ -45,5 +46,20 @@ class AuthFilterTest {
                         .getMethod("reports")
                         .getAnnotation(RequiresRole.class)
                         .value());
+    }
+
+    @Test
+    void callerOnlyEndpointsDeclarePreEntityAuthentication() throws NoSuchMethodException {
+        assertTrue(AccountResource.class.isAnnotationPresent(RequiresCaller.class));
+        assertTrue(ReportResource.class.isAnnotationPresent(RequiresCaller.class));
+        assertCallerRequired(BookmarkResource.class.getMethod("create", BookmarkInput.class));
+        assertCallerRequired(
+                BookmarkResource.class.getMethod("update", String.class, BookmarkInput.class));
+        assertCallerRequired(BookmarkResource.class.getMethod("delete", String.class));
+        assertCallerRequired(BookmarkResource.class.getMethod("tags"));
+    }
+
+    private static void assertCallerRequired(java.lang.reflect.Method method) {
+        assertTrue(method.isAnnotationPresent(RequiresCaller.class), method.toString());
     }
 }

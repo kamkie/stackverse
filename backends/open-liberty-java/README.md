@@ -68,9 +68,10 @@ docker build -t stackverse/backend-open-liberty-java:local -f backends/open-libe
   and resources are discovered from annotations rather than a manual class
   registry.
 - **MicroProfile JWT** — Open Liberty validates issuer, audience, lifetime,
-  signature, and `preferred_username`. A name-bound `@RequiresRole` JAX-RS
-  authorization filter maps the established Keycloak `realm_access.roles`
-  claim without changing the shared token shape.
+  signature, and `preferred_username`. Name-bound `@RequiresCaller` and
+  `@RequiresRole` JAX-RS authorization filters enforce protected-route identity
+  and roles before entity deserialization; the established Keycloak
+  `realm_access.roles` token shape remains unchanged.
 - **Typed and validated payloads** — public request and response shapes are
   Java records. Jakarta Bean Validation constraints feed the Stackverse
   localized field-error mapper; raw maps remain only for intentionally open

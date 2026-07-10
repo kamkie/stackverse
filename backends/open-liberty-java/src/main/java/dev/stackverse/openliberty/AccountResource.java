@@ -8,6 +8,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
 @Path("/api/v1/me")
+@RequiresCaller
 @Produces(MediaType.APPLICATION_JSON)
 @RequestScoped
 public class AccountResource extends ResourceSupport {
