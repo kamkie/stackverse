@@ -4,14 +4,10 @@ import cats.effect.IO
 import org.http4s.*
 import org.http4s.dsl.io.*
 
-final class IdentityRoutes(auth: AuthService, handler: RequestHandler) {
-  import Wire.*
-
-  val routes: HttpRoutes[IO] = HttpRoutes.of[IO] { case req @ GET -> Root / "api" / "v1" / "me" =>
-    handler(req)(me(req))
+final class IdentityRoutes(service: IdentityOperations, handler: RequestHandler, security: RouteAuthentication) {
+  private val secured: AuthedRoutes[Caller, IO] = AuthedRoutes.of { case req @ GET -> Root / "api" / "v1" / "me" as _ =>
+    handler(req.req)(service.me(req.req))
   }
 
-  private def me(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    jsonResponse(Status.Ok, auth.me(auth.requireCaller(req)))
-  }
+  val routes: HttpRoutes[IO] = security(secured)
 }

@@ -4,10 +4,10 @@ import io.circe.{Json, JsonObject}
 
 import scala.util.Try
 
-final class I18n(db: Db) {
+final class I18n(db: Db) extends ProblemLocalization {
   val DefaultLanguage = "en"
 
-  def resolve(queryLang: Option[String], acceptLanguage: Option[String]): String =
+  override def resolve(queryLang: Option[String], acceptLanguage: Option[String]): String =
     db.withConnection { conn =>
       val supported = db.query(conn, "select distinct language from messages")(rs => rs.getString("language")).toSet
       queryLang
@@ -16,7 +16,7 @@ final class I18n(db: Db) {
         .getOrElse(DefaultLanguage)
     }
 
-  def localize(key: String, language: String): String =
+  override def localize(key: String, language: String): String =
     db.withConnection { conn =>
       db.one(
         conn,

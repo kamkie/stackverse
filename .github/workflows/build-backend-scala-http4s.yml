@@ -45,7 +45,7 @@ jobs:
           key: sbt-${{ runner.os }}-backend-scala-http4s-${{ hashFiles('backends/scala-http4s/build.sbt', 'backends/scala-http4s/project/*.sbt', 'backends/scala-http4s/project/build.properties') }}
           restore-keys: sbt-${{ runner.os }}-backend-scala-http4s-
       - name: Test with coverage
-        run: sbt scalafmtCheckAll clean coverage test coverageReport
+        run: sbt "scalafmtCheckAll; clean; coverage; test; coverageReport"
       - name: Normalize coverage report path
         run: |
           report="$(find target -path '*/scoverage-report/scoverage.xml' -print -quit)"

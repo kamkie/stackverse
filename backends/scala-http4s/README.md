@@ -48,9 +48,10 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
 - **http4s as a small functional HTTP edge** — routes are plain `HttpRoutes[IO]`
   values and every endpoint returns an effect, with no framework-owned mutable
   controller lifecycle.
-- **Focused feature routes** — identity, bookmark, message, moderation, admin,
-  and health routes live in separate modules. `StackverseRoutes` only combines
-  them, and `Main` only composes resources and starts Ember.
+- **Focused routes and services** — identity, bookmark, message, moderation,
+  admin, and health route adapters delegate to matching operation interfaces and
+  feature services. `StackverseRoutes` only wires those modules, and `Main` only
+  composes resources and starts Ember.
 - **Cats Effect resource wiring** — startup loads env config, migrates the
   database, imports message seed files, starts Ember, and closes Hikari/OTel
   resources through `Resource` finalizers. The build pins the stable Cats Effect
@@ -58,6 +59,9 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
 - **Separated technical boundaries** — environment configuration, boot seeding,
   persistence/row mapping, authentication, i18n, validation, wire codecs,
   logging, and RFC 9457 recovery each have a focused source module.
+- **Kleisli authentication middleware** — secured `AuthedRoutes` run through an
+  http4s `AuthMiddleware` built from a `Kleisli`; public reads remain ordinary
+  `HttpRoutes`, while the existing role helpers preserve exact 403 behavior.
 - **Blocking JDBC isolated in `IO.blocking`** — the HTTP layer stays effect
   typed while the intentionally thin SQL layer uses PostgreSQL arrays and
   `SELECT ... FOR UPDATE` locks for the contract-sensitive races.
@@ -70,8 +74,12 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
   and identity is always `preferred_username`.
 - **Circe response builders** — wire JSON is built explicitly so optional fields
   are omitted exactly where the OpenAPI contract omits them.
-- **Route-level tests** — ScalaTest exercises liveness, representative ownership
-  for every feature route, and sibling-route isolation without infrastructure.
+- **Route-level tests** — ScalaTest exercises real route-to-service behavior
+  through fake operation interfaces, authenticated route execution and denial,
+  liveness, and sibling-route isolation without infrastructure.
+- **Lifecycle logs follow the server resource** — startup is emitted only after
+  migrations, seed import, and Ember bind; shutdown is attached to server
+  resource release.
 - **Formatting and warnings as gates** — scalafmt is checked in CI and Scala
   compilation enables deprecation/feature warnings with `-Werror`.
 
@@ -79,16 +87,17 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
 
 - The persistence layer deliberately retains raw JDBC after evaluating doobie
   and skunk. A narrow `Db`/`Rows` boundary owns connection, transaction,
-  parameter-binding, and row-mapping mechanics; feature SQL stays visible beside
-  the owning route, and every blocking operation remains inside `IO.blocking`.
+  parameter-binding, and row-mapping mechanics; feature SQL and transactions
+  stay behind focused feature services, and every blocking operation remains
+  inside `IO.blocking`.
   This avoids introducing another query DSL solely to express the repository's
   PostgreSQL arrays and lock-sensitive moderation transactions.
-- The implementation uses explicit constructor composition rather than a full
-  tagless-final algebra hierarchy. Focused `HttpRoutes[IO]` modules and a small
-  `RequestHandler` seam make route ownership testable without forwarding layers.
-- JWT validation is a small Nimbus service instead of http4s-auth/tsec
-  middleware. It mirrors the repo's JWKS/role rules directly and keeps blocked
-  account checks next to lazy provisioning.
+- The implementation uses explicit constructor composition and focused operation
+  interfaces rather than a full tagless-final algebra hierarchy. This keeps
+  route/service seams testable without introducing algebras for every helper.
+- JWT verification remains a small Nimbus-backed `AuthService` rather than tsec;
+  http4s `AuthMiddleware` owns the HTTP authentication boundary and the service
+  keeps blocked-account provisioning next to identity verification.
 - Validation and response serialization are hand-written. The contract requires
   accumulated localized field errors and precise optional-field omission, which
   is clearer here than adapting generic derivation.

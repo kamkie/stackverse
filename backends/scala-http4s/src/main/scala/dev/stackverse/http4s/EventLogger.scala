@@ -10,7 +10,7 @@ import java.time.Instant
 import java.time.format.DateTimeFormatter
 import scala.util.Try
 
-final class EventLogger(config: BackendConfig) {
+final class EventLogger(config: BackendConfig) extends ProblemEvents {
   private val priorities = Map("debug" -> 10, "info" -> 20, "warn" -> 30, "error" -> 40, "fatal" -> 50)
   private val threshold = priorities.getOrElse(config.logLevel, 20)
   private val otelSdk: Option[OpenTelemetrySdk] =
@@ -18,7 +18,7 @@ final class EventLogger(config: BackendConfig) {
   private val otelLogger: Option[OtelLogger] =
     otelSdk.map(_.getLogsBridge.loggerBuilder("stackverse-backend-scala-http4s").build())
 
-  def event(level: String, event: String, outcome: String, message: String, fields: (String, Json)*): Unit =
+  override def event(level: String, event: String, outcome: String, message: String, fields: (String, Json)*): Unit =
     write(level, message, Some(event), Some(outcome), fields*)
 
   def line(level: String, message: String, fields: (String, Json)*): Unit =

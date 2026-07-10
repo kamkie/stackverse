@@ -8,7 +8,16 @@ trait RequestHandler {
   def apply(req: Request[IO])(response: IO[Response[IO]]): IO[Response[IO]]
 }
 
-final class ApiHandler(i18n: I18n, logger: EventLogger) extends RequestHandler {
+trait ProblemLocalization {
+  def resolve(queryLang: Option[String], acceptLanguage: Option[String]): String
+  def localize(key: String, language: String): String
+}
+
+trait ProblemEvents {
+  def event(level: String, event: String, outcome: String, message: String, fields: (String, Json)*): Unit
+}
+
+final class ApiHandler(i18n: ProblemLocalization, logger: ProblemEvents) extends RequestHandler {
   import Wire.*
 
   def apply(req: Request[IO])(response: IO[Response[IO]]): IO[Response[IO]] =
