@@ -185,6 +185,19 @@ final class MicronautHttpTest {
     }
 
     @Test
+    void preMatchingPolicyLeavesUnsupportedMessageMethodShapesToTheRouter() {
+        for (HttpRequest<?> request : List.of(
+                HttpRequest.POST("/api/v1/messages/id", "{}"),
+                HttpRequest.PUT("/api/v1/messages", "{}"),
+                HttpRequest.DELETE("/api/v1/messages"))) {
+            assertThatThrownBy(() -> client.toBlocking().exchange(request, String.class))
+                    .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                            assertThat(failure.getStatus().getCode())
+                                    .isEqualTo(HttpStatus.METHOD_NOT_ALLOWED.getCode()));
+        }
+    }
+
+    @Test
     void messageValidationUsesFrameworkConstraints() {
         MessageInput body = new MessageInput("Invalid Key", "eng", "", "x".repeat(1001));
         var request = HttpRequest.POST("/api/v1/messages", body).bearerAuth("admin-token");

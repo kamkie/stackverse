@@ -54,6 +54,12 @@ class AuthFilterTest {
                 .isEqualTo(AccessRule.PUBLIC);
         assertThat(AuthFilter.accessRule(HttpMethod.GET, "/healthz"))
                 .isEqualTo(AccessRule.PUBLIC);
+        assertThat(AuthFilter.accessRule(HttpMethod.POST, "/api/v1/messages/id"))
+                .isEqualTo(AccessRule.PUBLIC);
+        assertThat(AuthFilter.accessRule(HttpMethod.PUT, "/api/v1/messages"))
+                .isEqualTo(AccessRule.PUBLIC);
+        assertThat(AuthFilter.accessRule(HttpMethod.DELETE, "/api/v1/messages"))
+                .isEqualTo(AccessRule.PUBLIC);
         assertThat(AuthFilter.accessRule(HttpMethod.POST, "/not-a-route"))
                 .isEqualTo(AccessRule.PUBLIC);
     }

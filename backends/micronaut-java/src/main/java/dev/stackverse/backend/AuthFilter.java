@@ -23,8 +23,7 @@ final class AuthFilter {
             Pattern.compile("/api/v1/bookmarks/[^/]+/reports");
     private static final Pattern CALLER_OWNED_ITEM =
             Pattern.compile("/api/v1/(bookmarks|reports)/[^/]+");
-    private static final Pattern MESSAGE_WRITE =
-            Pattern.compile("/api/v1/messages(?:/[^/]+)?");
+    private static final Pattern MESSAGE_ITEM = Pattern.compile("/api/v1/messages/[^/]+");
     private static final Pattern ADMIN_USER_STATUS =
             Pattern.compile("/api/v1/admin/users/[^/]+/status");
     private static final Pattern MODERATOR_WRITE =
@@ -97,8 +96,11 @@ final class AuthFilter {
                 && CALLER_OWNED_ITEM.matcher(path).matches()) {
             return AccessRule.AUTHENTICATED;
         }
-        if (MESSAGE_WRITE.matcher(path).matches()
-                && (method == HttpMethod.POST || method == HttpMethod.PUT || method == HttpMethod.DELETE)) {
+        if (method == HttpMethod.POST && "/api/v1/messages".equals(path)) {
+            return AccessRule.ADMIN;
+        }
+        if ((method == HttpMethod.PUT || method == HttpMethod.DELETE)
+                && MESSAGE_ITEM.matcher(path).matches()) {
             return AccessRule.ADMIN;
         }
         if (method == HttpMethod.PUT && ADMIN_USER_STATUS.matcher(path).matches()) {
