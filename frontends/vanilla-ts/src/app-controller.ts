@@ -4,6 +4,7 @@ import {
   apiGet,
   apiSend,
   fetchSession,
+  fetchWithNetworkError,
   messageOf,
 } from "./api";
 import { adminPageHtml } from "./admin-pages";
@@ -426,7 +427,14 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
   await renderApp();
 }
 
-async function handleAction(element: HTMLElement): Promise<void> {
+function isActiveController(epoch: number): boolean {
+  return epoch === activeControllerEpoch;
+}
+
+async function handleAction(
+  element: HTMLElement,
+  epoch: number,
+): Promise<void> {
   const action = element.dataset.action;
   if (!action || element.hasAttribute("disabled")) return;
 
@@ -442,7 +450,14 @@ async function handleAction(element: HTMLElement): Promise<void> {
       await renderApp();
       break;
     case "logout":
-      await fetch("/auth/logout", { method: "POST", credentials: "include" });
+      {
+        const response = await fetchWithNetworkError("/auth/logout", {
+          method: "POST",
+          credentials: "include",
+        });
+        if (!response.ok) throw new ApiError(response.status);
+      }
+      if (!isActiveController(epoch)) return;
       state.session = { authenticated: false };
       state.me = null;
       state.dialog = null;
@@ -512,13 +527,15 @@ async function handleAction(element: HTMLElement): Promise<void> {
     }
     case "confirm-bookmark-delete":
       if (state.dialog?.kind === "delete-bookmark") {
+        const submittedDialog = state.dialog;
         await apiSend<void>(
           "DELETE",
-          pathForApi("/api/v1/bookmarks", state.dialog.bookmark.id),
+          pathForApi("/api/v1/bookmarks", submittedDialog.bookmark.id),
         );
+        if (!isActiveController(epoch)) return;
         pushToast(t("ui.toast.bookmark-deleted"));
         resetBookmarkList(state.bookmarks);
-        state.dialog = null;
+        if (state.dialog === submittedDialog) state.dialog = null;
         await renderApp();
       }
       break;
@@ -546,13 +563,15 @@ async function handleAction(element: HTMLElement): Promise<void> {
     }
     case "confirm-report-withdraw":
       if (state.dialog?.kind === "withdraw-report") {
+        const submittedDialog = state.dialog;
         await apiSend<void>(
           "DELETE",
-          pathForApi("/api/v1/reports", state.dialog.report.id),
+          pathForApi("/api/v1/reports", submittedDialog.report.id),
         );
-        removeReportedId(state.dialog.report.bookmarkId);
+        if (!isActiveController(epoch)) return;
+        removeReportedId(submittedDialog.report.bookmarkId);
         pushToast(t("ui.toast.report-withdrawn"));
-        state.dialog = null;
+        if (state.dialog === submittedDialog) state.dialog = null;
         await renderApp();
       }
       break;
@@ -564,6 +583,7 @@ async function handleAction(element: HTMLElement): Promise<void> {
           resolution: element.dataset.resolution ?? "dismissed",
         },
       );
+      if (!isActiveController(epoch)) return;
       await renderApp();
       break;
     case "open-block-user": {
@@ -580,6 +600,7 @@ async function handleAction(element: HTMLElement): Promise<void> {
         `${pathForApi("/api/v1/admin/users", element.dataset.username ?? "")}/status`,
         { status: "active" },
       );
+      if (!isActiveController(epoch)) return;
       await renderApp();
       break;
     case "clear-audit":
@@ -613,13 +634,21 @@ async function handleAction(element: HTMLElement): Promise<void> {
     }
     case "confirm-message-delete":
       if (state.dialog?.kind === "delete-message") {
+        const submittedDialog = state.dialog;
         await apiSend<void>(
           "DELETE",
-          pathForApi("/api/v1/messages", state.dialog.message.id),
+          pathForApi("/api/v1/messages", submittedDialog.message.id),
         );
+        if (!isActiveController(epoch)) return;
         pushToast(t("ui.toast.message-deleted"));
-        await i18n.load();
-        state.dialog = null;
+        try {
+          await i18n.load();
+        } catch (error) {
+          if (!(error instanceof ApiNetworkError)) throw error;
+          // The mutation committed; a bundle refresh is optional to its success.
+        }
+        if (!isActiveController(epoch)) return;
+        if (state.dialog === submittedDialog) state.dialog = null;
         await renderApp();
       }
       break;
@@ -656,6 +685,8 @@ function actionLabel(element: HTMLElement): string {
       }
     case "unblock-user":
       return t("ui.action.unblock");
+    case "logout":
+      return t("ui.action.logout");
     default:
       return t("ui.field.action");
   }
@@ -666,7 +697,7 @@ async function handleActionAtBoundary(
   epoch: number,
 ): Promise<void> {
   try {
-    await handleAction(element);
+    await handleAction(element, epoch);
   } catch (error) {
     if (!(error instanceof ApiError || error instanceof ApiNetworkError)) {
       throw error;

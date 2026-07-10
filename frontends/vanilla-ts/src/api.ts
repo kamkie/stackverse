@@ -74,7 +74,7 @@ function csrfToken(): string | undefined {
     ?.slice(CSRF_COOKIE.length + 1);
 }
 
-async function fetchApi(
+export async function fetchWithNetworkError(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<Response> {
@@ -129,7 +129,7 @@ async function withApiLog<T>(
 
 export async function apiGet<T>(path: string, query?: QueryParams): Promise<T> {
   return withApiLog("GET", path, async () => {
-    const response = await fetchApi(buildUrl(path, query), {
+    const response = await fetchWithNetworkError(buildUrl(path, query), {
       credentials: "include",
       headers: { Accept: "application/json" },
     });
@@ -145,7 +145,7 @@ export async function apiSend<T>(
   return withApiLog(method, path, async () => {
     const execute = () => {
       const token = csrfToken();
-      return fetchApi(buildUrl(path), {
+      return fetchWithNetworkError(buildUrl(path), {
         method,
         credentials: "include",
         headers: {
@@ -167,7 +167,7 @@ export async function apiSend<T>(
 
 export async function fetchSession<T>(path: string): Promise<T> {
   return withApiLog("GET", path, async () => {
-    const response = await fetchApi(buildUrl(path), {
+    const response = await fetchWithNetworkError(buildUrl(path), {
       credentials: "include",
       headers: { Accept: "application/json" },
     });

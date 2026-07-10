@@ -1,6 +1,6 @@
 import { ApiError } from "./api";
 import { startAppController } from "./app-controller";
-import { state } from "./app-state";
+import { REPORTED_STORAGE_KEY, state } from "./app-state";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -32,6 +32,8 @@ function installFetchMock() {
             "ui.bookmarks.empty": "No bookmarks yet.",
             "ui.action.delete": "Delete",
             "ui.action.withdraw": "Withdraw",
+            "ui.action.logout": "Log out",
+            "ui.toast.message-deleted": "Message deleted.",
           },
         });
       }
@@ -154,6 +156,37 @@ describe("app controller event boundary", () => {
     });
   });
 
+  it("renders logout transport failures without clearing the session", async () => {
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/auth/logout" && init?.method === "POST") {
+        throw new TypeError("Failed to fetch");
+      }
+      return defaultFetch(input, init);
+    });
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+    state.session = { authenticated: true, username: "demo" };
+
+    const logout = document.createElement("button");
+    logout.dataset.action = "logout";
+    root!.append(logout);
+    logout.click();
+
+    await vi.waitFor(() => {
+      expect(state.session).toEqual({ authenticated: true, username: "demo" });
+      expect(
+        root!.querySelector<HTMLElement>(".sv-toast.sv-toast--danger")
+          ?.textContent,
+      ).toBe("Log out: Failed to fetch");
+    });
+  });
+
   it("renders a destructive 4xx as feedback and preserves its dialog", async () => {
     const fetchMock = installFetchMock();
     const defaultFetch = fetchMock.getMockImplementation()!;
@@ -254,6 +287,137 @@ describe("app controller event boundary", () => {
       expect(toast?.textContent).toBe("Withdraw: Failed to fetch");
       expect(root!.querySelector("dialog.sv-dialog")).not.toBeNull();
     });
+  });
+
+  it("keeps a successful message deletion when bundle refresh fails", async () => {
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    let bundleRequests = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/api/v1/messages/bundle") {
+        bundleRequests += 1;
+        if (bundleRequests > 1) throw new TypeError("Failed to fetch");
+      }
+      if (
+        url.pathname === "/api/v1/messages/message-1" &&
+        init?.method === "DELETE"
+      ) {
+        return new Response(null, { status: 204 });
+      }
+      return defaultFetch(input, init);
+    });
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+
+    state.dialog = {
+      kind: "delete-message",
+      message: {
+        id: "message-1",
+        key: "ui.test.message",
+        language: "en",
+        text: "Test",
+        createdAt: "2026-07-10T00:00:00Z",
+        updatedAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-message-delete";
+    root!.append(confirm);
+    confirm.click();
+
+    await vi.waitFor(() => {
+      expect(bundleRequests).toBe(2);
+      expect(state.dialog).toBeNull();
+      expect(
+        root!.querySelector<HTMLElement>(".sv-toast.sv-toast--success")
+          ?.textContent,
+      ).toBe("Message deleted.");
+      expect(root!.querySelector(".sv-toast--danger")).toBeNull();
+    });
+  });
+
+  it("ignores a stopped controller's delayed destructive success", async () => {
+    const staleDelete = deferred<Response>();
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (
+        url.pathname === "/api/v1/reports/report-1" &&
+        init?.method === "DELETE"
+      ) {
+        return staleDelete.promise;
+      }
+      return defaultFetch(input, init);
+    });
+    const firstRoot = document.querySelector<HTMLElement>("#app");
+    expect(firstRoot).not.toBeNull();
+    stopController = await startAppController(firstRoot!, {
+      enableDevInstrumentation: false,
+    });
+    state.dialog = {
+      kind: "withdraw-report",
+      report: {
+        id: "report-1",
+        bookmarkId: "bookmark-1",
+        reporter: "demo",
+        reason: "spam",
+        status: "open",
+        createdAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-report-withdraw";
+    firstRoot!.append(confirm);
+    confirm.click();
+    await vi.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([input, init]) =>
+            new URL(String(input), window.location.origin).pathname ===
+              "/api/v1/reports/report-1" && init?.method === "DELETE",
+        ),
+      ).toBe(true);
+    });
+
+    stopController();
+    stopController = undefined;
+    const replacementRoot = document.createElement("div");
+    document.body.replaceChildren(replacementRoot);
+    stopController = await startAppController(replacementRoot, {
+      enableDevInstrumentation: false,
+    });
+    const replacementDialog = {
+      kind: "withdraw-report" as const,
+      report: {
+        id: "report-2",
+        bookmarkId: "bookmark-2",
+        reporter: "demo",
+        reason: "other" as const,
+        status: "open" as const,
+        createdAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    state.dialog = replacementDialog;
+    sessionStorage.setItem(
+      REPORTED_STORAGE_KEY,
+      JSON.stringify(["bookmark-1", "bookmark-2"]),
+    );
+    const replacementRenderVersion = state.renderVersion;
+
+    staleDelete.resolve(new Response(null, { status: 204 }));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+    expect(state.dialog).toBe(replacementDialog);
+    expect(state.toasts).toEqual([]);
+    expect(state.renderVersion).toBe(replacementRenderVersion);
+    expect(
+      JSON.parse(sessionStorage.getItem(REPORTED_STORAGE_KEY) ?? "[]"),
+    ).toEqual(["bookmark-1", "bookmark-2"]);
   });
 
   it("starts a replacement controller from clean application state", async () => {
