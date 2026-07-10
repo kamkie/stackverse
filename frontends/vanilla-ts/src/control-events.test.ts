@@ -64,6 +64,14 @@ describe("delegated control events", () => {
       expect(requests).toHaveLength(1);
       expect(requests[0]?.searchParams.get("status")).toBe("dismissed");
     });
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input]) =>
+          new URL(String(input), window.location.origin).pathname ===
+          "/api/v1/reports",
+      ),
+    ).toHaveLength(1);
 
     history.pushState(null, "", "/admin/audit");
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -74,8 +82,14 @@ describe("delegated control events", () => {
       expect(element).not.toBeNull();
       return element!;
     });
+    const actor = document.querySelector<HTMLInputElement>(
+      'input[data-bind="audit-actor"]',
+    );
+    expect(actor).not.toBeNull();
     fetchMock.mockClear();
 
+    actor!.value = "admin";
+    actor!.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fromDate.value = "2026-07-10";
     fromDate.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fromDate.dispatchEvent(new Event("change", { bubbles: true }));
@@ -85,10 +99,19 @@ describe("delegated control events", () => {
         .map(([input]) => new URL(String(input), window.location.origin))
         .filter((url) => url.pathname === "/api/v1/admin/audit-log");
       expect(requests).toHaveLength(1);
+      expect(requests[0]?.searchParams.get("actor")).toBe("admin");
       expect(requests[0]?.searchParams.get("from")).toBe(
         new Date("2026-07-10T00:00:00").toISOString(),
       );
     });
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input]) =>
+          new URL(String(input), window.location.origin).pathname ===
+          "/api/v1/admin/audit-log",
+      ),
+    ).toHaveLength(1);
 
     history.pushState(null, "", "/feed");
     window.dispatchEvent(new PopStateEvent("popstate"));

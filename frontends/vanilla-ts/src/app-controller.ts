@@ -155,6 +155,12 @@ function scheduleRender(): void {
   }, 250);
 }
 
+function cancelScheduledRender(): void {
+  if (pendingInputRender === undefined) return;
+  window.clearTimeout(pendingInputRender);
+  pendingInputRender = undefined;
+}
+
 function updateBoundValue(
   bind: string,
   value: string,
@@ -206,8 +212,12 @@ function updateBoundValue(
       state.messages.page = 0;
       break;
   }
-  if (immediate) void renderApp();
-  else scheduleRender();
+  if (immediate) {
+    cancelScheduledRender();
+    void renderApp();
+  } else {
+    scheduleRender();
+  }
 }
 
 function formValues(form: HTMLFormElement): FormValues {
@@ -611,6 +621,12 @@ async function handleAction(element: HTMLElement): Promise<void> {
   }
 }
 
+function isImmediateControl(
+  input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+): boolean {
+  return input.tagName === "SELECT" || input.getAttribute("type") === "date";
+}
+
 export async function startAppController(
   rootElement: HTMLElement,
   options: { enableDevInstrumentation?: boolean } = {},
@@ -655,11 +671,7 @@ export async function startAppController(
     (event) => {
       const input = event.target as
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-      if (
-        input.tagName === "SELECT" ||
-        input.getAttribute("type") === "date"
-      )
-        return;
+      if (isImmediateControl(input)) return;
       if (input.form?.dataset.form) rememberDialogValues(input.form);
       const bind = input.dataset.bind;
       if (!bind) return;
@@ -675,7 +687,7 @@ export async function startAppController(
       if (input.form?.dataset.form) rememberDialogValues(input.form);
       const bind = input.dataset.bind;
       if (!bind) return;
-      if (input.tagName === "SELECT" || input.getAttribute("type") === "date") {
+      if (isImmediateControl(input)) {
         updateBoundValue(bind, input.value, true);
       }
     },
