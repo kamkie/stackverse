@@ -29,6 +29,7 @@ Tests:
 ```sh
 cargo fmt --check
 cargo check --locked
+cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --locked
 ```
 
@@ -50,6 +51,10 @@ docker build -t stackverse/backend-rust-axum:local -f backends/rust-axum/Dockerf
 - **Axum as a thin HTTP layer** — routes are explicit async handlers over a
   cloned state object; authentication is one middleware that validates JWTs,
   lazily provisions accounts, and rejects blocked users.
+- **Feature-owned handlers and SQL** — one router composition point merges
+  bookmark, message, report, admin, and identity modules; each feature owns its
+  request/response types, validation, handlers, and SQL. Small common and wire
+  modules hold only cross-feature request-boundary and response types.
 - **SQLx without compile-time database coupling** — runtime-checked queries and
   `FromRow` structs keep CI independent of a live database while preserving
   typed row mapping.
@@ -73,6 +78,8 @@ docker build -t stackverse/backend-rust-axum:local -f backends/rust-axum/Dockerf
 - The implementation keeps the feature modules in one Rust crate rather than a
   workspace; the comparison point is Axum/SQLx application shape, not crate
   decomposition.
+- CI treats all Clippy warnings across every target and feature as errors, in
+  addition to the locked check, test, and rustfmt gates.
 - SQLx 0.9 requires explicit `AssertSqlSafe` for dynamic SQL strings. This
   backend uses it only where the string is assembled from compile-time SQL
   fragments; all request values remain bind parameters.
