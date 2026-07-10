@@ -30,7 +30,11 @@ defmodule StackverseBackend.Inputs.ModerationInput do
       resolution in ~w[open dismissed actioned],
       "validation.resolution.invalid"
     )
-    |> Support.require(:note, length_of(note) <= 1000, "validation.resolution.note.too-long")
+    |> Support.require(
+      :note,
+      Support.length_of(note) <= 1000,
+      "validation.resolution.note.too-long"
+    )
   end
 
   def bookmark_status_changeset(body) do
@@ -45,9 +49,10 @@ defmodule StackverseBackend.Inputs.ModerationInput do
 
     changeset
     |> Support.require(:status, status in ~w[active hidden], "validation.bookmark-status.invalid")
-    |> Support.require(:note, length_of(note) <= 1000, "validation.bookmark-status.note.too-long")
+    |> Support.require(
+      :note,
+      Support.length_of(note) <= 1000,
+      "validation.bookmark-status.note.too-long"
+    )
   end
-
-  defp length_of(nil), do: 0
-  defp length_of(value), do: String.length(value)
 end

@@ -3,7 +3,7 @@ defmodule StackverseBackend.Reports do
 
   import Ecto.Query
 
-  alias StackverseBackend.{Log, Repo, Validation}
+  alias StackverseBackend.{Log, Persistence, Repo, Validation}
   alias StackverseBackend.Schemas.{Bookmark, Report}
 
   def create(reporter, bookmark_id, input) do
@@ -24,9 +24,9 @@ defmodule StackverseBackend.Reports do
           Report.to_row(report)
 
         {:error, changeset} ->
-          if duplicate?(changeset),
+          if Persistence.unique_constraint?(changeset),
             do: Repo.rollback(:duplicate_report),
-            else: raise_invalid(changeset)
+            else: Persistence.raise_invalid!(changeset)
       end
     end)
     |> case do
@@ -113,13 +113,4 @@ defmodule StackverseBackend.Reports do
 
   defp by_status(query, nil), do: query
   defp by_status(query, status), do: where(query, [report], report.status == ^status)
-
-  defp duplicate?(changeset) do
-    Enum.any?(changeset.errors, fn {_field, {_message, metadata}} ->
-      metadata[:constraint] == :unique
-    end)
-  end
-
-  defp raise_invalid(changeset),
-    do: raise(Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset)
 end

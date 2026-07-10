@@ -55,7 +55,7 @@ defmodule StackverseBackend.Inputs.MessageInput do
     )
     |> Support.require(
       :description,
-      length_of(description) <= 1000,
+      Support.length_of(description) <= 1000,
       "validation.message.description.too-long"
     )
   end
@@ -65,7 +65,4 @@ defmodule StackverseBackend.Inputs.MessageInput do
       do: update_change(changeset, field, &String.trim/1),
       else: changeset
   end
-
-  defp length_of(nil), do: 0
-  defp length_of(value), do: String.length(value)
 end

@@ -58,7 +58,8 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 - **Contexts and focused controllers** — bookmark, message, report,
   moderation, account, audit, and stats contexts own application/data
   behavior; focused Phoenix controllers own only HTTP parsing, authorization,
-  and response rendering.
+  and response rendering. Shared input, persistence-error, and JSON-view
+  support keeps contract-sensitive boundary rules in one place.
 - **Ecto-owned persistence and input schemas** — typed schemas, `Ecto.Query`,
   and `Repo` own normal bookmark, message, report, account, and audit
   persistence. Embedded schemas use `cast/4` before normalization and map cast

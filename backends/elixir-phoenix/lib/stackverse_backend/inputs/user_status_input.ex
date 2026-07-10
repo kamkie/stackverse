@@ -34,7 +34,11 @@ defmodule StackverseBackend.Inputs.UserStatusInput do
       status != "blocked" or (is_binary(reason) and reason != ""),
       "validation.block.reason.required"
     )
-    |> Support.require(:reason, length_of(reason) <= 1000, "validation.block.reason.too-long")
+    |> Support.require(
+      :reason,
+      Support.length_of(reason) <= 1000,
+      "validation.block.reason.too-long"
+    )
   end
 
   defp trim_reason(changeset) do
@@ -42,7 +46,4 @@ defmodule StackverseBackend.Inputs.UserStatusInput do
       do: update_change(changeset, :reason, &String.trim/1),
       else: changeset
   end
-
-  defp length_of(nil), do: 0
-  defp length_of(value), do: String.length(value)
 end

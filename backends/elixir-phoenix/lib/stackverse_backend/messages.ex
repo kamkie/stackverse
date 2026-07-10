@@ -3,7 +3,7 @@ defmodule StackverseBackend.Messages do
 
   import Ecto.Query
 
-  alias StackverseBackend.{Audit, Log, Query, Repo}
+  alias StackverseBackend.{Audit, Log, Persistence, Query, Repo}
   alias StackverseBackend.Schemas.Message
 
   def list(key, language, q, page, size) do
@@ -32,9 +32,9 @@ defmodule StackverseBackend.Messages do
           row
 
         {:error, changeset} ->
-          if duplicate?(changeset),
+          if Persistence.unique_constraint?(changeset),
             do: Repo.rollback(:duplicate_message),
-            else: raise_invalid(changeset)
+            else: Persistence.raise_invalid!(changeset)
       end
     end)
     |> log_result("message_created", "Message created", actor)
@@ -54,9 +54,9 @@ defmodule StackverseBackend.Messages do
               row
 
             {:error, changeset} ->
-              if duplicate?(changeset),
+              if Persistence.unique_constraint?(changeset),
                 do: Repo.rollback(:duplicate_message),
-                else: raise_invalid(changeset)
+                else: Persistence.raise_invalid!(changeset)
           end
       end
     end)
@@ -114,13 +114,4 @@ defmodule StackverseBackend.Messages do
       query
     end
   end
-
-  defp duplicate?(changeset) do
-    Enum.any?(changeset.errors, fn {_field, {_message, metadata}} ->
-      metadata[:constraint] == :unique
-    end)
-  end
-
-  defp raise_invalid(changeset),
-    do: raise(Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset)
 end

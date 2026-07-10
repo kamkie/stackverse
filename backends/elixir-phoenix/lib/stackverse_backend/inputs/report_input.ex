@@ -32,9 +32,10 @@ defmodule StackverseBackend.Inputs.ReportInput do
       is_binary(reason) and reason in @reasons,
       "validation.report.reason.invalid"
     )
-    |> Support.require(:comment, length_of(comment) <= 1000, "validation.report.comment.too-long")
+    |> Support.require(
+      :comment,
+      Support.length_of(comment) <= 1000,
+      "validation.report.comment.too-long"
+    )
   end
-
-  defp length_of(nil), do: 0
-  defp length_of(value), do: String.length(value)
 end

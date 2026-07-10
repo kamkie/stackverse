@@ -28,6 +28,9 @@ defmodule StackverseBackend.Inputs.Support do
     end
   end
 
+  def length_of(nil), do: 0
+  def length_of(value), do: String.length(value)
+
   defp translate_cast_errors(changeset, cast_messages) do
     errors =
       Enum.map(changeset.errors, fn

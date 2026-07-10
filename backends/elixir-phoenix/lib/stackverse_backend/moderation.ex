@@ -3,7 +3,7 @@ defmodule StackverseBackend.Moderation do
 
   import Ecto.Query
 
-  alias StackverseBackend.{Audit, Log, Repo}
+  alias StackverseBackend.{Audit, Log, Persistence, Repo}
   alias StackverseBackend.Schemas.{Bookmark, Report}
 
   def list_reports(status, page, size) do
@@ -111,9 +111,9 @@ defmodule StackverseBackend.Moderation do
         Report.to_row(reopened)
 
       {:error, changeset} ->
-        if duplicate_constraint?(changeset),
+        if Persistence.unique_constraint?(changeset),
           do: Repo.rollback(:duplicate_report),
-          else: raise_invalid(changeset)
+          else: Persistence.raise_invalid!(changeset)
     end
   end
 
@@ -184,13 +184,4 @@ defmodule StackverseBackend.Moderation do
 
   defp report_order(query, _status),
     do: order_by(query, [report], desc: report.created_at, desc: report.id)
-
-  defp duplicate_constraint?(changeset) do
-    Enum.any?(changeset.errors, fn {_field, {_message, metadata}} ->
-      metadata[:constraint] == :unique
-    end)
-  end
-
-  defp raise_invalid(changeset),
-    do: raise(Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset)
 end

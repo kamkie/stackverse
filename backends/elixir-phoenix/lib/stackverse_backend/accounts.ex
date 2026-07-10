@@ -42,17 +42,19 @@ defmodule StackverseBackend.Accounts do
           Repo.rollback(:not_found)
 
         account ->
-          account |> UserAccount.status_changeset(status, reason) |> Repo.update!()
+          updated = account |> UserAccount.status_changeset(status, reason) |> Repo.update!()
 
           if status == "blocked" do
             Audit.record!(actor, "user.blocked", "user", username, %{reason: reason})
           else
             Audit.record!(actor, "user.unblocked", "user", username, nil)
           end
+
+          updated
       end
     end)
     |> case do
-      {:ok, _result} ->
+      {:ok, account} ->
         Log.event(
           :info,
           if(status == "blocked", do: "user_blocked", else: "user_unblocked"),
@@ -63,7 +65,7 @@ defmodule StackverseBackend.Accounts do
           resource_id: username
         )
 
-        {:ok, get(username)}
+        {:ok, UserAccount.to_row(account, bookmark_count(username))}
 
       result ->
         result

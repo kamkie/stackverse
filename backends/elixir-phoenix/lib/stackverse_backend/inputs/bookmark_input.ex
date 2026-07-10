@@ -53,7 +53,7 @@ defmodule StackverseBackend.Inputs.BookmarkInput do
       not (is_binary(title) and title != "") or String.length(title) <= 200,
       "validation.title.too-long"
     )
-    |> Support.require(:notes, length_of(notes) <= 4000, "validation.notes.too-long")
+    |> Support.require(:notes, Support.length_of(notes) <= 4000, "validation.notes.too-long")
     |> Support.require(:tags, length(tags) <= 10, "validation.tags.too-many")
     |> Support.require(
       :tags,
@@ -119,7 +119,4 @@ defmodule StackverseBackend.Inputs.BookmarkInput do
   rescue
     _ -> false
   end
-
-  defp length_of(nil), do: 0
-  defp length_of(value), do: String.length(value)
 end
