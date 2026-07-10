@@ -1,5 +1,5 @@
 import type { FieldError, MessageBundle } from "./types";
-import { fetchWithNetworkError } from "./api";
+import { ApiNetworkError, fetchWithNetworkError } from "./api";
 
 const LANG_STORAGE_KEY = "stackverse.lang";
 const bundleStorageKey = (lang: string | null) =>
@@ -87,6 +87,7 @@ export function keyFallback(key: string): string {
 
 export class RuntimeI18n {
   private bundle: MessageBundle | null = null;
+  private latestRequest = 0;
 
   lang: string | null = readStoredLanguage();
 
@@ -99,10 +100,36 @@ export class RuntimeI18n {
     document.title = bundle.messages["ui.app.title"] ?? document.title;
   }
 
-  async load(
-    lang: string | null = this.lang,
-    options: LoadOptions = {},
+  private isCurrent(request: number, signal?: AbortSignal): boolean {
+    return request === this.latestRequest && !signal?.aborted;
+  }
+
+  private applyBundle(
+    request: number,
+    lang: string | null,
+    bundle: MessageBundle,
+    fresh: CachedBundle | null,
+    publishLanguage: boolean,
+    signal?: AbortSignal,
+  ): void {
+    if (!this.isCurrent(request, signal)) return;
+
+    if (fresh) writeCachedBundle(lang, fresh);
+    this.bundle = bundle;
+    this.applyDocumentBundle(bundle);
+    if (publishLanguage && lang !== null) {
+      this.lang = lang;
+      storeLanguage(lang);
+    }
+  }
+
+  private async requestBundle(
+    lang: string | null,
+    publishLanguage: boolean,
+    options: LoadOptions,
   ): Promise<void> {
+    if (options.signal?.aborted) return;
+    const request = ++this.latestRequest;
     const cached = readCachedBundle(lang);
     const headers = new Headers();
     if (cached?.etag) headers.set("If-None-Match", cached.etag);
@@ -117,21 +144,44 @@ export class RuntimeI18n {
         ...(options.signal ? { signal: options.signal } : {}),
       });
     } catch (error) {
-      if (options.signal?.aborted) return;
+      if (!this.isCurrent(request, options.signal)) return;
+      if (error instanceof ApiNetworkError && cached) {
+        this.applyBundle(
+          request,
+          lang,
+          cached.bundle,
+          null,
+          publishLanguage,
+          options.signal,
+        );
+        return;
+      }
       throw error;
     }
 
-    if (options.signal?.aborted) return;
+    if (!this.isCurrent(request, options.signal)) return;
 
     if (response.status === 304 && cached) {
-      this.bundle = cached.bundle;
-      this.applyDocumentBundle(cached.bundle);
+      this.applyBundle(
+        request,
+        lang,
+        cached.bundle,
+        null,
+        publishLanguage,
+        options.signal,
+      );
       return;
     }
     if (!response.ok) {
       if (cached) {
-        this.bundle = cached.bundle;
-        this.applyDocumentBundle(cached.bundle);
+        this.applyBundle(
+          request,
+          lang,
+          cached.bundle,
+          null,
+          publishLanguage,
+          options.signal,
+        );
         return;
       }
       throw new MessageBundleLoadError(
@@ -147,23 +197,33 @@ export class RuntimeI18n {
       }
       bundle = body;
     } catch (error) {
-      if (options.signal?.aborted) return;
+      if (!this.isCurrent(request, options.signal)) return;
       if (error instanceof MessageBundleLoadError) throw error;
       throw new MessageBundleLoadError("Invalid message bundle response", {
         cause: error,
       });
     }
-    if (options.signal?.aborted) return;
+    if (!this.isCurrent(request, options.signal)) return;
     const fresh = { etag: response.headers.get("ETag"), bundle };
-    writeCachedBundle(lang, fresh);
-    this.bundle = bundle;
-    this.applyDocumentBundle(bundle);
+    this.applyBundle(
+      request,
+      lang,
+      bundle,
+      fresh,
+      publishLanguage,
+      options.signal,
+    );
+  }
+
+  async load(
+    lang: string | null = this.lang,
+    options: LoadOptions = {},
+  ): Promise<void> {
+    await this.requestBundle(lang, false, options);
   }
 
   async setLanguage(lang: string, options: LoadOptions = {}): Promise<void> {
-    this.lang = lang;
-    storeLanguage(lang);
-    await this.load(lang, options);
+    await this.requestBundle(lang, true, options);
   }
 
   t = (key: string): string => {

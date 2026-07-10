@@ -7,6 +7,16 @@ import {
   storeLanguage,
 } from "./i18n";
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((complete, fail) => {
+    resolve = complete;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
@@ -131,6 +141,30 @@ describe("i18n helpers", () => {
     expect(document.title).toBe("Stackverse PL");
   });
 
+  it("falls back to a cached bundle when the transport is offline", async () => {
+    localStorage.setItem(
+      "stackverse.bundle.en",
+      JSON.stringify({
+        etag: 'W/"en"',
+        bundle: {
+          language: "en",
+          messages: { "ui.app.title": "Offline Stackverse" },
+        },
+      }),
+    );
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new TypeError("network unavailable"),
+    );
+
+    const i18n = new RuntimeI18n();
+    await expect(i18n.load("en")).resolves.toBeUndefined();
+
+    expect(i18n.resolvedLanguage).toBe("en");
+    expect(i18n.t("ui.app.title")).toBe("Offline Stackverse");
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("Offline Stackverse");
+  });
+
   it("throws when the bundle request fails without a cached copy", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(null, { status: 503 }),
@@ -212,6 +246,134 @@ describe("i18n helpers", () => {
     expect(
       new URL(String(fetchMock.mock.calls[0]![0])).searchParams.get("lang"),
     ).toBe("pl");
+  });
+
+  it("preserves the active and stored language when an uncached switch fails", async () => {
+    localStorage.setItem("stackverse.lang", "en");
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            language: "en",
+            messages: { "ui.app.title": "English Stackverse" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+
+    const i18n = new RuntimeI18n();
+    await i18n.load();
+    await expect(i18n.setLanguage("pl")).rejects.toThrow(
+      "Failed to load message bundle: 503",
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(i18n.lang).toBe("en");
+    expect(i18n.resolvedLanguage).toBe("en");
+    expect(i18n.t("ui.app.title")).toBe("English Stackverse");
+    expect(readStoredLanguage()).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("English Stackverse");
+  });
+
+  it("lets only the latest concurrent language request publish state", async () => {
+    const polish = deferred<Response>();
+    const english = deferred<Response>();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const lang = new URL(String(input)).searchParams.get("lang");
+      if (lang === "pl") return polish.promise;
+      if (lang === "en") return english.promise;
+      throw new Error(`unexpected language: ${lang}`);
+    });
+
+    const i18n = new RuntimeI18n();
+    const olderSwitch = i18n.setLanguage("pl");
+    const newerSwitch = i18n.setLanguage("en");
+
+    english.resolve(
+      new Response(
+        JSON.stringify({
+          language: "en",
+          messages: { "ui.app.title": "Latest Stackverse" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ETag: 'W/"en"' },
+        },
+      ),
+    );
+    await newerSwitch;
+
+    polish.resolve(
+      new Response(
+        JSON.stringify({
+          language: "pl",
+          messages: { "ui.app.title": "Stale Stackverse" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ETag: 'W/"pl"' },
+        },
+      ),
+    );
+    await olderSwitch;
+
+    expect(i18n.lang).toBe("en");
+    expect(i18n.resolvedLanguage).toBe("en");
+    expect(i18n.t("ui.app.title")).toBe("Latest Stackverse");
+    expect(readStoredLanguage()).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("Latest Stackverse");
+    expect(localStorage.getItem("stackverse.bundle.pl")).toBeNull();
+    expect(localStorage.getItem("stackverse.bundle.en")).toContain(
+      "Latest Stackverse",
+    );
+  });
+
+  it("suppresses a stale decode failure after a newer request wins", async () => {
+    const staleDecode = deferred<unknown>();
+    const staleResponse = new Response(null, {
+      status: 200,
+      headers: { "Content-Type": "application/json", ETag: 'W/"pl"' },
+    });
+    const staleJson = vi
+      .spyOn(staleResponse, "json")
+      .mockReturnValue(staleDecode.promise);
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(staleResponse)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            language: "en",
+            messages: { "ui.app.title": "Winning Stackverse" },
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json", ETag: 'W/"en"' },
+          },
+        ),
+      );
+
+    const i18n = new RuntimeI18n();
+    const staleSwitch = i18n.setLanguage("pl");
+    await vi.waitFor(() => expect(staleJson).toHaveBeenCalledOnce());
+
+    await i18n.setLanguage("en");
+    staleDecode.reject(new SyntaxError("stale malformed response"));
+    await expect(staleSwitch).resolves.toBeUndefined();
+
+    expect(i18n.lang).toBe("en");
+    expect(i18n.resolvedLanguage).toBe("en");
+    expect(i18n.t("ui.app.title")).toBe("Winning Stackverse");
+    expect(readStoredLanguage()).toBe("en");
+    expect(document.documentElement.lang).toBe("en");
+    expect(document.title).toBe("Winning Stackverse");
+    expect(localStorage.getItem("stackverse.bundle.pl")).toBeNull();
+    expect(localStorage.getItem("stackverse.bundle.en")).toContain(
+      "Winning Stackverse",
+    );
   });
 
   it("keeps language storage failures from blocking selection", () => {
