@@ -237,20 +237,23 @@ function rememberDialogFormState(
   form: HTMLFormElement,
   values: FormValues,
   errorUpdate: DialogFormErrorUpdate,
-  expectedDialog: DialogState | null = state.dialog,
+  expectedDialog: DialogState,
 ): void {
   if (!state.dialog || state.dialog !== expectedDialog) return;
 
   const expectedKind = dialogKindForForm(form.dataset.form);
   if (!expectedKind || state.dialog.kind !== expectedKind) return;
 
-  const next = { ...state.dialog, values } as DialogState & { error?: unknown };
+  const current = state.dialog as DialogState & {
+    values?: FormValues;
+    error?: unknown;
+  };
+  current.values = values;
   if (errorUpdate.kind === "set") {
-    next.error = errorUpdate.error;
+    current.error = errorUpdate.error;
   } else {
-    delete next.error;
+    delete current.error;
   }
-  state.dialog = next;
 }
 
 function dialogKindForForm(
@@ -273,7 +276,13 @@ function dialogKindForForm(
 }
 
 function rememberDialogValues(form: HTMLFormElement): void {
-  rememberDialogFormState(form, formValues(form), { kind: "clear" });
+  if (!state.dialog) return;
+  rememberDialogFormState(
+    form,
+    formValues(form),
+    { kind: "clear" },
+    state.dialog,
+  );
 }
 
 function reportBody(values: FormValues): ReportInput {
@@ -328,9 +337,8 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
         break;
       }
       case "report-bookmark": {
-        if (state.dialog.kind !== "report-bookmark") return;
-        const submittedReportDialog = state.dialog;
-        const bookmarkId = submittedReportDialog.bookmark.id;
+        if (submittedDialog.kind !== "report-bookmark") return;
+        const bookmarkId = submittedDialog.bookmark.id;
         try {
           await apiSend<Report>(
             "POST",
@@ -346,7 +354,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
           }
         }
         addReportedId(bookmarkId);
-        if (state.dialog === submittedReportDialog) state.dialog = null;
+        if (state.dialog === submittedDialog) state.dialog = null;
         break;
       }
       case "edit-report": {
@@ -397,9 +405,13 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
     }
   } catch (error) {
+    const currentValues =
+      state.dialog === submittedDialog && "values" in state.dialog
+        ? (state.dialog.values ?? values)
+        : values;
     rememberDialogFormState(
       form,
-      values,
+      currentValues,
       { kind: "set", error },
       submittedDialog,
     );

@@ -121,6 +121,21 @@ describe("report submission", () => {
       });
     };
 
+    const countReportPosts = (): number =>
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          new URL(String(input), window.location.origin).pathname ===
+            "/api/v1/bookmarks/bookmark-1/reports" && init?.method === "POST",
+      ).length;
+
+    const waitForNextReportPost = async (
+      previousCount: number,
+    ): Promise<void> => {
+      await vi.waitFor(() => {
+        expect(countReportPosts()).toBe(previousCount + 1);
+      });
+    };
+
     vi.useFakeTimers();
     const cases = [
       {
@@ -149,24 +164,13 @@ describe("report submission", () => {
       sessionStorage.removeItem(REPORTED_STORAGE_KEY);
       const pendingResponse = deferred<Response>();
       reportResponses.push(pendingResponse);
-      const requestCount = fetchMock.mock.calls.filter(
-        ([input, init]) =>
-          new URL(String(input), window.location.origin).pathname ===
-            "/api/v1/bookmarks/bookmark-1/reports" && init?.method === "POST",
-      ).length;
+      const requestCount = countReportPosts();
 
       const originalForm = await openDialog("bookmark-1");
       originalForm.dispatchEvent(
         new SubmitEvent("submit", { bubbles: true, cancelable: true }),
       );
-      await vi.waitFor(() => {
-        const nextRequestCount = fetchMock.mock.calls.filter(
-          ([input, init]) =>
-            new URL(String(input), window.location.origin).pathname ===
-              "/api/v1/bookmarks/bookmark-1/reports" && init?.method === "POST",
-        ).length;
-        expect(nextRequestCount).toBe(requestCount + 1);
-      });
+      await waitForNextReportPost(requestCount);
 
       await closeDialog();
       const replacementForm = await openDialog("bookmark-2");
@@ -220,6 +224,74 @@ describe("report submission", () => {
         expect(document.querySelector(".sv-toast")).toBeNull();
       }
       await closeDialog();
+    }
+
+    for (const testCase of [
+      {
+        name: "success",
+        response: () => jsonResponse({ id: "report-typed" }, 201),
+        succeeds: true,
+      },
+      {
+        name: "generic error",
+        response: () =>
+          jsonResponse({ title: "Unavailable", status: 500 }, 500),
+        succeeds: false,
+      },
+    ]) {
+      sessionStorage.removeItem(REPORTED_STORAGE_KEY);
+      const pendingResponse = deferred<Response>();
+      reportResponses.push(pendingResponse);
+      const requestCount = countReportPosts();
+      const form = await openDialog("bookmark-1");
+      form.dispatchEvent(
+        new SubmitEvent("submit", { bubbles: true, cancelable: true }),
+      );
+      await waitForNextReportPost(requestCount);
+
+      const comment = form.elements.namedItem("comment");
+      if (!(comment instanceof HTMLTextAreaElement)) {
+        throw new Error("Submitted report comment was not rendered");
+      }
+      const expectedComment = `typed during ${testCase.name}`;
+      comment.value = expectedComment;
+      comment.dispatchEvent(new Event("input", { bubbles: true }));
+      const editedDialog = state.dialog;
+      if (editedDialog?.kind !== "report-bookmark") {
+        throw new Error("Edited report dialog was not retained");
+      }
+      expect(editedDialog.values?.comment).toBe(expectedComment);
+
+      pendingResponse.resolve(testCase.response());
+      if (testCase.succeeds) {
+        await vi.waitFor(() => {
+          expect(state.dialog).toBeNull();
+        });
+        expect(
+          JSON.parse(
+            sessionStorage.getItem(REPORTED_STORAGE_KEY) ?? "[]",
+          ) as string[],
+        ).toEqual(["bookmark-1"]);
+        expect(state.toasts).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(5000);
+        await vi.waitFor(() => {
+          expect(state.toasts).toHaveLength(0);
+        });
+      } else {
+        await vi.waitFor(() => {
+          expect(state.dialog).toBe(editedDialog);
+          expect(editedDialog.error).toBeDefined();
+          expect(editedDialog.values?.comment).toBe(expectedComment);
+          expect(
+            document.querySelector<HTMLTextAreaElement>(
+              'textarea[name="comment"]',
+            )?.value,
+          ).toBe(expectedComment);
+        });
+        expect(sessionStorage.getItem(REPORTED_STORAGE_KEY)).toBeNull();
+        expect(state.toasts).toHaveLength(0);
+        await closeDialog();
+      }
     }
 
     expect(reportResponses).toHaveLength(0);
