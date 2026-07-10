@@ -36,7 +36,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | node-nestjs | 2238 | 628 | 0.28 | 41 | 7 | 149 | 132 | 23 | TypeScript |
 | node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
 | open-liberty-java | 3080 | 624 | 0.20 | 34 | 6 | 587 | 114 | 18 | Java, SQL, XML |
-| php-laravel | 2747 | 87 | 0.03 | 49 | 5 | 36 | 81 | 36 | PHP, JSON, XML |
+| php-laravel | 2993 | 522 | 0.17 | 68 | 9 | 36 | 98 | 36 | PHP, JSON, XML |
 | play-scala | 2238 | 585 | 0.26 | 24 | 3 | 25 | 115 | 25 | Scala, SQL |
 | python-django | 1964 | 169 | 0.09 | 27 | 7 | 63 | 90 | 21 | Python |
 | python-fastapi | 2406 | 878 | 0.36 | 25 | 11 | 62 | 90 | 21 | Python, SQL |
@@ -46,7 +46,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | scala-http4s | 2302 | 587 | 0.25 | 29 | 2 | 27 | 113 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 53708 | 11559 | | 732 | 144 | 2993 | 1930 | 428 | |
+| **subtotal** | 53954 | 11994 | | 751 | 148 | 2993 | 1947 | 428 | |
 
 ## Gateway
 

@@ -3,12 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Auth\Caller;
+use App\Http\Requests\UserStatusRequest;
+use App\Http\Resources\AuditEntryResource;
+use App\Http\Resources\UserAccountResource;
+use App\Models\AuditEntry;
+use App\Models\Bookmark;
+use App\Models\Report;
+use App\Models\UserAccount;
 use App\Services\AuditService;
 use App\Support\BadRequestProblem;
 use App\Support\ConflictProblem;
 use App\Support\Logger;
 use App\Support\NotFoundProblem;
-use App\Support\Validator;
 use App\Support\Wire;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -30,15 +36,18 @@ class AdminController extends Controller
             throw new BadRequestProblem("unknown status: $status");
         }
 
-        [$where, $params] = $this->userWhere($q, $status);
-        $rows = DB::select(
-            $this->withBookmarkCount()." where $where order by u.last_seen desc, u.username asc limit ? offset ?",
-            [...$params, $size, $page * $size],
-        );
-        $total = (int) DB::selectOne("select count(*)::int as count from user_accounts u where $where", $params)->count;
+        $query = UserAccount::query()->withCount('bookmarks');
+        if ($q !== null && trim($q) !== '') {
+            $query->whereRaw('position(lower(?) in lower(username)) > 0', [$q]);
+        }
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+        $total = (clone $query)->count();
+        $accounts = $query->orderByDesc('last_seen')->orderBy('username')->skip($page * $size)->take($size)->get();
 
         return [
-            'items' => array_map($this->toUser(...), $rows),
+            'items' => $accounts->map(fn (UserAccount $account): array => $this->toUser($account, $request))->all(),
             'page' => $page,
             'size' => $size,
             'totalItems' => $total,
@@ -54,37 +63,29 @@ class AdminController extends Controller
             throw new NotFoundProblem;
         }
 
-        return $this->toUser($account);
+        return $this->toUser($account, $request);
     }
 
-    public function setUserStatus(Request $request, string $username): array
+    public function setUserStatus(UserStatusRequest $request, string $username): array
     {
         $caller = Caller::requireRole($request, 'admin');
-        $body = Wire::jsonBody($request);
-        $status = $body['status'] ?? null;
-        if ($status !== 'active' && $status !== 'blocked') {
-            throw new BadRequestProblem('status is required');
-        }
-        $reason = is_string($body['reason'] ?? null) ? trim($body['reason']) : null;
+        ['status' => $status, 'reason' => $reason] = $request->contractData();
         if ($status === 'blocked') {
-            $validator = new Validator;
-            $validator->check($reason !== null && $reason !== '', 'reason', 'validation.block.reason.required');
-            $validator->check(mb_strlen($reason ?? '') <= 1000, 'reason', 'validation.block.reason.too-long');
-            $validator->throwIfInvalid();
             if ($username === $caller->username) {
                 throw new ConflictProblem('Admins cannot block themselves.');
             }
         }
 
         DB::transaction(function () use ($caller, $username, $status, $reason): void {
-            if (DB::selectOne('select username from user_accounts where username = ? for update', [$username]) === null) {
+            $account = UserAccount::query()->lockForUpdate()->find($username);
+            if ($account === null) {
                 throw new NotFoundProblem;
             }
             if ($status === 'blocked') {
-                DB::update("update user_accounts set status = 'blocked', blocked_reason = ? where username = ?", [$reason, $username]);
+                $account->update(['status' => 'blocked', 'blocked_reason' => $reason]);
                 $this->audit->record($caller->username, 'user.blocked', 'user', $username, ['reason' => $reason]);
             } else {
-                DB::update("update user_accounts set status = 'active', blocked_reason = null where username = ?", [$username]);
+                $account->update(['status' => 'active', 'blocked_reason' => null]);
                 $this->audit->record($caller->username, 'user.unblocked', 'user', $username);
             }
         });
@@ -99,41 +100,33 @@ class AdminController extends Controller
             throw new NotFoundProblem;
         }
 
-        return $this->toUser($account);
+        return $this->toUser($account, $request);
     }
 
     public function auditLog(Request $request): array
     {
         Caller::requireRole($request, 'admin');
         ['page' => $page, 'size' => $size] = Wire::paging($request);
-        $conditions = ['true'];
-        $params = [];
+        $query = AuditEntry::query();
         foreach ([['actor', 'actor'], ['action', 'action'], ['targetType', 'target_type'], ['targetId', 'target_id']] as [$parameter, $column]) {
             $value = Wire::singleParam($request, $parameter);
             if ($value !== null) {
-                $conditions[] = "$column = ?";
-                $params[] = $value;
+                $query->where($column, $value);
             }
         }
         $from = $this->dateParam(Wire::singleParam($request, 'from'), 'from');
         if ($from !== null) {
-            $conditions[] = 'created_at >= ?';
-            $params[] = $from;
+            $query->where('created_at', '>=', $from);
         }
         $to = $this->dateParam(Wire::singleParam($request, 'to'), 'to');
         if ($to !== null) {
-            $conditions[] = 'created_at <= ?';
-            $params[] = $to;
+            $query->where('created_at', '<=', $to);
         }
-        $where = implode(' and ', $conditions);
-        $rows = DB::select(
-            "select * from audit_entries where $where order by created_at desc, id desc limit ? offset ?",
-            [...$params, $size, $page * $size],
-        );
-        $total = (int) DB::selectOne("select count(*)::int as count from audit_entries where $where", $params)->count;
+        $total = (clone $query)->count();
+        $entries = $query->orderByDesc('created_at')->orderByDesc('id')->skip($page * $size)->take($size)->get();
 
         return [
-            'items' => array_map($this->toAudit(...), $rows),
+            'items' => $entries->map(fn (AuditEntry $entry): array => (new AuditEntryResource($entry))->resolve($request))->all(),
             'page' => $page,
             'size' => $size,
             'totalItems' => $total,
@@ -165,66 +158,25 @@ class AdminController extends Controller
 
         return Wire::etag($request, [
             'totals' => [
-                'users' => $this->count('select count(*)::int as count from user_accounts'),
-                'bookmarks' => $this->count('select count(*)::int as count from bookmarks'),
-                'publicBookmarks' => $this->count("select count(*)::int as count from bookmarks where visibility = 'public'"),
-                'hiddenBookmarks' => $this->count("select count(*)::int as count from bookmarks where status = 'hidden'"),
-                'openReports' => $this->count("select count(*)::int as count from reports where status = 'open'"),
+                'users' => UserAccount::count(),
+                'bookmarks' => Bookmark::count(),
+                'publicBookmarks' => Bookmark::where('visibility', 'public')->count(),
+                'hiddenBookmarks' => Bookmark::where('status', 'hidden')->count(),
+                'openReports' => Report::where('status', 'open')->count(),
             ],
             'daily' => $daily,
             'topTags' => array_map(static fn (object $row): array => ['tag' => $row->tag, 'count' => (int) $row->count], $topTags),
         ]);
     }
 
-    private function userWhere(?string $q, ?string $status): array
+    private function findUser(string $username): ?UserAccount
     {
-        $conditions = ['true'];
-        $params = [];
-        if ($q !== null && trim($q) !== '') {
-            $conditions[] = 'position(lower(?) in lower(u.username)) > 0';
-            $params[] = $q;
-        }
-        if ($status !== null) {
-            $conditions[] = 'u.status = ?';
-            $params[] = $status;
-        }
-
-        return [implode(' and ', $conditions), $params];
+        return UserAccount::query()->withCount('bookmarks')->find($username);
     }
 
-    private function withBookmarkCount(): string
+    private function toUser(UserAccount $account, Request $request): array
     {
-        return 'select u.*, (select count(*)::int from bookmarks b where b.owner = u.username) as bookmark_count from user_accounts u';
-    }
-
-    private function findUser(string $username): ?object
-    {
-        return DB::selectOne($this->withBookmarkCount().' where u.username = ?', [$username]);
-    }
-
-    private function toUser(object $row): array
-    {
-        return Wire::omitNulls([
-            'username' => $row->username,
-            'firstSeen' => Wire::iso($row->first_seen),
-            'lastSeen' => Wire::iso($row->last_seen),
-            'status' => $row->status,
-            'blockedReason' => $row->blocked_reason,
-            'bookmarkCount' => (int) $row->bookmark_count,
-        ]);
-    }
-
-    private function toAudit(object $row): array
-    {
-        return Wire::omitNulls([
-            'id' => $row->id,
-            'actor' => $row->actor,
-            'action' => $row->action,
-            'targetType' => $row->target_type,
-            'targetId' => $row->target_id,
-            'detail' => $row->detail === null ? null : json_decode($row->detail, true),
-            'createdAt' => Wire::iso($row->created_at),
-        ]);
+        return (new UserAccountResource($account))->resolve($request);
     }
 
     private function dateParam(?string $value, string $name): ?string
@@ -246,11 +198,6 @@ class AdminController extends Controller
         }
 
         return $date->format('Y-m-d H:i:s.uP');
-    }
-
-    private function count(string $sql): int
-    {
-        return (int) DB::selectOne($sql)->count;
     }
 
     private function countPerDay(string $table, string $column, CarbonImmutable $from): array

@@ -3,12 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Auth\Caller;
+use App\Http\Requests\BookmarkStatusRequest;
+use App\Http\Requests\ReportRequest;
+use App\Http\Requests\ResolutionRequest;
+use App\Http\Resources\BookmarkResource;
+use App\Http\Resources\ReportResource;
+use App\Models\Bookmark;
+use App\Models\Report;
 use App\Services\AuditService;
 use App\Support\BadRequestProblem;
 use App\Support\ConflictProblem;
 use App\Support\Logger;
 use App\Support\NotFoundProblem;
-use App\Support\Validator;
 use App\Support\Wire;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -18,31 +24,32 @@ use Illuminate\Support\Str;
 
 class ModerationController extends Controller
 {
-    private const REASONS = ['spam', 'offensive', 'broken-link', 'other'];
-
     private const STATUSES = ['open', 'dismissed', 'actioned'];
 
     public function __construct(private readonly AuditService $audit) {}
 
-    public function reportBookmark(Request $request, string $id): JsonResponse
+    public function reportBookmark(ReportRequest $request, string $id): JsonResponse
     {
         $caller = Caller::require($request);
         $bookmarkId = Wire::parseUuid($id);
-        $input = $this->validateReportInput(Wire::jsonBody($request));
-        $report = DB::transaction(function () use ($caller, $bookmarkId, $input): object {
-            $bookmark = DB::selectOne('select visibility, status from bookmarks where id = ? for update', [$bookmarkId]);
+        $input = $request->contractData();
+        $report = DB::transaction(function () use ($caller, $bookmarkId, $input): Report {
+            $bookmark = Bookmark::query()->lockForUpdate()->find($bookmarkId);
             if ($bookmark === null || $bookmark->visibility !== 'public' || $bookmark->status !== 'active') {
                 throw new NotFoundProblem;
             }
-            if (DB::selectOne("select 1 from reports where bookmark_id = ? and reporter = ? and status = 'open'", [$bookmarkId, $caller->username]) !== null) {
+            if (Report::query()->where('bookmark_id', $bookmarkId)->where('reporter', $caller->username)->where('status', 'open')->exists()) {
                 throw new ConflictProblem('You already have an open report on this bookmark.');
             }
             try {
-                return DB::selectOne(
-                    "insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)
-                     values (?, ?, ?, ?, ?, 'open', clock_timestamp()) returning *",
-                    [(string) Str::uuid(), $bookmarkId, $caller->username, $input['reason'], $input['comment']],
-                );
+                return Report::create([
+                    ...$input,
+                    'id' => (string) Str::uuid(),
+                    'bookmark_id' => $bookmarkId,
+                    'reporter' => $caller->username,
+                    'status' => 'open',
+                    'created_at' => now(),
+                ]);
             } catch (QueryException $error) {
                 if (($error->errorInfo[0] ?? null) === '23505') {
                     throw new ConflictProblem('You already have an open report on this bookmark.');
@@ -58,7 +65,7 @@ class ModerationController extends Controller
             'reason' => $report->reason,
         ]);
 
-        return response()->json($this->toReport($report), 201);
+        return response()->json($this->toReport($report, $request), 201);
     }
 
     public function listMine(Request $request): array
@@ -66,35 +73,27 @@ class ModerationController extends Controller
         $caller = Caller::require($request);
         ['page' => $page, 'size' => $size] = Wire::paging($request);
         $status = $this->validatedStatus(Wire::singleParam($request, 'status'));
-        $conditions = ['reporter = ?'];
-        $params = [$caller->username];
+        $query = Report::query()->where('reporter', $caller->username);
         if ($status !== null) {
-            $conditions[] = 'status = ?';
-            $params[] = $status;
+            $query->where('status', $status);
         }
-        $where = implode(' and ', $conditions);
-        $rows = DB::select(
-            "select * from reports where $where order by created_at desc, id desc limit ? offset ?",
-            [...$params, $size, $page * $size],
-        );
-        $total = (int) DB::selectOne("select count(*)::int as count from reports where $where", $params)->count;
+        $total = (clone $query)->count();
+        $reports = $query->orderByDesc('created_at')->orderByDesc('id')->skip($page * $size)->take($size)->get();
 
-        return $this->pageOf($rows, $page, $size, $total);
+        return $this->pageOf($reports, $request, $page, $size, $total);
     }
 
-    public function updateMine(Request $request, string $id): array
+    public function updateMine(ReportRequest $request, string $id): array
     {
         $caller = Caller::require($request);
         $reportId = Wire::parseUuid($id);
 
-        return DB::transaction(function () use ($caller, $reportId, $request): array {
+        $input = $request->contractData();
+
+        $updated = DB::transaction(function () use ($caller, $reportId, $input): Report {
             $report = $this->ownReport($caller->username, $reportId);
-            $input = $this->validateReportInput(Wire::jsonBody($request));
             $this->requireOpen($report);
-            $updated = DB::selectOne(
-                'update reports set reason = ?, comment = ? where id = ? returning *',
-                [$input['reason'], $input['comment'], $reportId],
-            );
+            $report->update($input);
             Logger::event('info', 'report_updated', 'success', 'Report updated by its reporter', [
                 'actor' => $caller->username,
                 'resource_type' => 'report',
@@ -103,8 +102,10 @@ class ModerationController extends Controller
                 'reason' => $input['reason'],
             ]);
 
-            return $this->toReport($updated);
+            return $report->refresh();
         });
+
+        return $this->toReport($updated, $request);
     }
 
     public function withdrawMine(Request $request, string $id): JsonResponse
@@ -114,7 +115,7 @@ class ModerationController extends Controller
         DB::transaction(function () use ($caller, $reportId): void {
             $report = $this->ownReport($caller->username, $reportId);
             $this->requireOpen($report);
-            DB::delete('delete from reports where id = ?', [$reportId]);
+            $report->delete();
             Logger::event('info', 'report_withdrawn', 'success', 'Report withdrawn by its reporter', [
                 'actor' => $caller->username,
                 'resource_type' => 'report',
@@ -131,43 +132,38 @@ class ModerationController extends Controller
         Caller::requireRole($request, 'moderator');
         ['page' => $page, 'size' => $size] = Wire::paging($request);
         $status = $this->validatedStatus(Wire::singleParam($request, 'status')) ?? 'open';
-        $rows = DB::select(
-            'select * from reports where status = ? order by created_at asc, id asc limit ? offset ?',
-            [$status, $size, $page * $size],
-        );
-        $total = (int) DB::selectOne('select count(*)::int as count from reports where status = ?', [$status])->count;
+        $query = Report::query()->where('status', $status);
+        $total = (clone $query)->count();
+        $reports = $query->orderBy('created_at')->orderBy('id')->skip($page * $size)->take($size)->get();
 
-        return $this->pageOf($rows, $page, $size, $total);
+        return $this->pageOf($reports, $request, $page, $size, $total);
     }
 
-    public function resolve(Request $request, string $id): array
+    public function resolve(ResolutionRequest $request, string $id): array
     {
         $caller = Caller::requireRole($request, 'moderator');
         $reportId = Wire::parseUuid($id);
-        $input = $this->validateResolution(Wire::jsonBody($request));
+        $input = $request->contractData();
 
-        return DB::transaction(function () use ($caller, $reportId, $input): array {
+        return DB::transaction(function () use ($caller, $reportId, $input, $request): array {
             if ($input['resolution'] === 'actioned') {
-                $scalar = DB::selectOne('select bookmark_id from reports where id = ?', [$reportId]);
+                $scalar = Report::query()->select('bookmark_id')->find($reportId);
                 if ($scalar === null) {
                     throw new NotFoundProblem;
                 }
-                DB::selectOne('select id from bookmarks where id = ? for update', [$scalar->bookmark_id]);
+                Bookmark::query()->lockForUpdate()->find($scalar->bookmark_id);
             }
-            $report = DB::selectOne('select * from reports where id = ? for update', [$reportId]);
+            $report = Report::query()->lockForUpdate()->find($reportId);
             if ($report === null) {
                 throw new NotFoundProblem;
             }
 
             if ($input['resolution'] === 'open') {
-                if (DB::selectOne("select 1 from reports where bookmark_id = ? and reporter = ? and status = 'open' and id <> ?", [$report->bookmark_id, $report->reporter, $reportId]) !== null) {
+                if (Report::query()->where('bookmark_id', $report->bookmark_id)->where('reporter', $report->reporter)->where('status', 'open')->whereKeyNot($reportId)->exists()) {
                     throw new ConflictProblem('The reporter already has another open report on this bookmark.');
                 }
                 try {
-                    $reopened = DB::selectOne(
-                        "update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null where id = ? returning *",
-                        [$reportId],
-                    );
+                    $report->update(['status' => 'open', 'resolved_by' => null, 'resolved_at' => null, 'resolution_note' => null]);
                 } catch (QueryException $error) {
                     if (($error->errorInfo[0] ?? null) === '23505') {
                         throw new ConflictProblem('The reporter already has another open report on this bookmark.');
@@ -182,42 +178,38 @@ class ModerationController extends Controller
                     'bookmark_id' => $report->bookmark_id,
                 ]);
 
-                return $this->toReport($reopened);
+                return $this->toReport($report->refresh(), $request);
             }
 
             $resolved = $this->resolveOne($report, $input['resolution'], $caller->username, $input['note'], false);
             if ($input['resolution'] === 'actioned') {
                 $this->hideBookmark($caller->username, $report->bookmark_id, $input['note']);
-                $siblings = DB::select(
-                    "select * from reports where bookmark_id = ? and status = 'open' and id <> ? order by id asc for update",
-                    [$report->bookmark_id, $reportId],
-                );
+                $siblings = Report::query()->where('bookmark_id', $report->bookmark_id)->where('status', 'open')->whereKeyNot($reportId)->orderBy('id')->lockForUpdate()->get();
                 foreach ($siblings as $sibling) {
                     $this->resolveOne($sibling, 'actioned', $caller->username, $input['note'], true);
                 }
             }
 
-            return $this->toReport($resolved);
+            return $this->toReport($resolved, $request);
         });
     }
 
-    public function setBookmarkStatus(Request $request, string $id): array
+    public function setBookmarkStatus(BookmarkStatusRequest $request, string $id): array
     {
         $caller = Caller::requireRole($request, 'moderator');
         $bookmarkId = Wire::parseUuid($id);
-        $input = $this->validateBookmarkStatus(Wire::jsonBody($request));
+        $input = $request->contractData();
 
-        $bookmark = DB::transaction(function () use ($caller, $bookmarkId, $input): object {
-            $existing = DB::selectOne('select * from bookmarks where id = ? for update', [$bookmarkId]);
+        $bookmark = DB::transaction(function () use ($caller, $bookmarkId, $input): Bookmark {
+            $existing = Bookmark::query()->lockForUpdate()->find($bookmarkId);
             if ($existing === null) {
                 throw new NotFoundProblem;
             }
-            $updated = DB::selectOne(
-                'update bookmarks set status = ?, updated_at = clock_timestamp() where id = ? returning *',
-                [$input['status'], $bookmarkId],
-            );
+            $previousStatus = $existing->status;
+            $existing->status = $input['status'];
+            $existing->save();
             $this->audit->record($caller->username, 'bookmark.status-changed', 'bookmark', $bookmarkId, [
-                'from' => $existing->status,
+                'from' => $previousStatus,
                 'to' => $input['status'],
                 'note' => $input['note'],
             ]);
@@ -225,19 +217,19 @@ class ModerationController extends Controller
                 'actor' => $caller->username,
                 'resource_type' => 'bookmark',
                 'resource_id' => $bookmarkId,
-                'from' => $existing->status,
+                'from' => $previousStatus,
                 'to' => $input['status'],
             ]);
 
-            return $updated;
+            return $existing->refresh();
         });
 
-        return $this->toBookmark($bookmark);
+        return $this->toBookmark($bookmark, $request);
     }
 
-    private function ownReport(string $reporter, string $id): object
+    private function ownReport(string $reporter, string $id): Report
     {
-        $report = DB::selectOne('select * from reports where id = ? for update', [$id]);
+        $report = Report::query()->lockForUpdate()->find($id);
         if ($report === null || $report->reporter !== $reporter) {
             throw new NotFoundProblem;
         }
@@ -245,19 +237,16 @@ class ModerationController extends Controller
         return $report;
     }
 
-    private function requireOpen(object $report): void
+    private function requireOpen(Report $report): void
     {
         if ($report->status !== 'open') {
             throw new ConflictProblem('The report has already been resolved.');
         }
     }
 
-    private function resolveOne(object $report, string $resolution, string $actor, ?string $note, bool $autoResolved): object
+    private function resolveOne(Report $report, string $resolution, string $actor, ?string $note, bool $autoResolved): Report
     {
-        $updated = DB::selectOne(
-            'update reports set status = ?, resolved_by = ?, resolved_at = clock_timestamp(), resolution_note = ? where id = ? returning *',
-            [$resolution, $actor, $note, $report->id],
-        );
+        $report->update(['status' => $resolution, 'resolved_by' => $actor, 'resolved_at' => now(), 'resolution_note' => $note]);
         $this->audit->record($actor, 'report.resolved', 'report', $report->id, [
             'bookmarkId' => $report->bookmark_id,
             'resolution' => $resolution,
@@ -273,19 +262,20 @@ class ModerationController extends Controller
             'auto_resolved' => $autoResolved,
         ]);
 
-        return $updated;
+        return $report->refresh();
     }
 
     private function hideBookmark(string $actor, string $bookmarkId, ?string $note): void
     {
-        $bookmark = DB::selectOne('select * from bookmarks where id = ?', [$bookmarkId]);
+        $bookmark = Bookmark::find($bookmarkId);
         if ($bookmark === null) {
             throw new NotFoundProblem;
         }
         if ($bookmark->status === 'hidden') {
             return;
         }
-        DB::update("update bookmarks set status = 'hidden', updated_at = clock_timestamp() where id = ?", [$bookmarkId]);
+        $bookmark->status = 'hidden';
+        $bookmark->save();
         $this->audit->record($actor, 'bookmark.status-changed', 'bookmark', $bookmarkId, [
             'from' => 'active',
             'to' => 'hidden',
@@ -300,42 +290,6 @@ class ModerationController extends Controller
         ]);
     }
 
-    private function validateReportInput(array $body): array
-    {
-        $validator = new Validator;
-        $reason = $body['reason'] ?? null;
-        $validator->check(is_string($reason) && in_array($reason, self::REASONS, true), 'reason', 'validation.report.reason.invalid');
-        $comment = is_string($body['comment'] ?? null) ? $body['comment'] : null;
-        $validator->check(mb_strlen($comment ?? '') <= 1000, 'comment', 'validation.report.comment.too-long');
-        $validator->throwIfInvalid();
-
-        return ['reason' => $reason, 'comment' => $comment];
-    }
-
-    private function validateResolution(array $body): array
-    {
-        $validator = new Validator;
-        $resolution = $body['resolution'] ?? null;
-        $validator->check(is_string($resolution) && in_array($resolution, self::STATUSES, true), 'resolution', 'validation.resolution.invalid');
-        $note = is_string($body['note'] ?? null) ? $body['note'] : null;
-        $validator->check(mb_strlen($note ?? '') <= 1000, 'note', 'validation.resolution.note.too-long');
-        $validator->throwIfInvalid();
-
-        return ['resolution' => $resolution, 'note' => $note];
-    }
-
-    private function validateBookmarkStatus(array $body): array
-    {
-        $validator = new Validator;
-        $status = $body['status'] ?? null;
-        $validator->check($status === 'active' || $status === 'hidden', 'status', 'validation.bookmark-status.invalid');
-        $note = is_string($body['note'] ?? null) ? $body['note'] : null;
-        $validator->check(mb_strlen($note ?? '') <= 1000, 'note', 'validation.bookmark-status.note.too-long');
-        $validator->throwIfInvalid();
-
-        return ['status' => $status, 'note' => $note];
-    }
-
     private function validatedStatus(?string $value): ?string
     {
         if ($value === null) {
@@ -348,26 +302,15 @@ class ModerationController extends Controller
         return $value;
     }
 
-    private function toReport(object $row): array
+    private function toReport(Report $report, Request $request): array
     {
-        return Wire::omitNulls([
-            'id' => $row->id,
-            'bookmarkId' => $row->bookmark_id,
-            'reporter' => $row->reporter,
-            'reason' => $row->reason,
-            'comment' => $row->comment,
-            'status' => $row->status,
-            'createdAt' => Wire::iso($row->created_at),
-            'resolvedBy' => $row->resolved_by,
-            'resolvedAt' => $row->resolved_at === null ? null : Wire::iso($row->resolved_at),
-            'resolutionNote' => $row->resolution_note,
-        ]);
+        return (new ReportResource($report))->resolve($request);
     }
 
-    private function pageOf(array $rows, int $page, int $size, int $totalItems): array
+    private function pageOf(iterable $reports, Request $request, int $page, int $size, int $totalItems): array
     {
         return [
-            'items' => array_map($this->toReport(...), $rows),
+            'items' => collect($reports)->map(fn (Report $report): array => $this->toReport($report, $request))->values()->all(),
             'page' => $page,
             'size' => $size,
             'totalItems' => $totalItems,
@@ -375,19 +318,8 @@ class ModerationController extends Controller
         ];
     }
 
-    private function toBookmark(object $row): array
+    private function toBookmark(Bookmark $bookmark, Request $request): array
     {
-        return Wire::omitNulls([
-            'id' => $row->id,
-            'url' => $row->url,
-            'title' => $row->title,
-            'notes' => $row->notes,
-            'tags' => Wire::pgTextArrayToList($row->tags),
-            'visibility' => $row->visibility,
-            'status' => $row->status,
-            'owner' => $row->owner,
-            'createdAt' => Wire::iso($row->created_at),
-            'updatedAt' => Wire::iso($row->updated_at),
-        ]);
+        return (new BookmarkResource($bookmark))->resolve($request);
     }
 }

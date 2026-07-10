@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Message;
 use App\Support\Wire;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class I18nService
 {
@@ -53,12 +53,13 @@ class I18nService
             return [];
         }
 
-        $rows = DB::select(
-            'select key, language, text from messages
-             where key = any(?::text[]) and language = any(?::text[])
-             order by key, case when language = ? then 0 else 1 end',
-            [Wire::pgTextArray($unique), Wire::pgTextArray([$language, self::DEFAULT_LANGUAGE]), $language],
-        );
+        $rows = Message::query()
+            ->select(['key', 'language', 'text'])
+            ->whereIn('key', $unique)
+            ->whereIn('language', [$language, self::DEFAULT_LANGUAGE])
+            ->orderBy('key')
+            ->orderByRaw('case when language = ? then 0 else 1 end', [$language])
+            ->get();
 
         $messages = [];
         foreach ($rows as $row) {
@@ -77,10 +78,11 @@ class I18nService
 
     public function bundle(string $language): array
     {
-        $rows = DB::select(
-            'select key, language, text from messages where language = any(?::text[]) order by key',
-            ['{'.$language.','.self::DEFAULT_LANGUAGE.'}'],
-        );
+        $rows = Message::query()
+            ->select(['key', 'language', 'text'])
+            ->whereIn('language', [$language, self::DEFAULT_LANGUAGE])
+            ->orderBy('key')
+            ->get();
         $messages = [];
         foreach ($rows as $row) {
             if ($row->language === $language || ! array_key_exists($row->key, $messages)) {
@@ -132,9 +134,9 @@ class I18nService
             return self::$supportedLanguages;
         }
 
-        return self::$supportedLanguages = array_fill_keys(array_map(
-            static fn (object $row): string => $row->language,
-            DB::select('select distinct language from messages'),
-        ), true);
+        return self::$supportedLanguages = array_fill_keys(
+            Message::query()->distinct()->orderBy('language')->pluck('language')->all(),
+            true,
+        );
     }
 }

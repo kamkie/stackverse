@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Message;
 use App\Support\Logger;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -27,12 +27,15 @@ class MessageSeeder
 
             $inserted = 0;
             foreach ($entries as $key => $text) {
-                $changed = DB::affectingStatement(
-                    'insert into messages (id, key, language, text, created_at, updated_at)
-                     values (?, ?, ?, ?, clock_timestamp(), clock_timestamp())
-                     on conflict (key, language) do nothing',
-                    [(string) Str::uuid(), (string) $key, $language, (string) $text],
-                );
+                $now = now();
+                $changed = Message::query()->insertOrIgnore([
+                    'id' => (string) Str::uuid(),
+                    'key' => (string) $key,
+                    'language' => $language,
+                    'text' => (string) $text,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
                 if ($changed) {
                     $inserted++;
                 }
