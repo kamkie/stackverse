@@ -19,6 +19,22 @@ test("a garbage bearer token is rejected with a 401 problem", async ({ anon }) =
   await expectProblem(response, 401);
 });
 
+test("authentication precedes protected request-body parsing", async ({ anon, demo }) => {
+  const malformed = {
+    data: "{",
+    headers: { "Content-Type": "application/json" },
+  };
+  const wrongTyped = {
+    data: { url: false, title: [] },
+    headers: { "Content-Type": "application/json" },
+  };
+
+  await expectProblem(await anon.post("/api/v1/bookmarks", malformed), 401);
+  await expectProblem(await anon.post("/api/v1/bookmarks", wrongTyped), 401);
+  await expectProblem(await demo.post("/api/v1/bookmarks", malformed), 400);
+  await expectProblem(await demo.post("/api/v1/bookmarks", wrongTyped), 400);
+});
+
 test("me echoes the JWT identity; a regular user has no roles", async ({ demo }) => {
   const response = await demo.get("/api/v1/me");
   expect(response.status(), await response.text()).toBe(200);

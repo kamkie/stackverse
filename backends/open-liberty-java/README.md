@@ -1,11 +1,12 @@
 # Backend · Open Liberty Java (Maven)
 
 The Stackverse backend on **Open Liberty** with Java 21 bytecode and Maven:
-Jakarta REST endpoints over explicit JDBC/Flyway persistence, JWT bearer
-authentication against Keycloak's JWKS, and the Liberty Maven plugin managing
-the local server runtime. Shared behavior, endpoints, and environment variables
-are documented once in [backends/README.md](../README.md) and the contract
-documents it points to — this file covers only what is specific to this stack.
+CDI-managed Jakarta REST endpoints over explicit JDBC/Flyway persistence,
+MicroProfile JWT authentication against Keycloak, typed record DTOs with Bean
+Validation, and the Liberty Maven plugin managing the local server runtime.
+Shared behavior, endpoints, and environment variables are documented once in
+[backends/README.md](../README.md) and the contract documents it points to —
+this file covers only what is specific to this stack.
 
 ## Run it locally
 
@@ -30,11 +31,15 @@ apply on startup — the database must be one this backend owns (when switching
 from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Build/tests:
+Build, unit tests, style check, and packaged-Liberty integration test:
 
 ```sh
-./mvnw test
+./mvnw verify
 ```
+
+`verify` creates a minimized Liberty distribution containing the configured
+features and application WAR, then Failsafe inspects that archive. Use
+`./mvnw spotless:apply` after intentional Java formatting changes.
 
 Conformance (the acceptance gate), with the backend running:
 
@@ -56,10 +61,21 @@ docker build -t stackverse/backend-open-liberty-java:local -f backends/open-libe
   not depend on an external app-server installation.
 - **Jakarta REST over explicit SQL** — the runtime supplies the servlet/JAX-RS
   boundary; Stackverse behavior stays in one self-contained implementation
-  using JDBC, HikariCP, and Flyway-owned migrations.
-- **Manual JWT validation** — Nimbus validates issuer, audience, expiry, and
-  signature from `OIDC_JWKS_URI` or OIDC discovery, while identity and roles
-  come only from `preferred_username` and `realm_access.roles`.
+  using an injected application-scoped JDBC boundary, HikariCP, and
+  Flyway-owned migrations.
+- **Container-managed facilities** — CDI owns configuration, lifecycle,
+  persistence, logging, message lookup, and request filters; JAX-RS providers
+  and resources are discovered from annotations rather than a manual class
+  registry.
+- **MicroProfile JWT** — Open Liberty validates issuer, audience, lifetime,
+  signature, and `preferred_username`. Name-bound `@RequiresCaller` and
+  `@RequiresRole` JAX-RS authorization filters enforce protected-route identity
+  and roles before entity deserialization; the established Keycloak
+  `realm_access.roles` token shape remains unchanged.
+- **Typed and validated payloads** — public request and response shapes are
+  Java records. Jakarta Bean Validation constraints feed the Stackverse
+  localized field-error mapper; raw maps remain only for intentionally open
+  JSON audit details and internal SQL/audit assembly.
 - **Flyway on Liberty classloaders** — the migration and callback resource
   directories include `flyway.location` marker files, which Flyway requires to
   resolve classpath locations correctly under WebSphere/Open Liberty.
@@ -74,9 +90,20 @@ docker build -t stackverse/backend-open-liberty-java:local -f backends/open-libe
 
 ## Deliberate deviations worth comparing
 
-- The implementation keeps the Jakarta boundary thin rather than leaning on
-  Jakarta Persistence or Bean Validation. That makes the moderation state
-  machine, lock ordering, and contract-specific validation messages explicit.
+- Explicit JDBC is retained instead of Jakarta Persistence so SQL locking,
+  PostgreSQL arrays, and the moderation state machine remain directly
+  comparable with the non-ORM variants. Pooling, migrations, transactions, and
+  statement binding are owned by the injected, application-scoped
+  `RuntimeSupport` boundary.
+- Standard `@RolesAllowed` expects a top-level MP JWT groups claim, while the
+  repository-wide Keycloak contract places roles in `realm_access.roles`.
+  `@RequiresRole` is the variant-local declarative adapter applied after
+  Liberty validates the token; sibling backends and token contents are not
+  changed.
+- Bean Validation is invoked through the injected `Validator` at the
+  contract-defined point in each operation rather than eagerly with `@Valid`.
+  This preserves authorization and not-found precedence while still using the
+  container's validation provider and constraint metadata.
 - The local Maven run emits the app's structured stdout logs directly. OTLP log
   export is enabled in the container path through the Java agent; local
   developers can add the same agent with `MAVEN_OPTS` when they need telemetry.
@@ -101,7 +128,9 @@ Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
 | dev-only console forwarding, sanitized | n/a |
 | dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |
 
-¹ `dependency_call_failed` is emitted for OIDC discovery failures. Database
-startup failures fail the app before listening; readiness checks expose database
-availability through `/readyz`. There are no retry loops, so `retry_exhausted`
-has no occurrence to log.
+¹ JWT discovery/JWKS traffic belongs to Open Liberty's MicroProfile JWT
+facility rather than an application-owned dependency client. Database startup
+and request failures emit `dependency_call_failed` with latency and a stable
+error code. Readiness emits that event only when the database changes from ready
+to unavailable, then emits `dependency_recovered` when it becomes reachable
+again. There are no retry loops, so `retry_exhausted` has no occurrence to log.

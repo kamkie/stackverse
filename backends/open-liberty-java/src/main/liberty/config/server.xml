@@ -1,12 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <server description="Stackverse Open Liberty Java backend">
   <featureManager>
+    <feature>cdi-4.0</feature>
+    <feature>jsonb-3.0</feature>
+    <feature>mpJwt-2.1</feature>
     <feature>servlet-6.0</feature>
     <feature>restfulWS-3.1</feature>
+    <feature>beanValidation-3.0</feature>
   </featureManager>
 
   <variable name="PORT" defaultValue="8080"/>
+  <variable name="OIDC_ISSUER_URI" defaultValue="http://localhost:8180/realms/stackverse"/>
+  <variable name="OIDC_JWKS_URI" defaultValue="${OIDC_ISSUER_URI}/protocol/openid-connect/certs"/>
   <httpEndpoint id="defaultHttpEndpoint" host="*" httpPort="${PORT}"/>
+
+  <mpJwt id="stackverse"
+         audiences="stackverse-api"
+         issuer="${OIDC_ISSUER_URI}"
+         jwksUri="${OIDC_JWKS_URI}"
+         userNameAttribute="preferred_username"/>
 
   <applicationManager autoExpand="true"/>
   <webApplication location="stackverse-open-liberty-java.war" contextRoot="/"/>
