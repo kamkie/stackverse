@@ -658,9 +658,12 @@ export async function startAppController(
       if (input.form?.dataset.form) rememberDialogValues(input.form);
       const bind = input.dataset.bind;
       if (!bind) return;
-      const immediate =
-        input.tagName === "SELECT" || input.getAttribute("type") === "date";
-      updateBoundValue(bind, input.value, immediate);
+      if (
+        input.tagName === "SELECT" ||
+        input.getAttribute("type") === "date"
+      )
+        return;
+      updateBoundValue(bind, input.value, false);
     },
     listenerOptions,
   );
