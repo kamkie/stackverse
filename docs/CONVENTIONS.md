@@ -61,7 +61,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto schemas/changesets plus Repo queries and migrations | Typed persistence and input schemas, Repo CRUD, Ecto.Query filters/locks/counts, and migrations; SQL limited to array/day aggregates and bulk seed import | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | GORM/Hibernate domain classes with dynamic finders | Raw Spring JdbcTemplate + hand-written SQL, Flyway migrations, no GORM | 🟡 deliberate |
+| [Grails](../backends/grails/README.md) | GORM/Hibernate domain classes with dynamic finders | Typed GORM domains and finders for ordinary CRUD; Flyway-owned schema; JDBC retained at dynamic query/locking/aggregate/JSONB boundaries | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Micronaut Data (JDBC/JPA) repositories with derived queries | Deliberately retains a Database helper and raw SQL for PostgreSQL arrays, keyset pagination, row locking, aggregates, and explicit transactions | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Prisma/Drizzle/TypeORM, or plain pg with a query layer | plain pg, hand-written parameterized SQL, withTransaction helper, node-pg-migrate | 🟡 deliberate |
 | [NestJS](../backends/node-nestjs/README.md) | TypeORM/Prisma via @nestjs/typeorm with injected repositories | Injectable feature services use raw pg, hand-written SQL, tiny withTransaction | 🟡 deliberate |
@@ -111,7 +111,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Plug pipeline auth using a JWT/JWKS library and controller role checks | Auth plug validates JOSE/JWKS tokens, provisions accounts, and helpers enforce roles | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | golang-jwt for JWT, net/http middleware; JWKS via a library | golang-jwt/jwt validates iss/aud/exp; hand-rolled cached JWKS fetch; chi middleware | 🟡 deliberate |
 | [Go (Echo)](../backends/go-echo/README.md) | Echo middleware plus golang-jwt or echo-jwt with JWKS-backed verification | golang-jwt validates iss/aud/exp; hand-rolled cached JWKS fetch through Echo middleware adapters | 🟡 deliberate |
-| [Grails](../backends/grails/README.md) | grails-spring-security-core plugin with annotations/interceptors | Raw Spring Security OAuth2 resource-server SecurityFilterChain, manual role checks | 🟡 deliberate |
+| [Grails](../backends/grails/README.md) | grails-spring-security-core plugin with annotations/interceptors | Spring Security OAuth2 resource server for stateless issuer/audience/JWKS validation; explicit role checks preserve optional-auth/error precedence | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | micronaut-security with JWT/JWKS validation and @Secured role rules | Deliberately retains @ServerFilter/@RequestFilter + Nimbus to combine exact JWT checks, app-account blocking, and contract-specific problem mapping; framework HTTP tests cover filter and roles | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | JWT verify via jose/JWKS in an onRequest/preHandler hook, role guards | jose jwtVerify against Keycloak JWKS in one onRequest hook; requireCaller/requireRole | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | Passport guards / @UseGuards, AuthGuard, @Roles decorators | Global CanActivate guard verifies JWT via jose; services use requireCaller/requireRole helpers | 🟡 deliberate |
@@ -161,7 +161,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | BEAM processes, supervised endpoint, pooled DB connections | Bandit/Phoenix processes, Ecto pool, transactions, and SELECT ... FOR UPDATE row locks | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | server goroutine, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | goroutines + context; signal.NotifyContext for graceful shutdown | net/http server with Echo handler, signal.NotifyContext, context propagation, FOR UPDATE row locks | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | Synchronous servlet request handling; Promise/async only when needed | Synchronous JdbcTemplate calls under @Transactional; nothing async | ✅ idiomatic |
+| [Grails](../backends/grails/README.md) | Synchronous servlet request handling; Promise/async only when needed | Synchronous GORM/JdbcTemplate work under @Transactional; nothing async | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Blocking work offloaded via @ExecuteOn(TaskExecutors.BLOCKING) where needed | All JDBC-reachable controllers and the JWT/account request filter run on TaskExecutors.BLOCKING | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | async/await, pooled connections, explicit locking for critical sections | async/await, pg.Pool, SELECT ... FOR UPDATE with documented lock ordering | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | async/await handlers; RxJS Observables for streams/interceptors | Plain async/await; SELECT ... FOR UPDATE row locks for moderation races | ✅ idiomatic |
@@ -186,7 +186,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto changesets or explicit validation helpers | Embedded-schema changesets normalize inputs and preserve localized Stackverse message keys | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | struct-tag validator (go-playground/validator) common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
 | [Go (Echo)](../backends/go-echo/README.md) | Echo binding plus go-playground/validator common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
-| [Grails](../backends/grails/README.md) | Domain constraints or @Validateable command objects | Manual validation in services building problem-detail error lists | 🟡 deliberate |
+| [Grails](../backends/grails/README.md) | Domain constraints or @Validateable command objects | @Validateable write commands with Grails constraint closures and localized contract-key error mapping | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | Bean Validation: @Valid on @Body with jakarta.validation constraints | Typed request records use Micronaut Validation, invoked explicitly after auth/resource checks to preserve shared error precedence; an adapter preserves deterministic Stackverse field keys | 🟡 deliberate |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Zod/TypeBox or Fastify JSON-schema type provider for request validation | hand-rolled Validator collecting field violations; no schema framework | 🟡 deliberate |
 | [NestJS](../backends/node-nestjs/README.md) | class-validator/class-transformer DTOs with a global ValidationPipe | Hand-rolled Validator collector, no pipes, no DTO decorators | 🟡 deliberate |
@@ -211,7 +211,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | ExUnit with ConnCase/DataCase and focused unit tests | ConnCase endpoint tests, DataCase changeset/schema tests, PostgreSQL-backed Repo query regressions, and shared live conformance | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | stdlib testing, table-driven tests, httptest for router edges | stdlib testing, table-driven cases, Echo route smoke tests; gotestsum wraps for JUnit in CI | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for services and support helpers; unit-only, no integration tests | ✅ idiomatic |
+| [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for command constraints, services, and support helpers; shared live conformance owns integration coverage | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @MicronautTest with injected HTTP client for integration tests | JUnit 5 + AssertJ units plus @MicronautTest HTTP coverage for routing, filters, serialization, validation, and roles | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Vitest/Jest, unit plus integration (supertest/inject) tests | Vitest unit tests on pure functions (validation, cursor, etag, i18n); no HTTP-level tests | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | Jest with @nestjs/testing TestingModule; supertest e2e | Vitest unit tests on pure functions/helpers, vi.mock, no TestingModule | 🟡 deliberate |
@@ -236,7 +236,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | mix format; Credo/Dialyzer optional for larger apps | mix format --check-formatted plus compile --warnings-as-errors in CI | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | No CodeNarc or any linter/formatter configured | 🔴 undocumented |
+| [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | CodeNarc 3.6 Groovy-4 rules for duplicate/empty constructs, insecure randomness, and unnecessary semicolons in Gradle check | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | tsc --noEmit (strict) only; no ESLint/Prettier/Biome config anywhere | 🔴 undocumented |
 | [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | ESLint + Prettier scripts alongside Nest CLI build/dev flow | ✅ idiomatic |
@@ -261,7 +261,7 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Structs/schemas and JSON views/encoders for DTOs | Explicit response maps converted from Ecto persistence structs, lowercase wire-string enums, nil omission helper | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | plain structs with json tags; separate request/response DTOs | domain Bookmark vs request/Response DTOs; string consts for enums, no enum type | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | Typed GORM domain classes; JSON views or respond marshalling | Untyped Maps end-to-end, lowercase wire-string enums, manual JSON render | 🟡 deliberate |
+| [Grails](../backends/grails/README.md) | Typed GORM domain classes; JSON views or respond marshalling | Typed GORM persistence and command objects; explicit response maps keep lowercase enums and omission rules visible | 🟡 deliberate |
 | [Micronaut](../backends/micronaut-java/README.md) | Java records for DTOs; enums for closed value sets | Records for DTOs/domain; String constants for enum-like wire values, text[] tags | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | TS interfaces/types for DTOs and rows, union types for enums | row interfaces + as const union enums; lowercase wire strings; omitNulls drops nulls | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | DTO classes + entities; enums; @nestjs/swagger OpenAPI generation | Plain TS interfaces, string-literal unions, wire-string enums, omitNulls helper | 🟡 deliberate |
