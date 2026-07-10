@@ -51,7 +51,7 @@ export async function adminPageHtml(path: string): Promise<string> {
   </div>`;
 }
 
-export async function adminContentHtml(path: string): Promise<string> {
+async function adminContentHtml(path: string): Promise<string> {
   if (path === "/admin/reports") return adminReportsPageHtml();
   if (path === "/admin/users") return usersPageHtml();
   if (path === "/admin/audit") return auditPageHtml();
@@ -59,7 +59,7 @@ export async function adminContentHtml(path: string): Promise<string> {
   return dashboardPageHtml();
 }
 
-export function dailyChartHtml(daily: AdminStats["daily"]): string {
+function dailyChartHtml(daily: AdminStats["daily"]): string {
   const width = 620;
   const height = 160;
   const left = 24;
@@ -93,7 +93,7 @@ export function dailyChartHtml(daily: AdminStats["daily"]): string {
   </svg>`;
 }
 
-export async function dashboardPageHtml(): Promise<string> {
+async function dashboardPageHtml(): Promise<string> {
   const stats = await apiGet<AdminStats>("/api/v1/admin/stats");
   const totals = [
     ["ui.admin.stats.users", stats.totals.users],
@@ -125,7 +125,7 @@ export async function dashboardPageHtml(): Promise<string> {
     }`;
 }
 
-export async function adminReportsPageHtml(): Promise<string> {
+async function adminReportsPageHtml(): Promise<string> {
   const data = await apiGet<Page<Report>>("/api/v1/admin/reports", {
     status: state.adminReports.status,
     page: state.adminReports.page,
@@ -183,7 +183,7 @@ export async function adminReportsPageHtml(): Promise<string> {
     ${paginationHtml(state.adminReports.page, data.totalPages, "admin-reports")}`;
 }
 
-export async function usersPageHtml(): Promise<string> {
+async function usersPageHtml(): Promise<string> {
   const data = await apiGet<Page<UserAccount>>("/api/v1/admin/users", {
     ...(state.users.q ? { q: state.users.q } : {}),
     page: state.users.page,
@@ -227,13 +227,13 @@ export async function usersPageHtml(): Promise<string> {
     ${paginationHtml(state.users.page, data.totalPages, "users")}`;
 }
 
-export function endOfDayIso(day: string): string {
+function endOfDayIso(day: string): string {
   return new Date(`${day}T23:59:59.999`)
     .toISOString()
     .replace(".999Z", ".999999Z");
 }
 
-export async function auditPageHtml(): Promise<string> {
+async function auditPageHtml(): Promise<string> {
   const data = await apiGet<Page<AuditEntry>>("/api/v1/admin/audit-log", {
     ...(state.audit.actor ? { actor: state.audit.actor } : {}),
     ...(state.audit.action ? { action: state.audit.action } : {}),
@@ -284,7 +284,7 @@ export async function auditPageHtml(): Promise<string> {
     ${paginationHtml(state.audit.page, data.totalPages, "audit")}`;
 }
 
-export async function messagesPageHtml(): Promise<string> {
+async function messagesPageHtml(): Promise<string> {
   const data = await apiGet<Page<Message>>("/api/v1/messages", {
     ...(state.messages.q ? { q: state.messages.q } : {}),
     ...(state.messages.language ? { language: state.messages.language } : {}),

@@ -70,26 +70,34 @@ export type DialogState =
     }
   | { kind: "delete-message"; message: Message };
 
-export const state = {
-  session: null as Session | null,
-  me: null as User | null,
-  renderVersion: 0,
-  dialog: null as DialogState | null,
-  toasts: [] as Toast[],
-  nextToastId: 0,
-  bookmarks: { q: "", tags: [], pages: [] } as BookmarkListState,
-  feed: { q: "", tags: [], pages: [] } as BookmarkListState,
-  myReports: {
-    status: "" as ReportStatus | "",
-    page: 0,
-    items: [] as Report[],
-  },
-  adminReports: {
-    status: "open" as ReportStatus,
-    page: 0,
-    items: [] as Report[],
-  },
-  users: { q: "", page: 0, items: [] as UserAccount[] },
-  audit: { actor: "", action: "", from: "", to: "", page: 0 },
-  messages: { q: "", language: "", page: 0, items: [] as Message[] },
-};
+function createInitialState() {
+  return {
+    session: null as Session | null,
+    me: null as User | null,
+    renderVersion: 0,
+    dialog: null as DialogState | null,
+    toasts: [] as Toast[],
+    nextToastId: 0,
+    bookmarks: { q: "", tags: [], pages: [] } as BookmarkListState,
+    feed: { q: "", tags: [], pages: [] } as BookmarkListState,
+    myReports: {
+      status: "" as ReportStatus | "",
+      page: 0,
+      items: [] as Report[],
+    },
+    adminReports: {
+      status: "open" as ReportStatus,
+      page: 0,
+      items: [] as Report[],
+    },
+    users: { q: "", page: 0, items: [] as UserAccount[] },
+    audit: { actor: "", action: "", from: "", to: "", page: 0 },
+    messages: { q: "", language: "", page: 0, items: [] as Message[] },
+  };
+}
+
+export const state = createInitialState();
+
+export function resetAppState(): void {
+  Object.assign(state, createInitialState());
+}

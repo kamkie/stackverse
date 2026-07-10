@@ -10,7 +10,7 @@ import {
 } from "./bookmark-pages";
 import { dialogHtml } from "./dialog-views";
 import { headerHtml } from "./header-view";
-import { i18n, state } from "./app-state";
+import { i18n, resetAppState, state } from "./app-state";
 import type { FormValues, ToastVariant } from "./app-state";
 import {
   t,
@@ -38,7 +38,10 @@ import type {
   Visibility,
 } from "./types";
 
-let root: HTMLElement;
+let root: HTMLElement | undefined;
+let activeController: AbortController | undefined;
+let controllerSignal: AbortSignal | undefined;
+const toastTimers = new Set<number>();
 
 let pendingInputRender: number | undefined;
 
@@ -46,10 +49,12 @@ function pushToast(message: string, variant: ToastVariant = "success"): void {
   const id = state.nextToastId;
   state.nextToastId += 1;
   state.toasts.push({ id, message, variant });
-  window.setTimeout(() => {
+  const timer = window.setTimeout(() => {
+    toastTimers.delete(timer);
     state.toasts = state.toasts.filter((toast) => toast.id !== id);
-    void renderApp();
+    if (root) void renderApp();
   }, 5000);
+  toastTimers.add(timer);
 }
 
 async function loadSessionAndMe(): Promise<void> {
@@ -76,15 +81,17 @@ function renderShell(
   mainHtml: string,
   options: { includeDialog?: boolean } = {},
 ): void {
+  const host = root;
+  if (!host) return;
   const dialogMarkup = options.includeDialog === false ? "" : dialogHtml();
-  root.innerHTML = `<div class="sv-app">
+  host.innerHTML = `<div class="sv-app">
     ${headerHtml()}
     <main class="sv-main">${mainHtml}</main>
     ${dialogMarkup}
     ${toastHtml()}
   </div>`;
 
-  const dialog = root.querySelector<HTMLDialogElement>("dialog.sv-dialog");
+  const dialog = host.querySelector<HTMLDialogElement>("dialog.sv-dialog");
   if (dialog) {
     if (typeof dialog.showModal === "function" && !dialog.open) {
       dialog.showModal();
@@ -97,7 +104,10 @@ function renderShell(
         state.dialog = null;
         void renderApp();
       },
-      { once: true },
+      {
+        once: true,
+        ...(controllerSignal ? { signal: controllerSignal } : {}),
+      },
     );
   }
 }
@@ -601,8 +611,15 @@ export async function startAppController(
   rootElement: HTMLElement,
   options: { enableDevInstrumentation?: boolean } = {},
 ): Promise<() => void> {
+  if (activeController && !activeController.signal.aborted) {
+    throw new Error("app controller already started");
+  }
+
+  resetAppState();
   root = rootElement;
   const controller = new AbortController();
+  activeController = controller;
+  controllerSignal = controller.signal;
   const listenerOptions = { signal: controller.signal };
 
   document.addEventListener(
@@ -676,7 +693,10 @@ export async function startAppController(
     listenerOptions,
   );
 
-  if (options.enableDevInstrumentation ?? import.meta.env.DEV) {
+  if (
+    import.meta.env.DEV &&
+    (options.enableDevInstrumentation ?? import.meta.env.DEV)
+  ) {
     const [{ forwardConsoleToDevServer }, { installUserActionLog }] =
       await Promise.all([
         import("./dev/forwardConsoleToDevServer"),
@@ -690,10 +710,17 @@ export async function startAppController(
   await renderApp();
 
   return () => {
+    if (activeController !== controller) return;
     controller.abort();
+    for (const timer of toastTimers) window.clearTimeout(timer);
+    toastTimers.clear();
     if (pendingInputRender !== undefined) {
       window.clearTimeout(pendingInputRender);
       pendingInputRender = undefined;
     }
+    state.renderVersion += 1;
+    root = undefined;
+    controllerSignal = undefined;
+    activeController = undefined;
   };
 }

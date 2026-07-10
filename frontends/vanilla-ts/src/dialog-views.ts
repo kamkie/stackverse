@@ -51,14 +51,14 @@ export function dialogHtml(): string {
   }
 }
 
-export function dialogShell(title: string, body: string, ctx?: string): string {
+function dialogShell(title: string, body: string, ctx?: string): string {
   return `<dialog class="sv-dialog"${ctx ? ` data-ctx="${escapeHtml(ctx)}"` : ""}>
     <h2 class="sv-dialog-title">${escapeHtml(title)}</h2>
     ${body}
   </dialog>`;
 }
 
-export function confirmDialogHtml({
+function confirmDialogHtml({
   title,
   body,
   confirm,
@@ -82,7 +82,7 @@ export function confirmDialogHtml({
   );
 }
 
-export function bookmarkFormDialogHtml(
+function bookmarkFormDialogHtml(
   dialog: Extract<DialogState, { kind: "bookmark-form" }>,
 ): string {
   const bookmark = dialog.bookmark;
@@ -132,7 +132,7 @@ const reportReasons: ReportReason[] = [
   "other",
 ];
 
-export function reportBookmarkDialogHtml(
+function reportBookmarkDialogHtml(
   dialog: Extract<DialogState, { kind: "report-bookmark" }>,
 ): string {
   const values = dialog.values ?? { reason: "spam", comment: "" };
@@ -160,7 +160,7 @@ export function reportBookmarkDialogHtml(
   );
 }
 
-export function editReportDialogHtml(
+function editReportDialogHtml(
   dialog: Extract<DialogState, { kind: "edit-report" }>,
 ): string {
   const values = dialog.values ?? {
@@ -192,7 +192,7 @@ export function editReportDialogHtml(
   );
 }
 
-export function blockUserDialogHtml(
+function blockUserDialogHtml(
   dialog: Extract<DialogState, { kind: "block-user" }>,
 ): string {
   const values = dialog.values ?? { reason: "" };
@@ -211,7 +211,7 @@ export function blockUserDialogHtml(
   );
 }
 
-export function messageFormDialogHtml(
+function messageFormDialogHtml(
   dialog: Extract<DialogState, { kind: "message-form" }>,
 ): string {
   const message = dialog.message;

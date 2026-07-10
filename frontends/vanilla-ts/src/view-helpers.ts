@@ -87,7 +87,7 @@ export function readReportedIds(): Set<string> {
   }
 }
 
-export function writeReportedIds(ids: Set<string>): void {
+function writeReportedIds(ids: Set<string>): void {
   try {
     sessionStorage.setItem(REPORTED_STORAGE_KEY, JSON.stringify([...ids]));
   } catch {

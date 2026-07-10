@@ -62,14 +62,6 @@ describe("app controller event boundary", () => {
     document.body.innerHTML = '<div id="app"></div>';
     localStorage.clear();
     sessionStorage.clear();
-    state.session = null;
-    state.me = null;
-    state.renderVersion = 0;
-    state.dialog = null;
-    state.toasts = [];
-    state.nextToastId = 0;
-    state.bookmarks = { q: "", tags: [], pages: [] };
-    state.feed = { q: "", tags: [], pages: [] };
   });
 
   afterEach(() => {
@@ -150,5 +142,41 @@ describe("app controller event boundary", () => {
         }),
       ).toBe(true);
     });
+  });
+
+  it("starts a replacement controller from clean application state", async () => {
+    installFetchMock();
+    const firstRoot = document.querySelector<HTMLElement>("#app");
+    expect(firstRoot).not.toBeNull();
+    stopController = await startAppController(firstRoot!, {
+      enableDevInstrumentation: false,
+    });
+
+    state.dialog = { kind: "bookmark-form", mode: "create" };
+    state.toasts = [{ id: 7, message: "stale", variant: "danger" }];
+    state.nextToastId = 8;
+    state.bookmarks.q = "old bookmark filter";
+    state.adminReports.status = "dismissed";
+    state.adminReports.page = 4;
+    state.users.q = "old user filter";
+    state.audit.actor = "old actor";
+    state.messages.language = "pl";
+
+    stopController();
+    stopController = undefined;
+    const replacementRoot = document.createElement("div");
+    document.body.replaceChildren(replacementRoot);
+    stopController = await startAppController(replacementRoot, {
+      enableDevInstrumentation: false,
+    });
+
+    expect(state.dialog).toBeNull();
+    expect(state.toasts).toEqual([]);
+    expect(state.nextToastId).toBe(0);
+    expect(state.bookmarks.q).toBe("");
+    expect(state.adminReports).toMatchObject({ status: "open", page: 0 });
+    expect(state.users.q).toBe("");
+    expect(state.audit.actor).toBe("");
+    expect(state.messages.language).toBe("");
   });
 });

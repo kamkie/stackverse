@@ -464,7 +464,7 @@ issue closes.
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
-| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | Composition-only main.ts plus controller, state, navigation, view, bookmark, admin, and dialog modules | ✅ idiomatic |
+| [Vanilla TS](../frontends/vanilla-ts/README.md) | Flat src/ with an entry module plus small focused rendering, routing, state, and form modules | Composition-only main.ts plus controller (including routing), state, header, view, bookmark, admin, and dialog modules | ✅ idiomatic |
 | [Vue 3](../frontends/vue/README.md) | src/ with components, views/pages, router, composables | src/ with components, pages, api, i18n, mocks, dev, test | ✅ idiomatic |
 
 ### Testing

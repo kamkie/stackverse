@@ -31,11 +31,11 @@ contract.
 ## Module boundaries
 
 `main.ts` only composes the shared CSS and application controller. The controller
-owns bootstrap and delegated DOM events, while state, reusable view primitives,
-navigation, bookmark pages/cards, admin pages, and dialogs/forms live in focused
-modules. The implementation remains explicit platform TypeScript: templates are
-escaped strings, routing uses the History API, and no UI framework or state library
-is introduced.
+owns bootstrap, History API routing, and delegated DOM events, while state,
+reusable view primitives, the header, bookmark pages/cards, admin pages, and
+dialogs/forms live in focused modules. The implementation remains explicit
+platform TypeScript: templates are escaped strings, and no UI framework or state
+library is introduced.
 
 ## Dev action log
 

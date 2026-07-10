@@ -40,14 +40,14 @@ export async function fetchNextBookmarks(
   else list.nextCursor = page.nextCursor;
 }
 
-export async function ensureBookmarks(
+async function ensureBookmarks(
   list: BookmarkListState,
   visibility?: Visibility,
 ): Promise<void> {
   if (list.pages.length === 0) await fetchNextBookmarks(list, visibility);
 }
 
-export function allBookmarks(list: BookmarkListState): Bookmark[] {
+function allBookmarks(list: BookmarkListState): Bookmark[] {
   return list.pages.flatMap((page) => page.items);
 }
 
@@ -71,7 +71,7 @@ export function tagListHtml(
     .join("")}</ul>`;
 }
 
-export function bookmarkCardHtml(
+function bookmarkCardHtml(
   bookmark: Bookmark,
   list: "bookmarks" | "feed",
   actions = "",
@@ -102,7 +102,7 @@ export function bookmarkCardHtml(
   </li>`;
 }
 
-export function bookmarkListHtml(
+function bookmarkListHtml(
   list: BookmarkListState,
   listName: "bookmarks" | "feed",
   renderActions: (bookmark: Bookmark) => string,
