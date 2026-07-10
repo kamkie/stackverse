@@ -66,6 +66,10 @@ implemented in many stacks. Read these before changing anything:
   agent-local memory, chat history, transcripts, or machine-local notes; those are
   only for personal preferences, machine-local facts, or pointers back to the
   checked-in instructions.
+- **Disposable local artifacts belong in `.tmp/`.** Put downloaded PR diffs,
+  patch files, ad hoc review output, and similar temporary files there instead of
+  at the repository root. The directory is gitignored and must not hold source or
+  durable repo knowledge.
 - **Delegated tasks carry the full delivery flow.** When spawning a background
   task, task chip, Codex session, Claude session, or other agent for Stackverse
   work, include the whole handoff in the prompt: fetch and update `origin/main`
