@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import javax.sql.DataSource;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
@@ -49,6 +50,7 @@ class AccountRequestFilter implements ContainerRequestFilter {
     private final SecurityIdentity securityIdentity;
     private final JsonWebToken jwt;
     private final Localizer localizer;
+    private final boolean accountsEnabled;
 
     @Context UriInfo uriInfo;
 
@@ -59,31 +61,37 @@ class AccountRequestFilter implements ContainerRequestFilter {
             DataSource dataSource,
             SecurityIdentity securityIdentity,
             JsonWebToken jwt,
-            Localizer localizer) {
+            Localizer localizer,
+            @ConfigProperty(name = "stackverse.accounts.enabled", defaultValue = "true")
+                    boolean accountsEnabled) {
         this.dataSource = dataSource;
         this.securityIdentity = securityIdentity;
         this.jwt = jwt;
         this.localizer = localizer;
+        this.accountsEnabled = accountsEnabled;
     }
 
     @Override
     public void filter(ContainerRequestContext requestContext) {
+        if (!accountsEnabled) {
+            return;
+        }
         Caller caller = AuthSupport.currentCaller(securityIdentity, jwt);
         if (caller == null) {
             return;
         }
         try (Connection connection = dataSource.getConnection()) {
             String status =
-                    StackverseService.queryOne(
+                    ServiceSupport.queryOne(
                                     connection,
                                     "insert into user_accounts (username, first_seen, last_seen, status)"
                                             + " values (?, ?, ?, 'active')"
                                             + " on conflict (username) do update set last_seen = excluded.last_seen"
                                             + " returning status",
-                                    StackverseService.params(
+                                    ServiceSupport.params(
                                             caller.username(),
-                                            StackverseService.now(),
-                                            StackverseService.now()),
+                                            ServiceSupport.now(),
+                                            ServiceSupport.now()),
                                     rs -> rs.getString("status"))
                             .orElse("active");
             if ("blocked".equals(status)) {

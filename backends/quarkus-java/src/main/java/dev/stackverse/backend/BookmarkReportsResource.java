@@ -1,7 +1,8 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -13,16 +14,17 @@ import jakarta.ws.rs.core.Response;
 @Path("/api/v1/bookmarks/{id}/reports")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Authenticated
 public class BookmarkReportsResource {
-    private final StackverseService service;
+    private final ReportService service;
 
     @Inject
-    public BookmarkReportsResource(StackverseService service) {
+    public BookmarkReportsResource(ReportService service) {
         this.service = service;
     }
 
     @POST
-    public Response reportBookmark(@PathParam("id") String rawId, JsonNode body) {
+    public Response reportBookmark(@PathParam("id") String rawId, @Valid ReportInput body) {
         return service.reportBookmark(rawId, body);
     }
 }

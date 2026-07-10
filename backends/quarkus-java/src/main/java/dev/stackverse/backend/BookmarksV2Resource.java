@@ -15,10 +15,10 @@ import jakarta.ws.rs.core.UriInfo;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class BookmarksV2Resource {
-    private final StackverseService service;
+    private final BookmarkService service;
 
     @Inject
-    public BookmarksV2Resource(StackverseService service) {
+    public BookmarksV2Resource(BookmarkService service) {
         this.service = service;
     }
 

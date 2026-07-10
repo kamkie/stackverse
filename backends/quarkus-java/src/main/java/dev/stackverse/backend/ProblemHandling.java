@@ -1,8 +1,12 @@
 package dev.stackverse.backend;
 
 import io.quarkus.security.AuthenticationFailedException;
+import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
 import jakarta.inject.Inject;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ElementKind;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.ForbiddenException;
 import jakarta.ws.rs.NotAllowedException;
@@ -91,7 +95,7 @@ final class StackverseProblem extends RuntimeException {
             language = localizer.resolveLanguage(uriInfo, headers);
             resolvedDetail = localizer.localize(detailKey, language);
         }
-        StackverseService.putIfPresent(body, "detail", resolvedDetail);
+        ServiceSupport.putIfPresent(body, "detail", resolvedDetail);
         if (!fields.isEmpty()) {
             if (language == null) {
                 language = localizer.resolveLanguage(uriInfo, headers);
@@ -146,7 +150,7 @@ final class ResponseContracts {
         String requestPath = request == null ? null : request.getUriInfo().getPath();
         String uriPath = uriInfo == null ? null : uriInfo.getPath();
         if (isV1BookmarksPath(requestPath) || isV1BookmarksPath(uriPath)) {
-            return StackverseService.v1BookmarksDeprecationHeaders(response);
+            return ServiceSupport.v1BookmarksDeprecationHeaders(response);
         }
         return response;
     }
@@ -187,6 +191,137 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
                 StackverseProblem.unauthorized("Missing or invalid bearer token.")
                         .response(localizer, uriInfo, headers);
         return ResponseContracts.routeHeaders(request, uriInfo, response);
+    }
+}
+
+@Provider
+@Priority(0)
+class QuarkusUnauthorizedMapper
+        implements ExceptionMapper<io.quarkus.security.UnauthorizedException> {
+    private static final Logger LOG = Logger.getLogger(QuarkusUnauthorizedMapper.class);
+
+    private final Localizer localizer;
+
+    @Context UriInfo uriInfo;
+
+    @Context HttpHeaders headers;
+
+    @Context ContainerRequestContext request;
+
+    @Inject
+    QuarkusUnauthorizedMapper(Localizer localizer) {
+        this.localizer = localizer;
+    }
+
+    @Override
+    public Response toResponse(io.quarkus.security.UnauthorizedException exception) {
+        StackverseLog.event(
+                LOG,
+                Logger.Level.INFO,
+                "jwt_validation_failed",
+                "failure",
+                "Rejected a bearer token",
+                Map.of("error_code", "invalid_token"));
+        Response response =
+                StackverseProblem.unauthorized("Missing or invalid bearer token.")
+                        .response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, response);
+    }
+}
+
+@Provider
+@Priority(0)
+class QuarkusForbiddenMapper implements ExceptionMapper<io.quarkus.security.ForbiddenException> {
+    private static final Logger LOG = Logger.getLogger(QuarkusForbiddenMapper.class);
+
+    private final Localizer localizer;
+    private final SecurityIdentity securityIdentity;
+
+    @Context UriInfo uriInfo;
+
+    @Context HttpHeaders headers;
+
+    @Context ContainerRequestContext request;
+
+    @Inject
+    QuarkusForbiddenMapper(Localizer localizer, SecurityIdentity securityIdentity) {
+        this.localizer = localizer;
+        this.securityIdentity = securityIdentity;
+    }
+
+    @Override
+    public Response toResponse(io.quarkus.security.ForbiddenException exception) {
+        String actor =
+                securityIdentity == null || securityIdentity.isAnonymous()
+                        ? null
+                        : securityIdentity.getPrincipal().getName();
+        StackverseLog.event(
+                LOG,
+                Logger.Level.INFO,
+                "authz_denied",
+                "denied",
+                "Denied a request lacking the required role",
+                actor == null
+                        ? Map.of("error_code", "insufficient_role")
+                        : Map.of("actor", actor, "error_code", "insufficient_role"));
+        Response response =
+                StackverseProblem.forbidden("You do not have the role required for this operation.")
+                        .response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, response);
+    }
+}
+
+@Provider
+@Priority(1)
+class ConstraintViolationMapper implements ExceptionMapper<ConstraintViolationException> {
+    private static final Logger LOG = Logger.getLogger(ConstraintViolationMapper.class);
+
+    private final Localizer localizer;
+
+    @Context UriInfo uriInfo;
+
+    @Context HttpHeaders headers;
+
+    @Context ContainerRequestContext request;
+
+    @Inject
+    ConstraintViolationMapper(Localizer localizer) {
+        this.localizer = localizer;
+    }
+
+    @Override
+    public Response toResponse(ConstraintViolationException exception) {
+        List<FieldViolation> fields =
+                exception.getConstraintViolations().stream()
+                        .map(ConstraintViolationMapper::fieldViolation)
+                        .sorted(
+                                java.util.Comparator.comparing(FieldViolation::field)
+                                        .thenComparing(FieldViolation::messageKey))
+                        .toList();
+        StackverseLog.event(
+                LOG,
+                Logger.Level.INFO,
+                "input_validation_failed",
+                "failure",
+                "Request validation failed",
+                Map.of(
+                        "error_code",
+                        "validation_failed",
+                        "fields",
+                        String.join(",", fields.stream().map(FieldViolation::field).toList())));
+        Response response =
+                StackverseProblem.validation(fields).response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, response);
+    }
+
+    private static FieldViolation fieldViolation(ConstraintViolation<?> violation) {
+        String field = "body";
+        for (var node : violation.getPropertyPath()) {
+            if (node.getKind() == ElementKind.PROPERTY && node.getName() != null) {
+                field = node.getName();
+            }
+        }
+        return new FieldViolation(field, violation.getMessage());
     }
 }
 

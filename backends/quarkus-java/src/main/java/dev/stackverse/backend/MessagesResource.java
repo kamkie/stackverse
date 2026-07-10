@@ -1,7 +1,8 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -20,10 +21,10 @@ import jakarta.ws.rs.core.UriInfo;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class MessagesResource {
-    private final StackverseService service;
+    private final MessageService service;
 
     @Inject
-    public MessagesResource(StackverseService service) {
+    public MessagesResource(MessageService service) {
         this.service = service;
     }
 
@@ -46,18 +47,21 @@ public class MessagesResource {
     }
 
     @POST
-    public Response createMessage(JsonNode body) {
+    @RolesAllowed("admin")
+    public Response createMessage(@Valid MessageInput body) {
         return service.createMessage(body);
     }
 
     @PUT
     @Path("/{id}")
-    public Response updateMessage(@PathParam("id") String rawId, JsonNode body) {
+    @RolesAllowed("admin")
+    public Response updateMessage(@PathParam("id") String rawId, @Valid MessageInput body) {
         return service.updateMessage(rawId, body);
     }
 
     @DELETE
     @Path("/{id}")
+    @RolesAllowed("admin")
     public Response deleteMessage(@PathParam("id") String rawId) {
         return service.deleteMessage(rawId);
     }
