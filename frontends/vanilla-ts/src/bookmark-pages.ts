@@ -38,12 +38,18 @@ export async function fetchNextBookmarks(
   const q = list.q;
   const cursor = replace ? undefined : list.nextCursor;
   const pending = (async () => {
-    const page = await apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
-      ...(tags.length > 0 ? { tag: tags } : {}),
-      ...(q ? { q } : {}),
-      ...(visibility ? { visibility } : {}),
-      ...(cursor ? { cursor } : {}),
-    });
+    let page: BookmarkCursorPage;
+    try {
+      page = await apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
+        ...(tags.length > 0 ? { tag: tags } : {}),
+        ...(q ? { q } : {}),
+        ...(visibility ? { visibility } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+    } catch (error) {
+      if (list.generation !== generation) return;
+      throw error;
+    }
     if (list.generation !== generation) return;
     if (replace) list.pages = [page];
     else list.pages.push(page);
@@ -72,10 +78,11 @@ function allBookmarks(list: BookmarkListState): Bookmark[] {
   return list.pages.flatMap((page) => page.items);
 }
 
-export function findBookmark(id: string): Bookmark | undefined {
-  return [...allBookmarks(state.bookmarks), ...allBookmarks(state.feed)].find(
-    (bookmark) => bookmark.id === id,
-  );
+export function findBookmark(
+  id: string,
+  listName: "bookmarks" | "feed",
+): Bookmark | undefined {
+  return allBookmarks(state[listName]).find((bookmark) => bookmark.id === id);
 }
 
 export function tagListHtml(

@@ -481,14 +481,14 @@ async function handleAction(element: HTMLElement): Promise<void> {
       await renderApp();
       break;
     case "open-bookmark-edit": {
-      const bookmark = findBookmark(element.dataset.id ?? "");
+      const bookmark = findBookmark(element.dataset.id ?? "", "bookmarks");
       if (bookmark)
         state.dialog = { kind: "bookmark-form", mode: "edit", bookmark };
       await renderApp();
       break;
     }
     case "open-bookmark-delete": {
-      const bookmark = findBookmark(element.dataset.id ?? "");
+      const bookmark = findBookmark(element.dataset.id ?? "", "bookmarks");
       if (bookmark) state.dialog = { kind: "delete-bookmark", bookmark };
       await renderApp();
       break;
@@ -506,7 +506,7 @@ async function handleAction(element: HTMLElement): Promise<void> {
       }
       break;
     case "open-report": {
-      const bookmark = findBookmark(element.dataset.id ?? "");
+      const bookmark = findBookmark(element.dataset.id ?? "", "feed");
       if (bookmark) state.dialog = { kind: "report-bookmark", bookmark };
       await renderApp();
       break;

@@ -264,6 +264,59 @@ describe("app controller event boundary", () => {
     expect(replacementRoot.textContent).not.toContain("999");
   });
 
+  it("resolves a feed report action from the feed cache when bookmark ids overlap", async () => {
+    installFetchMock();
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+    state.session = { authenticated: true, username: "demo" };
+    const personalBookmark = {
+      id: "shared-bookmark",
+      owner: "demo",
+      url: "https://personal.example",
+      title: "Older personal title",
+      tags: [],
+      visibility: "public" as const,
+      status: "active" as const,
+      createdAt: "2026-07-09T00:00:00Z",
+      updatedAt: "2026-07-09T00:00:00Z",
+    };
+    const feedBookmark = {
+      ...personalBookmark,
+      url: "https://feed.example",
+      title: "Current feed title",
+      updatedAt: "2026-07-10T00:00:00Z",
+    };
+    state.bookmarks.pages = [{ items: [personalBookmark] }];
+    state.bookmarks.loadedGeneration = state.bookmarks.generation;
+    state.feed.pages = [{ items: [feedBookmark] }];
+    state.feed.loadedGeneration = state.feed.generation;
+
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    const report = await vi.waitFor(() => {
+      expect(root!.textContent).toContain("Current feed title");
+      expect(root!.textContent).not.toContain("Older personal title");
+      const button = root!.querySelector<HTMLButtonElement>(
+        '[data-action="open-report"][data-id="shared-bookmark"]',
+      );
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    report.click();
+
+    await vi.waitFor(() => {
+      expect(state.dialog?.kind).toBe("report-bookmark");
+      if (state.dialog?.kind !== "report-bookmark") return;
+      expect(state.dialog.bookmark).toBe(feedBookmark);
+      expect(state.dialog.bookmark.title).toBe("Current feed title");
+      expect(root!.querySelector(".sv-dialog-title")?.textContent).toContain(
+        "Current feed title",
+      );
+    });
+  });
+
   it("publishes only the current out-of-order page and resolves its row actions", async () => {
     const staleUsers = deferred<Response>();
     const currentUsers = deferred<Response>();
