@@ -10,6 +10,8 @@ import {
 } from "./bookmark-pages";
 import { dialogHtml } from "./dialog-views";
 import { headerHtml } from "./header-view";
+import { renderedPage } from "./page-render";
+import type { RenderedPage } from "./page-render";
 import { i18n, resetAppState, state } from "./app-state";
 import type { FormValues, ToastVariant } from "./app-state";
 import {
@@ -121,18 +123,19 @@ async function renderApp(): Promise<void> {
   const epoch = activeControllerEpoch;
   const version = ++state.renderVersion;
   renderShell(loadingHtml(), { includeDialog: false });
-  let content: string;
+  let page: RenderedPage;
   try {
-    content = await routeHtml(currentPath());
+    page = await routeHtml(currentPath());
   } catch (error) {
-    content = errorHtml(error);
+    page = renderedPage(errorHtml(error));
   }
   if (epoch !== activeControllerEpoch || version !== state.renderVersion)
     return;
-  renderShell(content);
+  page.publish?.();
+  renderShell(page.html);
 }
 
-async function routeHtml(path: string): Promise<string> {
+async function routeHtml(path: string): Promise<RenderedPage> {
   if (path === "/bookmarks") return myBookmarksPageHtml();
   if (path === "/reports") return myReportsPageHtml();
   if (path === "/feed") return publicFeedPageHtml();
@@ -148,6 +151,7 @@ function navigate(path: string): void {
 }
 
 function scheduleRender(): void {
+  state.renderVersion += 1;
   if (pendingInputRender !== undefined) window.clearTimeout(pendingInputRender);
   pendingInputRender = window.setTimeout(() => {
     pendingInputRender = undefined;

@@ -35,7 +35,10 @@ owns bootstrap, History API routing, and delegated DOM events, while state,
 reusable view primitives, the header, bookmark pages/cards, admin pages, and
 dialogs/forms live in focused modules. The implementation remains explicit
 platform TypeScript: templates are escaped strings, and no UI framework or state
-library is introduced.
+library is introduced. Async page renderers stage HTML and entity-cache updates
+together; the controller publishes both only for the current render generation.
+Cursor bookmark lists likewise discard responses from superseded filter
+generations, keeping delegated row actions aligned with the data on screen.
 
 ## Dev action log
 
