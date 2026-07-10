@@ -14,11 +14,11 @@ to. The full route contract and login flow live in
   itself stays stateless and horizontally scalable.
 - **Token relay** — proxy `/api/**` to the backend, attaching the session's access
   token as `Authorization: Bearer ...`; refresh expired tokens transparently.
-- **CSRF protection** for state-changing `/api/**` requests — every gateway
-  issues the readable `XSRF-TOKEN` cookie and requires the same value in the
-  `X-XSRF-TOKEN` header for `POST`/`PUT`/`PATCH`/`DELETE`; missing or mismatched
-  values return `403 application/problem+json`. Cookie/header names, protected
-  methods, and status are identical across stacks.
+- **CSRF protection** for state-changing `/api/**` requests — the canonical
+  gateway contract requires a readable `XSRF-TOKEN` cookie and the same value
+  in `X-XSRF-TOKEN` for `POST`/`PUT`/`PATCH`/`DELETE`; missing or mismatched
+  values return `403 application/problem+json`. This wire-level mechanism is
+  invariant; only its internal framework integration is stack-specific.
 - **Same-origin browser boundary** — no CORS support, no `Access-Control-Allow-*`
   headers, and affirmative `Origin` / `Sec-Fetch-Site` validation for
   state-changing `/api/**` requests against the `PUBLIC_URL` origin.
