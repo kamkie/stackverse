@@ -41,6 +41,8 @@ import type {
 let root: HTMLElement | undefined;
 let activeController: AbortController | undefined;
 let controllerSignal: AbortSignal | undefined;
+let controllerEpoch = 0;
+let activeControllerEpoch = 0;
 const toastTimers = new Set<number>();
 
 let pendingInputRender: number | undefined;
@@ -116,6 +118,7 @@ async function renderApp(): Promise<void> {
   if (window.location.pathname === "/") {
     history.replaceState(null, "", "/feed");
   }
+  const epoch = activeControllerEpoch;
   const version = ++state.renderVersion;
   renderShell(loadingHtml(), { includeDialog: false });
   let content: string;
@@ -124,7 +127,8 @@ async function renderApp(): Promise<void> {
   } catch (error) {
     content = errorHtml(error);
   }
-  if (version !== state.renderVersion) return;
+  if (epoch !== activeControllerEpoch || version !== state.renderVersion)
+    return;
   renderShell(content);
 }
 
@@ -618,7 +622,9 @@ export async function startAppController(
   resetAppState();
   root = rootElement;
   const controller = new AbortController();
+  const epoch = ++controllerEpoch;
   activeController = controller;
+  activeControllerEpoch = epoch;
   controllerSignal = controller.signal;
   const listenerOptions = { signal: controller.signal };
 
@@ -719,6 +725,7 @@ export async function startAppController(
       pendingInputRender = undefined;
     }
     state.renderVersion += 1;
+    activeControllerEpoch = 0;
     root = undefined;
     controllerSignal = undefined;
     activeController = undefined;

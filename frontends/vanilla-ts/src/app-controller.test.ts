@@ -9,6 +9,14 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
 function installFetchMock() {
   return vi
     .spyOn(globalThis, "fetch")
@@ -178,5 +186,81 @@ describe("app controller event boundary", () => {
     expect(state.users.q).toBe("");
     expect(state.audit.actor).toBe("");
     expect(state.messages.language).toBe("");
+  });
+
+  it("rejects a disposed controller's delayed render after restart", async () => {
+    const staleStats = deferred<Response>();
+    const fetchMock = installFetchMock();
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/api/v1/admin/stats") return staleStats.promise;
+      const method = init?.method ?? "GET";
+      if (url.pathname === "/api/v1/messages/bundle") {
+        return jsonResponse({ language: "en", messages: {} });
+      }
+      if (url.pathname === "/auth/session") {
+        return jsonResponse({ authenticated: false });
+      }
+      if (url.pathname === "/api/v2/bookmarks") {
+        return jsonResponse({ items: [] });
+      }
+      if (url.pathname === "/auth/logout" && method === "POST") {
+        return new Response(null, { status: 204 });
+      }
+      return new Response(null, { status: 404 });
+    });
+
+    const firstRoot = document.querySelector<HTMLElement>("#app");
+    expect(firstRoot).not.toBeNull();
+    stopController = await startAppController(firstRoot!, {
+      enableDevInstrumentation: false,
+    });
+    state.session = { authenticated: true, username: "admin" };
+    state.me = { username: "admin", roles: ["admin"] };
+    history.pushState(null, "", "/admin");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([input]) =>
+            new URL(String(input), window.location.origin).pathname ===
+            "/api/v1/admin/stats",
+        ),
+      ).toBe(true);
+    });
+
+    stopController();
+    stopController = undefined;
+    history.replaceState(null, "", "/feed");
+    const replacementRoot = document.createElement("div");
+    document.body.replaceChildren(replacementRoot);
+    stopController = await startAppController(replacementRoot, {
+      enableDevInstrumentation: false,
+    });
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      expect(state.renderVersion).toBe(2);
+      expect(replacementRoot.querySelector(".sv-loading")).toBeNull();
+    });
+
+    const staleResponse = jsonResponse({
+      totals: {
+        users: 999,
+        bookmarks: 0,
+        publicBookmarks: 0,
+        hiddenBookmarks: 0,
+        openReports: 0,
+      },
+      daily: [],
+      topTags: [],
+    });
+    const jsonSpy = vi.spyOn(staleResponse, "json");
+    staleStats.resolve(staleResponse);
+    await vi.waitFor(() => expect(jsonSpy).toHaveBeenCalledOnce());
+    await jsonSpy.mock.results[0]!.value;
+    await Promise.resolve();
+
+    expect(window.location.pathname).toBe("/feed");
+    expect(replacementRoot.textContent).not.toContain("999");
   });
 });
