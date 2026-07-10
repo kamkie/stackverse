@@ -14,7 +14,7 @@ describe("delegated control events", () => {
     sessionStorage.clear();
   });
 
-  it("loads a select filter once when browsers fire input and change", async () => {
+  it("routes immediate, debounced, and form controls through one event path", async () => {
     history.replaceState(null, "", "/reports");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const path = new URL(String(input), window.location.origin).pathname;
@@ -25,9 +25,9 @@ describe("delegated control events", () => {
         return jsonResponse({ authenticated: true, username: "demo" });
       }
       if (path === "/api/v1/me") {
-        return jsonResponse({ username: "demo", roles: [] });
+        return jsonResponse({ username: "demo", roles: ["admin"] });
       }
-      if (path === "/api/v1/reports") {
+      if (path === "/api/v1/reports" || path === "/api/v1/admin/audit-log") {
         return jsonResponse({
           items: [],
           page: 0,
@@ -35,6 +35,9 @@ describe("delegated control events", () => {
           totalItems: 0,
           totalPages: 0,
         });
+      }
+      if (path === "/api/v2/bookmarks") {
+        return jsonResponse({ items: [] });
       }
       return new Response(null, { status: 404 });
     });
@@ -55,13 +58,84 @@ describe("delegated control events", () => {
     status.dispatchEvent(new Event("change", { bubbles: true }));
 
     await vi.waitFor(() => {
+      const requests = fetchMock.mock.calls
+        .map(([input]) => new URL(String(input), window.location.origin))
+        .filter((url) => url.pathname === "/api/v1/reports");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.searchParams.get("status")).toBe("dismissed");
+    });
+
+    history.pushState(null, "", "/admin/audit");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    const fromDate = await vi.waitFor(() => {
+      const element = document.querySelector<HTMLInputElement>(
+        'input[data-bind="audit-from"]',
+      );
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    fetchMock.mockClear();
+
+    fromDate.value = "2026-07-10";
+    fromDate.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    fromDate.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await vi.waitFor(() => {
+      const requests = fetchMock.mock.calls
+        .map(([input]) => new URL(String(input), window.location.origin))
+        .filter((url) => url.pathname === "/api/v1/admin/audit-log");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.searchParams.get("from")).toBe(
+        new Date("2026-07-10T00:00:00").toISOString(),
+      );
+    });
+
+    history.pushState(null, "", "/feed");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    const search = await vi.waitFor(() => {
+      const element = document.querySelector<HTMLInputElement>(
+        'input[data-bind="feed-q"]',
+      );
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    fetchMock.mockClear();
+
+    search.value = "first";
+    search.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    search.value = "latest";
+    search.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await vi.waitFor(() => {
+      const requests = fetchMock.mock.calls
+        .map(([input]) => new URL(String(input), window.location.origin))
+        .filter((url) => url.pathname === "/api/v2/bookmarks");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.searchParams.get("q")).toBe("latest");
+    });
+
+    const openDialog = document.createElement("button");
+    openDialog.dataset.action = "open-bookmark-create";
+    document.body.append(openDialog);
+    openDialog.click();
+    const visibility = await vi.waitFor(() => {
+      const element = document.querySelector<HTMLSelectElement>(
+        'form[data-form="bookmark"] select[name="visibility"]',
+      );
+      expect(element).not.toBeNull();
+      return element!;
+    });
+    visibility.value = "public";
+    visibility.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    visibility.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await vi.waitFor(() => {
       expect(
-        fetchMock.mock.calls.filter(
-          ([input]) =>
-            new URL(String(input), window.location.origin).pathname ===
-            "/api/v1/reports",
-        ),
-      ).toHaveLength(1);
+        document.querySelector<HTMLSelectElement>(
+          'form[data-form="bookmark"] select[name="visibility"]',
+        )?.value,
+      ).toBe("public");
     });
   });
 });

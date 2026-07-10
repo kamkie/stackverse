@@ -655,14 +655,14 @@ export async function startAppController(
     (event) => {
       const input = event.target as
         HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-      if (input.form?.dataset.form) rememberDialogValues(input.form);
-      const bind = input.dataset.bind;
-      if (!bind) return;
       if (
         input.tagName === "SELECT" ||
         input.getAttribute("type") === "date"
       )
         return;
+      if (input.form?.dataset.form) rememberDialogValues(input.form);
+      const bind = input.dataset.bind;
+      if (!bind) return;
       updateBoundValue(bind, input.value, false);
     },
     listenerOptions,
