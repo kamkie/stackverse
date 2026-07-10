@@ -23,7 +23,15 @@ from ..auth import CurrentCaller, OptionalCaller
 from ..cursor import BookmarkCursor, decode_cursor, encode_cursor
 from ..db import execute, one, query, transaction
 from ..problems import ConflictProblem, NotFoundProblem, parse_uuid, require_valid_paging, single_param
-from ..schemas import Bookmark, BookmarkCursorPage, BookmarkInput, BookmarkPage, TagList, body_payload
+from ..schemas import (
+    Bookmark,
+    BookmarkCursorPage,
+    BookmarkInput,
+    BookmarkPage,
+    TagList,
+    body_payload,
+    problem_responses,
+)
 from ..time import now_utc
 
 router = APIRouter()
@@ -82,8 +90,14 @@ def list_bookmarks_v2(request: Request, caller: OptionalCaller) -> dict[str, Any
     return payload
 
 
-@router.post("/api/v1/bookmarks", status_code=201, response_model=Bookmark, response_model_exclude_none=True)
-def create_bookmark(response: Response, caller: CurrentCaller, body: BookmarkInput | None) -> dict[str, Any]:
+@router.post(
+    "/api/v1/bookmarks",
+    status_code=201,
+    response_model=Bookmark,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401),
+)
+def create_bookmark(response: Response, caller: CurrentCaller, body: BookmarkInput) -> dict[str, Any]:
     input_data = validate_bookmark_input(body_payload(body))
     bookmark_id = str(uuid4())
     now = now_utc()
@@ -118,8 +132,13 @@ def get_bookmark(bookmark_id: str, caller: OptionalCaller) -> dict[str, Any]:
     return to_bookmark_response(bookmark)
 
 
-@router.put("/api/v1/bookmarks/{bookmark_id}", response_model=Bookmark, response_model_exclude_none=True)
-def update_bookmark(bookmark_id: str, caller: CurrentCaller, body: BookmarkInput | None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/bookmarks/{bookmark_id}",
+    response_model=Bookmark,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 404, 409),
+)
+def update_bookmark(bookmark_id: str, caller: CurrentCaller, body: BookmarkInput) -> dict[str, Any]:
     parsed_bookmark_id = parse_uuid(bookmark_id)
     input_data = validate_bookmark_input(body_payload(body))
     with transaction() as conn:

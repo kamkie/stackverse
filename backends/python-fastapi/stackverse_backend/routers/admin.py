@@ -43,6 +43,7 @@ from ..schemas import (
     UserAccountPage,
     UserStatusInput,
     body_payload,
+    problem_responses,
 )
 from ..time import now_utc
 
@@ -56,8 +57,13 @@ AUDIT_FILTERS = (
 )
 
 
-@router.put("/api/v1/admin/bookmarks/{bookmark_id}/status", response_model=Bookmark, response_model_exclude_none=True)
-def set_bookmark_status(bookmark_id: str, caller: ModeratorCaller, body: BookmarkStatusInput | None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/admin/bookmarks/{bookmark_id}/status",
+    response_model=Bookmark,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 403, 404),
+)
+def set_bookmark_status(bookmark_id: str, caller: ModeratorCaller, body: BookmarkStatusInput) -> dict[str, Any]:
     parsed_bookmark_id = parse_uuid(bookmark_id)
     status, note = validate_bookmark_status_input(body_payload(body))
     with transaction() as conn:
@@ -132,8 +138,13 @@ def get_user(username: str, _caller: AdminCaller) -> dict[str, Any]:
     return to_user_account_response(account)
 
 
-@router.put("/api/v1/admin/users/{username}/status", response_model=UserAccount, response_model_exclude_none=True)
-def set_user_status(username: str, caller: AdminCaller, body: UserStatusInput | None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/admin/users/{username}/status",
+    response_model=UserAccount,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 403, 404, 409),
+)
+def set_user_status(username: str, caller: AdminCaller, body: UserStatusInput) -> dict[str, Any]:
     input_data = body_payload(body) or {}
     status = input_data.get("status")
     if status not in {"active", "blocked"}:

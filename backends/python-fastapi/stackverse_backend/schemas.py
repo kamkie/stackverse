@@ -21,6 +21,38 @@ class ContractModel(BaseModel):
     missing_body_detail: ClassVar[str | None] = None
 
 
+class ProblemFieldError(ContractModel):
+    field: str
+    message_key: str
+    message: str
+
+
+class Problem(ContractModel):
+    type: str = "about:blank"
+    title: str
+    status: int
+    detail: str | None = None
+    errors: list[ProblemFieldError] | None = None
+
+
+def problem_responses(*status_codes: int) -> dict[int, dict[str, object]]:
+    descriptions = {
+        400: "Validation failure.",
+        401: "Missing or invalid bearer token.",
+        403: "Authenticated caller lacks the required role.",
+        404: "Resource does not exist or is not visible to the caller.",
+        409: "Request conflicts with current resource state.",
+    }
+    return {
+        status: {
+            "model": Problem,
+            "description": descriptions[status],
+            "content": {"application/problem+json": {}},
+        }
+        for status in status_codes
+    }
+
+
 ContractDateTime = Annotated[
     datetime,
     PlainSerializer(iso_datetime, return_type=str, when_used="json"),

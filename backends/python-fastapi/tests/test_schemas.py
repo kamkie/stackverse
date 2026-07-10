@@ -83,12 +83,46 @@ def test_response_models_omit_optional_fields() -> None:
 
 def test_app_schema_declares_request_and_response_models() -> None:
     schema = main.build_app().openapi()
-    operation = schema["paths"]["/api/v1/bookmarks"]["post"]
+    body_operations = {
+        ("/api/v1/bookmarks", "post"): ("BookmarkInput", {"201", "400", "401"}),
+        ("/api/v1/bookmarks/{bookmark_id}", "put"): ("BookmarkInput", {"200", "400", "401", "404", "409"}),
+        ("/api/v1/bookmarks/{bookmark_id}/reports", "post"): (
+            "ReportInput",
+            {"201", "400", "401", "404", "409"},
+        ),
+        ("/api/v1/reports/{report_id}", "put"): ("ReportInput", {"200", "400", "401", "404", "409"}),
+        ("/api/v1/admin/reports/{report_id}", "put"): (
+            "ReportResolutionInput",
+            {"200", "400", "401", "403", "404"},
+        ),
+        ("/api/v1/admin/bookmarks/{bookmark_id}/status", "put"): (
+            "BookmarkStatusInput",
+            {"200", "400", "401", "403", "404"},
+        ),
+        ("/api/v1/admin/users/{username}/status", "put"): (
+            "UserStatusInput",
+            {"200", "400", "401", "403", "404", "409"},
+        ),
+        ("/api/v1/messages", "post"): ("MessageInput", {"201", "400", "401", "403", "409"}),
+        ("/api/v1/messages/{message_id}", "put"): (
+            "MessageInput",
+            {"200", "400", "401", "403", "404", "409"},
+        ),
+    }
 
-    request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
-    response_schema = operation["responses"]["201"]["content"]["application/json"]["schema"]
-    assert operation["requestBody"]["required"] is True
-    assert request_schema["anyOf"][0]["$ref"].endswith("/BookmarkInput")
+    for (path, method), (model, response_statuses) in body_operations.items():
+        operation = schema["paths"][path][method]
+        request_schema = operation["requestBody"]["content"]["application/json"]["schema"]
+        assert operation["requestBody"]["required"] is True
+        assert request_schema == {"$ref": f"#/components/schemas/{model}"}
+        assert set(operation["responses"]) == response_statuses
+        assert set(operation["responses"]["400"]["content"]) == {"application/problem+json"}
+        assert operation["responses"]["400"]["content"]["application/problem+json"]["schema"] == {
+            "$ref": "#/components/schemas/Problem"
+        }
+
+    bookmark_response = schema["paths"]["/api/v1/bookmarks"]["post"]["responses"]["201"]
+    response_schema = bookmark_response["content"]["application/json"]["schema"]
     assert response_schema["$ref"].endswith("/Bookmark")
     assert set(schema["components"]["schemas"]["BookmarkInput"]["required"]) == {"url", "title"}
 

@@ -30,7 +30,7 @@ from ..problems import (
     require_valid_paging,
     single_param,
 )
-from ..schemas import Message, MessageBundle, MessageInput, MessagePage, body_payload
+from ..schemas import Message, MessageBundle, MessageInput, MessagePage, body_payload, problem_responses
 from ..time import now_utc
 
 router = APIRouter()
@@ -85,8 +85,14 @@ def get_message(request: Request, message_id: str, _caller: OptionalCaller) -> R
     return response_with_etag(request, to_message_response(message), Message)
 
 
-@router.post("/api/v1/messages", status_code=201, response_model=Message, response_model_exclude_none=True)
-def create_message(response: Response, caller: AdminCaller, body: MessageInput | None) -> dict[str, Any]:
+@router.post(
+    "/api/v1/messages",
+    status_code=201,
+    response_model=Message,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 403, 409),
+)
+def create_message(response: Response, caller: AdminCaller, body: MessageInput) -> dict[str, Any]:
     input_data = validate_message_input(body_payload(body))
     message_id = str(uuid4())
     now = now_utc()
@@ -122,8 +128,13 @@ def create_message(response: Response, caller: AdminCaller, body: MessageInput |
     return to_message_response(row)
 
 
-@router.put("/api/v1/messages/{message_id}", response_model=Message, response_model_exclude_none=True)
-def update_message(message_id: str, caller: AdminCaller, body: MessageInput | None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/messages/{message_id}",
+    response_model=Message,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 403, 404, 409),
+)
+def update_message(message_id: str, caller: AdminCaller, body: MessageInput) -> dict[str, Any]:
     parsed_message_id = parse_uuid(message_id)
     input_data = validate_message_input(body_payload(body))
     with transaction() as conn:

@@ -142,6 +142,7 @@ def build_app() -> FastAPI:
 
     register_routes(app)
     configure_telemetry(app)
+    _normalize_local_openapi(app)
     return app
 
 
@@ -167,6 +168,36 @@ def _request_validation_violations(
         return []
     has_root_body_error = any(tuple(error.get("loc", ())) == ("body",) for error in exc.errors())
     return list(request_model.missing_body_violations) if has_root_body_error else []
+
+
+def _normalize_local_openapi(app: FastAPI) -> None:
+    default_openapi = app.openapi
+
+    def contract_aware_openapi() -> dict[str, object]:
+        schema = default_openapi()
+        for path_item in schema.get("paths", {}).values():
+            if not isinstance(path_item, dict):
+                continue
+            for operation in path_item.values():
+                if not isinstance(operation, dict):
+                    continue
+                responses = operation.get("responses")
+                if not isinstance(responses, dict):
+                    continue
+                if "requestBody" in operation:
+                    responses.pop("422", None)
+                for response in responses.values():
+                    if not isinstance(response, dict):
+                        continue
+                    content = response.get("content")
+                    if not isinstance(content, dict) or "application/problem+json" not in content:
+                        continue
+                    json_content = content.pop("application/json", None)
+                    if isinstance(json_content, dict):
+                        content["application/problem+json"] = json_content
+        return schema
+
+    app.openapi = contract_aware_openapi
 
 
 app = build_app()

@@ -24,16 +24,20 @@ from ..auth import CurrentCaller, ModeratorCaller
 from ..db import one, query, transaction
 from ..logging_setup import log_event
 from ..problems import ConflictProblem, NotFoundProblem, parse_uuid, require_valid_paging, single_param
-from ..schemas import Report, ReportInput, ReportPage, ReportResolutionInput, body_payload
+from ..schemas import Report, ReportInput, ReportPage, ReportResolutionInput, body_payload, problem_responses
 from ..time import now_utc
 
 router = APIRouter()
 
 
 @router.post(
-    "/api/v1/bookmarks/{bookmark_id}/reports", status_code=201, response_model=Report, response_model_exclude_none=True
+    "/api/v1/bookmarks/{bookmark_id}/reports",
+    status_code=201,
+    response_model=Report,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 404, 409),
 )
-def report_bookmark(bookmark_id: str, caller: CurrentCaller, body: ReportInput | None) -> dict[str, Any]:
+def report_bookmark(bookmark_id: str, caller: CurrentCaller, body: ReportInput) -> dict[str, Any]:
     parsed_bookmark_id = parse_uuid(bookmark_id)
     input_data = validate_report_input(body_payload(body))
     with transaction() as conn:
@@ -107,8 +111,13 @@ def list_my_reports(request: Request, caller: CurrentCaller) -> dict[str, Any]:
     return page_of(rows, page, size, total, to_report_response)
 
 
-@router.put("/api/v1/reports/{report_id}", response_model=Report, response_model_exclude_none=True)
-def update_my_report(report_id: str, caller: CurrentCaller, body: ReportInput | None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/reports/{report_id}",
+    response_model=Report,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 404, 409),
+)
+def update_my_report(report_id: str, caller: CurrentCaller, body: ReportInput) -> dict[str, Any]:
     parsed_report_id = parse_uuid(report_id)
     input_data = validate_report_input(body_payload(body))
     with transaction() as conn:
@@ -168,8 +177,13 @@ def list_reports(request: Request, _caller: ModeratorCaller) -> dict[str, Any]:
     return page_of(rows, page, size, total, to_report_response)
 
 
-@router.put("/api/v1/admin/reports/{report_id}", response_model=Report, response_model_exclude_none=True)
-def resolve_report(report_id: str, caller: ModeratorCaller, body: ReportResolutionInput | None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/admin/reports/{report_id}",
+    response_model=Report,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 403, 404),
+)
+def resolve_report(report_id: str, caller: ModeratorCaller, body: ReportResolutionInput) -> dict[str, Any]:
     parsed_report_id = parse_uuid(report_id)
     target, note = validate_resolution_input(body_payload(body))
     with transaction() as conn:
