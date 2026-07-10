@@ -2,30 +2,26 @@
 
 namespace App\Http\Middleware;
 
-use App\Auth\JwtVerifier;
+use App\Auth\Caller;
+use App\Models\UserAccount;
 use App\Services\I18nService;
 use App\Support\Logger;
 use App\Support\Problems;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 class AuthenticateBearer
 {
-    public function __construct(private readonly JwtVerifier $jwtVerifier, private readonly I18nService $i18n) {}
+    public function __construct(private readonly I18nService $i18n) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $request->attributes->set('caller', null);
-        $authorization = $request->headers->get('Authorization');
-        if (! is_string($authorization) || ! str_starts_with($authorization, 'Bearer ')) {
-            return $next($request);
-        }
-
         try {
-            $caller = $this->jwtVerifier->verify(substr($authorization, 7));
+            $caller = Auth::guard('api')->user();
         } catch (Throwable $error) {
             Logger::event('info', 'jwt_validation_failed', 'failure', 'Rejected a bearer token', [
                 'error_code' => 'invalid_token',
@@ -34,15 +30,19 @@ class AuthenticateBearer
             return Problems::send(401, 'Unauthorized', 'Missing or invalid bearer token.');
         }
 
-        $account = DB::selectOne(
-            "insert into user_accounts (username, first_seen, last_seen, status)
-             values (?, clock_timestamp(), clock_timestamp(), 'active')
-             on conflict (username) do update set last_seen = clock_timestamp()
-             returning status",
-            [$caller->username],
-        );
+        if (! $caller instanceof Caller) {
+            return $next($request);
+        }
 
-        if (($account->status ?? null) === 'blocked') {
+        $now = now();
+        UserAccount::upsert(
+            [['username' => $caller->username, 'first_seen' => $now, 'last_seen' => $now, 'status' => 'active']],
+            ['username'],
+            ['last_seen'],
+        );
+        $account = UserAccount::findOrFail($caller->username);
+
+        if ($account->status === 'blocked') {
             Logger::event('warn', 'blocked_user_rejected', 'denied', 'Refused a request from a blocked account', [
                 'actor' => $caller->username,
             ]);

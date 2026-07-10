@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Middleware\AuthenticateBearer;
+use App\Http\Middleware\RequireRole;
 use App\Support\ApiProblem;
 use App\Support\Problems;
 use App\Support\ValidationProblem;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(append: [AuthenticateBearer::class]);
+        $middleware->alias(['role' => RequireRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->dontReport([
@@ -34,6 +37,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (ValidationProblem $exception, Request $request) {
             return Problems::validation($exception, $request);
+        });
+
+        $exceptions->render(function (AuthenticationException $exception) {
+            return Problems::send(401, 'Unauthorized', 'Missing or invalid bearer token.');
         });
 
         $exceptions->render(function (ApiProblem $exception, Request $request) {

@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Auth\Caller;
+use App\Http\Requests\BookmarkRequest;
+use App\Http\Resources\BookmarkResource;
+use App\Models\Bookmark;
 use App\Support\BadRequestProblem;
 use App\Support\ConflictProblem;
 use App\Support\Cursor;
@@ -10,6 +13,7 @@ use App\Support\NotFoundProblem;
 use App\Support\UnauthorizedProblem;
 use App\Support\Validator;
 use App\Support\Wire;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -29,16 +33,12 @@ class BookmarkController extends Controller
     {
         ['page' => $page, 'size' => $size] = Wire::paging($request);
         $filters = $this->filters($request);
-        [$where, $params] = $this->listingWhere(Caller::optional($request)?->username, $filters);
-
-        $items = DB::select(
-            "select * from bookmarks where $where order by created_at desc, id desc limit ? offset ?",
-            [...$params, $size, $page * $size],
-        );
-        $total = (int) DB::selectOne("select count(*)::int as count from bookmarks where $where", $params)->count;
+        $query = $this->listingQuery(Caller::optional($request)?->username, $filters);
+        $total = (clone $query)->count();
+        $items = $query->orderByDesc('created_at')->orderByDesc('id')->skip($page * $size)->take($size)->get();
 
         return response()->json([
-            'items' => array_map($this->toBookmark(...), $items),
+            'items' => $items->map(fn (Bookmark $bookmark): array => $this->toBookmark($bookmark, $request))->all(),
             'page' => $page,
             'size' => $size,
             'totalItems' => $total,
@@ -54,41 +54,36 @@ class BookmarkController extends Controller
     {
         ['size' => $size] = Wire::paging($request);
         $filters = $this->filters($request);
-        [$where, $params] = $this->listingWhere(Caller::optional($request)?->username, $filters);
+        $query = $this->listingQuery(Caller::optional($request)?->username, $filters);
         $cursor = Wire::singleParam($request, 'cursor');
-        $cursorCondition = '';
         if ($cursor !== null) {
             $decoded = Cursor::decode($cursor);
-            $cursorCondition = ' and (created_at, id) < (?::timestamptz, ?::uuid)';
-            array_push($params, $decoded['createdAt'], $decoded['id']);
+            $query->whereRaw('(created_at, id) < (?::timestamptz, ?::uuid)', [$decoded['createdAt'], $decoded['id']]);
         }
 
-        $rows = DB::select(
-            "select * from bookmarks where $where$cursorCondition order by created_at desc, id desc limit ?",
-            [...$params, $size + 1],
-        );
-        $items = array_slice($rows, 0, $size);
-        $payload = ['items' => array_map($this->toBookmark(...), $items)];
-        if (count($rows) > $size && $items !== []) {
-            $last = end($items);
+        $rows = $query->orderByDesc('created_at')->orderByDesc('id')->take($size + 1)->get();
+        $items = $rows->take($size);
+        $payload = ['items' => $items->map(fn (Bookmark $bookmark): array => $this->toBookmark($bookmark, $request))->values()->all()];
+        if ($rows->count() > $size && $items->isNotEmpty()) {
+            $last = $items->last();
             $payload['nextCursor'] = Cursor::encode(['createdAt' => (string) $last->created_at, 'id' => $last->id]);
         }
 
         return response()->json($payload);
     }
 
-    public function create(Request $request): JsonResponse
+    public function create(BookmarkRequest $request): JsonResponse
     {
         $caller = Caller::require($request);
-        $input = $this->validateBookmarkInput(Wire::jsonBody($request));
-        $id = (string) Str::uuid();
-        $row = DB::selectOne(
-            "insert into bookmarks (id, owner, url, title, notes, tags, visibility, status, created_at, updated_at)
-             values (?, ?, ?, ?, ?, ?::text[], ?, 'active', clock_timestamp(), clock_timestamp()) returning *",
-            [$id, $caller->username, $input['url'], $input['title'], $input['notes'], Wire::pgTextArray($input['tags']), $input['visibility']],
-        );
+        $input = $request->contractData();
+        $bookmark = Bookmark::create([
+            ...$input,
+            'id' => (string) Str::uuid(),
+            'owner' => $caller->username,
+            'status' => 'active',
+        ]);
 
-        return response()->json($this->toBookmark($row), 201, ['Location' => "/api/v1/bookmarks/$id"]);
+        return response()->json($this->toBookmark($bookmark, $request), 201, ['Location' => "/api/v1/bookmarks/$bookmark->id"]);
     }
 
     public function get(Request $request, string $id): array
@@ -98,17 +93,17 @@ class BookmarkController extends Controller
             throw new NotFoundProblem;
         }
 
-        return $this->toBookmark($bookmark);
+        return $this->toBookmark($bookmark, $request);
     }
 
-    public function update(Request $request, string $id): array
+    public function update(BookmarkRequest $request, string $id): array
     {
         $caller = Caller::require($request);
         $bookmarkId = Wire::parseUuid($id);
-        $input = $this->validateBookmarkInput(Wire::jsonBody($request));
+        $input = $request->contractData();
 
-        $row = DB::transaction(function () use ($caller, $bookmarkId, $input): object {
-            $bookmark = DB::selectOne('select * from bookmarks where id = ? for update', [$bookmarkId]);
+        $bookmark = DB::transaction(function () use ($caller, $bookmarkId, $input): Bookmark {
+            $bookmark = Bookmark::query()->lockForUpdate()->find($bookmarkId);
             if ($bookmark === null || $bookmark->owner !== $caller->username) {
                 throw new NotFoundProblem;
             }
@@ -119,13 +114,12 @@ class BookmarkController extends Controller
                 );
             }
 
-            return DB::selectOne(
-                'update bookmarks set url = ?, title = ?, notes = ?, tags = ?::text[], visibility = ?, updated_at = clock_timestamp() where id = ? returning *',
-                [$input['url'], $input['title'], $input['notes'], Wire::pgTextArray($input['tags']), $input['visibility'], $bookmarkId],
-            );
+            $bookmark->fill($input)->save();
+
+            return $bookmark->refresh();
         });
 
-        return $this->toBookmark($row);
+        return $this->toBookmark($bookmark, $request);
     }
 
     public function delete(Request $request, string $id): JsonResponse
@@ -136,7 +130,7 @@ class BookmarkController extends Controller
         if ($bookmark === null || $bookmark->owner !== $caller->username) {
             throw new NotFoundProblem;
         }
-        DB::delete('delete from bookmarks where id = ?', [$bookmarkId]);
+        $bookmark->delete();
 
         return response()->json(null, 204);
     }
@@ -152,63 +146,19 @@ class BookmarkController extends Controller
         return ['tags' => array_map(static fn (object $row): array => ['tag' => $row->tag, 'count' => (int) $row->count], $rows)];
     }
 
-    private function find(string $id): ?object
+    private function find(string $id): ?Bookmark
     {
-        return DB::selectOne('select * from bookmarks where id = ?', [$id]);
+        return Bookmark::find($id);
     }
 
-    private function toBookmark(object $row): array
+    private function toBookmark(Bookmark $bookmark, Request $request): array
     {
-        return Wire::omitNulls([
-            'id' => $row->id,
-            'url' => $row->url,
-            'title' => $row->title,
-            'notes' => $row->notes,
-            'tags' => Wire::pgTextArrayToList($row->tags),
-            'visibility' => $row->visibility,
-            'status' => $row->status,
-            'owner' => $row->owner,
-            'createdAt' => Wire::iso($row->created_at),
-            'updatedAt' => Wire::iso($row->updated_at),
-        ]);
+        return (new BookmarkResource($bookmark))->resolve($request);
     }
 
-    private function visibleTo(object $bookmark, ?string $username): bool
+    private function visibleTo(Bookmark $bookmark, ?string $username): bool
     {
         return $bookmark->owner === $username || ($bookmark->visibility === 'public' && $bookmark->status === 'active');
-    }
-
-    private function validateBookmarkInput(array $body): array
-    {
-        $validator = new Validator;
-        $url = is_string($body['url'] ?? null) ? trim($body['url']) : '';
-        if ($url === '') {
-            $validator->reject('url', 'validation.url.required');
-        } else {
-            $scheme = parse_url($url, PHP_URL_SCHEME);
-            $host = parse_url($url, PHP_URL_HOST);
-            $validator->check(strlen($url) <= 2000 && filter_var($url, FILTER_VALIDATE_URL) !== false && in_array($scheme, ['http', 'https'], true) && is_string($host) && $host !== '', 'url', 'validation.url.invalid');
-        }
-
-        $title = is_string($body['title'] ?? null) ? trim($body['title']) : '';
-        $validator->check($title !== '', 'title', 'validation.title.required');
-        $validator->check(mb_strlen($title) <= 200, 'title', 'validation.title.too-long');
-
-        $notes = is_string($body['notes'] ?? null) ? $body['notes'] : null;
-        $validator->check(mb_strlen($notes ?? '') <= 4000, 'notes', 'validation.notes.too-long');
-
-        $rawTags = is_array($body['tags'] ?? null) ? $body['tags'] : [];
-        $tags = array_values(array_unique(array_map(static fn (mixed $tag): string => strtolower(trim((string) $tag)), $rawTags)));
-        $validator->check(count($tags) <= 10, 'tags', 'validation.tags.too-many');
-        $validator->check($this->allTagsValid($tags), 'tags', 'validation.tag.invalid');
-
-        $visibility = $body['visibility'] ?? 'private';
-        if (! in_array($visibility, ['private', 'public'], true)) {
-            throw new BadRequestProblem('unknown visibility: '.(string) $visibility);
-        }
-        $validator->throwIfInvalid();
-
-        return ['url' => $url, 'title' => $title, 'notes' => $notes, 'tags' => $tags, 'visibility' => $visibility];
     }
 
     private function filters(Request $request): array
@@ -237,33 +187,28 @@ class BookmarkController extends Controller
         return $tags;
     }
 
-    private function listingWhere(?string $caller, array $filters): array
+    private function listingQuery(?string $caller, array $filters): Builder
     {
-        $conditions = [];
-        $params = [];
+        $query = Bookmark::query();
         if ($filters['visibility'] === 'public') {
-            $conditions[] = "visibility = 'public' and status = 'active'";
+            $query->where('visibility', 'public')->where('status', 'active');
         } else {
             if ($caller === null) {
                 throw new UnauthorizedProblem;
             }
-            $conditions[] = 'owner = ?';
-            $params[] = $caller;
+            $query->where('owner', $caller);
             if ($filters['visibility'] !== null) {
-                $conditions[] = 'visibility = ?';
-                $params[] = $filters['visibility'];
+                $query->where('visibility', $filters['visibility']);
             }
         }
         if ($filters['tags'] !== []) {
-            $conditions[] = 'tags @> ?::text[]';
-            $params[] = Wire::pgTextArray($filters['tags']);
+            $query->whereRaw('tags @> ?::text[]', [Wire::pgTextArray($filters['tags'])]);
         }
         if ($filters['q'] !== null && trim($filters['q']) !== '') {
-            $conditions[] = "(position(lower(?) in lower(title)) > 0 or position(lower(?) in lower(coalesce(notes, ''))) > 0)";
-            array_push($params, $filters['q'], $filters['q']);
+            $query->whereRaw("(position(lower(?) in lower(title)) > 0 or position(lower(?) in lower(coalesce(notes, ''))) > 0)", [$filters['q'], $filters['q']]);
         }
 
-        return [implode(' and ', $conditions), $params];
+        return $query;
     }
 
     private function allTagsValid(array $tags): bool

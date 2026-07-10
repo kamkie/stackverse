@@ -2,7 +2,7 @@
 
 The Stackverse backend in PHP 8.3+ using **Laravel 13**, Laravel routing,
 middleware, migrations, the service container, and raw PostgreSQL queries for
-the contract logic. Shared behavior, endpoints, and environment variables are
+the few PostgreSQL-specific contract operations. Shared behavior, endpoints, and environment variables are
 documented once in [backends/README.md](../README.md) and the contract
 documents it points to.
 
@@ -34,6 +34,11 @@ composer lint
 php artisan test
 ```
 
+The model/resource integration test is opt-in so the default unit/HTTP suite
+does not require infrastructure. Against a migrated PostgreSQL test database,
+set `STACKVERSE_DB_TESTS=true` and run
+`php artisan test --filter EloquentBoundariesTest`.
+
 Conformance, with the backend running:
 
 ```sh
@@ -49,31 +54,37 @@ docker build -t stackverse/backend-php-laravel:local -f backends/php-laravel/Doc
 ## What This Implementation Demonstrates
 
 - **Laravel as an API-only resource server** — routes live in `routes/api.php`,
-  middleware validates bearer tokens, controllers stay thin, and Laravel
-  sessions/cache are in-memory because the gateway owns browser session state.
+  the `api` guard resolves bearer callers, route middleware applies caller/role
+  policy before controllers, and Laravel sessions remain unused because the
+  gateway owns browser session state.
+- **FormRequest validation and API resources** — concrete request classes own
+  structural rules, normalization, and exact localized contract keys; Eloquent
+  models plus unwrapped `JsonResource` classes own normal persistence and wire
+  serialization boundaries. HTTP feature tests exercise router, middleware,
+  FormRequest, exception, and resource behavior together.
 - **Laravel migrations over a PostgreSQL-owned schema** — one migration creates
   the Stackverse tables, including `text[]` tags, partial unique indexes for
   reports, and GIN indexing.
-- **Raw SQL through Laravel's database layer** — feature behavior stays close
-  to the contract: row locks for moderation, stable keyset pagination, and
-  body-hash ETags with no process-local cache state.
-- **JWKS validation without browser tokens** — the middleware validates
-  `iss`, `aud`, expiry, and RS256 signatures against `OIDC_JWKS_URI` or OIDC
-  discovery, then derives identity from `preferred_username`.
+- **Eloquent plus focused PostgreSQL SQL** — models/query builders handle normal
+  CRUD, filters, pagination, and row locks. Raw SQL remains only where
+  PostgreSQL arrays, tuple keysets, aggregates, or readiness probes make the
+  database-specific operation clearer.
+- **Maintained JOSE/JWT boundary** — Laravel's request guard delegates JWK and
+  RS256 verification to `firebase/php-jwt`, validates `iss`/`aud`, and derives
+  identity from `preferred_username`; no application-owned cryptography remains.
 - **FrankenPHP image** — the Dockerfile installs only production dependencies,
   runs as a non-root user, executes startup tasks, and serves the app on
   `PORT`.
 
 ## Deliberate Deviations Worth Comparing
 
-- Eloquent models are intentionally not used for the domain. Laravel's query
-  builder/DB layer keeps the SQL visible for a contract-first comparison,
-  especially PostgreSQL arrays, partial indexes, and row-locking behavior.
-- Laravel Sanctum, Passport, guards, and server-side sessions are not used.
-  Stackverse backends are stateless bearer-token resource servers; the gateway
-  owns the browser session.
-- Response DTOs are hand-built arrays rather than Eloquent resources so
-  optional fields can be omitted rather than serialized as `null`.
+- Sanctum/Passport and server-side sessions remain intentionally absent:
+  Stackverse is a stateless bearer-token resource server. A small Laravel
+  request guard is the appropriate integration point for externally issued
+  Keycloak JWTs, while the gateway owns browser sessions.
+- PostgreSQL `text[]`, GIN/tag aggregation, tuple keysets, and daily aggregates
+  retain focused SQL fragments because those operations are deliberately part
+  of the cross-stack database comparison.
 
 ## Logging Conformance
 

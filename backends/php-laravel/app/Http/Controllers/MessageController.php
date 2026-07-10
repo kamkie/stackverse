@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Auth\Caller;
+use App\Http\Requests\MessageRequest;
+use App\Http\Resources\MessageResource;
+use App\Models\Message;
 use App\Services\AuditService;
 use App\Services\I18nService;
 use App\Support\ConflictProblem;
 use App\Support\Logger;
 use App\Support\NotFoundProblem;
-use App\Support\Validator;
 use App\Support\Wire;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -19,10 +21,6 @@ use Illuminate\Support\Str;
 
 class MessageController extends Controller
 {
-    private const KEY_PATTERN = '/^[a-z0-9-]+(\.[a-z0-9-]+)*$/';
-
-    private const LANGUAGE_PATTERN = '/^[a-z]{2}$/';
-
     public function __construct(private readonly I18nService $i18n, private readonly AuditService $audit) {}
 
     public function list(Request $request): Response
@@ -33,30 +31,22 @@ class MessageController extends Controller
         $q = Wire::singleParam($request, 'q');
         Wire::requireMaxLength($q, 200, 'q');
 
-        $conditions = ['true'];
-        $params = [];
+        $query = Message::query();
         if ($key !== null) {
-            $conditions[] = 'key = ?';
-            $params[] = $key;
+            $query->where('key', $key);
         }
         if ($language !== null) {
-            $conditions[] = 'language = ?';
-            $params[] = $language;
+            $query->where('language', $language);
         }
         if ($q !== null && trim($q) !== '') {
-            $conditions[] = '(position(lower(?) in lower(key)) > 0 or position(lower(?) in lower(text)) > 0)';
-            array_push($params, $q, $q);
+            $query->whereRaw('(position(lower(?) in lower(key)) > 0 or position(lower(?) in lower(text)) > 0)', [$q, $q]);
         }
-        $where = implode(' and ', $conditions);
 
-        $items = DB::select(
-            "select * from messages where $where order by key, language limit ? offset ?",
-            [...$params, $size, $page * $size],
-        );
-        $total = (int) DB::selectOne("select count(*)::int as count from messages where $where", $params)->count;
+        $total = (clone $query)->count();
+        $items = $query->orderBy('key')->orderBy('language')->skip($page * $size)->take($size)->get();
 
         return Wire::etag($request, [
-            'items' => array_map($this->toMessage(...), $items),
+            'items' => $items->map(fn (Message $message): array => $this->toMessage($message, $request))->all(),
             'page' => $page,
             'size' => $size,
             'totalItems' => $total,
@@ -76,124 +66,91 @@ class MessageController extends Controller
 
     public function get(Request $request, string $id): Response
     {
-        $row = DB::selectOne('select * from messages where id = ?', [Wire::parseUuid($id)]);
-        if ($row === null) {
+        $message = Message::find(Wire::parseUuid($id));
+        if ($message === null) {
             throw new NotFoundProblem;
         }
 
-        return Wire::etag($request, $this->toMessage($row));
+        return Wire::etag($request, $this->toMessage($message, $request));
     }
 
-    public function create(Request $request): JsonResponse
+    public function create(MessageRequest $request): JsonResponse
     {
         $caller = Caller::requireRole($request, 'admin');
-        $input = $this->validateMessageInput(Wire::jsonBody($request));
-        $message = DB::transaction(function () use ($caller, $input): object {
-            if (DB::selectOne('select 1 from messages where key = ? and language = ?', [$input['key'], $input['language']]) !== null) {
+        $input = $request->contractData();
+        $message = DB::transaction(function () use ($caller, $input): Message {
+            if (Message::query()->where('key', $input['key'])->where('language', $input['language'])->exists()) {
                 throw $this->duplicate($input);
             }
             try {
-                $row = DB::selectOne(
-                    'insert into messages (id, key, language, text, description, created_at, updated_at)
-                     values (?, ?, ?, ?, ?, clock_timestamp(), clock_timestamp()) returning *',
-                    [(string) Str::uuid(), $input['key'], $input['language'], $input['text'], $input['description']],
-                );
+                $message = Message::create([...$input, 'id' => (string) Str::uuid()]);
             } catch (QueryException $error) {
                 if (($error->errorInfo[0] ?? null) === '23505') {
                     throw $this->duplicate($input);
                 }
                 throw $error;
             }
-            $this->audit->record($caller->username, 'message.created', 'message', $row->id, $this->snapshot($row));
+            $this->audit->record($caller->username, 'message.created', 'message', $message->id, $this->snapshot($message));
 
-            return $row;
+            return $message;
         });
         $this->logMessageEvent('message_created', 'Message created', $caller->username, $message);
 
-        return response()->json($this->toMessage($message), 201, ['Location' => "/api/v1/messages/$message->id"]);
+        return response()->json($this->toMessage($message, $request), 201, ['Location' => "/api/v1/messages/$message->id"]);
     }
 
-    public function update(Request $request, string $id): array
+    public function update(MessageRequest $request, string $id): array
     {
         $caller = Caller::requireRole($request, 'admin');
         $messageId = Wire::parseUuid($id);
-        $input = $this->validateMessageInput(Wire::jsonBody($request));
-        $message = DB::transaction(function () use ($caller, $messageId, $input): object {
-            if (DB::selectOne('select 1 from messages where id = ?', [$messageId]) === null) {
+        $input = $request->contractData();
+        $message = DB::transaction(function () use ($caller, $messageId, $input): Message {
+            $message = Message::find($messageId);
+            if ($message === null) {
                 throw new NotFoundProblem;
             }
-            if (DB::selectOne('select 1 from messages where key = ? and language = ? and id <> ?', [$input['key'], $input['language'], $messageId]) !== null) {
+            if (Message::query()->where('key', $input['key'])->where('language', $input['language'])->whereKeyNot($messageId)->exists()) {
                 throw $this->duplicate($input);
             }
             try {
-                $row = DB::selectOne(
-                    'update messages set key = ?, language = ?, text = ?, description = ?, updated_at = clock_timestamp() where id = ? returning *',
-                    [$input['key'], $input['language'], $input['text'], $input['description'], $messageId],
-                );
+                $message->fill($input)->save();
             } catch (QueryException $error) {
                 if (($error->errorInfo[0] ?? null) === '23505') {
                     throw $this->duplicate($input);
                 }
                 throw $error;
             }
-            $this->audit->record($caller->username, 'message.updated', 'message', $row->id, $this->snapshot($row));
+            $this->audit->record($caller->username, 'message.updated', 'message', $message->id, $this->snapshot($message));
 
-            return $row;
+            return $message->refresh();
         });
         $this->logMessageEvent('message_updated', 'Message updated', $caller->username, $message);
 
-        return $this->toMessage($message);
+        return $this->toMessage($message, $request);
     }
 
     public function delete(Request $request, string $id): JsonResponse
     {
         $caller = Caller::requireRole($request, 'admin');
         $messageId = Wire::parseUuid($id);
-        $message = DB::transaction(function () use ($caller, $messageId): object {
-            $row = DB::selectOne('delete from messages where id = ? returning *', [$messageId]);
-            if ($row === null) {
+        $message = DB::transaction(function () use ($caller, $messageId): Message {
+            $message = Message::find($messageId);
+            if ($message === null) {
                 throw new NotFoundProblem;
             }
-            $this->audit->record($caller->username, 'message.deleted', 'message', $row->id, $this->snapshot($row));
+            $this->audit->record($caller->username, 'message.deleted', 'message', $message->id, $this->snapshot($message));
+            $message->delete();
 
-            return $row;
+            return $message;
         });
         $this->logMessageEvent('message_deleted', 'Message deleted', $caller->username, $message);
 
         return response()->json(null, 204);
     }
 
-    private function validateMessageInput(array $body): array
+    private function toMessage(Message $message, Request $request): array
     {
-        $validator = new Validator;
-        $key = is_string($body['key'] ?? null) ? trim($body['key']) : '';
-        $validator->check(preg_match(self::KEY_PATTERN, $key) === 1 && mb_strlen($key) <= 150, 'key', 'validation.message.key.invalid');
-
-        $language = is_string($body['language'] ?? null) ? trim($body['language']) : '';
-        $validator->check(preg_match(self::LANGUAGE_PATTERN, $language) === 1, 'language', 'validation.message.language.invalid');
-
-        $text = is_string($body['text'] ?? null) ? $body['text'] : '';
-        $validator->check($text !== '', 'text', 'validation.message.text.required');
-        $validator->check(mb_strlen($text) <= 2000, 'text', 'validation.message.text.too-long');
-
-        $description = is_string($body['description'] ?? null) ? $body['description'] : null;
-        $validator->check(mb_strlen($description ?? '') <= 1000, 'description', 'validation.message.description.too-long');
-        $validator->throwIfInvalid();
-
-        return ['key' => $key, 'language' => $language, 'text' => $text, 'description' => $description];
-    }
-
-    private function toMessage(object $row): array
-    {
-        return Wire::omitNulls([
-            'id' => $row->id,
-            'key' => $row->key,
-            'language' => $row->language,
-            'text' => $row->text,
-            'description' => $row->description,
-            'createdAt' => Wire::iso($row->created_at),
-            'updatedAt' => Wire::iso($row->updated_at),
-        ]);
+        return (new MessageResource($message))->resolve($request);
     }
 
     private function duplicate(array $input): ConflictProblem
@@ -201,7 +158,7 @@ class MessageController extends Controller
         return new ConflictProblem("A message with key '{$input['key']}' and language '{$input['language']}' already exists.");
     }
 
-    private function snapshot(object $message): array
+    private function snapshot(Message $message): array
     {
         return [
             'key' => $message->key,
@@ -211,7 +168,7 @@ class MessageController extends Controller
         ];
     }
 
-    private function logMessageEvent(string $event, string $description, string $actor, object $message): void
+    private function logMessageEvent(string $event, string $description, string $actor, Message $message): void
     {
         Logger::event('info', $event, 'success', $description, [
             'actor' => $actor,

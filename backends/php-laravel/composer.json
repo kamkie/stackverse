@@ -6,6 +6,7 @@
     "keywords": ["stackverse", "backend", "laravel"],
     "license": "MIT",
     "require": {
+        "firebase/php-jwt": "^7.1",
         "php": "^8.3",
         "laravel/framework": "^13.8"
     },

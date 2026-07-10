@@ -5,9 +5,10 @@ namespace App\Auth;
 use App\Support\ForbiddenProblem;
 use App\Support\Logger;
 use App\Support\UnauthorizedProblem;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 
-class Caller
+class Caller implements Authenticatable
 {
     public const APP_ROLES = ['admin', 'moderator'];
 
@@ -24,6 +25,9 @@ class Caller
     public static function optional(Request $request): ?self
     {
         $caller = $request->attributes->get('caller');
+        if (! $caller instanceof self) {
+            $caller = $request->user('api');
+        }
 
         return $caller instanceof self ? $caller : null;
     }
@@ -58,5 +62,37 @@ class Caller
             'email' => $this->email,
             'roles' => $roles,
         ], static fn ($value): bool => $value !== null);
+    }
+
+    public function getAuthIdentifierName(): string
+    {
+        return 'username';
+    }
+
+    public function getAuthIdentifier(): string
+    {
+        return $this->username;
+    }
+
+    public function getAuthPasswordName(): string
+    {
+        return 'password';
+    }
+
+    public function getAuthPassword(): string
+    {
+        return '';
+    }
+
+    public function getRememberToken(): ?string
+    {
+        return null;
+    }
+
+    public function setRememberToken($value): void {}
+
+    public function getRememberTokenName(): string
+    {
+        return '';
     }
 }
