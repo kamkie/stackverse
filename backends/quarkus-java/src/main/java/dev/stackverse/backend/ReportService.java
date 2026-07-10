@@ -1,45 +1,63 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.security.identity.SecurityIdentity;
+import static dev.stackverse.backend.HttpResponses.pageResponse;
+import static dev.stackverse.backend.PersistenceSupport.detail;
+import static dev.stackverse.backend.PersistenceSupport.execute;
+import static dev.stackverse.backend.PersistenceSupport.instant;
+import static dev.stackverse.backend.PersistenceSupport.isUniqueViolation;
+import static dev.stackverse.backend.PersistenceSupport.now;
+import static dev.stackverse.backend.PersistenceSupport.nullableInstant;
+import static dev.stackverse.backend.PersistenceSupport.params;
+import static dev.stackverse.backend.PersistenceSupport.query;
+import static dev.stackverse.backend.PersistenceSupport.queryOne;
+import static dev.stackverse.backend.PersistenceSupport.scalarLong;
+
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
-import javax.sql.DataSource;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-public class ReportService extends ServiceSupport {
-    @Inject
+public class ReportService {
+    private static final Logger LOG = Logger.getLogger(ReportService.class);
+
+    private final DatabaseOperations database;
+    private final Authorization authorization;
+    private final RequestParameters requestParameters;
+    private final AuditTrail auditTrail;
+
     public ReportService(
-            DataSource dataSource,
-            JsonWebToken jwt,
-            SecurityIdentity securityIdentity,
-            ObjectMapper mapper,
-            Localizer localizer) {
-        super(dataSource, jwt, securityIdentity, mapper, localizer);
+            DatabaseOperations database,
+            Authorization authorization,
+            RequestParameters requestParameters,
+            AuditTrail auditTrail) {
+        this.database = database;
+        this.authorization = authorization;
+        this.requestParameters = requestParameters;
+        this.auditTrail = auditTrail;
     }
 
     public Response reportBookmark(String rawId, ReportInput input) {
-        Caller caller = requireCaller();
-        UUID bookmarkId = parseUuid(rawId);
+        Caller caller = authorization.requireCaller();
+        UUID bookmarkId = requestParameters.parseUuid(rawId);
         Report report =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             Optional<Bookmark> bookmark =
                                     queryOne(
                                             connection,
                                             "select * from bookmarks where id = ? for update",
                                             List.of(bookmarkId),
-                                            ServiceSupport::bookmark);
+                                            BookmarkService::bookmark);
                             if (bookmark.isEmpty()
                                     || !"public".equals(bookmark.get().visibility())
                                     || !"active".equals(bookmark.get().status())) {
@@ -67,7 +85,7 @@ public class ReportService extends ServiceSupport {
                                                         input.reason(),
                                                         input.comment(),
                                                         now()),
-                                                ServiceSupport::report)
+                                                ReportService::report)
                                         .orElseThrow();
                             } catch (RuntimeException error) {
                                 if (isUniqueViolation(error)) {
@@ -98,15 +116,15 @@ public class ReportService extends ServiceSupport {
     }
 
     public Response listMyReports(RequestContext request) {
-        Caller caller = requireCaller();
-        int page = pagingPage(request);
-        int size = pageSize(request);
-        String status = singleParam(request, "status");
+        Caller caller = authorization.requireCaller();
+        int page = requestParameters.pagingPage(request);
+        int size = requestParameters.pageSize(request);
+        String status = requestParameters.singleParam(request, "status");
         if (status != null && !validReportStatus(status)) {
             throw StackverseProblem.badRequest("status must be one of: open, dismissed, actioned");
         }
         PageResponse<ReportResponse> body =
-                withConnection(
+                database.withConnection(
                         connection -> {
                             SqlWhere where = new SqlWhere();
                             where.and("reporter = ?", caller.username());
@@ -120,7 +138,7 @@ public class ReportService extends ServiceSupport {
                                             where.params());
                             List<Object> params = new ArrayList<>(where.params());
                             params.add(size);
-                            params.add(offset(page, size));
+                            params.add(requestParameters.offset(page, size));
                             List<ReportResponse> items =
                                     query(
                                             connection,
@@ -135,10 +153,10 @@ public class ReportService extends ServiceSupport {
     }
 
     public Response updateMyReport(String rawId, ReportInput input) {
-        Caller caller = requireCaller();
-        UUID id = parseUuid(rawId);
+        Caller caller = authorization.requireCaller();
+        UUID id = requestParameters.parseUuid(rawId);
         Report updated =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             Report report = ownReportForUpdate(connection, caller.username(), id);
                             if (!"open".equals(report.status())) {
@@ -149,7 +167,7 @@ public class ReportService extends ServiceSupport {
                                             connection,
                                             "update reports set reason = ?, comment = ? where id = ? returning *",
                                             params(input.reason(), input.comment(), id),
-                                            ServiceSupport::report)
+                                            ReportService::report)
                                     .orElseThrow();
                         });
         StackverseLog.event(
@@ -173,10 +191,10 @@ public class ReportService extends ServiceSupport {
     }
 
     public Response withdrawReport(String rawId) {
-        Caller caller = requireCaller();
-        UUID id = parseUuid(rawId);
+        Caller caller = authorization.requireCaller();
+        UUID id = requestParameters.parseUuid(rawId);
         Report withdrawn =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             Report report = ownReportForUpdate(connection, caller.username(), id);
                             if (!"open".equals(report.status())) {
@@ -205,15 +223,17 @@ public class ReportService extends ServiceSupport {
     }
 
     public Response listReportQueue(RequestContext request) {
-        requireRole("moderator");
-        int page = pagingPage(request);
-        int size = pageSize(request);
-        String status = Optional.ofNullable(singleParam(request, "status")).orElse("open");
+        authorization.requireRole("moderator");
+        int page = requestParameters.pagingPage(request);
+        int size = requestParameters.pageSize(request);
+        String status =
+                Optional.ofNullable(requestParameters.singleParam(request, "status"))
+                        .orElse("open");
         if (!validReportStatus(status)) {
             throw StackverseProblem.badRequest("status must be one of: open, dismissed, actioned");
         }
         PageResponse<ReportResponse> body =
-                withConnection(
+                database.withConnection(
                         connection -> {
                             long total =
                                     scalarLong(
@@ -224,7 +244,10 @@ public class ReportService extends ServiceSupport {
                                     query(
                                             connection,
                                             "select * from reports where status = ? order by created_at asc, id asc limit ? offset ?",
-                                            List.of(status, size, offset(page, size)),
+                                            List.of(
+                                                    status,
+                                                    size,
+                                                    requestParameters.offset(page, size)),
                                             rs -> reportResponse(report(rs)));
                             return pageResponse(items, page, size, total);
                         });
@@ -232,11 +255,11 @@ public class ReportService extends ServiceSupport {
     }
 
     public Response resolveReport(String rawId, ResolutionInput input) {
-        Caller caller = requireRole("moderator");
-        UUID id = parseUuid(rawId);
+        Caller caller = authorization.requireRole("moderator");
+        UUID id = requestParameters.parseUuid(rawId);
         List<Runnable> events = new ArrayList<>();
         Report resolved =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             if ("actioned".equals(input.resolution())) {
                                 UUID bookmarkId =
@@ -258,7 +281,7 @@ public class ReportService extends ServiceSupport {
                                                     connection,
                                                     "select * from reports where id = ? for update",
                                                     List.of(id),
-                                                    ServiceSupport::report)
+                                                    ReportService::report)
                                             .orElseThrow(StackverseProblem::notFound);
                             if ("open".equals(input.resolution())) {
                                 return reopenReport(connection, caller, locked, events);
@@ -284,7 +307,7 @@ public class ReportService extends ServiceSupport {
                                                 connection,
                                                 "select * from reports where bookmark_id = ? and status = 'open' and id <> ? order by id for update",
                                                 List.of(locked.bookmarkId(), locked.id()),
-                                                ServiceSupport::report);
+                                                ReportService::report);
                                 for (Report sibling : siblings) {
                                     resolveOne(
                                             connection,
@@ -303,26 +326,26 @@ public class ReportService extends ServiceSupport {
     }
 
     public Response setBookmarkStatus(String rawId, BookmarkStatusInput input) {
-        Caller caller = requireRole("moderator");
-        UUID id = parseUuid(rawId);
+        Caller caller = authorization.requireRole("moderator");
+        UUID id = requestParameters.parseUuid(rawId);
         StatusChange change =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             Bookmark bookmark =
                                     queryOne(
                                                     connection,
                                                     "select * from bookmarks where id = ? for update",
                                                     List.of(id),
-                                                    ServiceSupport::bookmark)
+                                                    BookmarkService::bookmark)
                                             .orElseThrow(StackverseProblem::notFound);
                             Bookmark updated =
                                     queryOne(
                                                     connection,
                                                     "update bookmarks set status = ?, updated_at = ? where id = ? returning *",
                                                     List.of(input.status(), now(), id),
-                                                    ServiceSupport::bookmark)
+                                                    BookmarkService::bookmark)
                                             .orElseThrow();
-                            recordAudit(
+                            auditTrail.record(
                                     connection,
                                     caller.username(),
                                     "bookmark.status-changed",
@@ -354,7 +377,7 @@ public class ReportService extends ServiceSupport {
                         change.previous(),
                         "to",
                         change.bookmark().status()));
-        return Response.ok(bookmarkResponse(change.bookmark())).build();
+        return Response.ok(BookmarkService.bookmarkResponse(change.bookmark())).build();
     }
 
     private Report reopenReport(
@@ -377,7 +400,7 @@ public class ReportService extends ServiceSupport {
                                     "update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null"
                                             + " where id = ? returning *",
                                     List.of(report.id()),
-                                    ServiceSupport::report)
+                                    ReportService::report)
                             .orElseThrow();
         } catch (RuntimeException error) {
             if (isUniqueViolation(error)) {
@@ -386,7 +409,7 @@ public class ReportService extends ServiceSupport {
             }
             throw error;
         }
-        recordAudit(
+        auditTrail.record(
                 connection,
                 caller.username(),
                 "report.reopened",
@@ -433,9 +456,9 @@ public class ReportService extends ServiceSupport {
                                         resolvedAt,
                                         note,
                                         report.id()),
-                                ServiceSupport::report)
+                                ReportService::report)
                         .orElseThrow();
-        recordAudit(
+        auditTrail.record(
                 connection,
                 caller.username(),
                 "report.resolved",
@@ -485,7 +508,7 @@ public class ReportService extends ServiceSupport {
                                 connection,
                                 "select * from bookmarks where id = ?",
                                 List.of(bookmarkId),
-                                ServiceSupport::bookmark)
+                                BookmarkService::bookmark)
                         .orElseThrow(StackverseProblem::notFound);
         if ("hidden".equals(bookmark.status())) {
             return;
@@ -494,7 +517,7 @@ public class ReportService extends ServiceSupport {
                 connection,
                 "update bookmarks set status = 'hidden', updated_at = ? where id = ?",
                 List.of(now(), bookmarkId));
-        recordAudit(
+        auditTrail.record(
                 connection,
                 caller.username(),
                 "bookmark.status-changed",
@@ -520,5 +543,51 @@ public class ReportService extends ServiceSupport {
                                         bookmark.status(),
                                         "to",
                                         "hidden")));
+    }
+
+    private Report ownReportForUpdate(Connection connection, String reporter, UUID id) {
+        Report report =
+                queryOne(
+                                connection,
+                                "select * from reports where id = ? for update",
+                                List.of(id),
+                                ReportService::report)
+                        .orElseThrow(StackverseProblem::notFound);
+        if (!report.reporter().equals(reporter)) {
+            throw StackverseProblem.notFound();
+        }
+        return report;
+    }
+
+    private static Report report(ResultSet rs) throws SQLException {
+        return new Report(
+                (UUID) rs.getObject("id"),
+                (UUID) rs.getObject("bookmark_id"),
+                rs.getString("reporter"),
+                rs.getString("reason"),
+                rs.getString("comment"),
+                rs.getString("status"),
+                rs.getString("resolved_by"),
+                nullableInstant(rs, "resolved_at"),
+                rs.getString("resolution_note"),
+                instant(rs, "created_at"));
+    }
+
+    static ReportResponse reportResponse(Report report) {
+        return new ReportResponse(
+                report.id(),
+                report.bookmarkId(),
+                report.reporter(),
+                report.reason(),
+                report.comment(),
+                report.status(),
+                report.createdAt(),
+                report.resolvedBy(),
+                report.resolvedAt(),
+                report.resolutionNote());
+    }
+
+    private static boolean validReportStatus(String status) {
+        return Set.of("open", "dismissed", "actioned").contains(status);
     }
 }

@@ -83,7 +83,7 @@ class BackendSupportTest {
     @Test
     void bookmarkResponseSortsTagsAndOmitsMissingOptionalFields() {
         BookmarkResponse response =
-                ServiceSupport.bookmarkResponse(
+                BookmarkService.bookmarkResponse(
                         new Bookmark(
                                 BOOKMARK_ID,
                                 "alice",
@@ -129,8 +129,8 @@ class BackendSupportTest {
                         "hidden",
                         CREATED);
 
-        ReportResponse openResponse = ServiceSupport.reportResponse(open);
-        ReportResponse actionedResponse = ServiceSupport.reportResponse(actioned);
+        ReportResponse openResponse = ReportService.reportResponse(open);
+        ReportResponse actionedResponse = ReportService.reportResponse(actioned);
 
         assertNull(openResponse.comment());
         assertNull(openResponse.resolvedAt());
@@ -189,6 +189,31 @@ class BackendSupportTest {
             assertEquals("reason", violation.getPropertyPath().toString());
             assertEquals("validation.block.reason.required", violation.getMessage());
         }
+    }
+
+    @Test
+    void beanValidationPreservesContractValidWhitespaceMessageText() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations =
+                    factory.getValidator()
+                            .validate(new MessageInput("example.title", "en", "   ", null));
+
+            assertTrue(violations.isEmpty());
+        }
+    }
+
+    @Test
+    void featureServicesUseNarrowCompositionInsteadOfASharedBaseClass() {
+        List<Class<?>> featureServices =
+                List.of(
+                        AdminService.class,
+                        BookmarkService.class,
+                        HealthService.class,
+                        IdentityService.class,
+                        MessageService.class,
+                        ReportService.class);
+
+        featureServices.forEach(service -> assertEquals(Object.class, service.getSuperclass()));
     }
 
     @Test
@@ -332,10 +357,10 @@ class BackendSupportTest {
         SQLException unique = new SQLException("duplicate key", "23505");
         SQLException other = new SQLException("connection failed", "08006");
 
-        assertTrue(ServiceSupport.isUniqueViolation(new DbException(unique)));
-        assertTrue(ServiceSupport.isUniqueViolation(new RuntimeException(unique)));
-        assertFalse(ServiceSupport.isUniqueViolation(new DbException(other)));
-        assertFalse(ServiceSupport.isUniqueViolation(new IllegalStateException("not SQL")));
+        assertTrue(PersistenceSupport.isUniqueViolation(new DbException(unique)));
+        assertTrue(PersistenceSupport.isUniqueViolation(new RuntimeException(unique)));
+        assertFalse(PersistenceSupport.isUniqueViolation(new DbException(other)));
+        assertFalse(PersistenceSupport.isUniqueViolation(new IllegalStateException("not SQL")));
     }
 
     private static Bookmark bookmark(String owner, String visibility, String status) {

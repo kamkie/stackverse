@@ -1,27 +1,18 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
-import javax.sql.DataSource;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 
 @ApplicationScoped
-public class IdentityService extends ServiceSupport {
-    @Inject
-    public IdentityService(
-            DataSource dataSource,
-            JsonWebToken jwt,
-            SecurityIdentity securityIdentity,
-            ObjectMapper mapper,
-            Localizer localizer) {
-        super(dataSource, jwt, securityIdentity, mapper, localizer);
+public class IdentityService {
+    private final Authorization authorization;
+
+    IdentityService(Authorization authorization) {
+        this.authorization = authorization;
     }
 
     public Response me() {
-        Caller caller = requireCaller();
+        Caller caller = authorization.requireCaller();
         return Response.ok(
                         new MeResponse(
                                 caller.username(),

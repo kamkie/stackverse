@@ -3,6 +3,7 @@ package dev.stackverse.backend;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.PUT;
@@ -38,7 +39,9 @@ public class AdminResource {
     @PUT
     @Path("/reports/{id}")
     @RolesAllowed("moderator")
-    public Response resolveReport(@PathParam("id") String rawId, @Valid ResolutionInput body) {
+    public Response resolveReport(
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid ResolutionInput body) {
         return reports.resolveReport(rawId, body);
     }
 
@@ -46,7 +49,8 @@ public class AdminResource {
     @Path("/bookmarks/{id}/status")
     @RolesAllowed("moderator")
     public Response setBookmarkStatus(
-            @PathParam("id") String rawId, @Valid BookmarkStatusInput body) {
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid BookmarkStatusInput body) {
         return reports.setBookmarkStatus(rawId, body);
     }
 
@@ -68,7 +72,8 @@ public class AdminResource {
     @Path("/users/{username}/status")
     @RolesAllowed("admin")
     public Response setUserStatus(
-            @PathParam("username") String username, @Valid UserStatusInput body) {
+            @PathParam("username") String username,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid UserStatusInput body) {
         return service.setUserStatus(username, body);
     }
 

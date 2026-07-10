@@ -3,6 +3,7 @@ package dev.stackverse.backend;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -35,7 +36,9 @@ public class ReportsResource {
 
     @PUT
     @Path("/{id}")
-    public Response updateMyReport(@PathParam("id") String rawId, @Valid ReportInput body) {
+    public Response updateMyReport(
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid ReportInput body) {
         return service.updateMyReport(rawId, body);
     }
 

@@ -3,6 +3,7 @@ package dev.stackverse.backend;
 import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -35,7 +36,8 @@ public class BookmarksResource {
 
     @POST
     @Authenticated
-    public Response createBookmark(@Valid BookmarkInput body) {
+    public Response createBookmark(
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid BookmarkInput body) {
         return service.createBookmark(body);
     }
 
@@ -48,7 +50,9 @@ public class BookmarksResource {
     @PUT
     @Path("/{id}")
     @Authenticated
-    public Response updateBookmark(@PathParam("id") String rawId, @Valid BookmarkInput body) {
+    public Response updateBookmark(
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid BookmarkInput body) {
         return service.updateBookmark(rawId, body);
     }
 

@@ -2,6 +2,7 @@ package dev.stackverse.backend;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.nio.charset.StandardCharsets;
@@ -114,7 +115,7 @@ record MessageInput(
                         message = "validation.message.key.invalid")
                 String key,
         @Pattern(regexp = "^[a-z]{2}$", message = "validation.message.language.invalid") String language,
-        @NotBlank(message = "validation.message.text.required") @Size(max = 2000, message = "validation.message.text.too-long") String text,
+        @NotEmpty(message = "validation.message.text.required") @Size(max = 2000, message = "validation.message.text.too-long") String text,
         @Size(max = 1000, message = "validation.message.description.too-long") String description) {
     MessageInput {
         key = key == null ? "" : key.trim();

@@ -110,8 +110,8 @@ public class ApplicationLifecycle {
                     statement.setString(2, entry.getKey());
                     statement.setString(3, language);
                     statement.setString(4, entry.getValue());
-                    statement.setTimestamp(5, Timestamp.from(ServiceSupport.now()));
-                    statement.setTimestamp(6, Timestamp.from(ServiceSupport.now()));
+                    statement.setTimestamp(5, Timestamp.from(PersistenceSupport.now()));
+                    statement.setTimestamp(6, Timestamp.from(PersistenceSupport.now()));
                     inserted += statement.executeUpdate();
                 }
             }

@@ -54,7 +54,7 @@ class Localizer {
         }
         try (Connection connection = dataSource.getConnection()) {
             List<MessageText> rows =
-                    ServiceSupport.query(
+                    PersistenceSupport.query(
                             connection,
                             "select key, language, text from messages"
                                     + " where key = any(?::text[]) and language = any(?::text[])"
@@ -89,7 +89,7 @@ class Localizer {
     Map<String, String> bundle(String language) {
         try (Connection connection = dataSource.getConnection()) {
             List<MessageText> rows =
-                    ServiceSupport.query(
+                    PersistenceSupport.query(
                             connection,
                             "select key, language, text from messages where language = any(?::text[]) order by key",
                             List.of(List.of(language, DEFAULT_LANGUAGE)),
@@ -113,7 +113,7 @@ class Localizer {
     Set<String> supportedLanguages() {
         try (Connection connection = dataSource.getConnection()) {
             return new LinkedHashSet<>(
-                    ServiceSupport.query(
+                    PersistenceSupport.query(
                             connection,
                             "select distinct language from messages order by language",
                             List.of(),

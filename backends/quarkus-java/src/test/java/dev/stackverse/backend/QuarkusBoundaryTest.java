@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -21,6 +22,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import org.jboss.logging.MDC;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
@@ -46,6 +51,43 @@ class QuarkusBoundaryTest {
                 .statusCode(401)
                 .contentType("application/problem+json")
                 .body("title", equalTo("Unauthorized"));
+    }
+
+    @Test
+    void missingCredentialsDoNotClaimThatJwtValidationFailed() {
+        List<String> securityEvents = new CopyOnWriteArrayList<>();
+        Handler capture =
+                new Handler() {
+                    @Override
+                    public void publish(LogRecord record) {
+                        Object event = MDC.get("event");
+                        if (event != null) {
+                            securityEvents.add(event.toString());
+                        }
+                    }
+
+                    @Override
+                    public void flush() {}
+
+                    @Override
+                    public void close() {}
+                };
+        java.util.logging.Logger root = java.util.logging.LogManager.getLogManager().getLogger("");
+        root.addHandler(capture);
+        try {
+            given().contentType("application/json")
+                    .body("{\"url\":\"https://example.com\",\"title\":\"Example\"}")
+                    .when()
+                    .post("/api/v1/bookmarks")
+                    .then()
+                    .statusCode(401);
+        } finally {
+            root.removeHandler(capture);
+        }
+
+        assertTrue(
+                securityEvents.stream().noneMatch("jwt_validation_failed"::equals),
+                () -> "unexpected security events: " + securityEvents);
     }
 
     @Test
@@ -143,6 +185,34 @@ class QuarkusBoundaryTest {
     }
 
     @Test
+    @TestSecurity(user = "admin", roles = "admin")
+    void nullJsonBodiesBecomeMalformedRequestProblems() {
+        given().contentType("application/json")
+                .body("null")
+                .when()
+                .post("/api/v1/messages")
+                .then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Bad Request"))
+                .body("detail", equalTo("Malformed request body."));
+    }
+
+    @Test
+    @TestSecurity(user = "admin", roles = "admin")
+    void scalarJsonValuesAreNotCoercedIntoTypedStringFields() {
+        given().contentType("application/json")
+                .body("{\"key\":42,\"language\":true,\"text\":\"Example\"}")
+                .when()
+                .post("/api/v1/messages")
+                .then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("title", equalTo("Bad Request"))
+                .body("detail", equalTo("Malformed request body."));
+    }
+
+    @Test
     void configuredJacksonSerializesTypedResponsesAndOmitsAbsentFields() throws Exception {
         BookmarkResponse response =
                 new BookmarkResponse(
@@ -161,6 +231,13 @@ class QuarkusBoundaryTest {
         assertEquals("11111111-2222-3333-4444-555555555555", json.get("id").asText());
         assertEquals("2026-07-01T12:00:00Z", json.get("createdAt").asText());
         assertFalse(json.has("notes"));
+
+        BookmarkInput input =
+                mapper.readValue(
+                        "{\"url\":\"https://example.com\",\"title\":\"Example\",\"futureField\":true}",
+                        BookmarkInput.class);
+        assertEquals("https://example.com", input.url());
+        assertEquals("Example", input.title());
     }
 }
 
@@ -190,7 +267,7 @@ class BoundaryBookmarkService extends BookmarkService {
     @Inject SecurityIdentity securityIdentity;
 
     BoundaryBookmarkService() {
-        super(null, null, null, null, null);
+        super(null, null, null);
     }
 
     @Override

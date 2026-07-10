@@ -1,5 +1,6 @@
 package dev.stackverse.backend;
 
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import io.quarkus.security.AuthenticationFailedException;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.Priority;
@@ -95,7 +96,9 @@ final class StackverseProblem extends RuntimeException {
             language = localizer.resolveLanguage(uriInfo, headers);
             resolvedDetail = localizer.localize(detailKey, language);
         }
-        ServiceSupport.putIfPresent(body, "detail", resolvedDetail);
+        if (resolvedDetail != null) {
+            body.put("detail", resolvedDetail);
+        }
         if (!fields.isEmpty()) {
             if (language == null) {
                 language = localizer.resolveLanguage(uriInfo, headers);
@@ -150,7 +153,7 @@ final class ResponseContracts {
         String requestPath = request == null ? null : request.getUriInfo().getPath();
         String uriPath = uriInfo == null ? null : uriInfo.getPath();
         if (isV1BookmarksPath(requestPath) || isV1BookmarksPath(uriPath)) {
-            return ServiceSupport.v1BookmarksDeprecationHeaders(response);
+            return HttpResponses.v1BookmarksDeprecationHeaders(response);
         }
         return response;
     }
@@ -198,8 +201,6 @@ class AuthenticationFailedMapper implements ExceptionMapper<AuthenticationFailed
 @Priority(0)
 class QuarkusUnauthorizedMapper
         implements ExceptionMapper<io.quarkus.security.UnauthorizedException> {
-    private static final Logger LOG = Logger.getLogger(QuarkusUnauthorizedMapper.class);
-
     private final Localizer localizer;
 
     @Context UriInfo uriInfo;
@@ -215,13 +216,6 @@ class QuarkusUnauthorizedMapper
 
     @Override
     public Response toResponse(io.quarkus.security.UnauthorizedException exception) {
-        StackverseLog.event(
-                LOG,
-                Logger.Level.INFO,
-                "jwt_validation_failed",
-                "failure",
-                "Rejected a bearer token",
-                Map.of("error_code", "invalid_token"));
         Response response =
                 StackverseProblem.unauthorized("Missing or invalid bearer token.")
                         .response(localizer, uriInfo, headers);
@@ -274,6 +268,8 @@ class QuarkusForbiddenMapper implements ExceptionMapper<io.quarkus.security.Forb
 @Provider
 @Priority(1)
 class ConstraintViolationMapper implements ExceptionMapper<ConstraintViolationException> {
+    static final String MALFORMED_BODY = "stackverse.malformed-body";
+
     private static final Logger LOG = Logger.getLogger(ConstraintViolationMapper.class);
 
     private final Localizer localizer;
@@ -291,6 +287,13 @@ class ConstraintViolationMapper implements ExceptionMapper<ConstraintViolationEx
 
     @Override
     public Response toResponse(ConstraintViolationException exception) {
+        if (exception.getConstraintViolations().stream()
+                .anyMatch(violation -> MALFORMED_BODY.equals(violation.getMessage()))) {
+            Response response =
+                    StackverseProblem.badRequest("Malformed request body.")
+                            .response(localizer, uriInfo, headers);
+            return ResponseContracts.routeHeaders(request, uriInfo, response);
+        }
         List<FieldViolation> fields =
                 exception.getConstraintViolations().stream()
                         .map(ConstraintViolationMapper::fieldViolation)
@@ -322,6 +325,31 @@ class ConstraintViolationMapper implements ExceptionMapper<ConstraintViolationEx
             }
         }
         return new FieldViolation(field, violation.getMessage());
+    }
+}
+
+@Provider
+@Priority(1)
+class JsonMappingExceptionMapper implements ExceptionMapper<MismatchedInputException> {
+    private final Localizer localizer;
+
+    @Context UriInfo uriInfo;
+
+    @Context HttpHeaders headers;
+
+    @Context ContainerRequestContext request;
+
+    @Inject
+    JsonMappingExceptionMapper(Localizer localizer) {
+        this.localizer = localizer;
+    }
+
+    @Override
+    public Response toResponse(MismatchedInputException exception) {
+        Response response =
+                StackverseProblem.badRequest("Malformed request body.")
+                        .response(localizer, uriInfo, headers);
+        return ResponseContracts.routeHeaders(request, uriInfo, response);
     }
 }
 
@@ -372,13 +400,6 @@ class ProblemMapper implements ExceptionMapper<Throwable> {
             return problem;
         }
         if (throwable instanceof NotAuthorizedException) {
-            StackverseLog.event(
-                    LOG,
-                    Logger.Level.INFO,
-                    "jwt_validation_failed",
-                    "failure",
-                    "Rejected a bearer token",
-                    Map.of("error_code", "invalid_token"));
             return StackverseProblem.unauthorized("Missing or invalid bearer token.");
         }
         if (throwable instanceof ForbiddenException) {

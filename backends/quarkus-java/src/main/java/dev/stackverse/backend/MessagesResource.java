@@ -3,6 +3,7 @@ package dev.stackverse.backend;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -48,14 +49,17 @@ public class MessagesResource {
 
     @POST
     @RolesAllowed("admin")
-    public Response createMessage(@Valid MessageInput body) {
+    public Response createMessage(
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid MessageInput body) {
         return service.createMessage(body);
     }
 
     @PUT
     @Path("/{id}")
     @RolesAllowed("admin")
-    public Response updateMessage(@PathParam("id") String rawId, @Valid MessageInput body) {
+    public Response updateMessage(
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid MessageInput body) {
         return service.updateMessage(rawId, body);
     }
 

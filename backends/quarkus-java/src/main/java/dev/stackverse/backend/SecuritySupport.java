@@ -82,16 +82,16 @@ class AccountRequestFilter implements ContainerRequestFilter {
         }
         try (Connection connection = dataSource.getConnection()) {
             String status =
-                    ServiceSupport.queryOne(
+                    PersistenceSupport.queryOne(
                                     connection,
                                     "insert into user_accounts (username, first_seen, last_seen, status)"
                                             + " values (?, ?, ?, 'active')"
                                             + " on conflict (username) do update set last_seen = excluded.last_seen"
                                             + " returning status",
-                                    ServiceSupport.params(
+                                    PersistenceSupport.params(
                                             caller.username(),
-                                            ServiceSupport.now(),
-                                            ServiceSupport.now()),
+                                            PersistenceSupport.now(),
+                                            PersistenceSupport.now()),
                                     rs -> rs.getString("status"))
                             .orElse("active");
             if ("blocked".equals(status)) {

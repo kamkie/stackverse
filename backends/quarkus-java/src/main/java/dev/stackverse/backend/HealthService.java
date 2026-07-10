@@ -1,26 +1,18 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import javax.sql.DataSource;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 
 @ApplicationScoped
-public class HealthService extends ServiceSupport {
-    @Inject
-    public HealthService(
-            DataSource dataSource,
-            JsonWebToken jwt,
-            SecurityIdentity securityIdentity,
-            ObjectMapper mapper,
-            Localizer localizer) {
-        super(dataSource, jwt, securityIdentity, mapper, localizer);
+public class HealthService {
+    private final DataSource dataSource;
+
+    HealthService(DataSource dataSource) {
+        this.dataSource = dataSource;
     }
 
     public Response healthz() {

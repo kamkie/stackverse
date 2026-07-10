@@ -84,9 +84,10 @@ standard Quarkus layout.
 ## Deliberate deviations worth comparing
 
 - The implementation deliberately uses plain JDBC rather than Hibernate/Panache.
-  SQL and row-locking remain explicit inside feature services and a focused
-  `ServiceSupport` persistence/contract boundary; REST resources never handle
-  connections or SQL directly.
+  SQL and row-locking remain explicit inside feature services. Narrow CDI
+  collaborators own transactions, authorization, request parameters, HTTP
+  caching, and audit writes; REST resources never handle connections or SQL
+  directly.
 - Enum wire values are stored lowercase in PostgreSQL, matching the API contract
   directly.
 - `LOG_FORMAT=text` is mapped to Quarkus' JSON-console switch through a small

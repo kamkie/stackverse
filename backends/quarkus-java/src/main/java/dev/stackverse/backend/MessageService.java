@@ -1,41 +1,63 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.quarkus.security.identity.SecurityIdentity;
+import static dev.stackverse.backend.HttpResponses.pageResponse;
+import static dev.stackverse.backend.PersistenceSupport.instant;
+import static dev.stackverse.backend.PersistenceSupport.isUniqueViolation;
+import static dev.stackverse.backend.PersistenceSupport.now;
+import static dev.stackverse.backend.PersistenceSupport.params;
+import static dev.stackverse.backend.PersistenceSupport.query;
+import static dev.stackverse.backend.PersistenceSupport.queryOne;
+import static dev.stackverse.backend.PersistenceSupport.scalarLong;
+
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import javax.sql.DataSource;
-import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-public class MessageService extends ServiceSupport {
-    @Inject
+public class MessageService {
+    private static final Logger LOG = Logger.getLogger(MessageService.class);
+
+    private final DatabaseOperations database;
+    private final Authorization authorization;
+    private final RequestParameters requestParameters;
+    private final HttpResponses httpResponses;
+    private final AuditTrail auditTrail;
+    private final Localizer localizer;
+
     public MessageService(
-            DataSource dataSource,
-            JsonWebToken jwt,
-            SecurityIdentity securityIdentity,
-            ObjectMapper mapper,
+            DatabaseOperations database,
+            Authorization authorization,
+            RequestParameters requestParameters,
+            HttpResponses httpResponses,
+            AuditTrail auditTrail,
             Localizer localizer) {
-        super(dataSource, jwt, securityIdentity, mapper, localizer);
+        this.database = database;
+        this.authorization = authorization;
+        this.requestParameters = requestParameters;
+        this.httpResponses = httpResponses;
+        this.auditTrail = auditTrail;
+        this.localizer = localizer;
     }
 
     public Response listMessages(RequestContext request) {
-        int page = pagingPage(request);
-        int size = pageSize(request);
-        String key = singleParam(request, "key");
-        String language = singleParam(request, "language");
-        String q = singleParam(request, "q");
-        maxLength(q, 200, "q");
+        int page = requestParameters.pagingPage(request);
+        int size = requestParameters.pageSize(request);
+        String key = requestParameters.singleParam(request, "key");
+        String language = requestParameters.singleParam(request, "language");
+        String q = requestParameters.singleParam(request, "q");
+        requestParameters.maxLength(q, 200, "q");
         PageResponse<MessageResponse> response =
-                withConnection(
+                database.withConnection(
                         connection -> {
                             SqlWhere where = new SqlWhere();
                             if (key != null) {
@@ -47,8 +69,8 @@ public class MessageService extends ServiceSupport {
                             if (q != null && !q.isBlank()) {
                                 where.and(
                                         "(key ilike ? escape '\\' or text ilike ? escape '\\')",
-                                        "%" + escapeLike(q) + "%",
-                                        "%" + escapeLike(q) + "%");
+                                        "%" + requestParameters.escapeLike(q) + "%",
+                                        "%" + requestParameters.escapeLike(q) + "%");
                             }
                             long total =
                                     scalarLong(
@@ -57,7 +79,7 @@ public class MessageService extends ServiceSupport {
                                             where.params());
                             List<Object> params = new ArrayList<>(where.params());
                             params.add(size);
-                            params.add(offset(page, size));
+                            params.add(requestParameters.offset(page, size));
                             List<MessageResponse> items =
                                     query(
                                             connection,
@@ -68,20 +90,20 @@ public class MessageService extends ServiceSupport {
                                             rs -> messageResponse(message(rs)));
                             return pageResponse(items, page, size, total);
                         });
-        return etag(request, response, null);
+        return httpResponses.etag(request, response, null);
     }
 
     public Response messageBundle(RequestContext request) {
         String language = localizer.resolveLanguage(request.uriInfo(), request.headers());
         MessageBundleResponse body =
                 new MessageBundleResponse(language, localizer.bundle(language));
-        return etag(request, body, Map.of("Content-Language", language));
+        return httpResponses.etag(request, body, Map.of("Content-Language", language));
     }
 
     public Response getMessage(RequestContext request, String rawId) {
-        UUID id = parseUuid(rawId);
+        UUID id = requestParameters.parseUuid(rawId);
         MessageResponse body =
-                withConnection(
+                database.withConnection(
                         connection ->
                                 queryOne(
                                                 connection,
@@ -89,13 +111,13 @@ public class MessageService extends ServiceSupport {
                                                 List.of(id),
                                                 rs -> messageResponse(message(rs)))
                                         .orElseThrow(StackverseProblem::notFound));
-        return etag(request, body, null);
+        return httpResponses.etag(request, body, null);
     }
 
     public Response createMessage(MessageInput input) {
-        Caller caller = requireRole("admin");
+        Caller caller = authorization.requireRole("admin");
         Message created =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             if (messageConflict(connection, input.key(), input.language(), null)) {
                                 throw duplicateMessage(input);
@@ -116,7 +138,7 @@ public class MessageService extends ServiceSupport {
                                                                 input.description(),
                                                                 now,
                                                                 now),
-                                                        ServiceSupport::message)
+                                                        MessageService::message)
                                                 .orElseThrow();
                             } catch (RuntimeException error) {
                                 if (isUniqueViolation(error)) {
@@ -124,7 +146,7 @@ public class MessageService extends ServiceSupport {
                                 }
                                 throw error;
                             }
-                            recordAudit(
+                            auditTrail.record(
                                     connection,
                                     caller.username(),
                                     "message.created",
@@ -156,10 +178,10 @@ public class MessageService extends ServiceSupport {
     }
 
     public Response updateMessage(String rawId, MessageInput input) {
-        Caller caller = requireRole("admin");
-        UUID id = parseUuid(rawId);
+        Caller caller = authorization.requireRole("admin");
+        UUID id = requestParameters.parseUuid(rawId);
         Message updated =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             queryOne(
                                             connection,
@@ -184,7 +206,7 @@ public class MessageService extends ServiceSupport {
                                                                 input.description(),
                                                                 now(),
                                                                 id),
-                                                        ServiceSupport::message)
+                                                        MessageService::message)
                                                 .orElseThrow();
                             } catch (RuntimeException error) {
                                 if (isUniqueViolation(error)) {
@@ -192,7 +214,7 @@ public class MessageService extends ServiceSupport {
                                 }
                                 throw error;
                             }
-                            recordAudit(
+                            auditTrail.record(
                                     connection,
                                     caller.username(),
                                     "message.updated",
@@ -222,19 +244,19 @@ public class MessageService extends ServiceSupport {
     }
 
     public Response deleteMessage(String rawId) {
-        Caller caller = requireRole("admin");
-        UUID id = parseUuid(rawId);
+        Caller caller = authorization.requireRole("admin");
+        UUID id = requestParameters.parseUuid(rawId);
         Message deleted =
-                inTransaction(
+                database.inTransaction(
                         connection -> {
                             Message row =
                                     queryOne(
                                                     connection,
                                                     "delete from messages where id = ? returning *",
                                                     List.of(id),
-                                                    ServiceSupport::message)
+                                                    MessageService::message)
                                             .orElseThrow(StackverseProblem::notFound);
-                            recordAudit(
+                            auditTrail.record(
                                     connection,
                                     caller.username(),
                                     "message.deleted",
@@ -261,5 +283,61 @@ public class MessageService extends ServiceSupport {
                         "language",
                         deleted.language()));
         return Response.noContent().build();
+    }
+
+    private static Message message(ResultSet rs) throws SQLException {
+        return new Message(
+                (UUID) rs.getObject("id"),
+                rs.getString("key"),
+                rs.getString("language"),
+                rs.getString("text"),
+                rs.getString("description"),
+                instant(rs, "created_at"),
+                instant(rs, "updated_at"));
+    }
+
+    private static MessageResponse messageResponse(Message message) {
+        return new MessageResponse(
+                message.id(),
+                message.key(),
+                message.language(),
+                message.text(),
+                message.description(),
+                message.createdAt(),
+                message.updatedAt());
+    }
+
+    private boolean messageConflict(
+            Connection connection, String key, String language, UUID excluding) {
+        if (excluding == null) {
+            return scalarLong(
+                            connection,
+                            "select count(*) from messages where key = ? and language = ?",
+                            List.of(key, language))
+                    > 0;
+        }
+        return scalarLong(
+                        connection,
+                        "select count(*) from messages where key = ? and language = ? and id <> ?",
+                        List.of(key, language, excluding))
+                > 0;
+    }
+
+    private StackverseProblem duplicateMessage(MessageInput input) {
+        return StackverseProblem.conflict(
+                "A message with key '"
+                        + input.key()
+                        + "' and language '"
+                        + input.language()
+                        + "' already exists.");
+    }
+
+    private Map<String, Object> snapshot(Message message) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("key", message.key());
+        body.put("language", message.language());
+        body.put("text", message.text());
+        body.put("description", message.description());
+        return body;
     }
 }
