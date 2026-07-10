@@ -1,4 +1,5 @@
 import { apiGet } from "./api";
+import { APP_ACTIONS } from "./app-actions";
 import { i18n, state, SUPPORTED_LANGUAGES } from "./app-state";
 import {
   bookmarkCellHtml,
@@ -14,6 +15,8 @@ import {
   navClass,
   loginPromptHtml,
   paginationHtml,
+  reportStatusBadgeHtml,
+  reportStatusOptionsHtml,
 } from "./view-helpers";
 import type {
   AdminStats,
@@ -21,7 +24,6 @@ import type {
   Message,
   Page,
   Report,
-  ReportStatus,
   UserAccount,
 } from "./types";
 
@@ -135,12 +137,7 @@ export async function adminReportsPageHtml(): Promise<string> {
   return `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.reports"))}</h1>
     <div class="sv-toolbar">
       <select class="sv-select" data-bind="admin-reports-status">
-        ${(["open", "dismissed", "actioned"] as ReportStatus[])
-          .map(
-            (status) =>
-              `<option value="${status}"${selected(state.adminReports.status, status)}>${escapeHtml(t(`ui.report.status.${status}`))}</option>`,
-          )
-          .join("")}
+        ${reportStatusOptionsHtml(state.adminReports.status)}
       </select>
     </div>
     ${
@@ -159,8 +156,8 @@ export async function adminReportsPageHtml(): Promise<string> {
             .map((report) => {
               const resolvedActions =
                 report.status === "actioned"
-                  ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="resolve-report" data-id="${escapeHtml(report.id)}" data-resolution="dismissed">${escapeHtml(t("ui.action.dismiss"))}</button>`
-                  : `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="resolve-report" data-id="${escapeHtml(report.id)}" data-resolution="actioned">${escapeHtml(t("ui.action.action"))}</button>`;
+                  ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.resolveReport}" data-id="${escapeHtml(report.id)}" data-resolution="dismissed">${escapeHtml(t("ui.action.dismiss"))}</button>`
+                  : `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.resolveReport}" data-id="${escapeHtml(report.id)}" data-resolution="actioned">${escapeHtml(t("ui.action.action"))}</button>`;
               return `<tr data-ctx="report:${escapeHtml(report.id)}">
                 <td><time datetime="${escapeHtml(report.createdAt)}">${escapeHtml(new Date(report.createdAt).toLocaleString(i18n.resolvedLanguage))}</time></td>
                 <td>${bookmarkCellHtml(report.bookmarkId, contexts)}</td>
@@ -169,11 +166,11 @@ export async function adminReportsPageHtml(): Promise<string> {
                 <td>${escapeHtml(report.comment ?? "")}</td>
                 <td class="sv-cell-actions">${
                   report.status === "open"
-                    ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="resolve-report" data-id="${escapeHtml(report.id)}" data-resolution="dismissed">${escapeHtml(t("ui.action.dismiss"))}</button>
-                       <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="resolve-report" data-id="${escapeHtml(report.id)}" data-resolution="actioned">${escapeHtml(t("ui.action.action"))}</button>`
-                    : `<span class="sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}">${escapeHtml(t(`ui.report.status.${report.status}`))}</span>
+                    ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.resolveReport}" data-id="${escapeHtml(report.id)}" data-resolution="dismissed">${escapeHtml(t("ui.action.dismiss"))}</button>
+                       <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.resolveReport}" data-id="${escapeHtml(report.id)}" data-resolution="actioned">${escapeHtml(t("ui.action.action"))}</button>`
+                    : `${reportStatusBadgeHtml(report.status)}
                        ${resolvedActions}
-                       <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="resolve-report" data-id="${escapeHtml(report.id)}" data-resolution="open">${escapeHtml(t("ui.action.reopen"))}</button>`
+                       <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.resolveReport}" data-id="${escapeHtml(report.id)}" data-resolution="open">${escapeHtml(t("ui.action.reopen"))}</button>`
                 }</td>
               </tr>`;
             })
@@ -215,9 +212,9 @@ export async function usersPageHtml(): Promise<string> {
               }</td>
               <td class="sv-cell-actions">${
                 user.status === "blocked"
-                  ? `<button type="button" class="sv-button sv-button--sm" data-action="unblock-user" data-username="${escapeHtml(user.username)}">${escapeHtml(t("ui.action.unblock"))}</button>`
+                  ? `<button type="button" class="sv-button sv-button--sm" data-action="${APP_ACTIONS.unblockUser}" data-username="${escapeHtml(user.username)}">${escapeHtml(t("ui.action.unblock"))}</button>`
                   : state.me?.username !== user.username
-                    ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-block-user" data-username="${escapeHtml(user.username)}">${escapeHtml(t("ui.action.block"))}</button>`
+                    ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openBlockUser}" data-username="${escapeHtml(user.username)}">${escapeHtml(t("ui.action.block"))}</button>`
                     : ""
               }</td>
             </tr>`,
@@ -260,7 +257,7 @@ export async function auditPageHtml(): Promise<string> {
       <datalist id="audit-known-actions">${knownActions.map((action) => `<option value="${escapeHtml(action)}"></option>`).join("")}</datalist>
       <label class="sv-toolbar-field"><span class="sv-label">${escapeHtml(t("ui.field.from"))}</span><input type="date" class="sv-input" data-bind="audit-from" value="${escapeHtml(state.audit.from)}"></label>
       <label class="sv-toolbar-field"><span class="sv-label">${escapeHtml(t("ui.field.to"))}</span><input type="date" class="sv-input" data-bind="audit-to" value="${escapeHtml(state.audit.to)}"></label>
-      <button type="button" class="sv-button sv-button--ghost" data-action="clear-audit">${escapeHtml(t("ui.action.clear-filters"))}</button>
+      <button type="button" class="sv-button sv-button--ghost" data-action="${APP_ACTIONS.clearAudit}">${escapeHtml(t("ui.action.clear-filters"))}</button>
     </div>
     <div class="sv-table-wrap"><table class="sv-table">
       <thead><tr>
@@ -298,8 +295,8 @@ export async function messagesPageHtml(): Promise<string> {
         <option value=""${selected(state.messages.language, "")}>${escapeHtml(t("ui.messages.filter.all-languages"))}</option>
         ${SUPPORTED_LANGUAGES.map((lang) => `<option value="${lang}"${selected(state.messages.language, lang)}>${lang}</option>`).join("")}
       </select>
-      <button type="button" class="sv-button sv-button--ghost" data-action="clear-messages">${escapeHtml(t("ui.action.clear-filters"))}</button>
-      <button type="button" class="sv-button sv-button--primary" data-action="open-message-create">${escapeHtml(t("ui.action.add"))}</button>
+      <button type="button" class="sv-button sv-button--ghost" data-action="${APP_ACTIONS.clearMessages}">${escapeHtml(t("ui.action.clear-filters"))}</button>
+      <button type="button" class="sv-button sv-button--primary" data-action="${APP_ACTIONS.openMessageCreate}">${escapeHtml(t("ui.action.add"))}</button>
     </div>
     ${
       data.items.length === 0
@@ -319,8 +316,8 @@ export async function messagesPageHtml(): Promise<string> {
                   <td><span class="sv-badge">${escapeHtml(message.language)}</span></td>
                   <td>${escapeHtml(message.text)}</td>
                   <td class="sv-cell-actions">
-                    <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-message-edit" data-id="${escapeHtml(message.id)}">${escapeHtml(t("ui.action.edit"))}</button>
-                    <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-message-delete" data-id="${escapeHtml(message.id)}">${escapeHtml(t("ui.action.delete"))}</button>
+                    <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openMessageEdit}" data-id="${escapeHtml(message.id)}">${escapeHtml(t("ui.action.edit"))}</button>
+                    <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openMessageDelete}" data-id="${escapeHtml(message.id)}">${escapeHtml(t("ui.action.delete"))}</button>
                   </td>
                 </tr>`,
             )

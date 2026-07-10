@@ -1,3 +1,4 @@
+import { APP_ACTIONS } from "./app-actions";
 import { i18n, state, SUPPORTED_LANGUAGES, THEME_OPTIONS } from "./app-state";
 import {
   t,
@@ -31,19 +32,19 @@ export function headerHtml(): string {
       <div class="sv-theme-switch" role="group" aria-label="${escapeHtml(t("ui.theme.label"))}">
         ${THEME_OPTIONS.map(
           (option) =>
-            `<button type="button" class="sv-theme-option${theme === option ? " is-active" : ""}" data-action="theme" data-theme="${option}">${escapeHtml(t(`ui.theme.${option}`))}</button>`,
+            `<button type="button" class="sv-theme-option${theme === option ? " is-active" : ""}" data-action="${APP_ACTIONS.theme}" data-theme="${option}">${escapeHtml(t(`ui.theme.${option}`))}</button>`,
         ).join("")}
       </div>
       <div class="sv-lang-switch" role="group" aria-label="language">
         ${SUPPORTED_LANGUAGES.map(
           (lang) =>
-            `<button type="button" lang="${lang}" class="sv-lang-option${i18n.lang === lang ? " is-active" : ""}" data-action="language" data-lang="${lang}">${lang.toUpperCase()}</button>`,
+            `<button type="button" lang="${lang}" class="sv-lang-option${i18n.lang === lang ? " is-active" : ""}" data-action="${APP_ACTIONS.language}" data-lang="${lang}">${lang.toUpperCase()}</button>`,
         ).join("")}
       </div>
       ${
         authenticated
           ? `<span class="sv-username">${escapeHtml(session.username)}</span>
-             <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="logout">${escapeHtml(t("ui.action.logout"))}</button>`
+             <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.logout}">${escapeHtml(t("ui.action.logout"))}</button>`
           : `<a class="sv-button sv-button--primary sv-button--sm" href="/auth/login">${escapeHtml(t("ui.action.login"))}</a>`
       }
     </div>

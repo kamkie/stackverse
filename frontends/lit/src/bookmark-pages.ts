@@ -1,4 +1,5 @@
 import { apiGet } from "./api";
+import { APP_ACTIONS } from "./app-actions";
 import { i18n, state } from "./app-state";
 import type { BookmarkListState } from "./app-state";
 import {
@@ -9,13 +10,14 @@ import {
   readReportedIds,
   loginPromptHtml,
   paginationHtml,
+  reportStatusBadgeHtml,
+  reportStatusOptionsHtml,
 } from "./view-helpers";
 import type {
   Bookmark,
   BookmarkCursorPage,
   Page,
   Report,
-  ReportStatus,
   TagList,
   Visibility,
 } from "./types";
@@ -78,7 +80,7 @@ export function tagListHtml(
   return `<ul class="sv-tag-list">${tags
     .map(
       ({ tag, count }) =>
-        `<li><button type="button" class="sv-tag${activeTags.includes(tag) ? " is-active" : ""}" data-action="toggle-tag" data-list="${listName}" data-tag="${escapeHtml(tag)}"${clickable ? "" : " disabled"}>${escapeHtml(tag)}${count !== undefined ? ` <span class="sv-tag-count">${count}</span>` : ""}</button></li>`,
+        `<li><button type="button" class="sv-tag${activeTags.includes(tag) ? " is-active" : ""}" data-action="${APP_ACTIONS.toggleTag}" data-list="${listName}" data-tag="${escapeHtml(tag)}"${clickable ? "" : " disabled"}>${escapeHtml(tag)}${count !== undefined ? ` <span class="sv-tag-count">${count}</span>` : ""}</button></li>`,
     )
     .join("")}</ul>`;
 }
@@ -131,7 +133,7 @@ export function bookmarkListHtml(
     .join("")}</ul>
     ${
       list.nextCursor
-        ? `<div class="sv-load-more"><button type="button" class="sv-button" data-action="load-more" data-list="${listName}">${escapeHtml(t("ui.action.load-more"))}</button></div>`
+        ? `<div class="sv-load-more"><button type="button" class="sv-button" data-action="${APP_ACTIONS.loadMore}" data-list="${listName}">${escapeHtml(t("ui.action.load-more"))}</button></div>`
         : ""
     }`;
 }
@@ -155,14 +157,14 @@ export async function myBookmarksPageHtml(): Promise<string> {
       <h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-bookmarks"))}</h1>
       <div class="sv-toolbar">
         <input type="search" class="sv-input" placeholder="${escapeHtml(t("ui.bookmarks.search.placeholder"))}" aria-label="${escapeHtml(t("ui.bookmarks.search.placeholder"))}" data-bind="bookmarks-q" value="${escapeHtml(state.bookmarks.q)}">
-        <button type="button" class="sv-button sv-button--primary" data-action="open-bookmark-create">${escapeHtml(t("ui.action.add"))}</button>
+        <button type="button" class="sv-button sv-button--primary" data-action="${APP_ACTIONS.openBookmarkCreate}">${escapeHtml(t("ui.action.add"))}</button>
       </div>
       ${bookmarkListHtml(
         state.bookmarks,
         "bookmarks",
         (bookmark) =>
-          `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-bookmark-edit" data-id="${escapeHtml(bookmark.id)}">${escapeHtml(t("ui.action.edit"))}</button>
-           <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-bookmark-delete" data-id="${escapeHtml(bookmark.id)}">${escapeHtml(t("ui.action.delete"))}</button>`,
+          `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openBookmarkEdit}" data-id="${escapeHtml(bookmark.id)}">${escapeHtml(t("ui.action.edit"))}</button>
+           <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openBookmarkDelete}" data-id="${escapeHtml(bookmark.id)}">${escapeHtml(t("ui.action.delete"))}</button>`,
         filtered ? t("ui.bookmarks.no-matches") : undefined,
       )}
     </section>
@@ -186,7 +188,7 @@ export async function publicFeedPageHtml(): Promise<string> {
         authenticated
           ? reported.has(bookmark.id)
             ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" disabled>${escapeHtml(t("ui.report.reported"))}</button>`
-            : `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-report" data-id="${escapeHtml(bookmark.id)}">${escapeHtml(t("ui.action.report"))}</button>`
+            : `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openReport}" data-id="${escapeHtml(bookmark.id)}">${escapeHtml(t("ui.action.report"))}</button>`
           : "",
       filtered ? t("ui.bookmarks.no-matches") : undefined,
     )}
@@ -240,12 +242,7 @@ export async function myReportsPageHtml(): Promise<string> {
     <div class="sv-toolbar">
       <select class="sv-select" aria-label="${escapeHtml(t("ui.field.status"))}" data-bind="my-reports-status">
         <option value=""${selected(state.myReports.status, "")}>${escapeHtml(t("ui.my-reports.filter.all-statuses"))}</option>
-        ${(["open", "dismissed", "actioned"] as ReportStatus[])
-          .map(
-            (status) =>
-              `<option value="${status}"${selected(state.myReports.status, status)}>${escapeHtml(t(`ui.report.status.${status}`))}</option>`,
-          )
-          .join("")}
+        ${reportStatusOptionsHtml(state.myReports.status)}
       </select>
     </div>
     ${
@@ -268,11 +265,11 @@ export async function myReportsPageHtml(): Promise<string> {
                     <td>${bookmarkCellHtml(report.bookmarkId, contexts)}</td>
                     <td><span class="sv-badge">${escapeHtml(t(`ui.report.reason.${report.reason}`))}</span></td>
                     <td>${escapeHtml(report.comment ?? "")}</td>
-                    <td><span class="sv-badge${report.status === "actioned" ? " sv-badge--danger" : ""}">${escapeHtml(t(`ui.report.status.${report.status}`))}</span>${report.resolutionNote ? `<div class="sv-field-hint">${escapeHtml(report.resolutionNote)}</div>` : ""}</td>
+                     <td>${reportStatusBadgeHtml(report.status)}${report.resolutionNote ? `<div class="sv-field-hint">${escapeHtml(report.resolutionNote)}</div>` : ""}</td>
                     <td class="sv-cell-actions">${
                       report.status === "open"
-                        ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-report-edit" data-id="${escapeHtml(report.id)}">${escapeHtml(t("ui.action.edit"))}</button>
-                           <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="open-report-withdraw" data-id="${escapeHtml(report.id)}">${escapeHtml(t("ui.action.withdraw"))}</button>`
+                        ? `<button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openReportEdit}" data-id="${escapeHtml(report.id)}">${escapeHtml(t("ui.action.edit"))}</button>
+                           <button type="button" class="sv-button sv-button--ghost sv-button--sm" data-action="${APP_ACTIONS.openReportWithdraw}" data-id="${escapeHtml(report.id)}">${escapeHtml(t("ui.action.withdraw"))}</button>`
                         : ""
                     }</td>
                   </tr>`,

@@ -45,15 +45,16 @@ describe("stackverse-app custom element", () => {
         return new Response(null, { status: 404 });
       });
 
+    document.body.innerHTML = "<stackverse-app></stackverse-app>";
     await import("./main");
-    const host = await fixture<HTMLElement>(
-      html`<stackverse-app></stackverse-app>`,
-    );
+    const host = document.querySelector<HTMLElement>("stackverse-app");
     expect(host?.shadowRoot).toBeNull();
     await vi.waitFor(() => {
       expect(host?.querySelector(".sv-app")).not.toBeNull();
       expect(host?.textContent).toContain("Public feed");
     });
+
+    await fixture<HTMLElement>(html`<stackverse-app></stackverse-app>`);
 
     const requestPaths = fetchMock.mock.calls.map(
       ([input]) => new URL(String(input), window.location.origin).pathname,

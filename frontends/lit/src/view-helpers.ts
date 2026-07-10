@@ -1,4 +1,5 @@
 import { ApiError, fieldErrorFor, messageOf } from "./api";
+import { APP_ACTIONS } from "./app-actions";
 import { localizeFieldError } from "./i18n";
 import {
   i18n,
@@ -6,7 +7,13 @@ import {
   REPORTED_STORAGE_KEY,
   THEME_STORAGE_KEY,
 } from "./app-state";
-import type { User } from "./types";
+import type { ReportStatus, User } from "./types";
+
+const REPORT_STATUSES: readonly ReportStatus[] = [
+  "open",
+  "dismissed",
+  "actioned",
+];
 
 export function t(key: string): string {
   return i18n.t(key);
@@ -23,6 +30,17 @@ export function escapeHtml(value: unknown): string {
 
 export function selected(value: string, expected: string): string {
   return value === expected ? " selected" : "";
+}
+
+export function reportStatusOptionsHtml(value: ReportStatus | ""): string {
+  return REPORT_STATUSES.map(
+    (status) =>
+      `<option value="${status}"${selected(value, status)}>${escapeHtml(t(`ui.report.status.${status}`))}</option>`,
+  ).join("");
+}
+
+export function reportStatusBadgeHtml(status: ReportStatus): string {
+  return `<span class="sv-badge${status === "actioned" ? " sv-badge--danger" : ""}">${escapeHtml(t(`ui.report.status.${status}`))}</span>`;
 }
 
 export function pathForApi(path: string, value: string): string {
@@ -137,9 +155,9 @@ export function paginationHtml(
 ): string {
   if (totalPages <= 1) return "";
   return `<nav class="sv-pagination">
-    <button type="button" class="sv-button sv-button--ghost sv-button--sm" aria-label="${escapeHtml(t("ui.action.previous"))}" data-action="page" data-bind="${bind}" data-page="${page - 1}"${page <= 0 ? " disabled" : ""}>&lsaquo;</button>
+    <button type="button" class="sv-button sv-button--ghost sv-button--sm" aria-label="${escapeHtml(t("ui.action.previous"))}" data-action="${APP_ACTIONS.page}" data-bind="${bind}" data-page="${page - 1}"${page <= 0 ? " disabled" : ""}>&lsaquo;</button>
     <span>${page + 1} / ${totalPages}</span>
-    <button type="button" class="sv-button sv-button--ghost sv-button--sm" aria-label="${escapeHtml(t("ui.action.next"))}" data-action="page" data-bind="${bind}" data-page="${page + 1}"${page >= totalPages - 1 ? " disabled" : ""}>&rsaquo;</button>
+    <button type="button" class="sv-button sv-button--ghost sv-button--sm" aria-label="${escapeHtml(t("ui.action.next"))}" data-action="${APP_ACTIONS.page}" data-bind="${bind}" data-page="${page + 1}"${page >= totalPages - 1 ? " disabled" : ""}>&rsaquo;</button>
   </nav>`;
 }
 

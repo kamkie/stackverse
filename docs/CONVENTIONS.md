@@ -395,7 +395,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Single light-DOM LitElement shell with route-level template helpers | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Single light-DOM LitElement shell composed from focused route and view modules | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `component$` components in TSX with QRL callbacks and typed props | `component$` TSX components, `$` event handlers, typed props interfaces | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Runes-based components with $props, snippets, and mount() bootstrap | ✅ idiomatic |
@@ -421,7 +421,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/main.ts` | ✅ idiomatic |
+| [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/app.ts` | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit file-based routing under src/routes | Hand-rolled History-API router (lib/route.ts store) with `{#if}` page dispatch in App.svelte | 🔴 undocumented |

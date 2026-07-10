@@ -1,4 +1,6 @@
 import { ApiError } from "./api";
+import { APP_ACTIONS } from "./app-actions";
+import type { AppAction } from "./app-actions";
 import { state, SUPPORTED_LANGUAGES } from "./app-state";
 import type { DialogState } from "./app-state";
 import {
@@ -21,7 +23,7 @@ export function dialogHtml(): string {
         title: t("ui.action.delete"),
         body: t("ui.confirm.delete-bookmark"),
         confirm: t("ui.action.delete"),
-        action: "confirm-bookmark-delete",
+        action: APP_ACTIONS.confirmBookmarkDelete,
         ctx: `bookmark:${state.dialog.bookmark.id}`,
       });
     case "report-bookmark":
@@ -33,7 +35,7 @@ export function dialogHtml(): string {
         title: t("ui.action.withdraw"),
         body: t("ui.confirm.withdraw-report"),
         confirm: t("ui.action.withdraw"),
-        action: "confirm-report-withdraw",
+        action: APP_ACTIONS.confirmReportWithdraw,
         ctx: `report:${state.dialog.report.id}`,
       });
     case "block-user":
@@ -45,7 +47,7 @@ export function dialogHtml(): string {
         title: t("ui.action.delete"),
         body: t("ui.confirm.delete-message"),
         confirm: t("ui.action.delete"),
-        action: "confirm-message-delete",
+        action: APP_ACTIONS.confirmMessageDelete,
         ctx: `message:${state.dialog.message.id}`,
       });
   }
@@ -68,14 +70,14 @@ export function confirmDialogHtml({
   title: string;
   body: string;
   confirm: string;
-  action: string;
+  action: AppAction;
   ctx: string;
 }): string {
   return dialogShell(
     title,
     `<p>${escapeHtml(body)}</p>
     <div class="sv-form-actions">
-      <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
+      <button type="button" class="sv-button" data-action="${APP_ACTIONS.closeDialog}">${escapeHtml(t("ui.action.cancel"))}</button>
       <button type="button" class="sv-button sv-button--danger" data-action="${action}">${escapeHtml(confirm)}</button>
     </div>`,
     ctx,
@@ -117,7 +119,7 @@ export function bookmarkFormDialogHtml(
       })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(t("error.bookmark.hidden-publish"))}</div>` : ""}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
+        <button type="button" class="sv-button" data-action="${APP_ACTIONS.closeDialog}">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.save"))}</button>
       </div>
     </form>`,
@@ -152,7 +154,7 @@ export function reportBookmarkDialogHtml(
       })}
       ${textareaFieldHtml({ name: "comment", label: t("ui.field.comment"), value: values.comment ?? "", error: fieldError(error, "comment") })}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
+        <button type="button" class="sv-button" data-action="${APP_ACTIONS.closeDialog}">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.report"))}</button>
       </div>
     </form>`,
@@ -184,7 +186,7 @@ export function editReportDialogHtml(
       ${textareaFieldHtml({ name: "comment", label: t("ui.field.comment"), value: values.comment ?? "", error: fieldError(error, "comment") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
+        <button type="button" class="sv-button" data-action="${APP_ACTIONS.closeDialog}">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.save"))}</button>
       </div>
     </form>`,
@@ -203,7 +205,7 @@ export function blockUserDialogHtml(
       ${textareaFieldHtml({ name: "reason", label: t("ui.field.reason"), value: values.reason ?? "", error: fieldError(error, "reason") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
+        <button type="button" class="sv-button" data-action="${APP_ACTIONS.closeDialog}">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--danger">${escapeHtml(t("ui.action.block"))}</button>
       </div>
     </form>`,
@@ -244,7 +246,7 @@ export function messageFormDialogHtml(
       ${textareaFieldHtml({ name: "description", label: t("ui.field.description"), value: values.description ?? "", error: fieldError(error, "description") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
       <div class="sv-form-actions">
-        <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
+        <button type="button" class="sv-button" data-action="${APP_ACTIONS.closeDialog}">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.save"))}</button>
       </div>
     </form>`,

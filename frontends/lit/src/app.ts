@@ -2,6 +2,7 @@ import { LitElement, html } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 
 import { ApiError, apiGet, apiSend, fetchSession } from "./api";
+import { assertNever, parseAppAction } from "./app-actions";
 import { adminPageHtml } from "./admin-pages";
 import {
   fetchNextBookmarks,
@@ -44,6 +45,7 @@ import type {
 let appElement: StackverseApp | undefined;
 let currentMainHtml = "";
 let currentIncludeDialog = true;
+let bootstrapPromise: Promise<void> | undefined;
 
 let pendingInputRender: number | undefined;
 
@@ -397,7 +399,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
 }
 
 async function handleAction(element: HTMLElement): Promise<void> {
-  const action = element.dataset.action;
+  const action = parseAppAction(element.dataset.action);
   if (!action || element.hasAttribute("disabled")) return;
 
   switch (action) {
@@ -599,6 +601,8 @@ async function handleAction(element: HTMLElement): Promise<void> {
       state.messages.page = 0;
       await renderApp();
       break;
+    default:
+      assertNever(action);
   }
 }
 
@@ -653,15 +657,12 @@ window.addEventListener("popstate", () => {
 });
 
 export class StackverseApp extends LitElement {
-  private bootstrapped = false;
-
   override connectedCallback(): void {
     super.connectedCallback();
     setAppElement(this);
-    if (!this.bootstrapped) {
-      this.bootstrapped = true;
-      void bootstrap();
-    }
+    this.requestUpdate();
+    bootstrapPromise ??= bootstrap();
+    void bootstrapPromise;
   }
 
   override disconnectedCallback(): void {

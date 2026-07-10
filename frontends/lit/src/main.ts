@@ -3,4 +3,9 @@
 import "../../../spec/design/tokens.css";
 import "../../../spec/design/stackverse.css";
 
-import "./app";
+import { StackverseApp } from "./app";
+
+const app = document.querySelector("stackverse-app");
+if (!(app instanceof StackverseApp)) {
+  throw new Error("stackverse-app not found");
+}
