@@ -153,11 +153,10 @@ describe("dialog non-field errors", () => {
       error: new ApiError(422, {
         title: "Validation failed",
         status: 422,
-        detail: "The request could not be validated.",
         errors: [
           {
             field: "unknown",
-            message: "is invalid",
+            message: "The request could not be validated.",
             messageKey: "validation.unknown",
           },
         ],
@@ -201,17 +200,68 @@ describe("dialog non-field errors", () => {
     );
     const alerts = document.querySelectorAll('.sv-alert--danger[role="alert"]');
     expect(alerts).toHaveLength(1);
-    expect(alerts[0]?.textContent).toBe(
+    expect(alerts[0]?.textContent).toContain(
       "The request has additional validation errors.",
     );
+    expect(alerts[0]?.textContent).toContain("request combination is invalid");
     expect(alerts[0]?.textContent).not.toContain("must be a valid URL");
+  });
+
+  it("renders additional violations that map to an already represented field", () => {
+    state.dialog = {
+      kind: "bookmark-form",
+      mode: "create",
+      values: { url: "https://retry.example", title: "Retry", tags: "bad" },
+      error: new ApiError(400, {
+        title: "Validation failed",
+        status: 400,
+        errors: [
+          {
+            field: "tags[0]",
+            message: "is too long",
+            messageKey: "validation.tags.too-long",
+          },
+          {
+            field: "tags[1]",
+            message: "contains invalid characters",
+            messageKey: "validation.tags.invalid",
+          },
+        ],
+      }),
+    };
+    document.body.innerHTML = dialogHtml();
+
+    expect(document.querySelector(".sv-field-error")?.textContent).toBe(
+      "is too long",
+    );
+    const alert = document.querySelector('.sv-alert--danger[role="alert"]');
+    expect(alert?.textContent).toBe("contains invalid characters");
+  });
+
+  it("keeps an unexpected bookmark conflict detail out of the hidden warning", () => {
+    state.dialog = {
+      kind: "bookmark-form",
+      mode: "create",
+      values: { url: "https://retry.example", title: "Retry" },
+      error: new ApiError(409, {
+        title: "Conflict",
+        status: 409,
+        detail: "Bookmark URL already exists.",
+      }),
+    };
+    document.body.innerHTML = dialogHtml();
+
+    expect(document.querySelector(".sv-alert--warning")).toBeNull();
+    expect(
+      document.querySelector('.sv-alert--danger[role="alert"]')?.textContent,
+    ).toBe("Bookmark URL already exists.");
   });
 
   it("keeps specialized conflicts without adding a generic danger alert", () => {
     state.dialog = {
       kind: "bookmark-form",
       mode: "edit",
-      bookmark,
+      bookmark: { ...bookmark, status: "hidden" },
       values: { visibility: "public" },
       error: new ApiError(409, {
         title: "Conflict",
