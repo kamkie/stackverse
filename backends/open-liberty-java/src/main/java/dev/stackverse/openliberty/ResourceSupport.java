@@ -1,13 +1,11 @@
 package dev.stackverse.openliberty;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.inject.Inject;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.UriInfo;
-import java.net.URI;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -27,7 +25,7 @@ abstract class ResourceSupport {
     private static final Set<String> VISIBILITIES = Set.of("private", "public");
     private static final Set<String> REPORT_STATUSES = Set.of("open", "dismissed", "actioned");
 
-    @Inject protected JdbcRepository runtime;
+    @Inject protected RuntimeSupport runtime;
 
     @Inject protected MessageCatalog messages;
 
@@ -48,20 +46,6 @@ abstract class ResourceSupport {
     protected Caller requireCaller() {
         Caller caller = caller();
         if (caller == null) throw ApiProblem.unauthorized();
-        return caller;
-    }
-
-    protected Caller requireRole(String role) {
-        Caller caller = requireCaller();
-        if (!caller.hasRole(role)) {
-            log.event(
-                    "info",
-                    "authz_denied",
-                    "denied",
-                    "Denied a request lacking the required role",
-                    Map.of("actor", caller.username()));
-            throw ApiProblem.forbidden("You do not have the role required for this operation.");
-        }
         return caller;
     }
 
@@ -110,14 +94,6 @@ abstract class ResourceSupport {
             throw ApiProblem.badRequest("unknown visibility: " + validated.visibility());
         }
         return validated;
-    }
-
-    protected MessageInput messageInput(MessageInput input) {
-        return validateDto(input);
-    }
-
-    protected ReportInput reportInput(ReportInput input) {
-        return validateDto(input);
     }
 
     protected <T> T validateDto(T input) {
@@ -494,26 +470,6 @@ abstract class ResourceSupport {
     protected static boolean visibleTo(ApiModels.Bookmark bookmark, Caller caller) {
         return caller != null && caller.username().equals(bookmark.owner())
                 || "public".equals(bookmark.visibility()) && "active".equals(bookmark.status());
-    }
-
-    protected static boolean isHttpUrl(String value) {
-        try {
-            URI uri = URI.create(value);
-            return ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
-                    && uri.getHost() != null;
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
-    }
-
-    protected static String text(JsonNode node, String field, String fallback) {
-        JsonNode value = node.get(field);
-        return value == null || value.isNull() ? fallback : value.asText();
-    }
-
-    protected static String nullableText(JsonNode node, String field) {
-        JsonNode value = node.get(field);
-        return value == null || value.isNull() || !value.isTextual() ? null : value.asText();
     }
 
     protected static int integer(String raw, int fallback, String name) {

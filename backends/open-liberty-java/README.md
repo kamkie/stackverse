@@ -92,8 +92,8 @@ docker build -t stackverse/backend-open-liberty-java:local -f backends/open-libe
 - Explicit JDBC is retained instead of Jakarta Persistence so SQL locking,
   PostgreSQL arrays, and the moderation state machine remain directly
   comparable with the non-ORM variants. Pooling, migrations, transactions, and
-  statement binding are isolated behind the injected `JdbcRepository` facade;
-  its container-owned `RuntimeSupport` controls the pool lifecycle.
+  statement binding are owned by the injected, application-scoped
+  `RuntimeSupport` boundary.
 - Standard `@RolesAllowed` expects a top-level MP JWT groups claim, while the
   repository-wide Keycloak contract places roles in `realm_access.roles`.
   `@RequiresRole` is the variant-local declarative adapter applied after
@@ -128,7 +128,8 @@ Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;
 | dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | n/a |
 
 ¹ JWT discovery/JWKS traffic belongs to Open Liberty's MicroProfile JWT
-facility rather than an application-owned dependency client. Database startup,
-readiness, and request failures emit `dependency_call_failed` with latency and a
-stable error code. There are no retry loops, so `retry_exhausted` has no
-occurrence to log.
+facility rather than an application-owned dependency client. Database startup
+and request failures emit `dependency_call_failed` with latency and a stable
+error code. Readiness emits that event only when the database changes from ready
+to unavailable, then emits `dependency_recovered` when it becomes reachable
+again. There are no retry loops, so `retry_exhausted` has no occurrence to log.

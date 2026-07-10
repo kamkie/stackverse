@@ -29,7 +29,6 @@ public class AdminResource extends ResourceSupport {
     @Path("/api/v1/admin/users")
     @RequiresRole("admin")
     public Response users() throws SQLException {
-        requireRole("admin");
         Paging paging = paging();
         String q = single("q");
         requireMax(q, 100, "q");
@@ -83,7 +82,6 @@ public class AdminResource extends ResourceSupport {
     @Path("/api/v1/admin/users/{username}")
     @RequiresRole("admin")
     public Response user(@PathParam("username") String username) throws SQLException {
-        requireRole("admin");
         ApiModels.UserAccount account = findUser(username);
         if (account == null) throw ApiProblem.notFound();
         return JsonSupport.json(account);
@@ -94,7 +92,7 @@ public class AdminResource extends ResourceSupport {
     @RequiresRole("admin")
     public Response setUserStatus(@PathParam("username") String username, UserStatusInput body)
             throws SQLException {
-        Caller caller = requireRole("admin");
+        Caller caller = requireCaller();
         UserStatusInput input = validateDto(body);
         String status = input.status();
         if (!"active".equals(status) && !"blocked".equals(status)) {
@@ -107,6 +105,10 @@ public class AdminResource extends ResourceSupport {
                     reason != null && !reason.isBlank(),
                     "reason",
                     "validation.block.reason.required");
+            validator.check(
+                    reason == null || reason.length() <= 1000,
+                    "reason",
+                    "validation.block.reason.too-long");
             validator.throwIfInvalid();
             if (username.equals(caller.username()))
                 throw ApiProblem.conflict("Admins cannot block themselves.");
@@ -170,7 +172,6 @@ public class AdminResource extends ResourceSupport {
     @Path("/api/v1/admin/audit-log")
     @RequiresRole("admin")
     public Response auditLog() throws SQLException {
-        requireRole("admin");
         Paging paging = paging();
         List<String> conditions = new ArrayList<>(List.of("true"));
         List<Object> params = new ArrayList<>();
@@ -211,7 +212,6 @@ public class AdminResource extends ResourceSupport {
     @Path("/api/v1/admin/stats")
     @RequiresRole("moderator")
     public Response stats() throws SQLException {
-        requireRole("moderator");
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate start = today.minusDays(29);
         Instant startInstant = start.atStartOfDay().toInstant(ZoneOffset.UTC);

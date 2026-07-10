@@ -2,9 +2,11 @@ package dev.stackverse.openliberty;
 
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
+import jakarta.json.bind.JsonbException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.NotAllowedException;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.ProcessingException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
@@ -77,6 +79,10 @@ public class ProblemMapper implements ExceptionMapper<Throwable> {
         }
         if (ex instanceof NotFoundException) {
             return withRouteHeaders(JsonSupport.problem(404, "Not Found", null, null));
+        }
+        if (ex instanceof ProcessingException || ex instanceof JsonbException) {
+            return withRouteHeaders(
+                    JsonSupport.problem(400, "Bad Request", "Malformed JSON request body.", null));
         }
         if (ex instanceof WebApplicationException web) {
             int status = web.getResponse().getStatus();

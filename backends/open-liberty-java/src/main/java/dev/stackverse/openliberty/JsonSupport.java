@@ -3,7 +3,6 @@ package dev.stackverse.openliberty;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -29,18 +28,6 @@ final class JsonSupport {
                     .build();
 
     private JsonSupport() {}
-
-    static JsonNode objectNode(String body) {
-        if (body == null || body.isBlank()) {
-            return MAPPER.createObjectNode();
-        }
-        try {
-            JsonNode node = MAPPER.readTree(body);
-            return node != null && node.isObject() ? node : MAPPER.createObjectNode();
-        } catch (JsonProcessingException ex) {
-            throw ApiProblem.badRequest("Malformed JSON request body.");
-        }
-    }
 
     static Response json(Object payload) {
         return Response.ok(

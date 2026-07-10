@@ -27,7 +27,6 @@ public class ModerationResource extends ResourceSupport {
     @Path("/api/v1/admin/reports")
     @RequiresRole("moderator")
     public Response reports() throws SQLException {
-        requireRole("moderator");
         Paging paging = paging();
         String status = reportStatus(single("status"), true);
         ResponsePage result =
@@ -43,7 +42,7 @@ public class ModerationResource extends ResourceSupport {
     @Path("/api/v1/admin/reports/{id}")
     @RequiresRole("moderator")
     public Response resolveReport(@PathParam("id") String rawId, ReportResolutionInput body) {
-        Caller caller = requireRole("moderator");
+        Caller caller = requireCaller();
         UUID id = uuid(rawId);
         ReportResolutionInput input = validateDto(body);
         String resolution = input.resolution();
@@ -155,7 +154,7 @@ public class ModerationResource extends ResourceSupport {
     @Path("/api/v1/admin/bookmarks/{id}/status")
     @RequiresRole("moderator")
     public Response setBookmarkStatus(@PathParam("id") String rawId, BookmarkStatusInput body) {
-        Caller caller = requireRole("moderator");
+        Caller caller = requireCaller();
         UUID id = uuid(rawId);
         BookmarkStatusInput input = validateDto(body);
         String status = input.status();

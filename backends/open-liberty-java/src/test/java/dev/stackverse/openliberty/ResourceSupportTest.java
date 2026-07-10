@@ -253,11 +253,6 @@ class ResourceSupportTest {
 
     @Test
     void staticHelpersPreserveContractEdgeCases() {
-        assertTrue(ResourceSupport.isHttpUrl("https://example.com/path"));
-        assertTrue(ResourceSupport.isHttpUrl("http://example.com"));
-        assertFalse(ResourceSupport.isHttpUrl("ftp://example.com"));
-        assertFalse(ResourceSupport.isHttpUrl("/relative"));
-
         assertEquals("open", ResourceSupport.reportStatus(null, true));
         assertNull(ResourceSupport.reportStatus(null, false));
         assertEquals("dismissed", ResourceSupport.reportStatus("dismissed", true));
@@ -326,27 +321,6 @@ class ResourceSupportTest {
     }
 
     @Test
-    void objectTextHelpersRespectNullAndNonTextValues() {
-        var node =
-                JsonSupport.objectNode(
-                        """
-        {
-          "string": "value",
-          "number": 123,
-          "nullValue": null
-        }
-        """);
-
-        assertEquals("value", ResourceSupport.text(node, "string", "fallback"));
-        assertEquals("123", ResourceSupport.text(node, "number", "fallback"));
-        assertEquals("fallback", ResourceSupport.text(node, "nullValue", "fallback"));
-        assertEquals("fallback", ResourceSupport.text(node, "missing", "fallback"));
-        assertEquals("value", ResourceSupport.nullableText(node, "string"));
-        assertNull(ResourceSupport.nullableText(node, "number"));
-        assertNull(ResourceSupport.nullableText(node, "nullValue"));
-    }
-
-    @Test
     void validationProblemCopiesViolationList() {
         List<FieldViolation> source = new java.util.ArrayList<>();
         source.add(new FieldViolation("field", "validation.key"));
@@ -355,14 +329,6 @@ class ResourceSupportTest {
         source.add(new FieldViolation("other", "validation.other"));
 
         assertEquals(List.of(new FieldViolation("field", "validation.key")), problem.violations);
-    }
-
-    @Test
-    void malformedJsonBecomesBadRequestProblem() {
-        ApiProblem problem = assertThrows(ApiProblem.class, () -> JsonSupport.objectNode("{"));
-
-        assertEquals(400, problem.status);
-        assertEquals("Malformed JSON request body.", problem.detail);
     }
 
     private static ApiModels.Bookmark bookmark(String owner, String visibility, String status) {
@@ -394,11 +360,11 @@ class ResourceSupportTest {
         }
 
         MessageInput message(String body) {
-            return messageInput(read(body, MessageInput.class));
+            return validateDto(read(body, MessageInput.class));
         }
 
         ReportInput report(String body) {
-            return reportInput(read(body, ReportInput.class));
+            return validateDto(read(body, ReportInput.class));
         }
 
         QueryParts where(Caller caller, ListFilters filters) {

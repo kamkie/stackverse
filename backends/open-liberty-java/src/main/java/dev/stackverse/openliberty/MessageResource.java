@@ -96,8 +96,8 @@ public class MessageResource extends ResourceSupport {
     @POST
     @RequiresRole("admin")
     public Response create(MessageInput body) {
-        Caller caller = requireRole("admin");
-        MessageInput input = messageInput(body);
+        Caller caller = requireCaller();
+        MessageInput input = validateDto(body);
         UUID id = UUID.randomUUID();
         ApiModels.Message created =
                 runtime.transaction(
@@ -155,9 +155,9 @@ public class MessageResource extends ResourceSupport {
     @Path("{id}")
     @RequiresRole("admin")
     public Response update(@PathParam("id") String rawId, MessageInput body) {
-        Caller caller = requireRole("admin");
+        Caller caller = requireCaller();
         UUID id = uuid(rawId);
-        MessageInput input = messageInput(body);
+        MessageInput input = validateDto(body);
         ApiModels.Message updated =
                 runtime.transaction(
                         connection -> {
@@ -216,7 +216,7 @@ public class MessageResource extends ResourceSupport {
     @Path("{id}")
     @RequiresRole("admin")
     public Response delete(@PathParam("id") String rawId) {
-        Caller caller = requireRole("admin");
+        Caller caller = requireCaller();
         UUID id = uuid(rawId);
         runtime.transaction(
                 connection -> {

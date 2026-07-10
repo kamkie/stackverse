@@ -37,7 +37,7 @@ public class AuthFilter implements ContainerRequestFilter {
     static final String CALLER_ATTRIBUTE = "stackverse.caller";
 
     @Inject JsonWebToken jwt;
-    @Inject JdbcRepository runtime;
+    @Inject RuntimeSupport runtime;
     @Inject MessageCatalog messages;
     @Inject EventLogger log;
 

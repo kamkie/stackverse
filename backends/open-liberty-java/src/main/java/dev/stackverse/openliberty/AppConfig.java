@@ -14,7 +14,7 @@ public class AppConfig {
     private final String dbUser = env("DB_USER", "stackverse");
     private final String dbPassword = env("DB_PASSWORD", "stackverse");
     private final String issuerUri =
-            stripTrailingSlash(env("OIDC_ISSUER_URI", "http://localhost:8180/realms/stackverse"));
+            env("OIDC_ISSUER_URI", "http://localhost:8180/realms/stackverse");
     private final Path seedMessagesDir = seedDir();
     private final String logLevel = env("LOG_LEVEL", "info").toLowerCase();
     private final String logFormat = env("LOG_FORMAT", "json").toLowerCase();
@@ -66,10 +66,6 @@ public class AppConfig {
 
     private static int intEnv(String name, int fallback) {
         return Integer.parseInt(env(name, Integer.toString(fallback)));
-    }
-
-    private static String stripTrailingSlash(String value) {
-        return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
     }
 
     private static Path seedDir() {

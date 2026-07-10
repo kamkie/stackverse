@@ -1,6 +1,6 @@
 package dev.stackverse.openliberty;
 
-import jakarta.enterprise.context.RequestScoped;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
@@ -8,12 +8,16 @@ import jakarta.ws.rs.core.Response;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Path("/")
-@RequestScoped
+@ApplicationScoped
 public class HealthResource {
-    @Inject JdbcRepository runtime;
+    @Inject RuntimeSupport runtime;
     @Inject EventLogger log;
+
+    private final AtomicBoolean wasReady = new AtomicBoolean(true);
 
     @GET
     @Path("healthz")
@@ -32,9 +36,27 @@ public class HealthResource {
         try (Connection connection = runtime.connection();
                 PreparedStatement statement = connection.prepareStatement("select 1")) {
             statement.execute();
+            if (wasReady.compareAndSet(false, true)) {
+                log.event(
+                        "info",
+                        "dependency_recovered",
+                        "success",
+                        "Readiness restored: database reachable again",
+                        Map.of("dependency", "postgres"));
+            }
             return true;
         } catch (SQLException | RuntimeException ex) {
-            log.dependencyFailure("postgres", ex, EventLogger.elapsedMillis(startedAt));
+            if (wasReady.compareAndSet(true, false)) {
+                log.event(
+                        "warn",
+                        "dependency_call_failed",
+                        "failure",
+                        "Readiness lost: database unreachable",
+                        Map.of(
+                                "dependency", "postgres",
+                                "duration_ms", EventLogger.elapsedMillis(startedAt),
+                                "error_code", EventLogger.errorCode(ex)));
+            }
             return false;
         }
     }

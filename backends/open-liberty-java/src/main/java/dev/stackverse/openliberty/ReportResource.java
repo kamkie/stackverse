@@ -30,7 +30,7 @@ public class ReportResource extends ResourceSupport {
     public Response create(@PathParam("id") String rawBookmarkId, ReportInput body) {
         Caller caller = requireCaller();
         UUID bookmarkId = uuid(rawBookmarkId);
-        ReportInput input = reportInput(body);
+        ReportInput input = validateDto(body);
         ApiModels.Report report =
                 runtime.transaction(
                         connection -> {
@@ -127,7 +127,7 @@ public class ReportResource extends ResourceSupport {
                             ApiModels.Report report = ownReport(connection, caller.username(), id);
                             if (!"open".equals(report.status()))
                                 throw ApiProblem.conflict("The report has already been resolved.");
-                            ReportInput input = reportInput(body);
+                            ReportInput input = validateDto(body);
                             try (PreparedStatement statement =
                                     runtime.prepare(
                                             connection,

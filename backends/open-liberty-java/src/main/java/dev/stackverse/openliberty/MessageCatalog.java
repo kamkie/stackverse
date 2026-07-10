@@ -16,7 +16,7 @@ import java.util.Set;
 
 @ApplicationScoped
 public class MessageCatalog {
-    @Inject JdbcRepository runtime;
+    @Inject RuntimeSupport runtime;
 
     String resolveLanguage(String lang, String acceptLanguage) {
         Set<String> supported = supportedLanguages();

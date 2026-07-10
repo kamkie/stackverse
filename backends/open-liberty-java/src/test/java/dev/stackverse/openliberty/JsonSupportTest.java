@@ -20,12 +20,6 @@ class JsonSupportTest {
     }
 
     @Test
-    void objectNodeTreatsNonObjectsAsEmptyObjects() {
-        assertTrue(JsonSupport.objectNode("[]").isObject());
-        assertTrue(JsonSupport.objectNode("").isObject());
-    }
-
-    @Test
     void typedWireRecordsSerializeWithContractNamesAndOmitNulls() {
         String body =
                 JsonSupport.jsonString(
