@@ -16,7 +16,8 @@ public final class UserStatusValidator
             add(context, "validation.block.reason.required");
             valid = false;
         }
-        if (input.reason() != null && input.reason().length() > 1000) {
+        if (input.reason() != null
+                && input.reason().codePointCount(0, input.reason().length()) > 1000) {
             add(context, "validation.block.reason.too-long");
             valid = false;
         }

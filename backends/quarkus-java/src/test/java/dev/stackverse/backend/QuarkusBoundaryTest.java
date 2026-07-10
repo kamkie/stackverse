@@ -4,6 +4,7 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -200,7 +201,7 @@ class QuarkusBoundaryTest {
 
     @Test
     @TestSecurity(user = "admin", roles = "admin")
-    void scalarJsonValuesAreNotCoercedIntoTypedStringFields() {
+    void wrongTypedStringFieldsPreserveLocalizedFieldErrors() {
         given().contentType("application/json")
                 .body("{\"key\":42,\"language\":true,\"text\":\"Example\"}")
                 .when()
@@ -209,7 +210,13 @@ class QuarkusBoundaryTest {
                 .statusCode(400)
                 .contentType("application/problem+json")
                 .body("title", equalTo("Bad Request"))
-                .body("detail", equalTo("Malformed request body."));
+                .body("detail", equalTo("Request validation failed."))
+                .body(
+                        "errors.find { it.field == 'key' }.messageKey",
+                        equalTo("validation.message.key.invalid"))
+                .body(
+                        "errors.find { it.field == 'language' }.messageKey",
+                        equalTo("validation.message.language.invalid"));
     }
 
     @Test
@@ -238,6 +245,17 @@ class QuarkusBoundaryTest {
                         BookmarkInput.class);
         assertEquals("https://example.com", input.url());
         assertEquals("Example", input.title());
+
+        MessageInput wrongOptionalType =
+                mapper.readValue(
+                        "{\"key\":\"example.title\",\"language\":\"en\",\"text\":\"Example\",\"description\":42}",
+                        MessageInput.class);
+        BookmarkInput wrongVisibilityType =
+                mapper.readValue(
+                        "{\"url\":\"https://example.com\",\"title\":\"Example\",\"visibility\":true}",
+                        BookmarkInput.class);
+        assertNull(wrongOptionalType.description());
+        assertEquals("", wrongVisibilityType.visibility());
     }
 }
 

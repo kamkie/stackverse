@@ -1,6 +1,7 @@
 package dev.stackverse.backend;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;
@@ -76,17 +77,25 @@ record AuditEntry(
         Instant createdAt) {}
 
 record BookmarkInput(
-        @NotBlank(message = "validation.url.required") @Size(max = 2000, message = "validation.url.invalid") @HttpUrl
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @NotBlank(message = "validation.url.required") @CodePointSize(max = 2000, message = "validation.url.invalid")
+                @HttpUrl
                 String url,
-        @NotBlank(message = "validation.title.required") @Size(max = 200, message = "validation.title.too-long") String title,
-        @Size(max = 4000, message = "validation.notes.too-long") String notes,
-        @Size(max = 10, message = "validation.tags.too-many") List<
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @NotBlank(message = "validation.title.required") @CodePointSize(max = 200, message = "validation.title.too-long")
+                String title,
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @CodePointSize(max = 4000, message = "validation.notes.too-long")
+                String notes,
+        @JsonDeserialize(using = RequestJsonDeserializers.TagsValue.class)
+                @Size(max = 10, message = "validation.tags.too-many") List<
                                 @Pattern(
                                         regexp = "^[a-z0-9-]{1,30}$",
                                         message = "validation.tag.invalid")
                                 String>
                         tags,
-        String visibility) {
+        @JsonDeserialize(using = RequestJsonDeserializers.VisibilityValue.class)
+                String visibility) {
     BookmarkInput {
         url = url == null ? "" : url.trim();
         title = title == null ? "" : title.trim();
@@ -110,13 +119,20 @@ record BookmarkInput(
 }
 
 record MessageInput(
-        @NotBlank(message = "validation.message.key.invalid") @Size(max = 150, message = "validation.message.key.invalid") @Pattern(
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @CodePointSize(max = 150, message = "validation.message.key.invalid")
+                @Pattern(
                         regexp = "^[a-z0-9-]+(\\.[a-z0-9-]+)*$",
                         message = "validation.message.key.invalid")
                 String key,
-        @Pattern(regexp = "^[a-z]{2}$", message = "validation.message.language.invalid") String language,
-        @NotEmpty(message = "validation.message.text.required") @Size(max = 2000, message = "validation.message.text.too-long") String text,
-        @Size(max = 1000, message = "validation.message.description.too-long") String description) {
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @Pattern(regexp = "^[a-z]{2}$", message = "validation.message.language.invalid") String language,
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @NotEmpty(message = "validation.message.text.required") @CodePointSize(max = 2000, message = "validation.message.text.too-long")
+                String text,
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @CodePointSize(max = 1000, message = "validation.message.description.too-long")
+                String description) {
     MessageInput {
         key = key == null ? "" : key.trim();
         language = language == null ? "" : language.trim();
@@ -125,36 +141,51 @@ record MessageInput(
 }
 
 record ReportInput(
-        @Pattern(
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @Pattern(
                         regexp = "^(spam|offensive|broken-link|other)$",
                         message = "validation.report.reason.invalid")
                 String reason,
-        @Size(max = 1000, message = "validation.report.comment.too-long") String comment) {
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @CodePointSize(max = 1000, message = "validation.report.comment.too-long")
+                String comment) {
     ReportInput {
         reason = reason == null ? "" : reason;
     }
 }
 
 record ResolutionInput(
-        @Pattern(regexp = "^(open|dismissed|actioned)$", message = "validation.resolution.invalid")
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @Pattern(
+                        regexp = "^(open|dismissed|actioned)$",
+                        message = "validation.resolution.invalid")
                 String resolution,
-        @Size(max = 1000, message = "validation.resolution.note.too-long") String note) {
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @CodePointSize(max = 1000, message = "validation.resolution.note.too-long")
+                String note) {
     ResolutionInput {
         resolution = resolution == null ? "" : resolution;
     }
 }
 
 record BookmarkStatusInput(
-        @Pattern(regexp = "^(active|hidden)$", message = "validation.bookmark-status.invalid")
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @Pattern(
+                        regexp = "^(active|hidden)$",
+                        message = "validation.bookmark-status.invalid")
                 String status,
-        @Size(max = 1000, message = "validation.bookmark-status.note.too-long") String note) {
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class)
+                @CodePointSize(max = 1000, message = "validation.bookmark-status.note.too-long")
+                String note) {
     BookmarkStatusInput {
         status = status == null ? "" : status;
     }
 }
 
 @ValidUserStatus
-record UserStatusInput(String status, String reason) {
+record UserStatusInput(
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class) String status,
+        @JsonDeserialize(using = RequestJsonDeserializers.TextValue.class) String reason) {
     UserStatusInput {
         status = status == null ? "" : status;
         reason = reason == null ? null : reason.trim();

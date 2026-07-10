@@ -26,6 +26,25 @@ import java.lang.annotation.Target;
 }
 
 @Documented
+@Constraint(validatedBy = CodePointSizeValidator.class)
+@Target({
+    ElementType.FIELD,
+    ElementType.PARAMETER,
+    ElementType.RECORD_COMPONENT,
+    ElementType.TYPE_USE
+})
+@Retention(RetentionPolicy.RUNTIME)
+@interface CodePointSize {
+    String message();
+
+    int max();
+
+    Class<?>[] groups() default {};
+
+    Class<? extends Payload>[] payload() default {};
+}
+
+@Documented
 @Constraint(validatedBy = UserStatusValidator.class)
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)

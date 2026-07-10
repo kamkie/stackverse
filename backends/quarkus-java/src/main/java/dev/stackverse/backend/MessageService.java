@@ -1,6 +1,7 @@
 package dev.stackverse.backend;
 
 import static dev.stackverse.backend.HttpResponses.pageResponse;
+import static dev.stackverse.backend.PersistenceSupport.detail;
 import static dev.stackverse.backend.PersistenceSupport.instant;
 import static dev.stackverse.backend.PersistenceSupport.isUniqueViolation;
 import static dev.stackverse.backend.PersistenceSupport.now;
@@ -12,12 +13,10 @@ import static dev.stackverse.backend.PersistenceSupport.scalarLong;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.Response;
 import java.net.URI;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -119,9 +118,6 @@ public class MessageService {
         Message created =
                 database.inTransaction(
                         connection -> {
-                            if (messageConflict(connection, input.key(), input.language(), null)) {
-                                throw duplicateMessage(input);
-                            }
                             Message inserted;
                             try {
                                 Instant now = now();
@@ -183,15 +179,6 @@ public class MessageService {
         Message updated =
                 database.inTransaction(
                         connection -> {
-                            queryOne(
-                                            connection,
-                                            "select id from messages where id = ?",
-                                            List.of(id),
-                                            rs -> rs.getObject("id"))
-                                    .orElseThrow(StackverseProblem::notFound);
-                            if (messageConflict(connection, input.key(), input.language(), id)) {
-                                throw duplicateMessage(input);
-                            }
                             Message row;
                             try {
                                 row =
@@ -207,7 +194,7 @@ public class MessageService {
                                                                 now(),
                                                                 id),
                                                         MessageService::message)
-                                                .orElseThrow();
+                                                .orElseThrow(StackverseProblem::notFound);
                             } catch (RuntimeException error) {
                                 if (isUniqueViolation(error)) {
                                     throw duplicateMessage(input);
@@ -307,22 +294,6 @@ public class MessageService {
                 message.updatedAt());
     }
 
-    private boolean messageConflict(
-            Connection connection, String key, String language, UUID excluding) {
-        if (excluding == null) {
-            return scalarLong(
-                            connection,
-                            "select count(*) from messages where key = ? and language = ?",
-                            List.of(key, language))
-                    > 0;
-        }
-        return scalarLong(
-                        connection,
-                        "select count(*) from messages where key = ? and language = ? and id <> ?",
-                        List.of(key, language, excluding))
-                > 0;
-    }
-
     private StackverseProblem duplicateMessage(MessageInput input) {
         return StackverseProblem.conflict(
                 "A message with key '"
@@ -333,11 +304,14 @@ public class MessageService {
     }
 
     private Map<String, Object> snapshot(Message message) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("key", message.key());
-        body.put("language", message.language());
-        body.put("text", message.text());
-        body.put("description", message.description());
-        return body;
+        return detail(
+                "key",
+                message.key(),
+                "language",
+                message.language(),
+                "text",
+                message.text(),
+                "description",
+                message.description());
     }
 }

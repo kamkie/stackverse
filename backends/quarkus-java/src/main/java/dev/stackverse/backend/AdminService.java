@@ -1,7 +1,6 @@
 package dev.stackverse.backend;
 
 import static dev.stackverse.backend.HttpResponses.pageResponse;
-import static dev.stackverse.backend.PersistenceSupport.execute;
 import static dev.stackverse.backend.PersistenceSupport.instant;
 import static dev.stackverse.backend.PersistenceSupport.params;
 import static dev.stackverse.backend.PersistenceSupport.query;
@@ -115,41 +114,42 @@ public class AdminService {
                 throw StackverseProblem.conflict("Admins cannot block themselves.");
             }
         }
-        database.inTransaction(
-                connection -> {
-                    queryOne(
-                                    connection,
-                                    "select username from user_accounts where username = ? for update",
-                                    List.of(username),
-                                    rs -> rs.getString("username"))
-                            .orElseThrow(StackverseProblem::notFound);
-                    if ("blocked".equals(input.status())) {
-                        execute(
-                                connection,
-                                "update user_accounts set status = 'blocked', blocked_reason = ? where username = ?",
-                                params(input.reason(), username));
-                        auditTrail.record(
-                                connection,
-                                caller.username(),
-                                "user.blocked",
-                                "user",
-                                username,
-                                Map.of("reason", input.reason()));
-                    } else {
-                        execute(
-                                connection,
-                                "update user_accounts set status = 'active', blocked_reason = null where username = ?",
-                                List.of(username));
-                        auditTrail.record(
-                                connection,
-                                caller.username(),
-                                "user.unblocked",
-                                "user",
-                                username,
-                                null);
-                    }
-                    return null;
-                });
+        UserAccount account =
+                database.inTransaction(
+                        connection -> {
+                            String blockedReason =
+                                    "blocked".equals(input.status()) ? input.reason() : null;
+                            UserAccount updated =
+                                    queryOne(
+                                                    connection,
+                                                    "with updated as ("
+                                                            + " update user_accounts set status = ?, blocked_reason = ? where username = ?"
+                                                            + " returning username, first_seen, last_seen, status, blocked_reason"
+                                                            + ") select updated.*,"
+                                                            + " (select count(*) from bookmarks b where b.owner = updated.username) as bookmark_count"
+                                                            + " from updated",
+                                                    params(input.status(), blockedReason, username),
+                                                    AdminService::userAccount)
+                                            .orElseThrow(StackverseProblem::notFound);
+                            if ("blocked".equals(input.status())) {
+                                auditTrail.record(
+                                        connection,
+                                        caller.username(),
+                                        "user.blocked",
+                                        "user",
+                                        username,
+                                        Map.of("reason", input.reason()));
+                            } else {
+                                auditTrail.record(
+                                        connection,
+                                        caller.username(),
+                                        "user.unblocked",
+                                        "user",
+                                        username,
+                                        null);
+                            }
+                            return updated;
+                        });
         StackverseLog.event(
                 LOG,
                 Logger.Level.INFO,
@@ -165,9 +165,6 @@ public class AdminService {
                         "user",
                         "resource_id",
                         username));
-        UserAccount account =
-                database.withConnection(connection -> findUserAccount(connection, username))
-                        .orElseThrow(StackverseProblem::notFound);
         return Response.ok(userAccountResponse(account)).build();
     }
 

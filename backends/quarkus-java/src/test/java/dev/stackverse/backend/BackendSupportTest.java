@@ -203,6 +203,64 @@ class BackendSupportTest {
     }
 
     @Test
+    void beanValidationCountsUnicodeCodePointsInsteadOfUtf16Units() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            String emoji = "\uD83D\uDE00";
+
+            var validBookmark =
+                    validator.validate(
+                            new BookmarkInput(
+                                    "https://example.com",
+                                    emoji.repeat(200),
+                                    null,
+                                    List.of(),
+                                    "private"));
+            var longBookmark =
+                    validator.validate(
+                            new BookmarkInput(
+                                    "https://example.com",
+                                    emoji.repeat(201),
+                                    null,
+                                    List.of(),
+                                    "private"));
+            var validReason =
+                    validator.validate(new UserStatusInput("blocked", emoji.repeat(1000)));
+            var longReason = validator.validate(new UserStatusInput("blocked", emoji.repeat(1001)));
+
+            assertTrue(validBookmark.isEmpty());
+            assertTrue(validReason.isEmpty());
+            assertEquals(
+                    Set.of("validation.title.too-long"),
+                    longBookmark.stream()
+                            .map(violation -> violation.getMessage())
+                            .collect(java.util.stream.Collectors.toSet()));
+            assertEquals(
+                    Set.of("validation.block.reason.too-long"),
+                    longReason.stream()
+                            .map(violation -> violation.getMessage())
+                            .collect(java.util.stream.Collectors.toSet()));
+        }
+    }
+
+    @Test
+    void conditionalEtagResponsesRetainNoCacheHeader() {
+        HttpResponses responses =
+                new HttpResponses(new com.fasterxml.jackson.databind.ObjectMapper());
+        Response initial = responses.etag(requestContext(null), Map.of("message", "hello"), null);
+        Response notModified =
+                responses.etag(
+                        requestContext(initial.getHeaderString("ETag")),
+                        Map.of("message", "hello"),
+                        null);
+
+        assertEquals(200, initial.getStatus());
+        assertEquals(304, notModified.getStatus());
+        assertEquals("no-cache", initial.getHeaderString("Cache-Control"));
+        assertEquals("no-cache", notModified.getHeaderString("Cache-Control"));
+    }
+
+    @Test
     void featureServicesUseNarrowCompositionInsteadOfASharedBaseClass() {
         List<Class<?>> featureServices =
                 List.of(
@@ -421,6 +479,18 @@ class BackendSupportTest {
                             case "getPath" -> path;
                             default -> defaultValue(method.getReturnType());
                         });
+    }
+
+    private static RequestContext requestContext(String ifNoneMatch) {
+        HttpHeaders headers =
+                proxy(
+                        HttpHeaders.class,
+                        (method, args) ->
+                                "getHeaderString".equals(method.getName())
+                                                && HttpHeaders.IF_NONE_MATCH.equals(args[0])
+                                        ? ifNoneMatch
+                                        : defaultValue(method.getReturnType()));
+        return new RequestContext(null, headers);
     }
 
     @SuppressWarnings("unchecked")

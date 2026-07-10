@@ -35,17 +35,12 @@ final class HttpResponses {
                                             MessageDigest.getInstance("SHA-256")
                                                     .digest(body.getBytes(StandardCharsets.UTF_8)))
                             + "\"";
-            if (ifNoneMatch(request, etag)) {
-                Response.ResponseBuilder builder = Response.notModified().tag(etag);
-                if (extraHeaders != null) {
-                    extraHeaders.forEach(builder::header);
-                }
-                return builder.build();
-            }
             Response.ResponseBuilder builder =
-                    Response.ok(body, MediaType.APPLICATION_JSON_TYPE)
-                            .header("ETag", etag)
-                            .header("Cache-Control", "no-cache");
+                    ifNoneMatch(request, etag)
+                            ? Response.notModified().tag(etag)
+                            : Response.ok(body, MediaType.APPLICATION_JSON_TYPE)
+                                    .header("ETag", etag);
+            builder.header("Cache-Control", "no-cache");
             if (extraHeaders != null) {
                 extraHeaders.forEach(builder::header);
             }
