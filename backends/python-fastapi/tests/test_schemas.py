@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from stackverse_backend import main
 from stackverse_backend.auth import Caller, authenticate_request
 from stackverse_backend.routers import bookmarks, messages
-from stackverse_backend.schemas import Bookmark, BookmarkInput, Message
+from stackverse_backend.schemas import Bookmark, BookmarkInput, Message, UserStatusInput
 
 
 def test_request_models_are_typed_and_ignore_unknown_fields() -> None:
@@ -25,6 +25,30 @@ def test_request_models_are_typed_and_ignore_unknown_fields() -> None:
     }
 
 
+def test_request_models_preserve_existing_wire_coercions() -> None:
+    bookmark = BookmarkInput.model_validate(
+        {
+            "url": 42,
+            "title": None,
+            "notes": 42,
+            "tags": "not-a-list",
+            "visibility": 123,
+        }
+    )
+    numeric_tag = BookmarkInput.model_validate({"url": "https://example.com", "title": "Example", "tags": [42]})
+    active_user = UserStatusInput.model_validate({"status": "active", "reason": 42})
+
+    assert bookmark.model_dump(by_alias=True) == {
+        "url": "",
+        "title": "",
+        "notes": None,
+        "tags": [],
+        "visibility": "123",
+    }
+    assert numeric_tag.tags == ["42"]
+    assert active_user.reason is None
+
+
 def test_response_models_omit_optional_fields() -> None:
     bookmark = Bookmark.model_validate(
         {
@@ -35,8 +59,8 @@ def test_response_models_omit_optional_fields() -> None:
             "visibility": "private",
             "status": "active",
             "owner": "demo",
-            "createdAt": "2026-01-01T00:00:00Z",
-            "updatedAt": "2026-01-01T00:00:00Z",
+            "createdAt": "2026-01-01T00:00:00.000Z",
+            "updatedAt": "2026-01-01T00:00:00.123Z",
         }
     )
     message = Message.model_validate(
@@ -52,6 +76,9 @@ def test_response_models_omit_optional_fields() -> None:
 
     assert "notes" not in bookmark.model_dump(by_alias=True, exclude_none=True)
     assert "description" not in message.model_dump(by_alias=True, exclude_none=True)
+    serialized = bookmark.model_dump(by_alias=True, exclude_none=True, mode="json")
+    assert serialized["createdAt"] == "2026-01-01T00:00:00.000Z"
+    assert serialized["updatedAt"] == "2026-01-01T00:00:00.123Z"
 
 
 def test_app_schema_declares_request_and_response_models() -> None:
@@ -84,10 +111,57 @@ def test_structural_validation_uses_localized_problem_details(monkeypatch) -> No
     assert response.json()["errors"] == [
         {
             "field": "url",
-            "messageKey": "validation.url.invalid",
-            "message": "localized:validation.url.invalid",
+            "messageKey": "validation.url.required",
+            "message": "localized:validation.url.required",
         }
     ]
+
+
+def test_root_body_errors_retain_localized_field_violations(monkeypatch) -> None:
+    app = main.build_app()
+    app.dependency_overrides[authenticate_request] = lambda: Caller("demo", [])
+    monkeypatch.setattr(main, "resolve_language", lambda _lang, _header: "en")
+    monkeypatch.setattr(main, "localize", lambda key, _language: f"localized:{key}")
+    client = TestClient(app)
+    headers = {"Authorization": "Bearer test", "Content-Type": "application/json"}
+
+    responses = [
+        client.post("/api/v1/bookmarks", headers=headers),
+        client.post("/api/v1/bookmarks", headers=headers, content="null"),
+        client.post("/api/v1/bookmarks", headers=headers, json=[1, 2]),
+    ]
+
+    for response in responses:
+        assert response.status_code == 400
+        assert response.json()["errors"] == [
+            {
+                "field": "url",
+                "messageKey": "validation.url.required",
+                "message": "localized:validation.url.required",
+            },
+            {
+                "field": "title",
+                "messageKey": "validation.title.required",
+                "message": "localized:validation.title.required",
+            },
+        ]
+
+
+def test_user_status_structural_errors_preserve_existing_detail() -> None:
+    app = main.build_app()
+    app.dependency_overrides[authenticate_request] = lambda: Caller("admin", ["admin"])
+    client = TestClient(app)
+    headers = {"Authorization": "Bearer test", "Content-Type": "application/json"}
+
+    responses = [
+        client.put("/api/v1/admin/users/demo/status", headers=headers),
+        client.put("/api/v1/admin/users/demo/status", headers=headers, json={}),
+        client.put("/api/v1/admin/users/demo/status", headers=headers, json={"status": 42}),
+    ]
+
+    for response in responses:
+        assert response.status_code == 400
+        assert response.json()["detail"] == "status is required"
 
 
 def test_bookmark_status_structural_errors_stay_localized(monkeypatch) -> None:
@@ -174,6 +248,7 @@ def test_etag_route_validates_and_filters_through_response_model(monkeypatch) ->
     assert response.headers["ETag"].startswith('"')
     assert "description" not in response.json()
     assert "internal" not in response.json()
+    assert response.json()["createdAt"] == "2026-01-01T00:00:00.000Z"
 
 
 def test_etag_route_rejects_invalid_internal_response(monkeypatch) -> None:

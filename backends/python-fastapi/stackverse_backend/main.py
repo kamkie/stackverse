@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import get_args, get_type_hints
 
 import psycopg
 import uvicorn
@@ -16,6 +17,7 @@ from .i18n import localize, resolve_language
 from .logging_setup import log_event, logger
 from .problems import AppProblem, ValidationProblem, first_param, problem_response
 from .routers import register_routes
+from .schemas import ContractModel
 from .seed import seed_messages
 from .telemetry import configure_telemetry, shutdown_telemetry
 
@@ -98,9 +100,11 @@ def build_app() -> FastAPI:
             "Request validation failed",
             error_code="request_validation_failed",
         )
-        violations = _request_validation_violations(request.url.path, exc)
+        request_model = _request_model(request)
+        violations = _request_validation_violations(request_model, exc)
         if not violations:
-            return problem_response(400, "Bad Request", "Request validation failed.")
+            detail = request_model.missing_body_detail if request_model is not None else None
+            return problem_response(400, "Bad Request", detail or "Request validation failed.")
         language = await run_in_threadpool(
             resolve_language,
             first_param(request, "lang"),
@@ -141,43 +145,28 @@ def build_app() -> FastAPI:
     return app
 
 
-def _request_validation_violations(path: str, exc: RequestValidationError) -> list[tuple[str, str]]:
-    violations: list[tuple[str, str]] = []
-    for error in exc.errors():
-        location = error.get("loc", ())
-        if len(location) < 2 or location[0] != "body" or not isinstance(location[1], str):
-            continue
-        field = location[1]
-        message_key = _structural_message_key(path, field)
-        violation = (field, message_key) if message_key is not None else None
-        if violation is not None and violation not in violations:
-            violations.append(violation)
-    return violations
+def _request_model(request: Request) -> type[ContractModel] | None:
+    endpoint = request.scope.get("endpoint")
+    if not callable(endpoint):
+        return None
+    try:
+        body_annotation = get_type_hints(endpoint).get("body")
+    except NameError, TypeError:
+        return None
+    for candidate in (body_annotation, *get_args(body_annotation)):
+        if isinstance(candidate, type) and issubclass(candidate, ContractModel):
+            return candidate
+    return None
 
 
-def _structural_message_key(path: str, field: str) -> str | None:
-    common = {
-        "url": "validation.url.invalid",
-        "title": "validation.title.required",
-        "notes": "validation.notes.too-long",
-        "tags": "validation.tag.invalid",
-        "key": "validation.message.key.invalid",
-        "language": "validation.message.language.invalid",
-        "text": "validation.message.text.required",
-        "description": "validation.message.description.too-long",
-        "comment": "validation.report.comment.too-long",
-        "resolution": "validation.resolution.invalid",
-    }
-    if field == "reason":
-        return "validation.block.reason.required" if "/admin/users/" in path else "validation.report.reason.invalid"
-    if field == "note":
-        if "/admin/bookmarks/" in path:
-            return "validation.bookmark-status.note.too-long"
-        if "/admin/reports/" in path:
-            return "validation.resolution.note.too-long"
-    if field == "status" and "/admin/bookmarks/" in path:
-        return "validation.bookmark-status.invalid"
-    return common.get(field)
+def _request_validation_violations(
+    request_model: type[ContractModel] | None,
+    exc: RequestValidationError,
+) -> list[tuple[str, str]]:
+    if request_model is None:
+        return []
+    has_root_body_error = any(tuple(error.get("loc", ())) == ("body",) for error in exc.errors())
+    return list(request_model.missing_body_violations) if has_root_body_error else []
 
 
 app = build_app()
