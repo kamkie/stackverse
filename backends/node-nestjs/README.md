@@ -59,10 +59,11 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
   feature modules (`bookmarks`, `messages`, `moderation`, `admin-users`,
   `audit-log`, `stats`, `meta`); controllers own the HTTP decorators and
   injectable services own the contract logic.
-- **Nest guard + exception filter** - a global `BearerAuthGuard` validates JWTs,
-  lazily provisions accounts, and enforces blocked-account rejection
-  (`src/auth.ts`), while `ProblemFilter` is the single RFC 9457 renderer for
-  validation, authorization, and unexpected errors.
+- **Nest guards + exception filter** - a global `BearerAuthGuard` validates
+  JWTs, lazily provisions accounts, and enforces blocked-account rejection;
+  `AuthorizationGuard` applies default-authenticated and `@Roles` route
+  metadata before body pipes (`src/auth.ts`). `ProblemFilter` is the single RFC
+  9457 renderer for validation, authorization, and unexpected errors.
 - **DTO validation pipeline** - concrete request DTO classes carry
   `class-validator` metadata and `class-transformer` normalization; one global
   `ValidationPipe` maps every failure back to the contract's localized RFC 9457
@@ -108,12 +109,13 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
   controller, provider, guard, and filter layers while persistence stays
   explicit, so the TypeScript comparison can separate framework structure from
   ORM structure.
-- Authentication deliberately keeps a small global `CanActivate` guard backed
-  by `jose` instead of adding Passport. The same idempotent verifier must also
-  run as a Fastify `onRequest` hook so invalid and blocked bearer tokens win
-  before malformed/oversized body parsing, as required by the contract;
-  Passport's Nest guard runs after that parser boundary and would not replace
-  the hook.
+- Authentication deliberately keeps small global `CanActivate` guards backed
+  by `jose` instead of adding Passport. Nest-native `@Public` / `@Roles`
+  metadata makes required callers and roles win before the global DTO pipe.
+  The same idempotent verifier must also run as a Fastify `onRequest` hook so
+  invalid and blocked bearer tokens win before malformed/oversized body
+  parsing, as required by the contract; Passport's Nest guard runs after that
+  parser boundary and would not replace the hook.
 - Enum-like values are stored as their lowercase wire strings (`'public'`,
   `'open'`) - there is no enum layer to map through, so the database reads
   like the API.

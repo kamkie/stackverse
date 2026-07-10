@@ -1,8 +1,10 @@
 import { Controller, Get, Req } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
+import { Roles } from "../auth.js";
 import { AuditLogService } from "./audit-log.service.js";
 
 @Controller()
+@Roles("admin")
 export class AuditLogController {
   constructor(private readonly auditLog: AuditLogService) {}
 

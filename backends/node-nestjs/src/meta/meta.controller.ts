@@ -1,5 +1,6 @@
 import { Controller, Get, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { Public } from "../auth.js";
 import { MetaService } from "./meta.service.js";
 
 @Controller()
@@ -12,11 +13,13 @@ export class MetaController {
   }
 
   @Get("/healthz")
+  @Public()
   async healthz() {
     return this.meta.healthz();
   }
 
   @Get("/readyz")
+  @Public()
   async readyz(@Res({ passthrough: true }) reply: FastifyReply) {
     return this.meta.readyz(reply);
   }

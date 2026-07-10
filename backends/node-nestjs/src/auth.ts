@@ -1,4 +1,5 @@
-import { Injectable, type CanActivate, type ExecutionContext } from "@nestjs/common";
+import { Injectable, SetMetadata, type CanActivate, type ExecutionContext } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { createRemoteJWKSet, decodeProtectedHeader, jwtVerify, errors as joseErrors, type JWTPayload } from "jose";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { config } from "./config.js";
@@ -10,6 +11,15 @@ import { localize, resolveRequestLanguage } from "./i18n.js";
 /** The two application roles; everything else in `realm_access.roles` is Keycloak plumbing. */
 export const APP_ROLES = ["moderator", "admin"] as const;
 export type AppRole = (typeof APP_ROLES)[number];
+
+const PUBLIC_ROUTE = "stackverse:public-route";
+const REQUIRED_ROLE = "stackverse:required-role";
+
+/** Opts a route out of the default authenticated-caller policy. */
+export const Public = () => SetMetadata(PUBLIC_ROUTE, true);
+
+/** Requires one application role during Nest's guard phase, before body pipes. */
+export const Roles = (role: AppRole) => SetMetadata(REQUIRED_ROLE, role);
 
 export interface Caller {
   username: string;
@@ -157,6 +167,27 @@ export class BearerAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<FastifyRequest>();
     await authenticateBearerRequest(request);
+    return true;
+  }
+}
+
+/**
+ * Route authorization is separate from bearer parsing so Nest can enforce the
+ * default caller/role policy in its guard phase, before the global DTO pipe.
+ * Services retain the same checks as defense in depth.
+ */
+@Injectable()
+export class AuthorizationGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(context: ExecutionContext): boolean {
+    const routeTargets = [context.getHandler(), context.getClass()];
+    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE, routeTargets) === true) return true;
+
+    const request = context.switchToHttp().getRequest<FastifyRequest>();
+    const role = this.reflector.getAllAndOverride<AppRole>(REQUIRED_ROLE, routeTargets);
+    if (role !== undefined) requireRole(request, role);
+    else requireCaller(request);
     return true;
   }
 }

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { Roles } from "../auth.js";
 import { BookmarkStatusBodyDto, ReportBodyDto, ResolutionBodyDto } from "./moderation.dto.js";
 import { ModerationService } from "./moderation.service.js";
 
@@ -33,16 +34,19 @@ export class ModerationController {
   }
 
   @Get("/api/v1/admin/reports")
+  @Roles("moderator")
   async listAdminReports(@Req() request: FastifyRequest) {
     return this.moderation.listAdminReports(request);
   }
 
   @Put("/api/v1/admin/reports/:id")
+  @Roles("moderator")
   async resolveReport(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: ResolutionBodyDto) {
     return this.moderation.resolveReport(request, id, body);
   }
 
   @Put("/api/v1/admin/bookmarks/:id/status")
+  @Roles("moderator")
   async setBookmarkStatus(
     @Req() request: FastifyRequest,
     @Param("id") id: string,
