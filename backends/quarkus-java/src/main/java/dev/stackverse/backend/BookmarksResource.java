@@ -41,7 +41,6 @@ public class BookmarksResource {
 
     @GET
     @Path("/{id}")
-    @Authenticated
     public Response getBookmark(@PathParam("id") String rawId) {
         return service.getBookmark(rawId);
     }
