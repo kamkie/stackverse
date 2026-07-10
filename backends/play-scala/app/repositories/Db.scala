@@ -91,6 +91,9 @@ class Db @Inject() (config: BackendConfig, logger: EventLogger) {
   def returning[T](conn: Connection, sql: String, params: Seq[Any] = Seq.empty)(map: ResultSet => T): T =
     one(conn, sql, params)(map).getOrElse(throw new IllegalStateException("statement returned no rows"))
 
+  def count(conn: Connection, sql: String, params: Seq[Any] = Seq.empty): Long =
+    one(conn, sql, params)(_.getLong("count")).getOrElse(0L)
+
   private def prepare(conn: Connection, sql: String, params: Seq[Any]): PreparedStatement = {
     val ps = conn.prepareStatement(sql)
     params.zipWithIndex.foreach { case (value, index) => setParam(conn, ps, index + 1, value) }

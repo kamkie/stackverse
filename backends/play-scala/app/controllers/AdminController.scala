@@ -4,7 +4,7 @@ import models.*
 import play.api.libs.json.{JsArray, JsNumber, JsString, Json}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
 import repositories.{Db, Rows}
-import services.{ApiAction, AuditService, AuthService, EventLogger}
+import services.{ApiAction, AuditService, EventLogger}
 import support.{InputJson, Responses, UserStatusInput, Wire}
 import support.InputJson.given
 import support.Responses.given
@@ -19,20 +19,16 @@ class AdminController @Inject() (
     cc: ControllerComponents,
     api: ApiAction,
     db: Db,
-    auth: AuthService,
     logger: EventLogger,
     audit: AuditService
 ) extends AbstractController(cc) {
   import Wire.*
 
-  private val UtcDayMillis = 24L * 60L * 60L * 1000L
-
   private val WithBookmarkCount =
     """select u.*, (select count(*) from bookmarks b where b.owner = u.username) as bookmark_count
       |from user_accounts u""".stripMargin
 
-  def listUsers: Action[AnyContent] = api { implicit request =>
-    auth.requireRole(request, "admin")
+  def listUsers: Action[AnyContent] = api.withRole("admin") { implicit request =>
     val (page, size) = paging(request.queryString)
     val q = single(request.queryString, "q")
     maxLength(q, 100, "q")
@@ -57,20 +53,19 @@ class AdminController @Inject() (
            |order by u.last_seen desc, u.username asc limit ? offset ?""".stripMargin,
         params.toSeq ++ Seq(size, page * size)
       )(Rows.user)
-      val total = count(conn, s"select count(*) as count from user_accounts u where $where", params.toSeq)
+      val total = db.count(conn, s"select count(*) as count from user_accounts u where $where", params.toSeq)
       Wire.page(rows.map(row => Json.toJson(row)), page, size, total)
     }
     Ok(payload)
   }
 
-  def getUser(username: String): Action[AnyContent] = api { implicit request =>
-    auth.requireRole(request, "admin")
+  def getUser(username: String): Action[AnyContent] = api.withRole("admin") { implicit request =>
     val row = db.withConnection(conn => findUser(conn, username).getOrElse(throw new NotFoundProblem))
     Ok(Json.toJson(row))
   }
 
-  def setUserStatus(username: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireRole(request, "admin")
+  def setUserStatus(username: String): Action[AnyContent] = api.withRole("admin") { implicit request =>
+    val caller = request.caller
     val input = InputJson.read[UserStatusInput](request)
     val status = input.status
     val reason = input.reason
@@ -107,8 +102,7 @@ class AdminController @Inject() (
     Ok(Json.toJson(row))
   }
 
-  def auditLog: Action[AnyContent] = api { implicit request =>
-    auth.requireRole(request, "admin")
+  def auditLog: Action[AnyContent] = api.withRole("admin") { implicit request =>
     val (page, size) = paging(request.queryString)
     val clauses = scala.collection.mutable.ArrayBuffer("true")
     val params = scala.collection.mutable.ArrayBuffer.empty[Any]
@@ -134,22 +128,21 @@ class AdminController @Inject() (
         s"select * from audit_entries where $where order by created_at desc, id desc limit ? offset ?",
         params.toSeq ++ Seq(size, page * size)
       )(Rows.audit)
-      val total = count(conn, s"select count(*) as count from audit_entries where $where", params.toSeq)
+      val total = db.count(conn, s"select count(*) as count from audit_entries where $where", params.toSeq)
       Wire.page(rows.map(row => Json.toJson(row)), page, size, total)
     }
     Ok(payload)
   }
 
-  def stats: Action[AnyContent] = api { implicit request =>
-    auth.requireRole(request, "moderator")
+  def stats: Action[AnyContent] = api.withRole("moderator") { implicit request =>
     val today = LocalDate.now(ZoneOffset.UTC)
     val from = today.minusDays(29).atStartOfDay().toInstant(ZoneOffset.UTC)
     val payload = db.withConnection { conn =>
-      val users = count(conn, "select count(*) as count from user_accounts")
-      val bookmarks = count(conn, "select count(*) as count from bookmarks")
-      val publicBookmarks = count(conn, "select count(*) as count from bookmarks where visibility = 'public'")
-      val hiddenBookmarks = count(conn, "select count(*) as count from bookmarks where status = 'hidden'")
-      val openReports = count(conn, "select count(*) as count from reports where status = 'open'")
+      val users = db.count(conn, "select count(*) as count from user_accounts")
+      val bookmarks = db.count(conn, "select count(*) as count from bookmarks")
+      val publicBookmarks = db.count(conn, "select count(*) as count from bookmarks where visibility = 'public'")
+      val hiddenBookmarks = db.count(conn, "select count(*) as count from bookmarks where status = 'hidden'")
+      val openReports = db.count(conn, "select count(*) as count from reports where status = 'open'")
       val createdPerDay = countPerDay(conn, "bookmarks", "created_at", from)
       val activePerDay = countPerDay(conn, "user_accounts", "last_seen", from)
       val topTags = db.query(
@@ -181,9 +174,6 @@ class AdminController @Inject() (
     }
     withEtag(request, payload)
   }
-
-  private def count(conn: Connection, sql: String, params: Seq[Any] = Seq.empty): Long =
-    db.one(conn, sql, params)(_.getLong("count")).getOrElse(0L)
 
   private def findUser(conn: Connection, username: String): Option[UserAccountRow] =
     db.one(conn, s"$WithBookmarkCount where u.username = ?", Seq(username))(Rows.user)

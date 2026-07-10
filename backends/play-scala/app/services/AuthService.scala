@@ -39,17 +39,13 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
             "Refused a request from a blocked account",
             "actor" -> JsString(caller.username)
           )
-          val language = i18n.resolve(Wire.first(request.queryString, "lang"), request.headers.get("Accept-Language"))
+          val language = i18n.resolve(request)
           throw new ForbiddenProblem(i18n.localize("error.account.blocked", language))
         }
         Some(caller)
     }
 
-  def requireCaller(request: RequestHeader): Caller =
-    optional(request).getOrElse(throw new UnauthorizedProblem)
-
-  def requireRole(request: RequestHeader, role: String): Caller = {
-    val caller = requireCaller(request)
+  def requireRole(caller: Caller, role: String): Caller = {
     if (!caller.roles.contains(role)) {
       logger.event(
         "info",
@@ -103,7 +99,9 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
       synchronized {
         processor.getOrElse {
           val jwks = config.oidcJwksUri.getOrElse(discoverJwksUri())
-          val source = JWKSourceBuilder.create[SecurityContext](URI.create(jwks).toURL).build()
+          // Keep Nimbus's default unknown-kid refetch limiter: it preserves the reserved
+          // key-rotation refresh while bounding attacker-controlled JWKS fetches.
+          val source = JWKSourceBuilder.create[SecurityContext](URI.create(jwks).toURL).rateLimited(true).build()
           val created = new DefaultJWTProcessor[SecurityContext]()
           created.setJWSKeySelector(new JWSVerificationKeySelector[SecurityContext](JWSAlgorithm.RS256, source))
           processor = Some(created)

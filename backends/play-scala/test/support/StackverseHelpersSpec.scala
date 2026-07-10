@@ -305,6 +305,29 @@ class StackverseHelpersSpec extends AnyFunSuite {
     assert(output.trim == "INFO Listening port=8080")
   }
 
+  test("event logger emits structured request failures with stack and duration") {
+    val output = captureStdout {
+      val logger = new EventLogger(testConfig())
+      logger.eventError(
+        "dependency_call_failed",
+        "failure",
+        "PostgreSQL request failed",
+        new IllegalStateException("connection lost"),
+        "dependency" -> JsString("postgres"),
+        "duration_ms" -> JsNumber(42),
+        "error_code" -> JsString("08006")
+      )
+      logger.shutdown()
+    }
+    val json = Json.parse(output.trim)
+
+    assert((json \ "level").as[String] == "error")
+    assert((json \ "event").as[String] == "dependency_call_failed")
+    assert((json \ "duration_ms").as[Long] == 42L)
+    assert((json \ "error_type").as[String] == "java.lang.IllegalStateException")
+    assert((json \ "stack_trace").as[String].contains("connection lost"))
+  }
+
   private def testConfig(logLevel: String = "info", logFormat: String = "json"): BackendConfig =
     BackendConfig(
       port = 8080,

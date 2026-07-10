@@ -1,6 +1,6 @@
 package support
 
-import models.{BookmarkRow, FieldViolation, ValidationProblem}
+import models.{BadRequestProblem, BookmarkRow, FieldViolation, ValidationProblem}
 import org.scalatest.funsuite.AnyFunSuite
 import play.api.libs.json.Json
 import play.api.test.FakeRequest
@@ -42,6 +42,22 @@ class InputJsonSpec extends AnyFunSuite {
         FieldViolation("tags", "validation.tag.invalid")
       )
     )
+  }
+
+  test("typed Reads are total for contract validation and bad-request cases") {
+    val invalidBookmark = Json
+      .obj("url" -> "https://example.com", "title" -> "Example", "visibility" -> "friends")
+      .validate[BookmarkInput]
+    val invalidUserStatus = Json.obj("status" -> "unknown").validate[UserStatusInput]
+
+    assert(invalidBookmark.isError)
+    assert(invalidUserStatus.isError)
+
+    val request = FakeRequest("POST", "/api/v1/bookmarks").withJsonBody(
+      Json.obj("url" -> "https://example.com", "title" -> "Example", "visibility" -> "friends")
+    )
+    val problem = intercept[BadRequestProblem](InputJson.read[BookmarkInput](request))
+    assert(problem.detail.contains("unknown visibility: friends"))
   }
 
   test("typed response Writes retain optional-field omission") {

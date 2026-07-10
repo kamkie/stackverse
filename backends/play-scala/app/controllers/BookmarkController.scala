@@ -3,13 +3,12 @@ package controllers
 import models.*
 import play.api.libs.json.{JsArray, JsString, Json}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
-import repositories.{Db, Rows}
-import services.{ApiAction, AuthService}
+import repositories.{BookmarkRepository, Db, Rows}
+import services.ApiAction
 import support.{BookmarkInput, CursorCodec, InputJson, Responses, Wire}
 import support.InputJson.given
 import support.Responses.given
 
-import java.sql.Connection
 import java.time.Instant
 import java.util.UUID
 import javax.inject.{Inject, Singleton}
@@ -19,14 +18,14 @@ class BookmarkController @Inject() (
     cc: ControllerComponents,
     api: ApiAction,
     db: Db,
-    auth: AuthService
+    bookmarks: BookmarkRepository
 ) extends AbstractController(cc) {
   import Wire.*
 
   private val TagPattern = "^[a-z0-9-]{1,30}$".r
 
-  def listV1: Action[AnyContent] = api { implicit request =>
-    val caller = auth.optional(request)
+  def listV1: Action[AnyContent] = api.optional { implicit request =>
+    val caller = request.caller
     val (page, size) = paging(request.queryString)
     val filters = parseListFilters(request.queryString)
     val (where, params) = listingWhere(caller, filters)
@@ -38,7 +37,7 @@ class BookmarkController @Inject() (
            |limit ? offset ?""".stripMargin,
         params ++ Seq(size, page * size)
       )(Rows.bookmark)
-      val total = count(conn, s"select count(*) as count from bookmarks where $where", params)
+      val total = db.count(conn, s"select count(*) as count from bookmarks where $where", params)
       Wire.page(rows.map(row => Json.toJson(row)), page, size, total)
     }
     Ok(payload).withHeaders(
@@ -48,8 +47,8 @@ class BookmarkController @Inject() (
     )
   }
 
-  def listV2: Action[AnyContent] = api { implicit request =>
-    val caller = auth.optional(request)
+  def listV2: Action[AnyContent] = api.optional { implicit request =>
+    val caller = request.caller
     val (_, size) = paging(request.queryString)
     val filters = parseListFilters(request.queryString)
     val cursor = single(request.queryString, "cursor").map(CursorCodec.decode)
@@ -83,8 +82,8 @@ class BookmarkController @Inject() (
     Ok(payload)
   }
 
-  def create: Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def create: Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val input = InputJson.read[BookmarkInput](request)
     val now = Instant.now()
     val id = UUID.randomUUID()
@@ -99,10 +98,10 @@ class BookmarkController @Inject() (
     Created(Json.toJson(row)).withHeaders("Location" -> s"/api/v1/bookmarks/$id")
   }
 
-  def get(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.optional(request)
+  def get(id: String): Action[AnyContent] = api.optional { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
-    val row = db.withConnection(conn => findBookmark(conn, uuid))
+    val row = db.withConnection(conn => bookmarks.find(conn, uuid))
     val visible = row.exists(bookmark =>
       bookmark.owner == caller
         .map(_.username)
@@ -112,8 +111,8 @@ class BookmarkController @Inject() (
     Ok(Json.toJson(row.get))
   }
 
-  def update(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def update(id: String): Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val input = InputJson.read[BookmarkInput](request)
     val row = db.transaction { conn =>
@@ -135,18 +134,18 @@ class BookmarkController @Inject() (
     Ok(Json.toJson(row))
   }
 
-  def delete(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def delete(id: String): Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     db.withConnection { conn =>
-      val bookmark = findBookmark(conn, uuid).filter(_.owner == caller.username).getOrElse(throw new NotFoundProblem)
+      val bookmark = bookmarks.find(conn, uuid).filter(_.owner == caller.username).getOrElse(throw new NotFoundProblem)
       db.execute(conn, "delete from bookmarks where id = ?", Seq(bookmark.id))
     }
     NoContent
   }
 
-  def tags: Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def tags: Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val tags = db.withConnection { conn =>
       db.query(
         conn,
@@ -207,9 +206,4 @@ class BookmarkController @Inject() (
     (clauses.mkString(" and "), params.toSeq)
   }
 
-  private def count(conn: Connection, sql: String, params: Seq[Any] = Seq.empty): Long =
-    db.one(conn, sql, params)(_.getLong("count")).getOrElse(0L)
-
-  private def findBookmark(conn: Connection, id: UUID): Option[BookmarkRow] =
-    db.one(conn, "select * from bookmarks where id = ?", Seq(id))(Rows.bookmark)
 }

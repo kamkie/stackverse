@@ -9,7 +9,7 @@ import javax.inject.{Inject, Singleton}
 class IdentityController @Inject() (cc: ControllerComponents, api: ApiAction, auth: AuthService)
     extends AbstractController(cc) {
 
-  def me: Action[AnyContent] = api { implicit request =>
-    Ok(auth.me(auth.requireCaller(request)))
+  def me: Action[AnyContent] = api.authenticated { implicit request =>
+    Ok(auth.me(request.caller))
   }
 }

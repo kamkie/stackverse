@@ -3,8 +3,8 @@ package controllers
 import models.*
 import play.api.libs.json.{JsBoolean, JsString, Json}
 import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
-import repositories.{Db, Rows}
-import services.{ApiAction, AuditService, AuthService, EventLogger, SqlErrors}
+import repositories.{BookmarkRepository, Db, Rows}
+import services.{ApiAction, AuditService, EventLogger, SqlErrors}
 import support.{BookmarkStatusInput, InputJson, ReportInput, ResolutionInput, Responses, Wire}
 import support.InputJson.given
 import support.Responses.given
@@ -19,14 +19,14 @@ class ModerationController @Inject() (
     cc: ControllerComponents,
     api: ApiAction,
     db: Db,
-    auth: AuthService,
+    bookmarks: BookmarkRepository,
     logger: EventLogger,
     audit: AuditService
 ) extends AbstractController(cc) {
   import Wire.*
 
-  def createReport(bookmarkId: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def createReport(bookmarkId: String): Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(bookmarkId)
     val input = InputJson.read[ReportInput](request)
     val row = db.transaction { conn =>
@@ -70,8 +70,8 @@ class ModerationController @Inject() (
     Created(Json.toJson(row))
   }
 
-  def listOwnReports: Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def listOwnReports: Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val (page, size) = paging(request.queryString)
     val status = validatedReportStatus(single(request.queryString, "status"))
     val (where, params) = status match {
@@ -84,14 +84,14 @@ class ModerationController @Inject() (
         s"select * from reports where $where order by created_at desc, id desc limit ? offset ?",
         params ++ Seq(size, page * size)
       )(Rows.report)
-      val total = count(conn, s"select count(*) as count from reports where $where", params)
+      val total = db.count(conn, s"select count(*) as count from reports where $where", params)
       Wire.page(rows.map(row => Json.toJson(row)), page, size, total)
     }
     Ok(payload)
   }
 
-  def updateOwnReport(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def updateOwnReport(id: String): Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val input = InputJson.read[ReportInput](request)
     val row = db.transaction { conn =>
@@ -117,8 +117,8 @@ class ModerationController @Inject() (
     Ok(Json.toJson(row))
   }
 
-  def withdrawOwnReport(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireCaller(request)
+  def withdrawOwnReport(id: String): Action[AnyContent] = api.authenticated { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val bookmarkId = db.transaction { conn =>
       val report = ownReport(conn, caller.username, uuid)
@@ -139,8 +139,7 @@ class ModerationController @Inject() (
     NoContent
   }
 
-  def listReports: Action[AnyContent] = api { implicit request =>
-    auth.requireRole(request, "moderator")
+  def listReports: Action[AnyContent] = api.withRole("moderator") { implicit request =>
     val (page, size) = paging(request.queryString)
     val status = validatedReportStatus(single(request.queryString, "status")).getOrElse("open")
     val payload = db.withConnection { conn =>
@@ -149,14 +148,14 @@ class ModerationController @Inject() (
         "select * from reports where status = ? order by created_at asc, id asc limit ? offset ?",
         Seq(status, size, page * size)
       )(Rows.report)
-      val total = count(conn, "select count(*) as count from reports where status = ?", Seq(status))
+      val total = db.count(conn, "select count(*) as count from reports where status = ?", Seq(status))
       Wire.page(rows.map(row => Json.toJson(row)), page, size, total)
     }
     Ok(payload)
   }
 
-  def resolveReport(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireRole(request, "moderator")
+  def resolveReport(id: String): Action[AnyContent] = api.withRole("moderator") { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val input = InputJson.read[ResolutionInput](request)
     val resolution = input.resolution
@@ -229,8 +228,8 @@ class ModerationController @Inject() (
     Ok(Json.toJson(row))
   }
 
-  def setBookmarkStatus(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireRole(request, "moderator")
+  def setBookmarkStatus(id: String): Action[AnyContent] = api.withRole("moderator") { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val input = InputJson.read[BookmarkStatusInput](request)
     val status = input.status
@@ -267,12 +266,6 @@ class ModerationController @Inject() (
     }
     Ok(Json.toJson(row))
   }
-
-  private def count(conn: Connection, sql: String, params: Seq[Any] = Seq.empty): Long =
-    db.one(conn, sql, params)(_.getLong("count")).getOrElse(0L)
-
-  private def findBookmark(conn: Connection, id: UUID): Option[BookmarkRow] =
-    db.one(conn, "select * from bookmarks where id = ?", Seq(id))(Rows.bookmark)
 
   private def ownReport(conn: Connection, reporter: String, id: UUID): ReportRow = {
     val row = db
@@ -334,7 +327,7 @@ class ModerationController @Inject() (
   }
 
   private def hideBookmark(conn: Connection, actor: String, bookmarkId: UUID, note: Option[String]): Unit = {
-    val bookmark = findBookmark(conn, bookmarkId).getOrElse(throw new NotFoundProblem)
+    val bookmark = bookmarks.find(conn, bookmarkId).getOrElse(throw new NotFoundProblem)
     if (bookmark.status == "hidden") return
     db.execute(
       conn,

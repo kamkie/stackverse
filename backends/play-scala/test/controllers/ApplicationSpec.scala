@@ -13,10 +13,11 @@ import play.api.inject.bind
 import play.api.inject.guice.GuiceApplicationBuilder
 import play.api.libs.json.Json
 import play.api.mvc.{AnyContent, Request, Results}
+import play.api.routing.Router
 import play.api.test.FakeRequest
 import play.api.test.Helpers.*
 import repositories.Db
-import services.ApiAction
+import services.{ApiAction, CallerRequest}
 
 import java.nio.file.Paths
 
@@ -36,10 +37,13 @@ class ApplicationSpec extends AnyWordSpec with Matchers with GuiceOneAppPerSuite
       contentAsJson(response).shouldBe(Json.obj("status" -> "up"))
     }
 
-    "compile the public API routes against focused controllers" in {
-      route(app, FakeRequest(GET, "/api/v1/bookmarks")).isDefined.shouldBe(true)
-      route(app, FakeRequest(GET, "/api/v1/messages")).isDefined.shouldBe(true)
-      route(app, FakeRequest(GET, "/api/v1/admin/stats")).isDefined.shouldBe(true)
+    "wire focused API routes without executing database-backed actions" in {
+      val routes = app.injector.instanceOf[Router].documentation.map { case (method, path, _) => method -> path }.toSet
+
+      routes.should(contain("GET" -> "/api/v1/bookmarks"))
+      routes.should(contain("GET" -> "/api/v1/messages"))
+      routes.should(contain("GET" -> "/api/v1/admin/stats"))
+      routes.shouldNot(contain("GET" -> "/api/v1/not-a-route"))
     }
 
     "keep feature actions in focused controllers without a residual god service" in {
@@ -69,6 +73,31 @@ class ApplicationSpec extends AnyWordSpec with Matchers with GuiceOneAppPerSuite
       contentType(response).shouldBe(Some("application/problem+json"))
       (contentAsJson(response) \ "title").as[String].shouldBe("Bad Request")
       (contentAsJson(response) \ "detail").as[String].shouldBe("synthetic boundary failure")
+    }
+
+    "translate unexpected non-fatal failures through the API action boundary" in {
+      given Materializer = app.materializer
+      val api = app.injector.instanceOf[ApiAction]
+      val action = api((_: Request[AnyContent]) => throw new IllegalStateException("synthetic unexpected failure"))
+      val response = call(action, FakeRequest(GET, "/test-boundary"))
+
+      status(response).shouldBe(INTERNAL_SERVER_ERROR)
+      contentType(response).shouldBe(Some("application/problem+json"))
+      (contentAsJson(response) \ "title").as[String].shouldBe("Internal Server Error")
+    }
+
+    "reject missing callers in composed authenticated actions before controller execution" in {
+      given Materializer = app.materializer
+      val api = app.injector.instanceOf[ApiAction]
+      var executed = false
+      val action = api.authenticated { (_: CallerRequest[AnyContent]) =>
+        executed = true
+        Results.Ok
+      }
+      val response = call(action, FakeRequest(GET, "/test-authenticated"))
+
+      status(response).shouldBe(UNAUTHORIZED)
+      executed.shouldBe(false)
     }
 
     "offload controller blocks through the database dispatcher" in {

@@ -29,6 +29,8 @@ class Validator {
   def reject(field: String, key: String): Unit = violations += FieldViolation(field, key)
   def check(condition: Boolean, field: String, key: String): Unit = if (!condition) reject(field, key)
   def throwIfInvalid(): Unit = if (violations.nonEmpty) throw new ValidationProblem(violations.toSeq)
+  def result[A](value: => A): Either[Seq[FieldViolation], A] =
+    if (violations.nonEmpty) Left(violations.toSeq) else Right(value)
 }
 
 case class Caller(username: String, roles: Seq[String], name: Option[String], email: Option[String])

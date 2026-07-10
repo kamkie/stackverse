@@ -2,9 +2,9 @@ package controllers
 
 import models.*
 import play.api.libs.json.{JsObject, JsString, Json}
-import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents, RequestHeader}
+import play.api.mvc.{AbstractController, Action, AnyContent, ControllerComponents}
 import repositories.{Db, Rows}
-import services.{ApiAction, AuditService, AuthService, EventLogger, I18n, SqlErrors}
+import services.{ApiAction, AuditService, EventLogger, I18n, SqlErrors}
 import support.{InputJson, MessageInput, Responses, Wire}
 import support.InputJson.given
 import support.Responses.given
@@ -19,15 +19,13 @@ class MessageController @Inject() (
     cc: ControllerComponents,
     api: ApiAction,
     db: Db,
-    auth: AuthService,
     i18n: I18n,
     logger: EventLogger,
     audit: AuditService
 ) extends AbstractController(cc) {
   import Wire.*
 
-  def list: Action[AnyContent] = api { implicit request =>
-    auth.optional(request)
+  def list: Action[AnyContent] = api.optional { implicit request =>
     val (page, size) = paging(request.queryString)
     val key = single(request.queryString, "key")
     val language = single(request.queryString, "language")
@@ -52,15 +50,14 @@ class MessageController @Inject() (
         s"select * from messages where $where order by key, language limit ? offset ?",
         params ++ Seq(size, page * size)
       )(Rows.message)
-      val total = count(conn, s"select count(*) as count from messages where $where", params)
+      val total = db.count(conn, s"select count(*) as count from messages where $where", params)
       Wire.page(rows.map(row => Json.toJson(row)), page, size, total)
     }
     withEtag(request, payload)
   }
 
-  def bundle: Action[AnyContent] = api { implicit request =>
-    auth.optional(request)
-    val language = requestLanguage(request)
+  def bundle: Action[AnyContent] = api.optional { implicit request =>
+    val language = i18n.resolve(request)
     withEtag(
       request,
       Json.obj("language" -> language, "messages" -> i18n.bundle(language)),
@@ -68,8 +65,7 @@ class MessageController @Inject() (
     )
   }
 
-  def get(id: String): Action[AnyContent] = api { implicit request =>
-    auth.optional(request)
+  def get(id: String): Action[AnyContent] = api.optional { implicit request =>
     val uuid = parseUuid(id)
     val row = db.withConnection { conn =>
       db.one(conn, "select * from messages where id = ?", Seq(uuid))(Rows.message).getOrElse(throw new NotFoundProblem)
@@ -77,8 +73,8 @@ class MessageController @Inject() (
     withEtag(request, Json.toJson(row))
   }
 
-  def create: Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireRole(request, "admin")
+  def create: Action[AnyContent] = api.withRole("admin") { implicit request =>
+    val caller = request.caller
     val input = InputJson.read[MessageInput](request)
     val row = db.transaction { conn =>
       if (messageDuplicate(conn, input.key, input.language, None)) throw duplicateMessage(input)
@@ -108,8 +104,8 @@ class MessageController @Inject() (
     Created(Json.toJson(row)).withHeaders("Location" -> s"/api/v1/messages/${row.id}")
   }
 
-  def update(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireRole(request, "admin")
+  def update(id: String): Action[AnyContent] = api.withRole("admin") { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val input = InputJson.read[MessageInput](request)
     val row = db.transaction { conn =>
@@ -133,8 +129,8 @@ class MessageController @Inject() (
     Ok(Json.toJson(row))
   }
 
-  def delete(id: String): Action[AnyContent] = api { implicit request =>
-    val caller = auth.requireRole(request, "admin")
+  def delete(id: String): Action[AnyContent] = api.withRole("admin") { implicit request =>
+    val caller = request.caller
     val uuid = parseUuid(id)
     val row = db.transaction { conn =>
       val deleted = db
@@ -146,12 +142,6 @@ class MessageController @Inject() (
     logMessage("message_deleted", "Message deleted", caller.username, row)
     NoContent
   }
-
-  private def requestLanguage(request: RequestHeader): String =
-    i18n.resolve(first(request.queryString, "lang"), request.headers.get("Accept-Language"))
-
-  private def count(conn: Connection, sql: String, params: Seq[Any] = Seq.empty): Long =
-    db.one(conn, sql, params)(_.getLong("count")).getOrElse(0L)
 
   private def messageDuplicate(conn: Connection, key: String, language: String, except: Option[UUID]): Boolean =
     except match {

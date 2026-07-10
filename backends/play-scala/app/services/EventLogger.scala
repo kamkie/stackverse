@@ -9,6 +9,7 @@ import play.api.libs.json._
 
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.io.{PrintWriter, StringWriter}
 import javax.inject._
 import scala.util.Try
 
@@ -26,6 +27,18 @@ class EventLogger @Inject() (config: BackendConfig) {
 
   def line(level: String, message: String, fields: (String, JsValue)*): Unit =
     write(level, message, None, None, fields*)
+
+  def eventError(
+      event: String,
+      outcome: String,
+      message: String,
+      error: Throwable,
+      fields: (String, JsValue)*
+  ): Unit =
+    write("error", message, Some(event), Some(outcome), (fields ++ exceptionFields(error))*)
+
+  def error(message: String, error: Throwable, fields: (String, JsValue)*): Unit =
+    write("error", message, None, None, (fields ++ exceptionFields(error))*)
 
   private def write(
       level: String,
@@ -52,6 +65,15 @@ class EventLogger @Inject() (config: BackendConfig) {
 
   def shutdown(): Unit =
     otelSdk.foreach(sdk => Try(sdk.close()))
+
+  private def exceptionFields(error: Throwable): Seq[(String, JsValue)] = {
+    val stack = new StringWriter()
+    error.printStackTrace(new PrintWriter(stack))
+    Seq(
+      "error_type" -> JsString(error.getClass.getName),
+      "stack_trace" -> JsString(stack.toString)
+    )
+  }
 
   private def exportOtel(
       level: String,
