@@ -141,6 +141,12 @@ function scheduleRender(): void {
   }, 250);
 }
 
+function cancelScheduledRender(): void {
+  if (pendingInputRender === undefined) return;
+  window.clearTimeout(pendingInputRender);
+  pendingInputRender = undefined;
+}
+
 function updateBoundValue(
   bind: string,
   value: string,
@@ -192,8 +198,12 @@ function updateBoundValue(
       state.messages.page = 0;
       break;
   }
-  if (immediate) void renderApp();
-  else scheduleRender();
+  if (immediate) {
+    cancelScheduledRender();
+    void renderApp();
+  } else {
+    scheduleRender();
+  }
 }
 
 function formValues(form: HTMLFormElement): FormValues {
@@ -617,12 +627,16 @@ document.addEventListener("click", (event) => {
   }
 });
 
+function isImmediateControl(
+  input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+): boolean {
+  return input.tagName === "SELECT" || input.getAttribute("type") === "date";
+}
+
 document.addEventListener("input", (event) => {
   const input = event.target as
     HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-  if (input.tagName === "SELECT" || input.getAttribute("type") === "date") {
-    return;
-  }
+  if (isImmediateControl(input)) return;
   if (input.form?.dataset.form) rememberDialogValues(input.form);
   const bind = input.dataset.bind;
   if (!bind) return;
@@ -634,7 +648,7 @@ document.addEventListener("change", (event) => {
   if (input.form?.dataset.form) rememberDialogValues(input.form);
   const bind = input.dataset.bind;
   if (!bind) return;
-  if (input.tagName === "SELECT" || input.getAttribute("type") === "date") {
+  if (isImmediateControl(input)) {
     updateBoundValue(bind, input.value, true);
   }
 });
