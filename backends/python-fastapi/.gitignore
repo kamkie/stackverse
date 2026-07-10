@@ -3,4 +3,9 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .coverage
+.pytest_cache/
+.ruff_cache/
 coverage.xml
+
+# This variant installs with pip; an ad-hoc uv resolution is local tooling state.
+uv.lock

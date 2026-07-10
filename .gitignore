@@ -27,6 +27,20 @@ obj/
 dist/
 out/
 
+# Python runtime and tool artifacts — also covers repo-root helper scripts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv*/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.coverage
+coverage.xml
+htmlcov/
+
 # test coverage output (JaCoCo lands under build/, these two don't)
 coverage/
 TestResults/
