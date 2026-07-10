@@ -43,10 +43,8 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-frontend-lit-
       - name: Install dependencies
         run: yarn install --immutable
-      - name: Typecheck and build
-        run: yarn build
-      - name: Unit tests
-        run: yarn test --coverage
+      - name: Lint, typecheck, test, and build
+        run: yarn check
       - name: Normalize coverage paths
         run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info frontends/lit/
       # Dependabot PRs do not receive the repository Codecov token unless it is

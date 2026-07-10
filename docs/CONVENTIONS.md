@@ -395,7 +395,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Single light-DOM LitElement shell with route-level template helpers | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Single light-DOM LitElement shell composed from focused route and view modules | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `component$` components in TSX with QRL callbacks and typed props | `component$` TSX components, `$` event handlers, typed props interfaces | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Runes-based components with $props, snippets, and mount() bootstrap | ✅ idiomatic |
@@ -421,7 +421,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/main.ts` | ✅ idiomatic |
+| [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/app.ts` | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit file-based routing under src/routes | Static Vite SPA with a documented History API store and `{#if}` page dispatch in App.svelte | 🟡 deliberate |
@@ -460,7 +460,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, lib modules, and an app entry | api/i18n/types/dev helpers are split out, but the component shell, rendering, routing, state, and forms remain in one ~1,688-line main.ts | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, view/controller modules, and an app entry | Composition-only main.ts plus focused state, navigation, view, bookmark, admin, dialog, and app-controller modules | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | SvelteKit src/routes + src/lib; or Vite SPA src with App.svelte/main.ts | Vite SPA layout: src/{components,pages,lib,dev}, App.svelte, main.ts | ✅ idiomatic |
@@ -473,7 +473,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | Vitest plus @open-wc/testing or Testing Library for custom elements | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | Vitest plus Open WC or Testing Library for custom elements | Vitest helper tests plus Open WC fixture-based light-DOM custom-element mounting | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Vitest with Qwik/browser component testing for UI behavior | Vitest helper tests plus Qwik `createDOM` component rendering; shared e2e covers full behavior | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom helper tests and Testing Library component interactions | ✅ idiomatic |
@@ -486,7 +486,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
-| [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | No ESLint/Prettier; strict `tsc` is the static gate | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | ESLint flat config with Lit/Web Components/TypeScript rules plus Prettier | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | ESLint flat config, Svelte-aware Prettier, and svelte-check enforced by build/CI | ✅ idiomatic |

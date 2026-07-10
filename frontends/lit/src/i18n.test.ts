@@ -38,7 +38,8 @@ describe("i18n helpers", () => {
         messageKey: "validation.title.required",
         message: "Title is required.",
       },
-      (key) => (key === "validation.title.required" ? "Podaj tytul." : keyFallback(key)),
+      (key) =>
+        key === "validation.title.required" ? "Podaj tytul." : keyFallback(key),
     );
 
     expect(message).toBe("Podaj tytul.");
@@ -46,17 +47,25 @@ describe("i18n helpers", () => {
 
   it("loads bundles with ETag revalidation", async () => {
     const responses = [
-      new Response(JSON.stringify({ language: "en", messages: { "ui.app.title": "Stackverse" } }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ETag: 'W/"one"' },
-      }),
+      new Response(
+        JSON.stringify({
+          language: "en",
+          messages: { "ui.app.title": "Stackverse" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ETag: 'W/"one"' },
+        },
+      ),
       new Response(null, { status: 304 }),
     ];
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
-      const next = responses.shift();
-      if (!next) throw new Error("unexpected fetch");
-      return next;
-    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async () => {
+        const next = responses.shift();
+        if (!next) throw new Error("unexpected fetch");
+        return next;
+      });
 
     const i18n = new RuntimeI18n();
     await i18n.load("en");
@@ -65,9 +74,13 @@ describe("i18n helpers", () => {
     expect(i18n.t("ui.app.title")).toBe("Stackverse");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const secondRequest = fetchMock.mock.calls[1]!;
-    expect(new URL(String(secondRequest[0])).searchParams.get("lang")).toBe("en");
+    expect(new URL(String(secondRequest[0])).searchParams.get("lang")).toBe(
+      "en",
+    );
     expect(secondRequest[1]?.headers).toBeInstanceOf(Headers);
-    expect((secondRequest[1]?.headers as Headers).get("If-None-Match")).toBe('W/"one"');
+    expect((secondRequest[1]?.headers as Headers).get("If-None-Match")).toBe(
+      'W/"one"',
+    );
     expect(document.documentElement.lang).toBe("en");
     expect(document.title).toBe("Stackverse");
   });
@@ -77,10 +90,15 @@ describe("i18n helpers", () => {
       "stackverse.bundle.en",
       JSON.stringify({
         etag: 'W/"en"',
-        bundle: { language: "en", messages: { "ui.app.title": "Cached Stackverse" } },
+        bundle: {
+          language: "en",
+          messages: { "ui.app.title": "Cached Stackverse" },
+        },
       }),
     );
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 304 }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 304 }),
+    );
 
     await new RuntimeI18n().load("en");
 
@@ -93,10 +111,15 @@ describe("i18n helpers", () => {
       "stackverse.bundle.pl",
       JSON.stringify({
         etag: 'W/"pl"',
-        bundle: { language: "pl", messages: { "ui.app.title": "Stackverse PL" } },
+        bundle: {
+          language: "pl",
+          messages: { "ui.app.title": "Stackverse PL" },
+        },
       }),
     );
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 503 }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 503 }),
+    );
 
     const i18n = new RuntimeI18n();
     await expect(i18n.load("pl")).resolves.toBeUndefined();
@@ -108,7 +131,9 @@ describe("i18n helpers", () => {
   });
 
   it("throws when the bundle request fails without a cached copy", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 503 }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(null, { status: 503 }),
+    );
 
     await expect(new RuntimeI18n().load("pl")).rejects.toThrow(
       "Failed to load message bundle: 503",
@@ -117,10 +142,16 @@ describe("i18n helpers", () => {
 
   it("stores the selected language and reloads that language", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ language: "pl", messages: { "ui.app.title": "Stackverse" } }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+      new Response(
+        JSON.stringify({
+          language: "pl",
+          messages: { "ui.app.title": "Stackverse" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
     );
 
     const i18n = new RuntimeI18n();
@@ -128,13 +159,17 @@ describe("i18n helpers", () => {
 
     expect(i18n.lang).toBe("pl");
     expect(readStoredLanguage()).toBe("pl");
-    expect(new URL(String(fetchMock.mock.calls[0]![0])).searchParams.get("lang")).toBe("pl");
+    expect(
+      new URL(String(fetchMock.mock.calls[0]![0])).searchParams.get("lang"),
+    ).toBe("pl");
   });
 
   it("keeps language storage failures from blocking selection", () => {
-    const setItem = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("quota exceeded");
-    });
+    const setItem = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new Error("quota exceeded");
+      });
 
     expect(() => storeLanguage("pl")).not.toThrow();
     expect(setItem).toHaveBeenCalledWith("stackverse.lang", "pl");

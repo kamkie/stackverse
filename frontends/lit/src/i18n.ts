@@ -1,7 +1,8 @@
 import type { FieldError, MessageBundle } from "./types";
 
 const LANG_STORAGE_KEY = "stackverse.lang";
-const bundleStorageKey = (lang: string | null) => `stackverse.bundle.${lang ?? "auto"}`;
+const bundleStorageKey = (lang: string | null) =>
+  `stackverse.bundle.${lang ?? "auto"}`;
 
 interface CachedBundle {
   etag: string | null;
@@ -107,7 +108,12 @@ export class RuntimeI18n {
   };
 }
 
-export function localizeFieldError(error: FieldError, t: (key: string) => string): string {
+export function localizeFieldError(
+  error: FieldError,
+  t: (key: string) => string,
+): string {
   const localized = t(error.messageKey);
-  return localized === keyFallback(error.messageKey) ? error.message : localized;
+  return localized === keyFallback(error.messageKey)
+    ? error.message
+    : localized;
 }
