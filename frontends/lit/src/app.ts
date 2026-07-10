@@ -327,10 +327,12 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
       case "report-bookmark": {
         if (state.dialog.kind !== "report-bookmark") return;
+        const submittedDialog = state.dialog;
+        const bookmarkId = submittedDialog.bookmark.id;
         try {
           await apiSend<Report>(
             "POST",
-            `${pathForApi("/api/v1/bookmarks", state.dialog.bookmark.id)}/reports`,
+            `${pathForApi("/api/v1/bookmarks", bookmarkId)}/reports`,
             reportBody(values),
           );
           pushToast(t("ui.toast.report-submitted"));
@@ -341,8 +343,8 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
             throw error;
           }
         }
-        addReportedId(state.dialog.bookmark.id);
-        state.dialog = null;
+        addReportedId(bookmarkId);
+        if (state.dialog === submittedDialog) state.dialog = null;
         break;
       }
       case "edit-report": {
