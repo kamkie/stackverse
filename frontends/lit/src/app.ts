@@ -210,19 +210,23 @@ function rememberDialogFormState(
   form: HTMLFormElement,
   values: FormValues,
   errorUpdate: DialogFormErrorUpdate,
+  expectedDialog: DialogState,
 ): void {
-  if (!state.dialog) return;
+  if (!state.dialog || state.dialog !== expectedDialog) return;
 
   const expectedKind = dialogKindForForm(form.dataset.form);
   if (!expectedKind || state.dialog.kind !== expectedKind) return;
 
-  const next = { ...state.dialog, values } as DialogState & { error?: unknown };
+  const current = state.dialog as DialogState & {
+    values?: FormValues;
+    error?: unknown;
+  };
+  current.values = values;
   if (errorUpdate.kind === "set") {
-    next.error = errorUpdate.error;
+    current.error = errorUpdate.error;
   } else {
-    delete next.error;
+    delete current.error;
   }
-  state.dialog = next;
 }
 
 function dialogKindForForm(
@@ -245,7 +249,13 @@ function dialogKindForForm(
 }
 
 function rememberDialogValues(form: HTMLFormElement): void {
-  rememberDialogFormState(form, formValues(form), { kind: "clear" });
+  if (!state.dialog) return;
+  rememberDialogFormState(
+    form,
+    formValues(form),
+    { kind: "clear" },
+    state.dialog,
+  );
 }
 
 function reportBody(values: FormValues): ReportInput {
@@ -276,6 +286,7 @@ function messageBody(values: FormValues): MessageInput {
 
 async function handleForm(form: HTMLFormElement): Promise<void> {
   if (!state.dialog) return;
+  const submittedDialog = state.dialog;
   const values = formValues(form);
   try {
     switch (form.dataset.form) {
@@ -299,11 +310,12 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
         break;
       }
       case "report-bookmark": {
-        if (state.dialog.kind !== "report-bookmark") return;
+        if (submittedDialog.kind !== "report-bookmark") return;
+        const bookmarkId = submittedDialog.bookmark.id;
         try {
           await apiSend<Report>(
             "POST",
-            `${pathForApi("/api/v1/bookmarks", state.dialog.bookmark.id)}/reports`,
+            `${pathForApi("/api/v1/bookmarks", bookmarkId)}/reports`,
             reportBody(values),
           );
           pushToast(t("ui.toast.report-submitted"));
@@ -314,8 +326,8 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
             throw error;
           }
         }
-        addReportedId(state.dialog.bookmark.id);
-        state.dialog = null;
+        addReportedId(bookmarkId);
+        if (state.dialog === submittedDialog) state.dialog = null;
         break;
       }
       case "edit-report": {
@@ -366,7 +378,16 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
     }
   } catch (error) {
-    rememberDialogFormState(form, values, { kind: "set", error });
+    const currentValues =
+      state.dialog === submittedDialog && "values" in state.dialog
+        ? (state.dialog.values ?? values)
+        : values;
+    rememberDialogFormState(
+      form,
+      currentValues,
+      { kind: "set", error },
+      submittedDialog,
+    );
   }
   await renderApp();
 }
