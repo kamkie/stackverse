@@ -27,7 +27,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | dotnet | 3340 | 1022 | 0.31 | 46 | 12 | 84 | 102 | 21 | C#, JSON |
-| elixir-phoenix | 2393 | 60 | 0.03 | 23 | 3 | 25 | 82 | 25 | Elixir |
+| elixir-phoenix | 2809 | 310 | 0.11 | 56 | 9 | 25 | 92 | 25 | Elixir |
 | go | 3500 | 1277 | 0.36 | 28 | 15 | 14 | 110 | 14 | Go, SQL |
 | go-echo | 3539 | 1291 | 0.36 | 29 | 15 | 14 | 122 | 14 | Go, SQL |
 | grails | 1922 | 289 | 0.15 | 38 | 7 | 187 | 71 | 20 | Groovy, SQL, YAML |
@@ -46,7 +46,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | scala-http4s | 2302 | 587 | 0.25 | 29 | 2 | 27 | 113 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 51975 | 10404 | | 665 | 128 | 2922 | 1866 | 428 | |
+| **subtotal** | 52391 | 10654 | | 698 | 134 | 2922 | 1876 | 428 | |
 
 ## Gateway
 
