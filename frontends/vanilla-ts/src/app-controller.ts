@@ -18,6 +18,7 @@ import {
 } from "./bookmark-pages";
 import { dialogHtml } from "./dialog-views";
 import { headerHtml } from "./header-view";
+import { MessageBundleLoadError } from "./i18n";
 import { renderedPage } from "./page-render";
 import type { RenderedPage } from "./page-render";
 import { i18n, resetAppState, state } from "./app-state";
@@ -434,6 +435,7 @@ function isActiveController(epoch: number): boolean {
 async function handleAction(
   element: HTMLElement,
   epoch: number,
+  signal: AbortSignal,
 ): Promise<void> {
   const action = element.dataset.action;
   if (!action || element.hasAttribute("disabled")) return;
@@ -446,7 +448,8 @@ async function handleAction(
       await renderApp();
       break;
     case "language":
-      await i18n.setLanguage(element.dataset.lang ?? "en");
+      await i18n.setLanguage(element.dataset.lang ?? "en", { signal });
+      if (!isActiveController(epoch)) return;
       await renderApp();
       break;
     case "logout":
@@ -642,9 +645,14 @@ async function handleAction(
         if (!isActiveController(epoch)) return;
         pushToast(t("ui.toast.message-deleted"));
         try {
-          await i18n.load();
+          await i18n.load(i18n.lang, { signal });
         } catch (error) {
-          if (!(error instanceof ApiNetworkError)) throw error;
+          if (!(
+            error instanceof ApiNetworkError ||
+            error instanceof MessageBundleLoadError
+          )) {
+            throw error;
+          }
           // The mutation committed; a bundle refresh is optional to its success.
         }
         if (!isActiveController(epoch)) return;
@@ -687,6 +695,8 @@ function actionLabel(element: HTMLElement): string {
       return t("ui.action.unblock");
     case "logout":
       return t("ui.action.logout");
+    case "language":
+      return t("ui.field.language");
     default:
       return t("ui.field.action");
   }
@@ -695,11 +705,16 @@ function actionLabel(element: HTMLElement): string {
 async function handleActionAtBoundary(
   element: HTMLElement,
   epoch: number,
+  signal: AbortSignal,
 ): Promise<void> {
   try {
-    await handleAction(element, epoch);
+    await handleAction(element, epoch, signal);
   } catch (error) {
-    if (!(error instanceof ApiError || error instanceof ApiNetworkError)) {
+    if (!(
+      error instanceof ApiError ||
+      error instanceof ApiNetworkError ||
+      error instanceof MessageBundleLoadError
+    )) {
       throw error;
     }
     if (epoch !== activeControllerEpoch) return;
@@ -741,7 +756,7 @@ export async function startAppController(
       const action = target.closest<HTMLElement>("[data-action]");
       if (action) {
         event.preventDefault();
-        void handleActionAtBoundary(action, epoch);
+        void handleActionAtBoundary(action, epoch, controller.signal);
       }
     },
     listenerOptions,
@@ -807,7 +822,7 @@ export async function startAppController(
     forwardConsoleToDevServer();
     installUserActionLog();
   }
-  await i18n.load();
+  await i18n.load(i18n.lang, { signal: controller.signal });
   await loadSessionAndMe();
   await renderApp();
 

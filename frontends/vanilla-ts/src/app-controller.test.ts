@@ -1,6 +1,6 @@
 import { ApiError } from "./api";
 import { startAppController } from "./app-controller";
-import { REPORTED_STORAGE_KEY, state } from "./app-state";
+import { i18n, REPORTED_STORAGE_KEY, state } from "./app-state";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -79,6 +79,7 @@ describe("app controller event boundary", () => {
   afterEach(() => {
     stopController?.();
     stopController = undefined;
+    i18n.lang = null;
     vi.restoreAllMocks();
   });
 
@@ -338,6 +339,174 @@ describe("app controller event boundary", () => {
       ).toBe("Message deleted.");
       expect(root!.querySelector(".sv-toast--danger")).toBeNull();
     });
+  });
+
+  it("keeps a successful message deletion when bundle decoding fails", async () => {
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    let bundleRequests = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/api/v1/messages/bundle") {
+        bundleRequests += 1;
+        if (bundleRequests > 1) {
+          return new Response("{", {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
+      if (
+        url.pathname === "/api/v1/messages/message-1" &&
+        init?.method === "DELETE"
+      ) {
+        return new Response(null, { status: 204 });
+      }
+      return defaultFetch(input, init);
+    });
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+
+    state.dialog = {
+      kind: "delete-message",
+      message: {
+        id: "message-1",
+        key: "ui.test.message",
+        language: "en",
+        text: "Test",
+        createdAt: "2026-07-10T00:00:00Z",
+        updatedAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-message-delete";
+    root!.append(confirm);
+    confirm.click();
+
+    await vi.waitFor(() => {
+      expect(bundleRequests).toBe(2);
+      expect(state.dialog).toBeNull();
+      expect(
+        root!.querySelector<HTMLElement>(".sv-toast.sv-toast--success")
+          ?.textContent,
+      ).toBe("Message deleted.");
+      expect(root!.querySelector(".sv-toast--danger")).toBeNull();
+    });
+  });
+
+  it("prevents a stopped controller's bundle refresh from overwriting its replacement", async () => {
+    const staleBundle = deferred<Response>();
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    let bundleRequests = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/api/v1/messages/bundle") {
+        bundleRequests += 1;
+        if (bundleRequests === 1) {
+          return jsonResponse({
+            language: "en",
+            messages: {
+              "ui.app.title": "Initial title",
+              "ui.nav.public-feed": "Public feed",
+              "ui.bookmarks.empty": "No bookmarks yet.",
+              "ui.toast.message-deleted": "Message deleted.",
+            },
+          });
+        }
+        if (bundleRequests === 2) return staleBundle.promise;
+        if (bundleRequests === 3) {
+          return jsonResponse({
+            language: "pl",
+            messages: {
+              "ui.app.title": "Replacement title",
+              "ui.nav.public-feed": "Publiczne",
+              "ui.bookmarks.empty": "Brak zakladek.",
+            },
+          });
+        }
+        throw new Error("Unexpected bundle request");
+      }
+      if (
+        url.pathname === "/api/v1/messages/message-1" &&
+        init?.method === "DELETE"
+      ) {
+        return new Response(null, { status: 204 });
+      }
+      return defaultFetch(input, init);
+    });
+    i18n.lang = null;
+    const firstRoot = document.querySelector<HTMLElement>("#app");
+    expect(firstRoot).not.toBeNull();
+    stopController = await startAppController(firstRoot!, {
+      enableDevInstrumentation: false,
+    });
+    state.dialog = {
+      kind: "delete-message",
+      message: {
+        id: "message-1",
+        key: "ui.test.message",
+        language: "en",
+        text: "Test",
+        createdAt: "2026-07-10T00:00:00Z",
+        updatedAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-message-delete";
+    firstRoot!.append(confirm);
+    confirm.click();
+    await vi.waitFor(() => expect(bundleRequests).toBe(2));
+
+    stopController();
+    stopController = undefined;
+    i18n.lang = "pl";
+    const replacementRoot = document.createElement("div");
+    document.body.replaceChildren(replacementRoot);
+    stopController = await startAppController(replacementRoot, {
+      enableDevInstrumentation: false,
+    });
+    const replacementDialog = {
+      kind: "delete-message" as const,
+      message: {
+        id: "message-2",
+        key: "ui.test.replacement",
+        language: "pl",
+        text: "Replacement",
+        createdAt: "2026-07-10T00:00:00Z",
+        updatedAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    state.dialog = replacementDialog;
+    const replacementRenderVersion = state.renderVersion;
+    const replacementCache = localStorage.getItem("stackverse.bundle.pl");
+
+    staleBundle.resolve(
+      jsonResponse({
+        language: "en",
+        messages: { "ui.app.title": "Stale title" },
+      }),
+    );
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+    expect(bundleRequests).toBe(3);
+    expect(i18n.resolvedLanguage).toBe("pl");
+    expect(i18n.t("ui.app.title")).toBe("Replacement title");
+    expect(document.documentElement.lang).toBe("pl");
+    expect(document.title).toBe("Replacement title");
+    expect(localStorage.getItem("stackverse.bundle.pl")).toBe(replacementCache);
+    const originalCache = JSON.parse(
+      localStorage.getItem("stackverse.bundle.auto") ?? "null",
+    ) as { bundle?: { messages?: Record<string, string> } } | null;
+    expect(originalCache?.bundle?.messages?.["ui.app.title"]).toBe(
+      "Initial title",
+    );
+    expect(state.dialog).toBe(replacementDialog);
+    expect(state.toasts).toEqual([]);
+    expect(state.renderVersion).toBe(replacementRenderVersion);
   });
 
   it("ignores a stopped controller's delayed destructive success", async () => {
