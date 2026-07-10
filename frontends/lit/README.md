@@ -36,9 +36,11 @@ contract.
   source of visual truth.
 - **Focused light-DOM modules.** `main.ts` only composes the shared CSS and app
   element. State, navigation, view primitives, bookmark pages/cards, admin pages,
-  dialogs, and the Lit shell/controller live in focused modules. They retain
-  delegated actions and light-DOM markup so the shared stylesheet stays byte-for-byte
-  authoritative without turning every small template into a custom element.
+  dialogs, and the Lit shell/controller live in focused modules. The active dialog
+  has its own light-DOM custom-element boundary, so unrelated shell/toast updates
+  preserve its DOM, focus, and selection. Delegated actions and light-DOM markup
+  keep the shared stylesheet byte-for-byte authoritative without turning every
+  small template into a custom element.
 - **Hand-written API types.** Generated OpenAPI types are common in larger Lit
   apps. This variant keeps the frontend self-contained by transcribing the small
   Stackverse contract into `src/types.ts`; the OpenAPI spec remains canonical.

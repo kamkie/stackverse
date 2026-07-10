@@ -13,6 +13,7 @@ import {
   resetBookmarkList,
 } from "./bookmark-pages";
 import { dialogHtml } from "./dialog-views";
+import "./dialog-element";
 import { headerHtml } from "./header-view";
 import { i18n, state } from "./app-state";
 import type { DialogState, FormValues, ToastVariant } from "./app-state";
@@ -44,7 +45,7 @@ import type {
 
 let appElement: StackverseApp | undefined;
 let currentMainHtml = "";
-let currentIncludeDialog = true;
+let currentDialogHtml = "";
 let bootstrapPromise: Promise<void> | undefined;
 
 let pendingInputRender: number | undefined;
@@ -83,50 +84,17 @@ async function loadSessionAndMe(): Promise<void> {
   }
 }
 
-function shellHtml(
-  mainHtml: string,
-  options: { includeDialog?: boolean } = {},
-): string {
-  const dialogMarkup = options.includeDialog === false ? "" : dialogHtml();
-  return `<div class="sv-app">
-    ${headerHtml()}
-    <main class="sv-main">${mainHtml}</main>
-    ${dialogMarkup}
-    ${toastHtml()}
-  </div>`;
-}
-
 function renderShell(
   mainHtml: string,
   options: { includeDialog?: boolean } = {},
 ): void {
   currentMainHtml = mainHtml;
-  currentIncludeDialog = options.includeDialog !== false;
+  currentDialogHtml = options.includeDialog === false ? "" : dialogHtml();
   requestShellUpdate();
 }
 
 function requestShellUpdate(): void {
   appElement?.requestUpdate();
-}
-
-function openCurrentDialog(host: HTMLElement): void {
-  const dialog = host.querySelector<HTMLDialogElement>("dialog.sv-dialog");
-  if (dialog && dialog.dataset.litWired !== "true") {
-    dialog.dataset.litWired = "true";
-    if (typeof dialog.showModal === "function" && !dialog.open) {
-      dialog.showModal();
-    } else {
-      dialog.setAttribute("open", "");
-    }
-    dialog.addEventListener(
-      "close",
-      () => {
-        state.dialog = null;
-        void renderApp();
-      },
-      { once: true },
-    );
-  }
 }
 
 async function renderApp(): Promise<void> {
@@ -657,6 +625,11 @@ window.addEventListener("popstate", () => {
 });
 
 export class StackverseApp extends LitElement {
+  private handleDialogClose(): void {
+    state.dialog = null;
+    void renderApp();
+  }
+
   override connectedCallback(): void {
     super.connectedCallback();
     setAppElement(this);
@@ -675,15 +648,17 @@ export class StackverseApp extends LitElement {
   }
 
   override render() {
-    return html`${unsafeHTML(
-      shellHtml(currentMainHtml || loadingHtml(), {
-        includeDialog: currentIncludeDialog,
-      }),
-    )}`;
-  }
-
-  override updated(): void {
-    openCurrentDialog(this);
+    return html`<div class="sv-app">
+      ${unsafeHTML(headerHtml())}
+      <main class="sv-main">
+        ${unsafeHTML(currentMainHtml || loadingHtml())}
+      </main>
+      <stackverse-dialog
+        .markup=${currentDialogHtml}
+        @stackverse-dialog-close=${this.handleDialogClose}
+      ></stackverse-dialog>
+      ${unsafeHTML(toastHtml())}
+    </div>`;
   }
 }
 
