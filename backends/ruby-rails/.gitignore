@@ -2,6 +2,8 @@
 !/bin/rails
 
 /.bundle/
+/.ruby-lsp/
 /coverage/
 /log/*
 /tmp/*
+/vendor/bundle/

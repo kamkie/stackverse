@@ -1,5 +1,7 @@
 # local env
 .env
+.env.local
+.env.*.local
 
 # dev-mode logs tee'd by scripts/dev-stack.ps1 (shared with agents, never committed)
 .logs/
@@ -16,7 +18,15 @@ Thumbs.db
 # IDE (per-implementation ignores live in each implementation directory)
 .idea/
 .vscode/
+.vs/
 *.iml
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.classpath
+.project
+.settings/
 
 # common build outputs — implementations add their own specifics
 node_modules/
