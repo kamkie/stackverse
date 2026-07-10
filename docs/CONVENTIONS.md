@@ -392,7 +392,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Single light-DOM LitElement shell composed from focused route and view modules | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Light-DOM LitElement shell plus a stable dialog element, composed from focused route and view modules | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `component$` components in TSX with QRL callbacks and typed props | `component$` TSX components, `$` event handlers, typed props interfaces | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | Runes-based .svelte components: $props, snippets, mount() bootstrap | Runes-based components with $props, snippets, and mount() bootstrap | ✅ idiomatic |
@@ -405,7 +405,7 @@ issue closes.
 |---|---|---|---|
 | [React](../frontends/react/README.md) | TanStack Query for server state; Context/hooks for local | TanStack Query + Context (i18n/toast) + web-storage helpers; no global store | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Signals (signal/computed/effect) with zoneless change detection | Plain signal stores + effect/untracked; zoneless; RxJS only at HttpClient | ✅ idiomatic |
-| [Lit (Web Components)](../frontends/lit/README.md) | ReactiveElement properties/state or local controllers for component state | Plain module state; the Lit shell requests updates after state transitions | 🟡 deliberate |
+| [Lit (Web Components)](../frontends/lit/README.md) | ReactiveElement properties/state or local controllers for component state | Plain module state; shell updates are requested explicitly and dialog markup crosses a reactive property boundary | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `useStore`/`useSignal` for reactive state; context when cross-component | Component stores/signals plus a tiny route store; no global state library | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Fine-grained signals/memos for local and shared state; context only when needed | Component and module-level `createSignal`/`createMemo`, no global store | ✅ idiomatic |
 | [Svelte 5](../frontends/svelte/README.md) | $state/$derived/$effect runes; stores mainly for cross-component shared state | $state/$derived/$effect for component state; stores retained for shared route/session/i18n state | ✅ idiomatic |
