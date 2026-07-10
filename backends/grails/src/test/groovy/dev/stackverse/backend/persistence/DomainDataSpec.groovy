@@ -30,4 +30,26 @@ class DomainDataSpec extends Specification implements DataTest {
         UserAccount.get('alice').status == 'active'
         UserAccount.countByStatus('active') == 1
     }
+
+    void 'assigned UUID identifiers persist through explicit domain assignment'() {
+        given:
+        UUID id = UUID.randomUUID()
+        Instant now = Instant.parse('2026-01-01T00:00:00Z')
+        Bookmark bookmark = new Bookmark(
+            owner: 'alice',
+            url: 'https://example.com',
+            title: 'Example',
+            visibility: 'public',
+            status: 'active',
+            createdAt: now,
+            updatedAt: now
+        )
+
+        when:
+        bookmark.id = id
+        bookmark.save(failOnError: true, flush: true)
+
+        then:
+        Bookmark.get(id).owner == 'alice'
+    }
 }

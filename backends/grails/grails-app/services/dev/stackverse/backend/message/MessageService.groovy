@@ -126,15 +126,16 @@ class MessageService implements ApplicationRunner {
         UUID id = UUID.randomUUID()
         def now = timeSource.now()
         try {
-            new Message(
-                id: id,
+            Message message = new Message(
                 key: input.key,
                 language: input.language,
                 text: input.text,
                 description: input.description,
                 createdAt: now,
                 updatedAt: now
-            ).save(failOnError: true, flush: true)
+            )
+            message.id = id
+            message.save(failOnError: true, flush: true)
         } catch (DataIntegrityViolationException ignored) {
             throw ApiError.conflict("A message with this key and language already exists.")
         }

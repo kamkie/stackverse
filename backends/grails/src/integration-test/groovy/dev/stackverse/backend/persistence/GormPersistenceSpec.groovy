@@ -25,8 +25,7 @@ class GormPersistenceSpec extends Specification {
             lastSeen: now,
             status: 'active'
         ).save(failOnError: true, flush: true)
-        new Bookmark(
-            id: bookmarkId,
+        Bookmark bookmark = new Bookmark(
             owner: 'gorm-test-user',
             url: 'https://example.com',
             title: 'GORM integration test',
@@ -34,23 +33,27 @@ class GormPersistenceSpec extends Specification {
             status: 'active',
             createdAt: now,
             updatedAt: now
-        ).save(failOnError: true, flush: true)
-        new Message(
-            id: messageId,
+        )
+        bookmark.id = bookmarkId
+        bookmark.save(failOnError: true, flush: true)
+        Message message = new Message(
             key: "gorm-test-${messageId}",
             language: 'en',
             text: 'GORM integration test',
             createdAt: now,
             updatedAt: now
-        ).save(failOnError: true, flush: true)
-        new Report(
-            id: reportId,
+        )
+        message.id = messageId
+        message.save(failOnError: true, flush: true)
+        Report report = new Report(
             bookmarkId: bookmarkId,
             reporter: 'gorm-test-reporter',
             reason: 'spam',
             status: 'open',
             createdAt: now
-        ).save(failOnError: true, flush: true)
+        )
+        report.id = reportId
+        report.save(failOnError: true, flush: true)
 
         then:
         UserAccount.countByStatus('active') >= 1

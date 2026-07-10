@@ -83,8 +83,7 @@ class BookmarkService {
     Map create(Map valid, String username) {
         UUID id = UUID.randomUUID()
         def now = timeSource.now()
-        new Bookmark(
-            id: id,
+        Bookmark bookmark = new Bookmark(
             owner: username,
             url: valid.url,
             title: valid.title,
@@ -93,7 +92,9 @@ class BookmarkService {
             status: 'active',
             createdAt: now,
             updatedAt: now
-        ).save(failOnError: true, flush: true)
+        )
+        bookmark.id = id
+        bookmark.save(failOnError: true, flush: true)
         replaceTags(id, valid.tags)
         find(id)
     }
@@ -135,15 +136,16 @@ class BookmarkService {
         UUID id = UUID.randomUUID()
         def now = timeSource.now()
         try {
-            new Report(
-                id: id,
+            Report report = new Report(
                 bookmarkId: bookmarkId,
                 reporter: username,
                 reason: input.reason,
                 comment: input.comment,
                 status: 'open',
                 createdAt: now
-            ).save(failOnError: true, flush: true)
+            )
+            report.id = id
+            report.save(failOnError: true, flush: true)
         } catch (DataIntegrityViolationException ignored) {
             throw ApiError.conflict("The caller already has an open report on this bookmark.")
         }
