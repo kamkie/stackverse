@@ -11,16 +11,16 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
 
 trait BookmarkOperations {
-  def listBookmarksV1(req: Request[IO]): IO[Response[IO]]
-  def listBookmarksV2(req: Request[IO]): IO[Response[IO]]
+  def listBookmarksV1(req: Request[IO], caller: Option[Caller]): IO[Response[IO]]
+  def listBookmarksV2(req: Request[IO], caller: Option[Caller]): IO[Response[IO]]
   def createBookmark(req: Request[IO], caller: Caller): IO[Response[IO]]
-  def getBookmark(req: Request[IO], id: String): IO[Response[IO]]
+  def getBookmark(req: Request[IO], id: String, caller: Option[Caller]): IO[Response[IO]]
   def updateBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
   def deleteBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]]
   def listTags(req: Request[IO], caller: Caller): IO[Response[IO]]
 }
 
-final class BookmarkService(db: Db, auth: AuthService, repository: SharedRepository) extends BookmarkOperations {
+final class BookmarkService(db: Db, repository: SharedRepository) extends BookmarkOperations {
   import InputValidation.*
   import RouteSupport.*
   import Wire.*
@@ -28,8 +28,7 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
 
   private val TagPattern = "^[a-z0-9-]{1,30}$".r
 
-  override def listBookmarksV1(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    val caller = auth.optional(req)
+  override def listBookmarksV1(req: Request[IO], caller: Option[Caller]): IO[Response[IO]] = IO.blocking {
     val (page, size) = paging(query(req))
     val filters = parseListFilters(query(req))
     val (where, params) = listingWhere(caller, filters)
@@ -53,8 +52,7 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
     )
   }
 
-  override def listBookmarksV2(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    val caller = auth.optional(req)
+  override def listBookmarksV2(req: Request[IO], caller: Option[Caller]): IO[Response[IO]] = IO.blocking {
     val (_, size) = paging(query(req))
     val filters = parseListFilters(query(req))
     val cursor = single(query(req), "cursor").map(CursorCodec.decode)
@@ -107,8 +105,7 @@ final class BookmarkService(db: Db, auth: AuthService, repository: SharedReposit
       }
     } yield response
 
-  override def getBookmark(req: Request[IO], id: String): IO[Response[IO]] = IO.blocking {
-    val caller = auth.optional(req)
+  override def getBookmark(req: Request[IO], id: String, caller: Option[Caller]): IO[Response[IO]] = IO.blocking {
     val uuid = parseUuid(id)
     val row = db.withConnection(conn => findBookmark(conn, uuid))
     val visible = row.exists(bookmark =>

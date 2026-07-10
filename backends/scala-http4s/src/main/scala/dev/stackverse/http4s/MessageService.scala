@@ -27,7 +27,6 @@ final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventL
   import repository.*
 
   override def listMessages(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    auth.optional(req)
     val (page, size) = paging(query(req))
     val key = single(query(req), "key")
     val language = single(query(req), "language")
@@ -57,7 +56,6 @@ final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventL
   }
 
   override def messageBundle(req: Request[IO]): IO[Response[IO]] = IO.blocking {
-    auth.optional(req)
     val language = requestLanguage(req)
     withEtag(
       req,
@@ -67,7 +65,6 @@ final class MessageService(db: Db, auth: AuthService, i18n: I18n, logger: EventL
   }
 
   override def getMessage(req: Request[IO], id: String): IO[Response[IO]] = IO.blocking {
-    auth.optional(req)
     val uuid = parseUuid(id)
     val row = db.withConnection { conn =>
       db.one(conn, "select * from messages where id = ?", Seq(uuid))(Rows.message).getOrElse(throw NotFoundProblem())

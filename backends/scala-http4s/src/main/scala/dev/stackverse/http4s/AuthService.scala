@@ -41,9 +41,6 @@ final class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: Event
         Some(caller)
     }
 
-  def requireCaller(request: Request[IO]): Caller =
-    optional(request).getOrElse(throw UnauthorizedProblem())
-
   def requireRole(caller: Caller, role: String): Caller = {
     if (!caller.roles.contains(role)) {
       logger.event(

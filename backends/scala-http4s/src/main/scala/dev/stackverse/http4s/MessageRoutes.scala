@@ -1,25 +1,20 @@
 package dev.stackverse.http4s
 
 import cats.effect.IO
-import cats.syntax.semigroupk.*
 import org.http4s.*
 import org.http4s.dsl.io.*
 
-final class MessageRoutes(service: MessageOperations, handler: RequestHandler, security: RouteAuthentication) {
-  private val public: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case req @ GET -> Root / "api" / "v1" / "messages" / "bundle" => handler(req)(service.messageBundle(req))
-    case req @ GET -> Root / "api" / "v1" / "messages"            => handler(req)(service.listMessages(req))
-    case req @ GET -> Root / "api" / "v1" / "messages" / id       => handler(req)(service.getMessage(req, id))
-  }
-
-  private val secured: AuthedRoutes[Caller, IO] = AuthedRoutes.of {
+final class MessageRoutes(service: MessageOperations, handler: RequestHandler) {
+  val routes: AuthedRoutes[Option[Caller], IO] = AuthedRoutes.of {
+    case req @ GET -> Root / "api" / "v1" / "messages" / "bundle" as _ =>
+      handler(req.req)(service.messageBundle(req.req))
+    case req @ GET -> Root / "api" / "v1" / "messages" as _       => handler(req.req)(service.listMessages(req.req))
+    case req @ GET -> Root / "api" / "v1" / "messages" / id as _  => handler(req.req)(service.getMessage(req.req, id))
     case req @ POST -> Root / "api" / "v1" / "messages" as caller =>
-      handler(req.req)(service.createMessage(req.req, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.createMessage(req.req, _)))
     case req @ PUT -> Root / "api" / "v1" / "messages" / id as caller =>
-      handler(req.req)(service.updateMessage(req.req, id, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.updateMessage(req.req, id, _)))
     case req @ DELETE -> Root / "api" / "v1" / "messages" / id as caller =>
-      handler(req.req)(service.deleteMessage(req.req, id, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.deleteMessage(req.req, id, _)))
   }
-
-  val routes: HttpRoutes[IO] = public <+> security(secured)
 }

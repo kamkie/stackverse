@@ -59,11 +59,12 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
 - **Separated technical boundaries** — environment configuration, boot seeding,
   persistence/row mapping, authentication, i18n, validation, wire codecs,
   logging, and RFC 9457 recovery each have a focused source module.
-- **Kleisli authentication middleware** — secured `AuthedRoutes` run through an
-  http4s `AuthMiddleware` built from a `Kleisli`; public reads remain ordinary
-  `HttpRoutes`. The authenticated `Caller` is passed explicitly into each
-  secured feature operation, so JWT/account verification happens once at the
-  HTTP boundary while caller-based role helpers preserve exact 403 behavior.
+- **Kleisli authentication middleware** — one http4s `AuthMiddleware` built
+  from a `Kleisli` wraps the aggregate API route tree and attaches an optional
+  `Caller`. Public operations consume that optional context; protected
+  operations require it and pass the authoritative caller into their feature
+  service. JWT/account verification therefore happens at most once per API
+  request, without one feature's auth boundary intercepting a sibling route.
 - **Blocking JDBC isolated in `IO.blocking`** — the HTTP layer stays effect
   typed while the intentionally thin SQL layer uses PostgreSQL arrays and
   `SELECT ... FOR UPDATE` locks for the contract-sensitive races.
@@ -77,9 +78,10 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
 - **Circe response builders** — wire JSON is built explicitly so optional fields
   are omitted exactly where the OpenAPI contract omits them.
 - **Route-level tests** — ScalaTest exercises real route-to-service behavior
-  through fake operation interfaces, exactly-once authenticated caller
-  propagation, authentication denial, liveness, and sibling-route isolation
-  without infrastructure.
+  through fake operation interfaces, including the production aggregate route
+  composition: anonymous public fallthrough, unknown-route 404, ETag/language
+  metadata, exactly-once caller propagation, authentication denial, liveness,
+  and sibling-route isolation without infrastructure.
 - **Lifecycle logs follow the complete runtime resource** — startup is emitted
   only after database acquisition, migrations, seed import, and Ember bind;
   shutdown follows resource release. Any acquisition failure is logged once as

@@ -1,27 +1,24 @@
 package dev.stackverse.http4s
 
 import cats.effect.IO
-import cats.syntax.semigroupk.*
 import org.http4s.*
 import org.http4s.dsl.io.*
 
-final class BookmarkRoutes(service: BookmarkOperations, handler: RequestHandler, security: RouteAuthentication) {
-  private val public: HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case req @ GET -> Root / "api" / "v1" / "bookmarks"      => handler(req)(service.listBookmarksV1(req))
-    case req @ GET -> Root / "api" / "v2" / "bookmarks"      => handler(req)(service.listBookmarksV2(req))
-    case req @ GET -> Root / "api" / "v1" / "bookmarks" / id => handler(req)(service.getBookmark(req, id))
-  }
-
-  private val secured: AuthedRoutes[Caller, IO] = AuthedRoutes.of {
+final class BookmarkRoutes(service: BookmarkOperations, handler: RequestHandler) {
+  val routes: AuthedRoutes[Option[Caller], IO] = AuthedRoutes.of {
+    case req @ GET -> Root / "api" / "v1" / "bookmarks" as caller =>
+      handler(req.req)(service.listBookmarksV1(req.req, caller))
+    case req @ GET -> Root / "api" / "v2" / "bookmarks" as caller =>
+      handler(req.req)(service.listBookmarksV2(req.req, caller))
+    case req @ GET -> Root / "api" / "v1" / "bookmarks" / id as caller =>
+      handler(req.req)(service.getBookmark(req.req, id, caller))
     case req @ POST -> Root / "api" / "v1" / "bookmarks" as caller =>
-      handler(req.req)(service.createBookmark(req.req, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.createBookmark(req.req, _)))
     case req @ PUT -> Root / "api" / "v1" / "bookmarks" / id as caller =>
-      handler(req.req)(service.updateBookmark(req.req, id, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.updateBookmark(req.req, id, _)))
     case req @ DELETE -> Root / "api" / "v1" / "bookmarks" / id as caller =>
-      handler(req.req)(service.deleteBookmark(req.req, id, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.deleteBookmark(req.req, id, _)))
     case req @ GET -> Root / "api" / "v1" / "tags" as caller =>
-      handler(req.req)(service.listTags(req.req, caller))
+      handler(req.req)(RouteSecurity.requireCaller(caller)(service.listTags(req.req, _)))
   }
-
-  val routes: HttpRoutes[IO] = public <+> security(secured)
 }

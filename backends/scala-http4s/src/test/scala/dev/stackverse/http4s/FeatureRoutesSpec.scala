@@ -4,8 +4,9 @@ import cats.effect.{IO, Resource}
 import cats.effect.unsafe.implicits.global
 import io.circe.{Json, JsonObject}
 import org.http4s.implicits.*
-import org.http4s.{HttpRoutes, Method, Request, Response, Status, Uri}
+import org.http4s.{Header, HttpRoutes, Method, Request, Response, Status, Uri}
 import org.scalatest.funsuite.AnyFunSuite
+import org.typelevel.ci.CIString
 
 import scala.collection.mutable.ListBuffer
 
@@ -26,7 +27,7 @@ class FeatureRoutesSpec extends AnyFunSuite {
       ): Unit = ()
     }
   )
-  private val security = new RouteSecurity(_ => IO.pure(caller), handler)
+  private val security = new RouteSecurity(_ => IO.pure(Some(caller)), handler)
 
   test("health route executes its service behavior") {
     val service = new HealthOperations {
@@ -42,7 +43,7 @@ class FeatureRoutesSpec extends AnyFunSuite {
       override def me(caller: Caller): IO[Response[IO]] = response("identity")
     }
     val bookmarks = new BookmarkAdapter {
-      override def listBookmarksV1(req: Request[IO]): IO[Response[IO]] = response("bookmarks")
+      override def listBookmarksV1(req: Request[IO], caller: Option[Caller]): IO[Response[IO]] = response("bookmarks")
     }
     val messages = new MessageAdapter {
       override def createMessage(req: Request[IO], caller: Caller): IO[Response[IO]] = response("message-created")
@@ -55,15 +56,15 @@ class FeatureRoutesSpec extends AnyFunSuite {
     }
 
     val cases = Seq(
-      (new IdentityRoutes(identity, handler, security).routes, request(Method.GET, "/api/v1/me"), "identity"),
-      (new BookmarkRoutes(bookmarks, handler, security).routes, request(Method.GET, "/api/v1/bookmarks"), "bookmarks"),
+      (security(new IdentityRoutes(identity, handler).routes), request(Method.GET, "/api/v1/me"), "identity"),
+      (security(new BookmarkRoutes(bookmarks, handler).routes), request(Method.GET, "/api/v1/bookmarks"), "bookmarks"),
       (
-        new MessageRoutes(messages, handler, security).routes,
+        security(new MessageRoutes(messages, handler).routes),
         request(Method.POST, "/api/v1/messages"),
         "message-created"
       ),
-      (new ModerationRoutes(moderation, handler, security).routes, request(Method.GET, "/api/v1/reports"), "reports"),
-      (new AdminRoutes(admin, handler, security).routes, request(Method.GET, "/api/v1/admin/users"), "users")
+      (security(new ModerationRoutes(moderation, handler).routes), request(Method.GET, "/api/v1/reports"), "reports"),
+      (security(new AdminRoutes(admin, handler).routes), request(Method.GET, "/api/v1/admin/users"), "users")
     )
 
     cases.foreach(assertBody.tupled)
@@ -71,7 +72,7 @@ class FeatureRoutesSpec extends AnyFunSuite {
 
   test("Kleisli authentication middleware rejects secured routes before service execution") {
     val denied = new RouteSecurity(_ => IO.raiseError(UnauthorizedProblem()), handler)
-    val routes = new IdentityRoutes(new IdentityAdapter {}, handler, denied).routes
+    val routes = denied(new IdentityRoutes(new IdentityAdapter {}, handler).routes)
     val result = routes.orNotFound.run(request(Method.GET, "/api/v1/me")).unsafeRunSync()
 
     assert(result.status == Status.Unauthorized)
@@ -85,7 +86,7 @@ class FeatureRoutesSpec extends AnyFunSuite {
     var authentications = 0
     var observedCaller = Option.empty[Caller]
     val countingSecurity = new RouteSecurity(
-      _ => IO { authentications += 1; caller },
+      _ => IO { authentications += 1; Some(caller) },
       handler
     )
     val service = new IdentityAdapter {
@@ -96,7 +97,7 @@ class FeatureRoutesSpec extends AnyFunSuite {
     }
 
     assertBody(
-      new IdentityRoutes(service, handler, countingSecurity).routes,
+      countingSecurity(new IdentityRoutes(service, handler).routes),
       request(Method.GET, "/api/v1/me"),
       "identity"
     )
@@ -105,9 +106,83 @@ class FeatureRoutesSpec extends AnyFunSuite {
   }
 
   test("feature modules do not claim routes from sibling domains") {
-    val routes = new BookmarkRoutes(new BookmarkAdapter {}, handler, security).routes
+    val routes = security(new BookmarkRoutes(new BookmarkAdapter {}, handler).routes)
 
     assert(routes.run(request(Method.GET, "/api/v1/messages")).value.unsafeRunSync().isEmpty)
+  }
+
+  test("aggregate routes preserve public fallthrough, response metadata, unknown 404, and one protected auth") {
+    var authentications = 0
+    var observedCaller = Option.empty[Caller]
+    val aggregateSecurity = new RouteSecurity(
+      request =>
+        IO {
+          authentications += 1
+          if (Wire.header(request, "Authorization").contains("Bearer valid")) Some(caller) else None
+        },
+      handler
+    )
+    val health = new HealthRoutes(
+      new HealthOperations {
+        override def healthz: IO[Response[IO]] = response("health")
+        override def readyz: IO[Response[IO]] = response("ready")
+      },
+      handler
+    )
+    val identity = new IdentityRoutes(
+      new IdentityAdapter {
+        override def me(authenticated: Caller): IO[Response[IO]] = {
+          observedCaller = Some(authenticated)
+          response("identity")
+        }
+      },
+      handler
+    )
+    val bookmarks = new BookmarkRoutes(
+      new BookmarkAdapter {
+        override def listBookmarksV1(req: Request[IO], attached: Option[Caller]): IO[Response[IO]] = {
+          assert(attached.isEmpty)
+          response("public-bookmarks")
+        }
+      },
+      handler
+    )
+    val messages = new MessageRoutes(
+      new MessageAdapter {
+        override def messageBundle(req: Request[IO]): IO[Response[IO]] = IO.pure(
+          Wire.jsonResponse(
+            Status.Ok,
+            Json.fromString("bundle"),
+            "ETag" -> "\"bundle-fr\"",
+            "Content-Language" -> Wire.first(Wire.query(req), "lang").getOrElse("en")
+          )
+        )
+      },
+      handler
+    )
+    val routes = StackverseRoutes.compose(
+      health.routes,
+      aggregateSecurity,
+      identity.routes,
+      bookmarks.routes,
+      messages.routes,
+      new ModerationRoutes(new ModerationAdapter {}, handler).routes,
+      new AdminRoutes(new AdminAdapter {}, handler).routes
+    )
+
+    assertBody(routes, request(Method.GET, "/api/v1/bookmarks"), "public-bookmarks")
+    val bundle = routes.orNotFound.run(request(Method.GET, "/api/v1/messages/bundle?lang=fr")).unsafeRunSync()
+    assert(bundle.status == Status.Ok)
+    assert(header(bundle, "ETag").contains("\"bundle-fr\""))
+    assert(header(bundle, "Content-Language").contains("fr"))
+    assert(routes.orNotFound.run(request(Method.GET, "/api/v1/unknown")).unsafeRunSync().status == Status.NotFound)
+
+    authentications = 0
+    val authenticated = request(Method.GET, "/api/v1/me")
+      .putHeaders(Header.Raw(CIString("Authorization"), "Bearer valid"))
+    assertBody(routes, authenticated, "identity")
+    assert(authentications == 1)
+    assert(observedCaller.contains(caller))
   }
 
   test("message validation accepts canonical dotted keys") {
@@ -175,6 +250,9 @@ class FeatureRoutesSpec extends AnyFunSuite {
   private def request(method: Method, path: String): Request[IO] =
     Request[IO](method, Uri.unsafeFromString(path))
 
+  private def header(response: Response[IO], name: String): Option[String] =
+    response.headers.headers.find(_.name.toString.equalsIgnoreCase(name)).map(_.value)
+
   private def unsupported: IO[Response[IO]] = IO.raiseError(new AssertionError("unexpected service call"))
 
   private trait IdentityAdapter extends IdentityOperations {
@@ -182,10 +260,10 @@ class FeatureRoutesSpec extends AnyFunSuite {
   }
 
   private trait BookmarkAdapter extends BookmarkOperations {
-    override def listBookmarksV1(req: Request[IO]): IO[Response[IO]] = unsupported
-    override def listBookmarksV2(req: Request[IO]): IO[Response[IO]] = unsupported
+    override def listBookmarksV1(req: Request[IO], caller: Option[Caller]): IO[Response[IO]] = unsupported
+    override def listBookmarksV2(req: Request[IO], caller: Option[Caller]): IO[Response[IO]] = unsupported
     override def createBookmark(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
-    override def getBookmark(req: Request[IO], id: String): IO[Response[IO]] = unsupported
+    override def getBookmark(req: Request[IO], id: String, caller: Option[Caller]): IO[Response[IO]] = unsupported
     override def updateBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
     override def deleteBookmark(req: Request[IO], id: String, caller: Caller): IO[Response[IO]] = unsupported
     override def listTags(req: Request[IO], caller: Caller): IO[Response[IO]] = unsupported
