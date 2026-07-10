@@ -80,15 +80,26 @@ describe("report submission", () => {
             createdAt: "2026-07-10T00:00:00Z",
             updatedAt: "2026-07-10T00:00:00Z",
           },
+          {
+            id: "bookmark-2",
+            owner: "demo",
+            url: "https://example.org",
+            title: "Replacement",
+            tags: [],
+            visibility: "public",
+            status: "active",
+            createdAt: "2026-07-10T00:00:00Z",
+            updatedAt: "2026-07-10T00:00:00Z",
+          },
         ],
       },
     ];
     const openReport = document.createElement("button");
     openReport.dataset.action = APP_ACTIONS.openReport;
-    openReport.dataset.id = "bookmark-1";
     document.body.append(openReport);
 
-    const openDialog = async (): Promise<HTMLFormElement> => {
+    const openDialog = async (bookmarkId: string): Promise<HTMLFormElement> => {
+      openReport.dataset.id = bookmarkId;
       openReport.click();
       return vi.waitFor(() => {
         const form = document.querySelector<HTMLFormElement>(
@@ -144,7 +155,7 @@ describe("report submission", () => {
             "/api/v1/bookmarks/bookmark-1/reports" && init?.method === "POST",
       ).length;
 
-      const originalForm = await openDialog();
+      const originalForm = await openDialog("bookmark-1");
       originalForm.dispatchEvent(
         new SubmitEvent("submit", { bubbles: true, cancelable: true }),
       );
@@ -158,7 +169,7 @@ describe("report submission", () => {
       });
 
       await closeDialog();
-      const replacementForm = await openDialog();
+      const replacementForm = await openDialog("bookmark-2");
       const replacementComment = replacementForm.elements.namedItem("comment");
       if (!(replacementComment instanceof HTMLTextAreaElement)) {
         throw new Error("Replacement report comment was not rendered");
@@ -171,6 +182,7 @@ describe("report submission", () => {
       if (replacementDialog?.kind !== "report-bookmark") {
         throw new Error("Replacement report dialog was not retained");
       }
+      expect(replacementDialog.bookmark.id).toBe("bookmark-2");
       expect(replacementDialog.values?.comment).toBe(expectedComment);
       expect(replacementDialog.error).toBeUndefined();
 
@@ -192,7 +204,7 @@ describe("report submission", () => {
       const reported = JSON.parse(
         sessionStorage.getItem(REPORTED_STORAGE_KEY) ?? "[]",
       ) as string[];
-      expect(reported.includes("bookmark-1")).toBe(testCase.reported);
+      expect(reported).toEqual(testCase.reported ? ["bookmark-1"] : []);
       if (testCase.toast) {
         const toast = document.querySelector<HTMLElement>(".sv-toast");
         expect(toast?.textContent).toBe(testCase.toast);
