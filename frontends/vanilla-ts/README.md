@@ -42,6 +42,9 @@ generations, keeping delegated row actions aligned with the data on screen.
 Delegated actions handle API and transport failures at one
 controller boundary, render localized action context with the failure detail in a
 danger toast, and preserve the current dialog or page state for retry.
+Dialog forms preserve submitted values and use one shared,
+accessible alert primitive for failures that are not already represented by a
+field error or specialized conflict message.
 
 `RuntimeI18n` owns ETag-aware message-bundle loading. It treats language changes
 as transactions: a requested language is published to memory and local storage
