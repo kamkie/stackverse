@@ -2,18 +2,21 @@ import { fixture } from "@open-wc/testing-helpers";
 import { html } from "lit";
 import { APP_ACTIONS } from "./app-actions";
 import { state } from "./app-state";
-
-interface TestAppElement extends HTMLElement {
-  requestUpdate(): void;
-  updateComplete: Promise<boolean>;
-}
+import type { StackverseApp } from "./app";
 
 describe("stackverse-app custom element", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    document
+      .querySelectorAll("stackverse-app, body > button[data-action]")
+      .forEach((element) => element.remove());
     localStorage.clear();
     sessionStorage.clear();
+    state.dialog = null;
+    state.toasts = [];
+    state.nextToastId = 0;
+    state.feed = { q: "", tags: [], pages: [], generation: 0 };
   });
 
   it("renders light DOM and preserves a dialog when a toast expires", async () => {
@@ -71,7 +74,7 @@ describe("stackverse-app custom element", () => {
 
     document.body.innerHTML = "<stackverse-app></stackverse-app>";
     await import("./main");
-    const host = document.querySelector<TestAppElement>("stackverse-app");
+    const host = document.querySelector<StackverseApp>("stackverse-app");
     expect(host?.shadowRoot).toBeNull();
     await vi.waitFor(() => {
       expect(host?.querySelector(".sv-app")).not.toBeNull();
@@ -98,7 +101,7 @@ describe("stackverse-app custom element", () => {
     const openReport = document.createElement("button");
     openReport.dataset.action = APP_ACTIONS.openReport;
     openReport.dataset.id = "bookmark-1";
-    host!.append(openReport);
+    document.body.append(openReport);
     openReport.click();
     await vi.waitFor(() => {
       expect(host?.querySelector("dialog.sv-dialog")).not.toBeNull();
@@ -116,7 +119,7 @@ describe("stackverse-app custom element", () => {
 
     const openDialog = document.createElement("button");
     openDialog.dataset.action = APP_ACTIONS.openBookmarkCreate;
-    host!.append(openDialog);
+    document.body.append(openDialog);
     openDialog.click();
     await vi.waitFor(() => {
       expect(host?.querySelector('form[data-form="bookmark"]')).not.toBeNull();
@@ -142,6 +145,24 @@ describe("stackverse-app custom element", () => {
     expect(urlInput?.selectionStart).toBe(8);
     expect(urlInput?.value).toBe("https://example.com");
     expect(state.toasts).toEqual([]);
+
+    dialogAfter!.dispatchEvent(new Event("close"));
+    await vi.waitFor(() => {
+      expect(state.dialog).toBeNull();
+      expect(host!.querySelector("dialog.sv-dialog")).toBeNull();
+    });
+
+    const reopenDialog = document.createElement("button");
+    reopenDialog.dataset.action = APP_ACTIONS.openBookmarkCreate;
+    document.body.append(reopenDialog);
+    reopenDialog.click();
+    await vi.waitFor(() => {
+      const reopened =
+        host!.querySelector<HTMLDialogElement>("dialog.sv-dialog");
+      expect(reopened).not.toBeNull();
+      expect(reopened).not.toBe(dialogAfter);
+      expect(reopened?.hasAttribute("open")).toBe(true);
+    });
 
     await fixture<HTMLElement>(html`<stackverse-app></stackverse-app>`);
 

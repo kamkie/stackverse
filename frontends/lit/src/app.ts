@@ -113,6 +113,11 @@ async function renderApp(): Promise<void> {
   renderShell(content);
 }
 
+async function closeDialog(): Promise<void> {
+  state.dialog = null;
+  await renderApp();
+}
+
 async function routeHtml(path: string): Promise<string> {
   if (path === "/bookmarks") return myBookmarksPageHtml();
   if (path === "/reports") return myReportsPageHtml();
@@ -390,8 +395,7 @@ async function handleAction(element: HTMLElement): Promise<void> {
       else navigate("/feed");
       break;
     case "close-dialog":
-      state.dialog = null;
-      await renderApp();
+      await closeDialog();
       break;
     case "toggle-tag": {
       const list =
@@ -626,8 +630,7 @@ window.addEventListener("popstate", () => {
 
 export class StackverseApp extends LitElement {
   private handleDialogClose(): void {
-    state.dialog = null;
-    void renderApp();
+    void closeDialog();
   }
 
   override connectedCallback(): void {
