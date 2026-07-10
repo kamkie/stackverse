@@ -17,9 +17,6 @@ listed separately because dependency freshness is not otherwise scored as a full
 per-variant table in this document. Update or remove each bullet when its tracking
 issue closes.
 
-- 🔴 **Scala http4s** pins the commit-style Cats Effect build `3.7-4972921`
-  instead of a normal stable release
-  ([#337](https://github.com/kamkie/stackverse/issues/337)).
 - 🟡 **Qwik** pins TypeScript 5.9 and Vite 7 because Qwik 1.20's generated
   declarations are incompatible with TypeScript 6 and its peer range excludes
   Vite 8. Application code now type-checks against the installed Qwik declarations;
@@ -48,7 +45,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | APIRouter per resource module, routers included on the app | `routers/` APIRouter modules by resource area, included from app setup | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Django project + app layout, urls.py route table, models/migrations in the app | `stackverse_django` project plus `stackverse_api` app with models, migrations, DRF views, and helpers | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Separate health, identity, bookmark, message, moderation, and admin controllers own feature actions; a focused bookmark repository owns the lookup shared with moderation | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Standard sbt layout, but config, wiring, auth, routes, DB, wire helpers, and logging share one ~1,754-line Main.scala | 🔴 undocumented |
+| [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Main composes resources/server only; focused route/service pairs plus separate auth, persistence, validation/wire, config, boot, and logging modules | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Maven layout; thin JAX-RS resources delegate the entire application to one ~2,043-line StackverseService | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one ~2,769-line handlers.rs | 🔴 undocumented |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails API app with app/controllers, app/models, app/services, config/routes.rb | Standard Rails API layout; controllers plus contract-heavy services under app/services/stackverse | ✅ idiomatic |
@@ -73,7 +70,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | SQLAlchemy ORM (often async) with Alembic migrations | Plain psycopg3 raw SQL, dict_row, pool; hand-rolled SQL migration runner | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | Django ORM models, QuerySets, and checked-in migrations | Django ORM + migrations; small raw SQL snippets only for PostgreSQL `unnest(tags)` reports | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Slick (or Anorm/Quill) with Play DB pool for typed/async queries | Hand-written JDBC via thin Db helper plus focused shared lookup repository on HikariCP + Flyway; raw SQL strings | 🟡 deliberate |
-| [Scala http4s](../backends/scala-http4s/README.md) | doobie, skunk, Quill, or another effect-aware SQL layer over Cats Effect | Raw JDBC via HikariCP in `IO.blocking`, Flyway migrations, text[] tags + GIN | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | doobie, skunk, Quill, or another effect-aware SQL layer over Cats Effect | Focused services use a narrow Db/Rows raw-JDBC boundary in `IO.blocking`; Flyway, text[] tags + GIN | 🟡 deliberate |
 | [Quarkus](../backends/quarkus-java/README.md) | Hibernate ORM with Panache active-record/repository entities | Plain JDBC + hand-written SQL, custom RowMapper helpers, Flyway migrations | 🟡 deliberate |
 | [Rust (Axum)](../backends/rust-axum/README.md) | SQLx/Diesel/SeaORM with explicit migrations | SQLx runtime-checked queries, FromRow structs, embedded SQL migrations | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveRecord models and migrations over PostgreSQL | ActiveRecord migrations/models; explicit SQL for contract-sensitive queries and row locks | 🟡 deliberate |
@@ -123,7 +120,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | JWT/OAuth2 via a Security() dependency (e.g. OAuth2, HTTPBearer) | JWKS/PyJWT verified through FastAPI dependencies; role aliases wrap require_role | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | DRF authentication classes and permission checks | Custom DRF authentication class validates JWKS/PyJWT; view helpers enforce Stackverse roles | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play filters/action-builders or Silhouette/pac4j for auth | ApiAction composes optional/authenticated ActionRefiners and role ActionFilters over Nimbus JOSE JWT verification against Keycloak JWKS | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | http4s auth middleware/tsec or a Kleisli auth layer | Nimbus JWT validation in an AuthService called by routes; role helpers enforce endpoints | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | http4s auth middleware/tsec or a Kleisli auth layer | One Kleisli-based http4s AuthMiddleware attaches optional Caller context to the aggregate API routes; protected operations require that authoritative caller and caller-based role helpers enforce endpoints | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | SmallRye JWT bearer with @RolesAllowed/@Authenticated annotation RBAC | SmallRye JWT config-driven; proactive auth off; roles enforced manually via requireRole | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tower/Axum middleware validating JWT and attaching request state | Axum middleware validates JWKS/JWT, provisions accounts, and exposes Identity in request extensions | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rack middleware/controller before_action auth; JWT via a library | ApplicationController before_action validates JWKS/JWT and role helpers enforce endpoints | ✅ idiomatic |
@@ -148,7 +145,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | Raise HTTPException; FastAPI serializes the detail body | Custom AppProblem hierarchy + exception_handlers emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | DRF custom exception handler maps API exceptions to responses | AppProblem/ValidationProblem handled by DRF exception handler emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play HttpErrorHandler / Result recovery for error responses | Injected Play ActionBuilder recovers ApiProblem/validation failures into exact RFC 9457 responses | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | `HttpRoutes` returning `EitherT`/typed errors or centralized error recovery | Typed ApiProblem/ValidationProblem caught by a route wrapper, emits RFC 9457 problem+json | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | `HttpRoutes` returning `EitherT`/typed errors or centralized error recovery | Focused routes share ApiHandler recovery for typed ApiProblem/ValidationProblem and exact RFC 9457 responses | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | JAX-RS ExceptionMapper providers translating exceptions to responses | ExceptionMapper providers emit RFC 9457 application/problem+json | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Implement IntoResponse for app errors and use Result<T, E> handlers | AppError implements IntoResponse; handlers short-circuit with Result<Response, AppError> | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | rescue_from in ApplicationController or exceptions_app for API errors | ApplicationController rescue_from renders RFC 9457 problem+json from typed problem errors | ✅ idiomatic |
@@ -173,7 +170,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | async handlers with an async driver (asyncpg/psycopg async) | Sync handlers + sync psycopg run on Starlette worker threadpool | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | Synchronous views over Django ORM, or async views only with async-safe dependencies | Sync DRF function views over Django ORM with transaction.atomic and SELECT FOR UPDATE locks | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Action.async returning Future; non-blocking I/O off the request thread | ApiAction ActionBuilder runs blocking JDBC controller work on a bounded database-dispatcher | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | Cats Effect `IO` handlers; blocking calls shifted with `IO.blocking` | `HttpRoutes[IO]`, Ember server, Resource shutdown, and JDBC isolated in `IO.blocking` | ✅ idiomatic |
+| [Scala http4s](../backends/scala-http4s/README.md) | Cats Effect `IO` handlers; blocking calls shifted with `IO.blocking` | `HttpRoutes[IO]`, lifecycle logs bracket complete runtime Resource acquisition/release (including fatal startup failure), and JDBC is isolated in `IO.blocking` | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Reactive Mutiny/Uni or auto-offloaded blocking on RESTEasy Reactive | Blocking JDBC on quarkus-rest; manual JDBC transactions, no Mutiny | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tokio async handlers, SQLx futures, graceful shutdown | async Axum handlers over SQLx pool; shared state cloned per route/middleware | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Synchronous Rack request handling with pooled DB connections | Synchronous controllers, ActiveRecord transactions, SELECT ... FOR UPDATE row locks | ✅ idiomatic |
@@ -223,7 +220,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | pytest with TestClient/httpx exercising the ASGI app end-to-end | pytest unit tests of helpers plus a small TestClient route smoke; no DB integration | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | pytest/pytest-django or Django TestCase with APIClient integration tests | pytest unit tests of helpers; HTTP/DB acceptance lives in shared conformance | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | Guice tests inspect router documentation without executing JDBC and exercise action/auth/error boundaries; focused helper and total-codec units | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | MUnit/Cats Effect testing or ScalaTest with http4s route tests | ScalaTest AnyFunSuite unit tests of helpers; ResultSet faked via JDK dynamic proxies | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | MUnit/Cats Effect testing or ScalaTest with http4s route tests | ScalaTest executes route/service fakes, auth middleware allow/deny behavior, helpers, and row mappers | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | Plain JUnit 5 unit tests with JDK dynamic-proxy mocks; contract via external conformance suite | 🔴 undocumented |
 | [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | cargo test covers helpers, validation, pagination, language, and AppError rendering | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Minitest/Rails test, request tests, fixtures or factories | Minitest unit tests for helpers; HTTP contract covered by shared conformance suite | 🟡 deliberate |
@@ -248,7 +245,7 @@ issue closes.
 | [FastAPI](../backends/python-fastapi/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Ruff (and/or Black + mypy) configured in pyproject | Ruff check + format check configured in pyproject and CI | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | scalafmt config checked by CI; Scala compilation uses deprecation/feature warnings with `-Werror` | ✅ idiomatic |
-| [Scala http4s](../backends/scala-http4s/README.md) | scalafmt (and often scalafix) config checked in | No scalafmt/scalafix config; only scalac -deprecation -feature flags | 🟡 deliberate |
+| [Scala http4s](../backends/scala-http4s/README.md) | scalafmt (and often scalafix) config checked in | scalafmt config checked by CI; deprecation/feature warnings compile with `-Werror` | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | RuboCop plus rails-omakase or StandardRB in CI | No RuboCop/Standard configured; CI runs Zeitwerk and Minitest only | 🔴 undocumented |
