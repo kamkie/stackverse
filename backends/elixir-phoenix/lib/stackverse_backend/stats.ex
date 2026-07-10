@@ -1,7 +1,10 @@
 defmodule StackverseBackend.Stats do
   @moduledoc "The stats context owns aggregate operational statistics queries."
 
-  alias StackverseBackend.Query
+  import Ecto.Query
+
+  alias StackverseBackend.{Query, Repo}
+  alias StackverseBackend.Schemas.{Bookmark, Report, UserAccount}
 
   def get do
     today = Date.utc_today()
@@ -9,13 +12,22 @@ defmodule StackverseBackend.Stats do
     from = DateTime.new!(from_date, ~T[00:00:00], "Etc/UTC")
 
     totals = %{
-      users: Query.scalar!("select count(*)::int from user_accounts", []),
-      bookmarks: Query.scalar!("select count(*)::int from bookmarks", []),
+      users: Repo.aggregate(UserAccount, :count, :username),
+      bookmarks: Repo.aggregate(Bookmark, :count, :id),
       publicBookmarks:
-        Query.scalar!("select count(*)::int from bookmarks where visibility = 'public'", []),
+        Repo.aggregate(
+          from(bookmark in Bookmark, where: bookmark.visibility == "public"),
+          :count,
+          :id
+        ),
       hiddenBookmarks:
-        Query.scalar!("select count(*)::int from bookmarks where status = 'hidden'", []),
-      openReports: Query.scalar!("select count(*)::int from reports where status = 'open'", [])
+        Repo.aggregate(
+          from(bookmark in Bookmark, where: bookmark.status == "hidden"),
+          :count,
+          :id
+        ),
+      openReports:
+        Repo.aggregate(from(report in Report, where: report.status == "open"), :count, :id)
     }
 
     bookmarks_by_day = count_per_day("bookmarks", "created_at", from)

@@ -1,64 +1,54 @@
 defmodule StackverseBackend.Accounts do
   @moduledoc "The account context owns administrative user-account behavior."
 
+  import Ecto.Query
+
   alias StackverseBackend.{Audit, Log, Query, Repo}
+  alias StackverseBackend.Schemas.{Bookmark, UserAccount}
 
   def list(q, status, page, size) do
-    {where, binds} = where(q, status)
-    total = Query.scalar!("select count(*)::int from user_accounts u where #{where}", binds)
+    query = UserAccount |> by_username(q) |> by_status(status)
+    total = Repo.aggregate(query, :count, :username)
 
     items =
-      Query.all!(
-        """
-        select u.username, u.first_seen, u.last_seen, u.status, u.blocked_reason,
-               (select count(*)::int from bookmarks b where b.owner = u.username) as bookmark_count
-        from user_accounts u
-        where #{where}
-        order by u.last_seen desc, u.username asc
-        limit $#{length(binds) + 1} offset $#{length(binds) + 2}
-        """,
-        binds ++ [size, page * size]
-      )
+      query
+      |> join(:left, [account], bookmark in Bookmark, on: bookmark.owner == account.username)
+      |> group_by([account], account.username)
+      |> order_by([account], desc: account.last_seen, asc: account.username)
+      |> limit(^size)
+      |> offset(^(page * size))
+      |> select([account, bookmark], {account, count(bookmark.id)})
+      |> Repo.all()
+      |> Enum.map(fn {account, count} -> UserAccount.to_row(account, count) end)
 
     %{items: items, total: total}
   end
 
   def get(username) do
-    Query.one(
-      """
-      select u.username, u.first_seen, u.last_seen, u.status, u.blocked_reason,
-             (select count(*)::int from bookmarks b where b.owner = u.username) as bookmark_count
-      from user_accounts u
-      where u.username = $1
-      """,
-      [username]
-    )
+    case Repo.get(UserAccount, username) do
+      nil -> nil
+      account -> UserAccount.to_row(account, bookmark_count(username))
+    end
   end
 
   def set_status(actor, username, status, reason) do
     Repo.transaction(fn ->
-      if is_nil(
-           Query.one!("select username from user_accounts where username = $1 for update", [
-             username
-           ])
-         ) do
-        Repo.rollback(:not_found)
-      end
+      case Repo.one(
+             from account in UserAccount,
+               where: account.username == ^username,
+               lock: "FOR UPDATE"
+           ) do
+        nil ->
+          Repo.rollback(:not_found)
 
-      if status == "blocked" do
-        Repo.query!(
-          "update user_accounts set status = 'blocked', blocked_reason = $2 where username = $1",
-          [username, reason]
-        )
+        account ->
+          account |> UserAccount.status_changeset(status, reason) |> Repo.update!()
 
-        Audit.record!(actor, "user.blocked", "user", username, %{reason: reason})
-      else
-        Repo.query!(
-          "update user_accounts set status = 'active', blocked_reason = null where username = $1",
-          [username]
-        )
-
-        Audit.record!(actor, "user.unblocked", "user", username, nil)
+          if status == "blocked" do
+            Audit.record!(actor, "user.blocked", "user", username, %{reason: reason})
+          else
+            Audit.record!(actor, "user.unblocked", "user", username, nil)
+          end
       end
     end)
     |> case do
@@ -80,25 +70,19 @@ defmodule StackverseBackend.Accounts do
     end
   end
 
-  defp where(q, status) do
-    conditions = ["true"]
-    binds = []
+  defp by_username(query, q) do
+    if q && String.trim(q) != "" do
+      pattern = "%#{Query.escape_like(q)}%"
+      where(query, [account], ilike(account.username, ^pattern))
+    else
+      query
+    end
+  end
 
-    {conditions, binds} =
-      if q && String.trim(q) != "" do
-        {conditions ++ ["u.username ilike $1 escape '\\'"], ["%#{Query.escape_like(q)}%"]}
-      else
-        {conditions, binds}
-      end
+  defp by_status(query, nil), do: query
+  defp by_status(query, status), do: where(query, [account], account.status == ^status)
 
-    {conditions, binds} =
-      if status do
-        index = length(binds) + 1
-        {conditions ++ ["u.status = $#{index}"], binds ++ [status]}
-      else
-        {conditions, binds}
-      end
-
-    {Enum.join(conditions, " and "), binds}
+  defp bookmark_count(username) do
+    Repo.aggregate(from(bookmark in Bookmark, where: bookmark.owner == ^username), :count, :id)
   end
 end

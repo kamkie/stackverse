@@ -33,4 +33,14 @@ defmodule StackverseBackendWeb.ControllerHTTPTest do
 
     assert %{"status" => 404, "title" => "Not Found"} = json_response(conn, 404)
   end
+
+  test "Phoenix JSON parsing rejects malformed request documents before controller dispatch", %{
+    conn: conn
+  } do
+    assert_raise Plug.Parsers.ParseError, fn ->
+      conn
+      |> put_req_header("content-type", "application/json")
+      |> post("/api/v1/bookmarks", "{not-json")
+    end
+  end
 end

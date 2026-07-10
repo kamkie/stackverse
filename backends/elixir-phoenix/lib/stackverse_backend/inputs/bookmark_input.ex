@@ -5,6 +5,8 @@ defmodule StackverseBackend.Inputs.BookmarkInput do
 
   import Ecto.Changeset
 
+  alias StackverseBackend.Inputs.Support
+
   @primary_key false
   embedded_schema do
     field :url, :string
@@ -15,73 +17,101 @@ defmodule StackverseBackend.Inputs.BookmarkInput do
   end
 
   @tag_pattern ~r/^[a-z0-9-]{1,30}$/
+  @cast_messages %{
+    url: "validation.url.invalid",
+    title: "validation.title.required",
+    notes: "validation.notes.too-long",
+    tags: "validation.tag.invalid",
+    visibility: "validation.visibility.invalid"
+  }
 
-  def changeset(body) when is_map(body) do
-    url = body |> string("url") |> String.trim()
-    title = body |> string("title") |> String.trim()
-    notes = optional_string(body, "notes")
-    tags = normalized_tags(Map.get(body, "tags", []))
+  def changeset(body) do
+    changeset =
+      %__MODULE__{}
+      |> Support.contract_cast(body, [:url, :title, :notes, :tags, :visibility], @cast_messages)
+      |> normalize_string(:url, &String.trim/1)
+      |> normalize_string(:title, &String.trim/1)
+      |> normalize_tags()
 
-    visibility =
-      case Map.fetch(body, "visibility") do
-        :error -> "private"
-        {:ok, value} when is_binary(value) -> value
-        {:ok, _value} -> nil
-      end
+    url = get_field(changeset, :url)
+    title = get_field(changeset, :title)
+    notes = get_field(changeset, :notes)
+    tags = get_field(changeset, :tags) || []
+    visibility = get_field(changeset, :visibility)
 
-    change(%__MODULE__{}, %{
-      url: url,
-      title: title,
-      notes: notes,
-      tags: tags,
-      visibility: visibility
-    })
-    |> require(url != "", :url, "validation.url.required")
-    |> require(
-      url == "" or (String.length(url) <= 2000 and http_url?(url)),
+    changeset
+    |> Support.require(:url, is_binary(url) and url != "", "validation.url.required")
+    |> Support.require(
       :url,
+      not (is_binary(url) and url != "") or
+        (String.length(url) <= 2000 and http_url?(url)),
       "validation.url.invalid"
     )
-    |> require(title != "", :title, "validation.title.required")
-    |> require(String.length(title) <= 200, :title, "validation.title.too-long")
-    |> require(length_of(notes) <= 4000, :notes, "validation.notes.too-long")
-    |> require(length(tags) <= 10, :tags, "validation.tags.too-many")
-    |> require(
-      Enum.all?(tags, &Regex.match?(@tag_pattern, &1)),
+    |> Support.require(:title, is_binary(title) and title != "", "validation.title.required")
+    |> Support.require(
+      :title,
+      not (is_binary(title) and title != "") or String.length(title) <= 200,
+      "validation.title.too-long"
+    )
+    |> Support.require(:notes, length_of(notes) <= 4000, "validation.notes.too-long")
+    |> Support.require(:tags, length(tags) <= 10, "validation.tags.too-many")
+    |> Support.require(
       :tags,
+      Enum.all?(tags, &Regex.match?(@tag_pattern, &1)),
       "validation.tag.invalid"
     )
-    |> require(
-      visibility in ["private", "public"],
+    |> Support.require(
       :visibility,
+      visibility in ["private", "public"],
       "validation.visibility.invalid"
     )
   end
 
-  def changeset(_body), do: changeset(%{})
-
   def query_tags_changeset(tags) do
-    normalized = Enum.map(tags, &String.downcase(String.trim(&1)))
+    %__MODULE__{}
+    |> Support.contract_cast(%{"tags" => tags}, [:tags], @cast_messages)
+    |> normalize_tags()
+    |> then(fn changeset ->
+      values = get_field(changeset, :tags) || []
 
-    change(%__MODULE__{}, %{tags: normalized})
-    |> require(
-      Enum.all?(normalized, &Regex.match?(@tag_pattern, &1)),
-      :tag,
-      "validation.tag.invalid"
-    )
-  end
-
-  defp normalized_tags(tags) when is_list(tags) do
-    tags
-    |> Enum.map(fn
-      value when is_binary(value) -> value
-      value -> to_string(value)
+      changeset
+      |> Support.require(
+        :tags,
+        Enum.all?(values, &Regex.match?(@tag_pattern, &1)),
+        "validation.tag.invalid"
+      )
+      |> rename_error_field(:tags, :tag)
     end)
-    |> Enum.map(&String.downcase(String.trim(&1)))
-    |> Enum.uniq()
   end
 
-  defp normalized_tags(_tags), do: []
+  defp normalize_string(changeset, field, normalizer) do
+    if Support.cast_valid?(changeset, field) do
+      update_change(changeset, field, normalizer)
+    else
+      changeset
+    end
+  end
+
+  defp normalize_tags(changeset) do
+    if Support.cast_valid?(changeset, :tags) do
+      update_change(changeset, :tags, fn tags ->
+        tags
+        |> Enum.map(&String.downcase(String.trim(&1)))
+        |> Enum.uniq()
+      end)
+    else
+      changeset
+    end
+  end
+
+  defp rename_error_field(changeset, from, to) do
+    errors =
+      Enum.map(changeset.errors, fn {field, error} ->
+        {if(field == from, do: to, else: field), error}
+      end)
+
+    %{changeset | errors: errors}
+  end
 
   defp http_url?(value) do
     uri = URI.parse(value)
@@ -90,23 +120,6 @@ defmodule StackverseBackend.Inputs.BookmarkInput do
     _ -> false
   end
 
-  defp string(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _ -> ""
-    end
-  end
-
-  defp optional_string(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _ -> nil
-    end
-  end
-
   defp length_of(nil), do: 0
   defp length_of(value), do: String.length(value)
-
-  defp require(changeset, true, _field, _message_key), do: changeset
-  defp require(changeset, false, field, message_key), do: add_error(changeset, field, message_key)
 end

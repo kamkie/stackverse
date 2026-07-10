@@ -54,9 +54,10 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
   moderation, account, audit, and stats contexts own application/data
   behavior; focused Phoenix controllers own only HTTP parsing, authorization,
   and response rendering.
-- **Ecto-owned persistence and input schemas** — the backend owns its
-  migrations and runs them on startup; embedded Ecto schemas and changesets
-  type and validate request bodies while preserving Stackverse message keys.
+- **Ecto-owned persistence and input schemas** — typed schemas, `Ecto.Query`,
+  and `Repo` own normal bookmark, message, report, account, and audit
+  persistence. Embedded schemas use `cast/4` before normalization and map cast
+  failures to the established Stackverse message keys.
 - **BEAM supervision shape** — Repo starts under the application supervisor;
   migrations and message seed run before the Endpoint is added, so `/readyz`
   is not exposed until the schema exists.
@@ -69,16 +70,18 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 
 ## Deliberate deviations worth comparing
 
-- Normal application/data behavior sits behind Phoenix contexts, but
-  persistence remains explicit parameterized SQL through Ecto. PostgreSQL
-  array containment, row locks, partial unique indexes, and dynamic cursor
-  filters are contract-sensitive operations whose SQL is clearer when visible.
-- Responses are rendered from typed context results rather than Ecto-backed
-  view schemas. This keeps lowercase wire enums and RFC 9457 omission rules
-  explicit while request typing and validation use embedded schemas.
-- `ConnCase` endpoint tests and `DataCase` changeset tests cover Phoenix/Ecto
-  boundaries without requiring a database; the shared black-box conformance
-  suite owns exhaustive live PostgreSQL behavior.
+- Normal persistence uses `Ecto.Schema`, `Ecto.Query`, changesets, constraints,
+  and `Repo` CRUD. Explicit SQL is limited to three PostgreSQL-shaped
+  aggregates/imports: array `unnest` for tag counts, timezone-aware daily
+  statistics, and the bulk message-seed `unnest`/`on conflict` insert. Tag
+  containment remains one reviewed Ecto `fragment`; row locks and partial
+  unique constraints use Ecto query/changeset APIs.
+- Responses are explicit maps converted from persistence structs. This keeps
+  lowercase wire enums, camel-case field names, and RFC 9457 omission rules at
+  the JSON boundary without replacing the typed persistence model.
+- `ConnCase` endpoint/parser tests and `DataCase` input/persistence-schema tests
+  cover Phoenix/Ecto boundaries without requiring a database; the shared
+  black-box conformance suite owns exhaustive live PostgreSQL behavior.
 
 ## Logging conformance
 

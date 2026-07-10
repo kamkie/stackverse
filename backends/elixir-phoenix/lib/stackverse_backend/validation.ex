@@ -30,14 +30,7 @@ defmodule StackverseBackend.Validation do
     body |> ModerationInput.bookmark_status_changeset() |> result()
   end
 
-  def validate_block_reason(status, reason) do
-    status
-    |> UserStatusInput.changeset(reason)
-    |> case do
-      %{valid?: true} -> {:ok, :ok}
-      changeset -> {:error, violations(changeset)}
-    end
-  end
+  def validate_user_status(body), do: body |> UserStatusInput.changeset() |> result()
 
   defp result(changeset, field \\ nil)
 

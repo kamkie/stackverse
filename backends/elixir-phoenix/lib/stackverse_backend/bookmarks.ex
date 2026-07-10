@@ -1,111 +1,76 @@
 defmodule StackverseBackend.Bookmarks do
   @moduledoc "The bookmark context owns bookmark persistence and visibility rules."
 
-  alias StackverseBackend.{Query, Repo}
+  import Ecto.Query
 
-  @select "id::text as id, owner, url, title, notes, tags, visibility, status, created_at, updated_at"
+  alias StackverseBackend.{Query, Repo}
+  alias StackverseBackend.Schemas.Bookmark
 
   def list(filters, page, size) do
-    {where, binds} = where(filters)
-    total = Query.scalar!("select count(*)::int from bookmarks where #{where}", binds)
+    query = filtered_query(filters)
+    total = Repo.aggregate(query, :count, :id)
 
     items =
-      Query.all!(
-        """
-        select #{@select} from bookmarks
-        where #{where}
-        order by created_at desc, id desc
-        limit $#{length(binds) + 1} offset $#{length(binds) + 2}
-        """,
-        binds ++ [size, page * size]
-      )
+      query
+      |> order_by([bookmark], desc: bookmark.created_at, desc: bookmark.id)
+      |> limit(^size)
+      |> offset(^(page * size))
+      |> Repo.all()
+      |> Enum.map(&Bookmark.to_row/1)
 
     %{items: items, total: total}
   end
 
   def list_cursor(filters, cursor, size) do
-    {where, binds} = where(filters)
-    {where, binds} = append_cursor(where, binds, cursor)
-
-    Query.all!(
-      """
-      select #{@select} from bookmarks
-      where #{where}
-      order by created_at desc, id desc
-      limit $#{length(binds) + 1}
-      """,
-      binds ++ [size + 1]
-    )
+    filters
+    |> filtered_query()
+    |> after_cursor(cursor)
+    |> order_by([bookmark], desc: bookmark.created_at, desc: bookmark.id)
+    |> limit(^(size + 1))
+    |> Repo.all()
+    |> Enum.map(&Bookmark.to_row/1)
   end
 
   def create(owner, input) do
-    id = Ecto.UUID.generate()
-    now = Query.now()
-
-    bookmark =
-      Query.one!(
-        """
-        insert into bookmarks (id, owner, url, title, notes, tags, visibility, status, created_at, updated_at)
-        values ($1::text::uuid, $2, $3, $4, $5, $6::text[], $7, 'active', $8, $8)
-        returning #{@select}
-        """,
-        [
-          id,
-          owner,
-          input.url,
-          input.title,
-          input.notes,
-          input.tags,
-          input.visibility,
-          now
-        ]
-      )
-
-    {id, bookmark}
+    bookmark = owner |> Bookmark.create_changeset(input) |> Repo.insert!()
+    {bookmark.id, Bookmark.to_row(bookmark)}
   end
 
-  def get(id), do: Query.one("select #{@select} from bookmarks where id = $1::text::uuid", [id])
+  def get(id), do: id |> Repo.get(Bookmark) |> Bookmark.to_row()
 
   def update(owner, id, input) do
     Repo.transaction(fn ->
       bookmark =
-        Query.one!("select #{@select} from bookmarks where id = $1::text::uuid for update", [
-          id
-        ])
+        Repo.one(from bookmark in Bookmark, where: bookmark.id == ^id, lock: "FOR UPDATE")
 
       cond do
-        is_nil(bookmark) or bookmark["owner"] != owner ->
+        is_nil(bookmark) or bookmark.owner != owner ->
           Repo.rollback(:not_found)
 
-        bookmark["status"] == "hidden" and input.visibility == "public" ->
+        bookmark.status == "hidden" and input.visibility == "public" ->
           Repo.rollback(
             {:conflict, "This bookmark was hidden by moderation and cannot be made public."}
           )
 
         true ->
-          Query.one!(
-            """
-            update bookmarks
-            set url = $2, title = $3, notes = $4, tags = $5::text[], visibility = $6, updated_at = $7
-            where id = $1::text::uuid
-            returning #{@select}
-            """,
-            [id, input.url, input.title, input.notes, input.tags, input.visibility, Query.now()]
-          )
+          bookmark
+          |> Bookmark.update_changeset(input)
+          |> Repo.update!()
+          |> Bookmark.to_row()
       end
     end)
   end
 
   def delete(owner, id) do
-    case Query.one(
-           "delete from bookmarks where id = $1::text::uuid and owner = $2 returning id::text as id",
-           [id, owner]
+    case Repo.delete_all(
+           from bookmark in Bookmark, where: bookmark.id == ^id and bookmark.owner == ^owner
          ) do
-      nil -> :not_found
-      _row -> :ok
+      {0, _rows} -> :not_found
+      {_count, _rows} -> :ok
     end
   end
 
+  # PostgreSQL's array expansion is intentionally visible at this aggregate boundary.
   def list_tags(owner) do
     Query.all!(
       """
@@ -124,53 +89,51 @@ defmodule StackverseBackend.Bookmarks do
       (bookmark["visibility"] == "public" and bookmark["status"] == "active")
   end
 
-  defp where(filters) do
-    {conditions, binds} =
-      if filters.visibility == "public" do
-        {["visibility = 'public' and status = 'active'"], []}
-      else
-        conditions = ["owner = $1"]
-        binds = [filters.caller]
-
-        if filters.visibility do
-          {conditions ++ ["visibility = $2"], binds ++ [filters.visibility]}
-        else
-          {conditions, binds}
-        end
-      end
-
-    {conditions, binds} =
-      if filters.tags != [] do
-        index = length(binds) + 1
-        {conditions ++ ["tags @> $#{index}::text[]"], binds ++ [filters.tags]}
-      else
-        {conditions, binds}
-      end
-
-    {conditions, binds} =
-      if String.trim(filters.q) != "" do
-        index = length(binds) + 1
-        pattern = "%#{Query.escape_like(filters.q)}%"
-
-        {conditions ++
-           ["(title ilike $#{index} escape '\\' or notes ilike $#{index} escape '\\')"],
-         binds ++ [pattern]}
-      else
-        {conditions, binds}
-      end
-
-    {Enum.join(conditions, " and "), binds}
+  defp filtered_query(filters) do
+    Bookmark
+    |> by_visibility(filters)
+    |> by_tags(filters.tags)
+    |> by_text(filters.q)
   end
 
-  defp append_cursor(where, binds, nil), do: {where, binds}
+  defp by_visibility(query, %{visibility: "public"}) do
+    where(query, [bookmark], bookmark.visibility == "public" and bookmark.status == "active")
+  end
 
-  defp append_cursor(where, binds, cursor) do
-    created_index = length(binds) + 1
-    id_index = length(binds) + 2
+  defp by_visibility(query, filters) do
+    query = where(query, [bookmark], bookmark.owner == ^filters.caller)
 
-    {
-      "#{where} and (created_at < $#{created_index}::timestamptz or (created_at = $#{created_index}::timestamptz and id < $#{id_index}::text::uuid))",
-      binds ++ [cursor.created_at, cursor.id]
-    }
+    if filters.visibility do
+      where(query, [bookmark], bookmark.visibility == ^filters.visibility)
+    else
+      query
+    end
+  end
+
+  defp by_tags(query, []), do: query
+
+  # The text[] containment operator is the reviewed PostgreSQL-specific filter.
+  defp by_tags(query, tags) do
+    where(query, [bookmark], fragment("? @> ?", bookmark.tags, type(^tags, {:array, :string})))
+  end
+
+  defp by_text(query, q) do
+    if String.trim(q) == "" do
+      query
+    else
+      pattern = "%#{Query.escape_like(q)}%"
+      where(query, [bookmark], ilike(bookmark.title, ^pattern) or ilike(bookmark.notes, ^pattern))
+    end
+  end
+
+  defp after_cursor(query, nil), do: query
+
+  defp after_cursor(query, cursor) do
+    where(
+      query,
+      [bookmark],
+      bookmark.created_at < ^cursor.created_at or
+        (bookmark.created_at == ^cursor.created_at and bookmark.id < ^cursor.id)
+    )
   end
 end

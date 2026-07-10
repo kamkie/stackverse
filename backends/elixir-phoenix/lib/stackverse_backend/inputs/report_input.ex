@@ -5,6 +5,8 @@ defmodule StackverseBackend.Inputs.ReportInput do
 
   import Ecto.Changeset
 
+  alias StackverseBackend.Inputs.Support
+
   @primary_key false
   embedded_schema do
     field :reason, :string
@@ -12,39 +14,27 @@ defmodule StackverseBackend.Inputs.ReportInput do
   end
 
   @reasons ~w[spam offensive broken-link other]
+  @cast_messages %{
+    reason: "validation.report.reason.invalid",
+    comment: "validation.report.comment.too-long"
+  }
 
-  def changeset(body) when is_map(body) do
-    reason = string_value(body, "reason")
-    comment = optional_string(body, "comment")
+  def changeset(body) do
+    changeset =
+      Support.contract_cast(%__MODULE__{}, body, [:reason, :comment], @cast_messages)
 
-    change(%__MODULE__{}, %{reason: reason, comment: comment})
-    |> require(
-      is_binary(reason) and reason in @reasons,
+    reason = get_field(changeset, :reason)
+    comment = get_field(changeset, :comment)
+
+    changeset
+    |> Support.require(
       :reason,
+      is_binary(reason) and reason in @reasons,
       "validation.report.reason.invalid"
     )
-    |> require(length_of(comment) <= 1000, :comment, "validation.report.comment.too-long")
-  end
-
-  def changeset(_body), do: changeset(%{})
-
-  defp string_value(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _value -> nil
-    end
-  end
-
-  defp optional_string(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _ -> nil
-    end
+    |> Support.require(:comment, length_of(comment) <= 1000, "validation.report.comment.too-long")
   end
 
   defp length_of(nil), do: 0
   defp length_of(value), do: String.length(value)
-
-  defp require(changeset, true, _field, _message_key), do: changeset
-  defp require(changeset, false, field, message_key), do: add_error(changeset, field, message_key)
 end

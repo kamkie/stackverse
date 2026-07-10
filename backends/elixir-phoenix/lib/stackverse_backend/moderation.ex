@@ -1,24 +1,22 @@
 defmodule StackverseBackend.Moderation do
   @moduledoc "The moderation context owns report resolution and bookmark moderation."
 
-  alias StackverseBackend.{Audit, Log, Query, Repo}
+  import Ecto.Query
 
-  @report_select "id::text as id, bookmark_id::text as bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at"
-  @bookmark_select "id::text as id, owner, url, title, notes, tags, visibility, status, created_at, updated_at"
+  alias StackverseBackend.{Audit, Log, Repo}
+  alias StackverseBackend.Schemas.{Bookmark, Report}
 
   def list_reports(status, page, size) do
-    total = Query.scalar!("select count(*)::int from reports where status = $1", [status])
+    query = from report in Report, where: report.status == ^status
+    total = Repo.aggregate(query, :count, :id)
 
     items =
-      Query.all!(
-        """
-        select #{@report_select} from reports
-        where status = $1
-        order by created_at asc, id asc
-        limit $2 offset $3
-        """,
-        [status, size, page * size]
-      )
+      query
+      |> report_order(status)
+      |> limit(^size)
+      |> offset(^(page * size))
+      |> Repo.all()
+      |> Enum.map(&Report.to_row/1)
 
     %{items: items, total: total}
   end
@@ -26,25 +24,13 @@ defmodule StackverseBackend.Moderation do
   def resolve_report(actor, id, input) do
     Repo.transaction(fn ->
       if input.resolution == "actioned" do
-        case Query.one!(
-               "select bookmark_id::text as bookmark_id from reports where id = $1::text::uuid",
-               [id]
-             ) do
-          nil ->
-            Repo.rollback(:not_found)
-
-          row ->
-            Repo.query!("select id from bookmarks where id = $1::text::uuid for update", [
-              row["bookmark_id"]
-            ])
+        case Repo.one(from report in Report, where: report.id == ^id, select: report.bookmark_id) do
+          nil -> Repo.rollback(:not_found)
+          bookmark_id -> lock_bookmark(bookmark_id)
         end
       end
 
-      report =
-        Query.one!("select #{@report_select} from reports where id = $1::text::uuid for update", [
-          id
-        ])
-
+      report = Repo.one(from report in Report, where: report.id == ^id, lock: "FOR UPDATE")
       if is_nil(report), do: Repo.rollback(:not_found)
 
       if input.resolution == "open" do
@@ -53,17 +39,16 @@ defmodule StackverseBackend.Moderation do
         resolved = resolve_one(report, input.resolution, actor, input.note, false)
 
         if input.resolution == "actioned" do
-          hide_bookmark(actor, report["bookmark_id"], input.note)
+          hide_bookmark(actor, report.bookmark_id, input.note)
 
-          Query.all!(
-            """
-            select #{@report_select} from reports
-            where bookmark_id = $1::text::uuid and status = 'open' and id <> $2::text::uuid
-            order by id asc
-            for update
-            """,
-            [report["bookmark_id"], id]
+          from(other in Report,
+            where:
+              other.bookmark_id == ^report.bookmark_id and other.status == "open" and
+                other.id != ^report.id,
+            order_by: [asc: other.id],
+            lock: "FOR UPDATE"
           )
+          |> Repo.all()
           |> Enum.each(&resolve_one(&1, "actioned", actor, input.note, true))
         end
 
@@ -75,25 +60,14 @@ defmodule StackverseBackend.Moderation do
   def set_bookmark_status(actor, id, input) do
     Repo.transaction(fn ->
       bookmark =
-        Query.one!(
-          "select #{@bookmark_select} from bookmarks where id = $1::text::uuid for update",
-          [id]
-        )
+        Repo.one(from bookmark in Bookmark, where: bookmark.id == ^id, lock: "FOR UPDATE")
 
       if is_nil(bookmark), do: Repo.rollback(:not_found)
 
-      updated =
-        Query.one!(
-          """
-          update bookmarks set status = $2, updated_at = $3
-          where id = $1::text::uuid
-          returning #{@bookmark_select}
-          """,
-          [id, input.status, Query.now()]
-        )
+      updated = bookmark |> Bookmark.status_changeset(input.status) |> Repo.update!()
 
       Audit.record!(actor, "bookmark.status-changed", "bookmark", id, %{
-        from: bookmark["status"],
+        from: bookmark.status,
         to: input.status,
         note: input.note
       })
@@ -102,69 +76,52 @@ defmodule StackverseBackend.Moderation do
         actor: actor,
         resource_type: "bookmark",
         resource_id: id,
-        from: bookmark["status"],
+        from: bookmark.status,
         to: input.status
       )
 
-      updated
+      Bookmark.to_row(updated)
     end)
   end
 
   defp reopen_report(report, actor) do
-    if Query.one!(
-         "select 1 as exists from reports where bookmark_id = $1::text::uuid and reporter = $2 and status = 'open' and id <> $3::text::uuid",
-         [report["bookmark_id"], report["reporter"], report["id"]]
-       ) do
-      Repo.rollback(:duplicate_report)
-    end
+    duplicate? =
+      Repo.exists?(
+        from other in Report,
+          where:
+            other.bookmark_id == ^report.bookmark_id and other.reporter == ^report.reporter and
+              other.status == "open" and other.id != ^report.id
+      )
 
-    case Repo.query(
-           """
-           update reports
-           set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null
-           where id = $1::text::uuid
-           returning #{@report_select}
-           """,
-           [report["id"]]
-         ) do
-      {:ok, result} ->
-        reopened = result |> Query.rows() |> List.first()
+    if duplicate?, do: Repo.rollback(:duplicate_report)
 
-        Audit.record!(actor, "report.reopened", "report", report["id"], %{
-          bookmarkId: report["bookmark_id"]
+    case report |> Report.resolution_changeset("open", actor, nil) |> Repo.update() do
+      {:ok, reopened} ->
+        Audit.record!(actor, "report.reopened", "report", report.id, %{
+          bookmarkId: report.bookmark_id
         })
 
         Log.event(:info, "report_reopened", "success", "Report re-opened",
           actor: actor,
           resource_type: "report",
-          resource_id: report["id"],
-          bookmark_id: report["bookmark_id"]
+          resource_id: report.id,
+          bookmark_id: report.bookmark_id
         )
 
-        reopened
+        Report.to_row(reopened)
 
-      {:error, %Postgrex.Error{postgres: %{code: :unique_violation}}} ->
-        Repo.rollback(:duplicate_report)
-
-      {:error, error} ->
-        raise error
+      {:error, changeset} ->
+        if duplicate_constraint?(changeset),
+          do: Repo.rollback(:duplicate_report),
+          else: raise_invalid(changeset)
     end
   end
 
   defp resolve_one(report, resolution, actor, note, auto_resolved) do
-    resolved =
-      Query.one!(
-        """
-        update reports
-        set status = $2, resolved_by = $3, resolved_at = $4, resolution_note = $5
-        where id = $1::text::uuid
-        returning #{@report_select}
-        """,
-        [report["id"], resolution, actor, Query.now(), note]
-      )
+    resolved = report |> Report.resolution_changeset(resolution, actor, note) |> Repo.update!()
 
-    Audit.record!(actor, "report.resolved", "report", report["id"], %{
-      bookmarkId: report["bookmark_id"],
+    Audit.record!(actor, "report.resolved", "report", report.id, %{
+      bookmarkId: report.bookmark_id,
       resolution: resolution,
       note: note,
       autoResolved: auto_resolved
@@ -173,49 +130,67 @@ defmodule StackverseBackend.Moderation do
     Log.event(:info, "report_resolved", "success", "Report resolved",
       actor: actor,
       resource_type: "report",
-      resource_id: report["id"],
-      bookmark_id: report["bookmark_id"],
+      resource_id: report.id,
+      bookmark_id: report.bookmark_id,
       resolution: resolution,
       auto_resolved: auto_resolved
     )
 
-    resolved
+    Report.to_row(resolved)
   end
 
   defp hide_bookmark(actor, bookmark_id, note) do
-    bookmark =
-      Query.one!("select #{@bookmark_select} from bookmarks where id = $1::text::uuid", [
-        bookmark_id
-      ])
+    case Repo.get(Bookmark, bookmark_id) do
+      nil ->
+        Repo.rollback(:not_found)
 
-    if is_nil(bookmark), do: Repo.rollback(:not_found)
+      %{status: "hidden"} ->
+        :ok
 
-    if bookmark["status"] != "hidden" do
-      Repo.query!(
-        "update bookmarks set status = 'hidden', updated_at = $2 where id = $1::text::uuid",
-        [
-          bookmark_id,
-          Query.now()
-        ]
-      )
+      bookmark ->
+        bookmark |> Bookmark.status_changeset("hidden") |> Repo.update!()
 
-      Audit.record!(actor, "bookmark.status-changed", "bookmark", bookmark_id, %{
-        from: "active",
-        to: "hidden",
-        note: note
-      })
+        Audit.record!(actor, "bookmark.status-changed", "bookmark", bookmark_id, %{
+          from: "active",
+          to: "hidden",
+          note: note
+        })
 
-      Log.event(
-        :info,
-        "bookmark_status_changed",
-        "success",
-        "Bookmark hidden by an actioned report",
-        actor: actor,
-        resource_type: "bookmark",
-        resource_id: bookmark_id,
-        from: "active",
-        to: "hidden"
-      )
+        Log.event(
+          :info,
+          "bookmark_status_changed",
+          "success",
+          "Bookmark hidden by an actioned report",
+          actor: actor,
+          resource_type: "bookmark",
+          resource_id: bookmark_id,
+          from: "active",
+          to: "hidden"
+        )
     end
   end
+
+  defp lock_bookmark(bookmark_id) do
+    case Repo.one(
+           from bookmark in Bookmark, where: bookmark.id == ^bookmark_id, lock: "FOR UPDATE"
+         ) do
+      nil -> Repo.rollback(:not_found)
+      bookmark -> bookmark
+    end
+  end
+
+  defp report_order(query, "open"),
+    do: order_by(query, [report], asc: report.created_at, asc: report.id)
+
+  defp report_order(query, _status),
+    do: order_by(query, [report], desc: report.created_at, desc: report.id)
+
+  defp duplicate_constraint?(changeset) do
+    Enum.any?(changeset.errors, fn {_field, {_message, metadata}} ->
+      metadata[:constraint] == :unique
+    end)
+  end
+
+  defp raise_invalid(changeset),
+    do: raise(Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset)
 end

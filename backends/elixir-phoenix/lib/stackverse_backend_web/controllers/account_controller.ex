@@ -32,17 +32,14 @@ defmodule StackverseBackendWeb.AccountController do
 
   def set_status(conn, %{"username" => username}) do
     with {:ok, caller} <- Support.require_role(conn, "admin"),
-         {:ok, status} <- Support.required_status(conn, conn.body_params),
-         reason <-
-           Support.optional_body_string(conn.body_params, "reason")
-           |> then(&if(is_binary(&1), do: String.trim(&1), else: nil)),
-         {:ok, :ok} <- Support.validate(conn, Validation.validate_block_reason(status, reason)) do
+         {:ok, input} <-
+           Support.validate(conn, Validation.validate_user_status(conn.body_params)) do
       cond do
-        status == "blocked" and username == caller.username ->
+        input.status == "blocked" and username == caller.username ->
           Problem.send(conn, 409, "Conflict", "Admins cannot block themselves.")
 
         true ->
-          case Accounts.set_status(caller.username, username, status, reason) do
+          case Accounts.set_status(caller.username, username, input.status, input.reason) do
             {:ok, account} -> json(conn, AdminJSON.user(account))
             {:error, :not_found} -> Problem.send(conn, 404, "Not Found")
           end

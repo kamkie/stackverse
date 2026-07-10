@@ -1,48 +1,32 @@
 defmodule StackverseBackend.Reports do
   @moduledoc "The report context owns reporter-facing report behavior."
 
-  alias StackverseBackend.{Log, Query, Repo, Validation}
+  import Ecto.Query
 
-  @select "id::text as id, bookmark_id::text as bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at"
+  alias StackverseBackend.{Log, Repo, Validation}
+  alias StackverseBackend.Schemas.{Bookmark, Report}
 
   def create(reporter, bookmark_id, input) do
     Repo.transaction(fn ->
       bookmark =
-        Query.one!(
-          "select visibility, status from bookmarks where id = $1::text::uuid for update",
-          [bookmark_id]
+        Repo.one(
+          from bookmark in Bookmark,
+            where: bookmark.id == ^bookmark_id,
+            lock: "FOR UPDATE"
         )
 
-      if is_nil(bookmark) or bookmark["visibility"] != "public" or
-           bookmark["status"] != "active" do
+      if is_nil(bookmark) or bookmark.visibility != "public" or bookmark.status != "active" do
         Repo.rollback(:not_found)
       end
 
-      if Query.one!(
-           "select 1 as exists from reports where bookmark_id = $1::text::uuid and reporter = $2 and status = 'open'",
-           [bookmark_id, reporter]
-         ) do
-        Repo.rollback(:duplicate_report)
-      end
+      case Repo.insert(Report.create_changeset(reporter, bookmark_id, input)) do
+        {:ok, report} ->
+          Report.to_row(report)
 
-      id = Ecto.UUID.generate()
-
-      case Repo.query(
-             """
-             insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)
-             values ($1::text::uuid, $2::text::uuid, $3, $4, $5, 'open', $6)
-             returning #{@select}
-             """,
-             [id, bookmark_id, reporter, input.reason, input.comment, Query.now()]
-           ) do
-        {:ok, result} ->
-          result |> Query.rows() |> List.first()
-
-        {:error, %Postgrex.Error{postgres: %{code: :unique_violation}}} ->
-          Repo.rollback(:duplicate_report)
-
-        {:error, error} ->
-          raise error
+        {:error, changeset} ->
+          if duplicate?(changeset),
+            do: Repo.rollback(:duplicate_report),
+            else: raise_invalid(changeset)
       end
     end)
     |> case do
@@ -63,59 +47,40 @@ defmodule StackverseBackend.Reports do
   end
 
   def list(reporter, status, page, size) do
-    {status_sql, binds} =
-      if status do
-        {" and status = $2", [reporter, status]}
-      else
-        {"", [reporter]}
-      end
-
-    total =
-      Query.scalar!("select count(*)::int from reports where reporter = $1#{status_sql}", binds)
+    query = Report |> where([report], report.reporter == ^reporter) |> by_status(status)
+    total = Repo.aggregate(query, :count, :id)
 
     items =
-      Query.all!(
-        """
-        select #{@select} from reports
-        where reporter = $1#{status_sql}
-        order by created_at desc, id desc
-        limit $#{length(binds) + 1} offset $#{length(binds) + 2}
-        """,
-        binds ++ [size, page * size]
-      )
+      query
+      |> order_by([report], desc: report.created_at, desc: report.id)
+      |> limit(^size)
+      |> offset(^(page * size))
+      |> Repo.all()
+      |> Enum.map(&Report.to_row/1)
 
     %{items: items, total: total}
   end
 
   def update(reporter, id, body) do
     Repo.transaction(fn ->
-      report =
-        Query.one!("select #{@select} from reports where id = $1::text::uuid for update", [id])
+      report = Repo.one(from report in Report, where: report.id == ^id, lock: "FOR UPDATE")
 
-      if is_nil(report) or report["reporter"] != reporter, do: Repo.rollback(:not_found)
+      if is_nil(report) or report.reporter != reporter, do: Repo.rollback(:not_found)
 
       with {:ok, input} <- Validation.validate_report(body) do
-        if report["status"] != "open", do: Repo.rollback(:not_open)
+        if report.status != "open", do: Repo.rollback(:not_open)
 
-        updated =
-          Query.one!(
-            """
-            update reports set reason = $2, comment = $3
-            where id = $1::text::uuid
-            returning #{@select}
-            """,
-            [id, input.reason, input.comment]
-          )
+        updated = report |> Report.update_changeset(input) |> Repo.update!()
 
         Log.event(:info, "report_updated", "success", "Report updated by its reporter",
           actor: reporter,
           resource_type: "report",
           resource_id: id,
-          bookmark_id: report["bookmark_id"],
+          bookmark_id: report.bookmark_id,
           reason: input.reason
         )
 
-        updated
+        Report.to_row(updated)
       else
         {:error, errors} -> Repo.rollback({:validation, errors})
       end
@@ -124,26 +89,37 @@ defmodule StackverseBackend.Reports do
 
   def withdraw(reporter, id) do
     Repo.transaction(fn ->
-      report =
-        Query.one!("select #{@select} from reports where id = $1::text::uuid for update", [id])
+      report = Repo.one(from report in Report, where: report.id == ^id, lock: "FOR UPDATE")
 
       cond do
-        is_nil(report) or report["reporter"] != reporter ->
+        is_nil(report) or report.reporter != reporter ->
           Repo.rollback(:not_found)
 
-        report["status"] != "open" ->
+        report.status != "open" ->
           Repo.rollback(:not_open)
 
         true ->
-          Repo.query!("delete from reports where id = $1::text::uuid", [id])
+          Repo.delete!(report)
 
           Log.event(:info, "report_withdrawn", "success", "Report withdrawn by its reporter",
             actor: reporter,
             resource_type: "report",
             resource_id: id,
-            bookmark_id: report["bookmark_id"]
+            bookmark_id: report.bookmark_id
           )
       end
     end)
   end
+
+  defp by_status(query, nil), do: query
+  defp by_status(query, status), do: where(query, [report], report.status == ^status)
+
+  defp duplicate?(changeset) do
+    Enum.any?(changeset.errors, fn {_field, {_message, metadata}} ->
+      metadata[:constraint] == :unique
+    end)
+  end
+
+  defp raise_invalid(changeset),
+    do: raise(Ecto.InvalidChangesetError, action: changeset.action, changeset: changeset)
 end

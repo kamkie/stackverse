@@ -5,6 +5,8 @@ defmodule StackverseBackend.Inputs.ModerationInput do
 
   import Ecto.Changeset
 
+  alias StackverseBackend.Inputs.Support
+
   @primary_key false
   embedded_schema do
     field :resolution, :string
@@ -12,53 +14,40 @@ defmodule StackverseBackend.Inputs.ModerationInput do
     field :note, :string
   end
 
-  def resolution_changeset(body) when is_map(body) do
-    resolution = string_value(body, "resolution")
-    note = optional_string(body, "note")
+  def resolution_changeset(body) do
+    messages = %{
+      resolution: "validation.resolution.invalid",
+      note: "validation.resolution.note.too-long"
+    }
 
-    change(%__MODULE__{}, %{resolution: resolution, note: note})
-    |> require(
-      resolution in ~w[open dismissed actioned],
+    changeset = Support.contract_cast(%__MODULE__{}, body, [:resolution, :note], messages)
+    resolution = get_field(changeset, :resolution)
+    note = get_field(changeset, :note)
+
+    changeset
+    |> Support.require(
       :resolution,
+      resolution in ~w[open dismissed actioned],
       "validation.resolution.invalid"
     )
-    |> require(length_of(note) <= 1000, :note, "validation.resolution.note.too-long")
+    |> Support.require(:note, length_of(note) <= 1000, "validation.resolution.note.too-long")
   end
 
-  def resolution_changeset(_body), do: resolution_changeset(%{})
+  def bookmark_status_changeset(body) do
+    messages = %{
+      status: "validation.bookmark-status.invalid",
+      note: "validation.bookmark-status.note.too-long"
+    }
 
-  def bookmark_status_changeset(body) when is_map(body) do
-    status = string_value(body, "status")
-    note = optional_string(body, "note")
+    changeset = Support.contract_cast(%__MODULE__{}, body, [:status, :note], messages)
+    status = get_field(changeset, :status)
+    note = get_field(changeset, :note)
 
-    change(%__MODULE__{}, %{status: status, note: note})
-    |> require(
-      status in ~w[active hidden],
-      :status,
-      "validation.bookmark-status.invalid"
-    )
-    |> require(length_of(note) <= 1000, :note, "validation.bookmark-status.note.too-long")
-  end
-
-  def bookmark_status_changeset(_body), do: bookmark_status_changeset(%{})
-
-  defp string_value(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _value -> nil
-    end
-  end
-
-  defp optional_string(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _ -> nil
-    end
+    changeset
+    |> Support.require(:status, status in ~w[active hidden], "validation.bookmark-status.invalid")
+    |> Support.require(:note, length_of(note) <= 1000, "validation.bookmark-status.note.too-long")
   end
 
   defp length_of(nil), do: 0
   defp length_of(value), do: String.length(value)
-
-  defp require(changeset, true, _field, _message_key), do: changeset
-  defp require(changeset, false, field, message_key), do: add_error(changeset, field, message_key)
 end

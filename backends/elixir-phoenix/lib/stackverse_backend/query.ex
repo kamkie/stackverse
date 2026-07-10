@@ -4,19 +4,6 @@ defmodule StackverseBackend.Query do
   alias StackverseBackend.Repo
 
   def all!(sql, params), do: sql |> Repo.query!(params) |> rows()
-  def one!(sql, params), do: sql |> all!(params) |> List.first()
-
-  def one(sql, params) do
-    case Repo.query(sql, params) do
-      {:ok, result} -> result |> rows() |> List.first()
-      {:error, _error} -> nil
-    end
-  end
-
-  def scalar!(sql, params) do
-    %{rows: [[value]]} = Repo.query!(sql, params)
-    value
-  end
 
   def rows(%Postgrex.Result{columns: columns, rows: rows}) do
     Enum.map(rows, fn row ->

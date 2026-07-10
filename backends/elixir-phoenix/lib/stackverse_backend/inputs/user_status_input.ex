@@ -5,25 +5,44 @@ defmodule StackverseBackend.Inputs.UserStatusInput do
 
   import Ecto.Changeset
 
+  alias StackverseBackend.Inputs.Support
+
   @primary_key false
   embedded_schema do
     field :status, :string
     field :reason, :string
   end
 
-  def changeset(status, reason) do
-    change(%__MODULE__{}, %{status: status, reason: reason})
-    |> require(
-      status != "blocked" or (is_binary(reason) and String.trim(reason) != ""),
+  @cast_messages %{
+    status: "validation.user-status.invalid",
+    reason: "validation.block.reason.too-long"
+  }
+
+  def changeset(body) do
+    changeset =
+      %__MODULE__{}
+      |> Support.contract_cast(body, [:status, :reason], @cast_messages)
+      |> trim_reason()
+
+    status = get_field(changeset, :status)
+    reason = get_field(changeset, :reason)
+
+    changeset
+    |> Support.require(:status, status in ~w[active blocked], "validation.user-status.invalid")
+    |> Support.require(
       :reason,
+      status != "blocked" or (is_binary(reason) and reason != ""),
       "validation.block.reason.required"
     )
-    |> require(length_of(reason) <= 1000, :reason, "validation.block.reason.too-long")
+    |> Support.require(:reason, length_of(reason) <= 1000, "validation.block.reason.too-long")
+  end
+
+  defp trim_reason(changeset) do
+    if Support.cast_valid?(changeset, :reason),
+      do: update_change(changeset, :reason, &String.trim/1),
+      else: changeset
   end
 
   defp length_of(nil), do: 0
   defp length_of(value), do: String.length(value)
-
-  defp require(changeset, true, _field, _message_key), do: changeset
-  defp require(changeset, false, field, message_key), do: add_error(changeset, field, message_key)
 end

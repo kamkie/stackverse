@@ -5,6 +5,8 @@ defmodule StackverseBackend.Inputs.MessageInput do
 
   import Ecto.Changeset
 
+  alias StackverseBackend.Inputs.Support
+
   @primary_key false
   embedded_schema do
     field :key, :string
@@ -15,57 +17,55 @@ defmodule StackverseBackend.Inputs.MessageInput do
 
   @key_pattern ~r/^[a-z0-9-]+(\.[a-z0-9-]+)*$/
   @language_pattern ~r/^[a-z]{2}$/
+  @cast_messages %{
+    key: "validation.message.key.invalid",
+    language: "validation.message.language.invalid",
+    text: "validation.message.text.required",
+    description: "validation.message.description.too-long"
+  }
 
-  def changeset(body) when is_map(body) do
-    key = body |> string("key") |> String.trim()
-    language = body |> string("language") |> String.trim()
-    text = string(body, "text")
-    description = optional_string(body, "description")
+  def changeset(body) do
+    changeset =
+      %__MODULE__{}
+      |> Support.contract_cast(body, [:key, :language, :text, :description], @cast_messages)
+      |> trim(:key)
+      |> trim(:language)
 
-    change(%__MODULE__{}, %{
-      key: key,
-      language: language,
-      text: text,
-      description: description
-    })
-    |> require(
-      Regex.match?(@key_pattern, key) and String.length(key) <= 150,
+    key = get_field(changeset, :key)
+    language = get_field(changeset, :language)
+    text = get_field(changeset, :text)
+    description = get_field(changeset, :description)
+
+    changeset
+    |> Support.require(
       :key,
+      is_binary(key) and Regex.match?(@key_pattern, key) and String.length(key) <= 150,
       "validation.message.key.invalid"
     )
-    |> require(
-      Regex.match?(@language_pattern, language),
+    |> Support.require(
       :language,
+      is_binary(language) and Regex.match?(@language_pattern, language),
       "validation.message.language.invalid"
     )
-    |> require(text != "", :text, "validation.message.text.required")
-    |> require(String.length(text) <= 2000, :text, "validation.message.text.too-long")
-    |> require(
-      length_of(description) <= 1000,
+    |> Support.require(:text, is_binary(text) and text != "", "validation.message.text.required")
+    |> Support.require(
+      :text,
+      not (is_binary(text) and text != "") or String.length(text) <= 2000,
+      "validation.message.text.too-long"
+    )
+    |> Support.require(
       :description,
+      length_of(description) <= 1000,
       "validation.message.description.too-long"
     )
   end
 
-  def changeset(_body), do: changeset(%{})
-
-  defp string(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _ -> ""
-    end
-  end
-
-  defp optional_string(body, key) do
-    case Map.get(body, key) do
-      value when is_binary(value) -> value
-      _ -> nil
-    end
+  defp trim(changeset, field) do
+    if Support.cast_valid?(changeset, field),
+      do: update_change(changeset, field, &String.trim/1),
+      else: changeset
   end
 
   defp length_of(nil), do: 0
   defp length_of(value), do: String.length(value)
-
-  defp require(changeset, true, _field, _message_key), do: changeset
-  defp require(changeset, false, field, message_key), do: add_error(changeset, field, message_key)
 end
