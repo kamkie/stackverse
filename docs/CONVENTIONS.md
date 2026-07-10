@@ -33,7 +33,7 @@ issue closes.
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Package-by-feature slices, each owning entity/repo/service/controller | Package-by-feature (bookmark/message/moderation/account/audit/stats) | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Application.module() with plugins/ and routes/ split across files | Flat dev.stackverse.backend package; module + all routes in Application.kt | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | Minimal-API .NET 10 with feature folders, or MVC controllers | Minimal APIs, feature folders (Bookmarks/, Messages/...), static Map()+service per feature | ✅ idiomatic |
-| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Phoenix API app with lib/, config/, priv/repo/migrations, router/controllers | Minimal Phoenix API layout; router + auth plug, broad controller, support modules under lib/stackverse_backend | 🟡 deliberate |
+| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Phoenix API app with lib/, config/, priv/repo/migrations, router/controllers | Focused controllers delegate to bookmark, message, report, moderation, account, audit, and stats contexts | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | cmd/ entrypoint, internal/ for private packages, package-by-feature | cmd/backend main + internal/ feature packages (bookmarks, messages, auth, web...) | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | cmd/ entrypoint, internal/ packages, Echo router setup at the HTTP edge | cmd/backend main + internal/ feature packages; Echo route/middleware wiring in app | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | grails-app/{controllers,services,domain,conf} convention dirs; src/main/groovy for beans | Standard grails-app dirs; src/main/groovy holds Spring config and support | ✅ idiomatic |
@@ -58,7 +58,7 @@ issue closes.
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Spring Data JPA/Hibernate, Flyway migrations, ddl-auto validate | Spring Data JPA + JpaSpecificationExecutor, Flyway V1, ddl-auto=validate, Postgres | ✅ idiomatic |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Exposed DSL/DAO over HikariCP, or a coroutine JDBC layer | Hand-written SQL via raw JDBC + HikariCP; Flyway migrations | 🟡 deliberate |
 | [ASP.NET Core](../backends/dotnet/README.md) | EF Core + Npgsql, code-first migrations, LINQ queries | EF Core 10 + Npgsql, checked-in migrations, Database.Migrate() on startup, text[] tags + GIN | ✅ idiomatic |
-| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto schemas/changesets plus Repo queries and migrations | Ecto Repo + migrations; explicit parameterized SQL, row locks, text[] tags + GIN | 🟡 deliberate |
+| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto schemas/changesets plus Repo queries and migrations | Embedded input schemas/changesets plus Ecto Repo/migrations; explicit SQL retained for row locks, text[] tags, dynamic filters, and PostgreSQL constraints | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | pgx/database-sql with raw SQL; migrations via a tool or embedded files | pgxpool + hand-written SQL, no ORM; embedded SQL migrations under pg advisory lock | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | GORM/Hibernate domain classes with dynamic finders | Raw Spring JdbcTemplate + hand-written SQL, Flyway migrations, no GORM | 🟡 deliberate |
@@ -183,7 +183,7 @@ issue closes.
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Bean Validation (jakarta.validation @Valid/@NotNull) on DTOs | Programmatic validation in services via custom Validator; no Bean Validation | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | No standard library; manual checks in handlers/services | Hand-rolled Validator collecting FieldViolations per field | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | DataAnnotations or FluentValidation with model binding | Hand-rolled Validator collecting FieldViolations, thrown as ValidationProblem | 🟡 deliberate |
-| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto changesets or explicit validation helpers | Hand-rolled Validator collecting localized FieldViolations; no changesets | 🟡 deliberate |
+| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Ecto changesets or explicit validation helpers | Embedded-schema changesets normalize inputs and preserve localized Stackverse message keys | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | struct-tag validator (go-playground/validator) common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
 | [Go (Echo)](../backends/go-echo/README.md) | Echo binding plus go-playground/validator common; manual also fine | hand-rolled web.Validator collecting field errors, no validation library | 🟡 deliberate |
 | [Grails](../backends/grails/README.md) | Domain constraints or @Validateable command objects | Manual validation in services building problem-detail error lists | 🟡 deliberate |
@@ -208,7 +208,7 @@ issue closes.
 | [Spring Boot (Java)](../backends/spring-java/README.md) | JUnit 5, @SpringBootTest/MockMvc, Testcontainers, spring-security-test | JUnit 5 focused unit tests; full API behavior covered by backend conformance | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | testApplication from ktor-server-test-host with kotlin.test/JUnit5 | testApplication + kotlin.test/JUnit5; helper/unit tests only, no DB integration | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | xUnit unit tests plus WebApplicationFactory integration tests | xUnit unit tests plus no-container WebApplicationFactory tests over the minimal-API pipeline | ✅ idiomatic |
-| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | ExUnit with ConnCase/DataCase and focused unit tests | ExUnit helper tests; HTTP/DB contract covered by shared backend conformance | 🟡 deliberate |
+| [Elixir Phoenix](../backends/elixir-phoenix/README.md) | ExUnit with ConnCase/DataCase and focused unit tests | ConnCase endpoint tests, DataCase changeset tests, focused helpers, and shared live backend conformance | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | stdlib testing, table-driven tests, httptest for router edges | stdlib testing, table-driven cases, Echo route smoke tests; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for services and support helpers; unit-only, no integration tests | ✅ idiomatic |
