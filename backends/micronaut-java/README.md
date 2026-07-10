@@ -70,9 +70,12 @@ docker build -t stackverse/backend-micronaut-java:local -f backends/micronaut-ja
   would create two persistence styles without removing the `Database` boundary.
 - `micronaut-security-jwt` / OAuth2 resource-server support is not used. The custom
   `JwtVerifier` keeps issuer, audience, expiry, JWKS refresh, app-account blocking, and
-  Stackverse problem mapping visible in one stateless request filter. Framework HTTP
-  tests exercise the filter and role boundary; adopting Micronaut Security would leave
-  the account-state filter and contract-specific error mapping custom anyway.
+  Stackverse problem mapping visible in one stateless request filter. Its
+  `@PreMatching` phase applies the centralized protected-write caller/role policy before
+  Micronaut binds JSON bodies, while public reads retain optional bearer handling.
+  Framework HTTP tests exercise malformed and wrong-typed payload precedence; adopting
+  Micronaut Security would leave the account-state filter and contract-specific error
+  mapping custom anyway.
 - The OpenTelemetry Java agent is baked into the container image for traces, metrics and
   logs when `OTEL_SDK_DISABLED=false`; local `./gradlew run` is console-only unless run
   with an agent by hand.
