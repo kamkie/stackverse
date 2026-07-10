@@ -32,7 +32,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | go-echo | 3539 | 1291 | 0.36 | 29 | 15 | 14 | 122 | 14 | Go, SQL |
 | grails | 1922 | 289 | 0.15 | 38 | 7 | 187 | 71 | 20 | Groovy, SQL, YAML |
 | ktor-kotlin | 1897 | 291 | 0.15 | 17 | 4 | 243 | 67 | 20 | Kotlin, SQL |
-| micronaut-java | 2656 | 489 | 0.18 | 27 | 8 | 259 | 88 | 19 | Java, SQL, YAML |
+| micronaut-java | 2706 | 496 | 0.18 | 29 | 8 | 259 | 89 | 19 | Java, SQL, YAML |
 | node-nestjs | 2120 | 445 | 0.21 | 36 | 6 | 146 | 120 | 23 | TypeScript |
 | node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
 | open-liberty-java | 2238 | 308 | 0.14 | 19 | 2 | 519 | 86 | 18 | Java, SQL, XML |
@@ -46,7 +46,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | scala-http4s | 2302 | 587 | 0.25 | 29 | 2 | 27 | 113 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 51803 | 10397 | | 655 | 128 | 2922 | 1858 | 428 | |
+| **subtotal** | 51853 | 10404 | | 657 | 128 | 2922 | 1859 | 428 | |
 
 ## Gateway
 
@@ -72,6 +72,6 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | react | 5636 | 1021 | 0.18 | 47 | 20 | 251 | 93 | 13 | TSX, TypeScript, JavaScript |
 | solid | 2704 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
 | svelte | 2124 | 484 | 0.23 | 34 | 7 | 230 | 72 | 13 | Svelte, TypeScript, HTML |
-| vanilla-ts | 2506 | 1367 | 0.55 | 16 | 8 | 199 | 81 | 13 | TypeScript, HTML, JavaScript |
+| vanilla-ts | 2848 | 2530 | 0.89 | 16 | 9 | 199 | 94 | 13 | TypeScript, HTML, JavaScript |
 | vue | 3477 | 550 | 0.16 | 36 | 7 | 183 | 82 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 26081 | 6617 | | 264 | 75 | 1666 | 660 | 104 | |
+| **subtotal** | 26423 | 7780 | | 264 | 76 | 1666 | 673 | 104 | |

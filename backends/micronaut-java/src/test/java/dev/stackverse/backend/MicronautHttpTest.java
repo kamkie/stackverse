@@ -172,17 +172,25 @@ final class MicronautHttpTest {
                     .contentType(MediaType.APPLICATION_JSON_TYPE);
             assertThatThrownBy(() -> client.toBlocking().exchange(anonymous, String.class))
                     .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
-                            assertThat(failure.getStatus().getCode())
-                                    .isEqualTo(HttpStatus.UNAUTHORIZED.getCode()));
+                            assertProblem(failure, HttpStatus.UNAUTHORIZED));
 
             var authenticated = HttpRequest.POST("/api/v1/bookmarks", body)
                     .contentType(MediaType.APPLICATION_JSON_TYPE)
                     .bearerAuth("valid-token");
             assertThatThrownBy(() -> client.toBlocking().exchange(authenticated, String.class))
                     .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
-                            assertThat(failure.getStatus().getCode())
-                                    .isEqualTo(HttpStatus.BAD_REQUEST.getCode()));
+                            assertProblem(failure, HttpStatus.BAD_REQUEST));
         }
+    }
+
+    private static void assertProblem(HttpClientResponseException failure, HttpStatus status) {
+        assertThat(failure.getStatus().getCode()).isEqualTo(status.getCode());
+        assertThat(failure.getResponse().getContentType())
+                .contains(MediaType.of("application/problem+json"));
+        assertThat(failure.getResponse().getBody(String.class).orElse(""))
+                .contains("\"type\":\"about:blank\"")
+                .contains("\"title\":\"" + status.getReason() + "\"")
+                .contains("\"status\":" + status.getCode());
     }
 
     @Test
