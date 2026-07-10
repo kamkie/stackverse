@@ -1,6 +1,7 @@
 package dev.stackverse.backend;
 
 import io.micronaut.context.annotation.Property;
+import io.micronaut.http.HttpMethod;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
 import io.micronaut.http.MediaType;
@@ -8,12 +9,16 @@ import io.micronaut.http.client.HttpClient;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.micronaut.web.router.Router;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,6 +40,9 @@ final class MicronautHttpTest {
     @Inject
     AccountService accounts;
 
+    @Inject
+    Router router;
+
     @BeforeEach
     void configureIdentity() {
         reset(verifier, accounts);
@@ -55,6 +63,26 @@ final class MicronautHttpTest {
         var response = client.toBlocking().exchange(HttpRequest.GET("/healthz"), String.class);
 
         assertThat(response.code()).isEqualTo(HttpStatus.OK.getCode());
+    }
+
+    @Test
+    void everyRegisteredApiWriteHasAPreMatchingAccessRule() {
+        var writeMethods = Set.of(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE);
+        var writeRoutes = router.uriRoutes()
+                .filter(route -> writeMethods.contains(route.getHttpMethod()))
+                .filter(route -> route.getUriMatchTemplate().toPathString().startsWith("/api/"))
+                .toList();
+
+        assertThat(writeRoutes).isNotEmpty().allSatisfy(route -> {
+            var template = route.getUriMatchTemplate();
+            Map<String, Object> variables = template.getVariableNames().stream()
+                    .collect(Collectors.toMap(name -> name, name -> "route-value"));
+            var path = template.expand(variables);
+
+            assertThat(AuthFilter.accessRule(route.getHttpMethod(), path))
+                    .as("pre-matching access for %s %s", route.getHttpMethod(), template)
+                    .isNotEqualTo(AccessRule.PUBLIC);
+        });
     }
 
     @Test
