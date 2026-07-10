@@ -16,31 +16,33 @@ describe("delegated control events", () => {
 
   it("routes immediate, debounced, and form controls through one event path", async () => {
     history.replaceState(null, "", "/reports");
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const path = new URL(String(input), window.location.origin).pathname;
-      if (path === "/api/v1/messages/bundle") {
-        return jsonResponse({ language: "en", messages: {} });
-      }
-      if (path === "/auth/session") {
-        return jsonResponse({ authenticated: true, username: "demo" });
-      }
-      if (path === "/api/v1/me") {
-        return jsonResponse({ username: "demo", roles: ["admin"] });
-      }
-      if (path === "/api/v1/reports" || path === "/api/v1/admin/audit-log") {
-        return jsonResponse({
-          items: [],
-          page: 0,
-          size: 20,
-          totalItems: 0,
-          totalPages: 0,
-        });
-      }
-      if (path === "/api/v2/bookmarks") {
-        return jsonResponse({ items: [] });
-      }
-      return new Response(null, { status: 404 });
-    });
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockImplementation(async (input) => {
+        const path = new URL(String(input), window.location.origin).pathname;
+        if (path === "/api/v1/messages/bundle") {
+          return jsonResponse({ language: "en", messages: {} });
+        }
+        if (path === "/auth/session") {
+          return jsonResponse({ authenticated: true, username: "demo" });
+        }
+        if (path === "/api/v1/me") {
+          return jsonResponse({ username: "demo", roles: ["admin"] });
+        }
+        if (path === "/api/v1/reports" || path === "/api/v1/admin/audit-log") {
+          return jsonResponse({
+            items: [],
+            page: 0,
+            size: 20,
+            totalItems: 0,
+            totalPages: 0,
+          });
+        }
+        if (path === "/api/v2/bookmarks") {
+          return jsonResponse({ items: [] });
+        }
+        return new Response(null, { status: 404 });
+      });
 
     document.body.innerHTML = '<div id="app"></div>';
     await import("./main");
