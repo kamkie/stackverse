@@ -1,8 +1,12 @@
 package dev.stackverse.backend.command
 
+import grails.databinding.BindUsing
+
 class ReportCommand extends ContractCommand {
-    Object reason
-    Object comment
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'reason') })
+    String reason
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'comment') })
+    String comment
 
     static constraints = {
         reason nullable: true, validator: { value ->

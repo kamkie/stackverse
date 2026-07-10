@@ -83,36 +83,41 @@ class ModerationService {
 
     @Transactional
     Map resolve(UUID id, Map input, String actor) {
-        Map existing = find(id)
-        if (!existing) {
+        Report report = Report.get(id)
+        if (!report) {
             throw ApiError.notFound()
         }
         String resolution = input.resolution
         if (resolution == "open") {
-            jdbcTemplate.update("""
-                update reports set status = 'open', resolved_by = null, resolved_at = null, resolution_note = null
-                where id = ?
-            """, id)
+            report.status = 'open'
+            report.resolvedBy = null
+            report.resolvedAt = null
+            report.resolutionNote = null
+            report.save(failOnError: true, flush: true)
             auditService.record(actor, "report.reopened", "report", id.toString())
             eventLogger.info("report_reopened", "success", "Report reopened", [actor: actor, resource_type: "report", resource_id: id.toString()])
-            return find(id)
+            return reportMap(report)
         }
 
         def now = timeSource.now()
-        jdbcTemplate.update("""
-            update reports set status = ?, resolved_by = ?, resolved_at = ?, resolution_note = ?
-            where id = ?
-        """, resolution, actor, Timestamp.from(now), input.note, id)
+        report.status = resolution
+        report.resolvedBy = actor
+        report.resolvedAt = now
+        report.resolutionNote = input.note
+        report.save(failOnError: true, flush: true)
         if (resolution == "actioned") {
-            jdbcTemplate.update("update bookmarks set status = 'hidden', updated_at = ? where id = ?", Timestamp.from(now), UUID.fromString(existing.bookmarkId))
+            Bookmark bookmark = Bookmark.get(report.bookmarkId)
+            bookmark.status = 'hidden'
+            bookmark.updatedAt = now
+            bookmark.save(failOnError: true, flush: true)
             jdbcTemplate.update("""
                 update reports set status = 'actioned', resolved_by = ?, resolved_at = ?, resolution_note = ?
                 where bookmark_id = ? and status = 'open' and id <> ?
-            """, actor, Timestamp.from(now), input.note, UUID.fromString(existing.bookmarkId), id)
+            """, actor, Timestamp.from(now), input.note, report.bookmarkId, id)
         }
         auditService.record(actor, "report.resolved", "report", id.toString(), [resolution: resolution])
         eventLogger.info("report_resolved", "success", "Report resolved", [actor: actor, resource_type: "report", resource_id: id.toString()])
-        find(id)
+        reportMap(report)
     }
 
     @Transactional

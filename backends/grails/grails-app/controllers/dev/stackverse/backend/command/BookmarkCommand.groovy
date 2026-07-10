@@ -1,15 +1,22 @@
 package dev.stackverse.backend.command
 
+import grails.databinding.BindUsing
+
 import java.util.regex.Pattern
 
 class BookmarkCommand extends ContractCommand {
     private static final Pattern TAG = ~/^[a-z0-9-]{1,30}$/
 
-    Object url
-    Object title
-    Object notes
-    Object tags
-    Object visibility
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'url') })
+    String url
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'title') })
+    String title
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'notes') })
+    String notes
+    @BindUsing({ command, source -> ContractCommand.bindStringList(source, 'tags') })
+    List<String> tags
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'visibility') })
+    String visibility
 
     static constraints = {
         url nullable: true, validator: { value ->

@@ -1,10 +1,16 @@
 package dev.stackverse.backend.command
 
+import grails.databinding.BindUsing
+
 class MessageCommand extends ContractCommand {
-    Object key
-    Object language
-    Object text
-    Object description
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'key') })
+    String key
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'language') })
+    String language
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'text') })
+    String text
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'description') })
+    String description
 
     static constraints = {
         key nullable: true, validator: { value ->

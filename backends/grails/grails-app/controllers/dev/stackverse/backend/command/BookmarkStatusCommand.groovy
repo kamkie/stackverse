@@ -1,8 +1,12 @@
 package dev.stackverse.backend.command
 
+import grails.databinding.BindUsing
+
 class BookmarkStatusCommand extends ContractCommand {
-    Object status
-    Object note
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'status') })
+    String status
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'note') })
+    String note
 
     static constraints = {
         status nullable: true, validator: { value ->

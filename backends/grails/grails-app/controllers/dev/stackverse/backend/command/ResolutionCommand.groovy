@@ -1,8 +1,12 @@
 package dev.stackverse.backend.command
 
+import grails.databinding.BindUsing
+
 class ResolutionCommand extends ContractCommand {
-    Object resolution
-    Object note
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'resolution') })
+    String resolution
+    @BindUsing({ command, source -> ContractCommand.bindString(source, 'note') })
+    String note
 
     static constraints = {
         resolution nullable: true, validator: { value ->
