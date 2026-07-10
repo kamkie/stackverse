@@ -26,7 +26,9 @@ to the repo's `spec/messages` automatically. Migrations apply on startup — the
 database must be one this backend owns (when switching from another backend:
 `docker compose down -v` first, see [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests (plain unit tests, no containers):
+Tests include focused helper units and multiple in-process `TestClient` route,
+schema, error, and response-model tests. They use no containers and there is no
+database integration suite:
 
 ```sh
 python -m compileall stackverse_backend tests

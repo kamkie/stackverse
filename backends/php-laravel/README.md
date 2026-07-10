@@ -34,9 +34,12 @@ composer lint
 php artisan test
 ```
 
-The model/resource integration test is opt-in so the default unit/HTTP suite
-does not require infrastructure. Against a migrated PostgreSQL test database,
-set `STACKVERSE_DB_TESTS=true` and run
+The PostgreSQL-backed Eloquent integration suite is opt-in so the default
+unit/HTTP suite does not require infrastructure. It covers model/resource
+shapes and PostgreSQL arrays, microsecond ordering through cursor pagination
+and audit filters, and authentication account upserts under a row lock including
+blocked-user rejection. Against a migrated PostgreSQL test database, set
+`STACKVERSE_DB_TESTS=true` and run
 `php artisan test --filter EloquentBoundariesTest`.
 
 Conformance, with the backend running:
