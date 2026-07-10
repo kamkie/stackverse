@@ -9,7 +9,7 @@ import dev.stackverse.backend.audit.AuditService
 import dev.stackverse.backend.config.EventLogger
 import dev.stackverse.backend.persistence.Bookmark
 import dev.stackverse.backend.persistence.UserAccount
-import org.springframework.transaction.annotation.Transactional
+import grails.gorm.transactions.Transactional
 
 class UserAccountService {
     TimeSource timeSource

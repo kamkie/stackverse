@@ -13,7 +13,7 @@ import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.transaction.annotation.Transactional
+import grails.gorm.transactions.Transactional
 
 import java.sql.Timestamp
 import java.util.regex.Pattern

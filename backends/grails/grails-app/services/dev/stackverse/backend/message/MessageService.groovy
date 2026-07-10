@@ -14,7 +14,7 @@ import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.transaction.annotation.Transactional
+import grails.gorm.transactions.Transactional
 
 import java.nio.file.Files
 import java.nio.file.Path

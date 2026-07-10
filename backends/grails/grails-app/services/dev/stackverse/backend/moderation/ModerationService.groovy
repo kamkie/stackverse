@@ -11,7 +11,7 @@ import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.TimeSource
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.transaction.annotation.Transactional
+import grails.gorm.transactions.Transactional
 
 import java.sql.Timestamp
 
