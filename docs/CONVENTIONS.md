@@ -6,22 +6,9 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 **Status legend:** ✅ idiomatic · 🟡 deliberate deviation (documented in the variant's README) · 🔴 undocumented deviation · — not applicable.
 
-> Source trail: the per-variant issues (#145, #163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind the original snapshot. A 2026-07 current-state review corrected later drift and recorded newly discovered follow-up work in #329–#344. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
+> Source trail: the per-variant issues (#145, #163–#183, #197–#198) and their closing cleanup PRs are the verified, adversarially-checked audit trail behind the original snapshot. A 2026-07 current-state review corrected later drift through #329–#344 and the closed canonical-correction follow-ups #356–#361, #373, #376, and #378. The current code plus the linked variant README are authoritative for each row; if they drift from this table, update the table.
 >
 > Maintenance note: unlike most shared docs this file is O(N) in the number of implementations — a new variant adds one row to each table in its layer section. Keep cells terse; put the *why* in the variant README, not here.
-
-## Cross-cutting dependency / toolchain exceptions
-
-These are concrete current-version exceptions found by the 2026-07 review. They are
-listed separately because dependency freshness is not otherwise scored as a full
-per-variant table in this document. Update or remove each bullet when its tracking
-issue closes.
-
-- 🟡 **Qwik** pins TypeScript 5.9 and Vite 7 because Qwik 1.20's generated
-  declarations are incompatible with TypeScript 6 and its peer range excludes
-  Vite 8. Application code now type-checks against the installed Qwik declarations;
-  the remaining version constraint is documented in the variant README
-  ([#342](https://github.com/kamkie/stackverse/issues/342)).
 
 ## Backends
 
@@ -131,16 +118,16 @@ issue closes.
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | @RestControllerAdvice + ProblemDetail (RFC 9457) | @RestControllerAdvice extends ResponseEntityExceptionHandler, ProblemDetail | ✅ idiomatic |
 | [Spring Boot (Java)](../backends/spring-java/README.md) | @RestControllerAdvice + ProblemDetail (RFC 9457) | @RestControllerAdvice extends ResponseEntityExceptionHandler, ProblemDetail | ✅ idiomatic |
-| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | StatusPages plugin maps typed exceptions to responses | StatusPages maps ValidationProblem/ApiProblem to RFC-7807 Problem JSON | ✅ idiomatic |
+| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | StatusPages plugin maps typed exceptions to responses | StatusPages maps ValidationProblem/ApiProblem to RFC 9457 Problem JSON | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | ProblemDetails via IExceptionHandler / AddProblemDetails middleware | Custom exception middleware maps ApiProblem types to hand-written RFC 9457 problem+json | 🟡 deliberate |
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | Controller/fallback actions or error views render JSON errors | Problem helper renders RFC 9457 problem+json directly from controllers and auth plug | 🟡 deliberate |
 | [Go (chi)](../backends/go/README.md) | sentinel/typed errors; explicit status mapping at handler edge | *Problem type implements error, rendered as RFC 9457 problem+json | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | Echo HTTPErrorHandler plus typed app errors at handler edge | Echo HTTPErrorHandler maps framework 404/405; *Problem renders RFC 9457 problem+json | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | respond with errors, or UrlMappings error controllers | Spring @ControllerAdvice + ApiError to RFC7807 problem+json; UrlMappings 404/500 | ✅ idiomatic |
-| [Micronaut](../backends/micronaut-java/README.md) | @Produces ExceptionHandler beans mapping exceptions to responses | ExceptionHandler&lt;ProblemException&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
+| [Grails](../backends/grails/README.md) | respond with errors, or UrlMappings error controllers | Spring @ControllerAdvice + ApiError to RFC 9457 problem+json; UrlMappings 404/500 | ✅ idiomatic |
+| [Micronaut](../backends/micronaut-java/README.md) | @Produces ExceptionHandler beans mapping exceptions to responses | ExceptionHandler&lt;ProblemException&gt; emitting RFC 9457 application/problem+json | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | central setErrorHandler mapping typed errors to responses | setErrorHandler maps ApiProblem subclasses to RFC 9457 problem+json | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | Throw HttpException subclasses; Nest exception filters render responses | Global ProblemFilter renders ApiProblem/ValidationProblem and unexpected errors as RFC 9457 | ✅ idiomatic |
-| [Open Liberty](../backends/open-liberty-java/README.md) | JAX-RS ExceptionMapper translating exceptions to responses | ExceptionMapper&lt;Throwable&gt; emitting RFC 7807 application/problem+json | ✅ idiomatic |
+| [Open Liberty](../backends/open-liberty-java/README.md) | JAX-RS ExceptionMapper translating exceptions to responses | ExceptionMapper&lt;Throwable&gt; emitting RFC 9457 application/problem+json | ✅ idiomatic |
 | [PHP Laravel](../backends/php-laravel/README.md) | Exceptions configured in bootstrap/app.php or renderable handlers | bootstrap exception renderers map ApiProblem/ValidationProblem to RFC 9457 problem+json | ✅ idiomatic |
 | [FastAPI](../backends/python-fastapi/README.md) | Raise HTTPException; FastAPI serializes the detail body | Custom AppProblem hierarchy + exception_handlers emitting RFC 9457 problem+json | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | DRF custom exception handler maps API exceptions to responses | AppProblem/ValidationProblem handled by DRF exception handler emitting RFC 9457 problem+json | ✅ idiomatic |
@@ -211,13 +198,13 @@ issue closes.
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | ExUnit with ConnCase/DataCase and focused unit tests | ConnCase endpoint tests, DataCase changeset/schema tests, PostgreSQL-backed Repo query regressions, and shared live conformance | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | stdlib testing, table-driven tests, *_test.go beside code | stdlib testing, table-driven cases; gotestsum wraps for JUnit in CI | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | stdlib testing, table-driven tests, httptest for router edges | stdlib testing, table-driven cases, Echo route smoke tests; gotestsum wraps for JUnit in CI | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock specs for command constraints, services, and support helpers; shared live conformance owns integration coverage | ✅ idiomatic |
+| [Grails](../backends/grails/README.md) | Spock specifications, Grails unit/integration test traits | Spock units plus six PostgreSQL-backed integration features cover HTTP command binding and complete domain persistence; shared live conformance remains the acceptance gate | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | @MicronautTest with injected HTTP client for integration tests | JUnit 5 + AssertJ units plus @MicronautTest HTTP coverage for routing, filters, serialization, validation, and roles | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | Vitest/Jest, unit plus integration (supertest/inject) tests | Vitest unit tests on pure functions (validation, cursor, etag, i18n); no HTTP-level tests | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | Jest with @nestjs/testing TestingModule; supertest e2e | Vitest plus @nestjs/testing TestingModule and in-process Fastify HTTP injection cover guards, pipes, controllers, and filters | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | JUnit 5 units; Arquillian/liberty-maven integration tests | JUnit 5/JaCoCo units plus Failsafe verification of the minimized Liberty runtime package; shared API conformance | ✅ idiomatic |
-| [PHP Laravel](../backends/php-laravel/README.md) | PHPUnit or Pest through `php artisan test`, often with HTTP feature tests | PHPUnit unit tests plus HTTP feature coverage for router, auth/role middleware, FormRequests, exceptions, and resources | ✅ idiomatic |
-| [FastAPI](../backends/python-fastapi/README.md) | pytest with TestClient/httpx exercising the ASGI app end-to-end | pytest unit tests of helpers plus a small TestClient route smoke; no DB integration | 🟡 deliberate |
+| [PHP Laravel](../backends/php-laravel/README.md) | PHPUnit or Pest through `php artisan test`, often with HTTP feature tests | PHPUnit unit/HTTP feature tests plus an opt-in PostgreSQL Eloquent suite for arrays/resources, cursor and audit precision, and auth row-lock/blocked behavior | ✅ idiomatic |
+| [FastAPI](../backends/python-fastapi/README.md) | pytest with TestClient/httpx exercising the ASGI app end-to-end | pytest helper units plus multiple TestClient route, schema, error, and response-model tests; no DB integration | 🟡 deliberate |
 | [Django + DRF](../backends/python-django/README.md) | pytest/pytest-django or Django TestCase with APIClient integration tests | pytest unit tests of helpers; HTTP/DB acceptance lives in shared conformance | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | Guice tests inspect router documentation without executing JDBC and exercise action/auth/error boundaries; focused helper and total-codec units | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | MUnit/Cats Effect testing or ScalaTest with http4s route tests | ScalaTest executes route/service fakes, auth middleware allow/deny behavior, helpers, and row mappers | ✅ idiomatic |
@@ -335,9 +322,9 @@ issue closes.
 |---|---|---|---|
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | Mono.error propagation; RFC 9457 problem responses for gateway-owned errors | onErrorResume maps IdpUnavailable to 503; Problems writes RFC 9457 documents | ✅ idiomatic |
 | [Apache APISIX](../gateways/apisix/README.md) | Lua-emitted gateway errors from custom plugins | RFC 9457 application/problem+json via problem.lua; callback failures redirect not 500 | ✅ idiomatic |
-| [Go (chi)](../gateways/go/README.md) | explicit error returns, sentinel errors, errors.Is; RFC 7807 problem+json | (val,ok,error) returns, errRefreshRejected/errIDPUnavailable sentinels, problem+json | ✅ idiomatic |
-| [Fastify](../gateways/node-fastify/README.md) | setErrorHandler with RFC7807 application/problem+json responses | setErrorHandler plus sendProblem helper emitting problem+json (problems.ts) | ✅ idiomatic |
-| [OpenResty (Lua)](../gateways/openresty/README.md) | Lua-emitted error bodies; format is app choice | RFC 7807 application/problem+json via problem.lua | ✅ idiomatic |
+| [Go (chi)](../gateways/go/README.md) | explicit error returns, sentinel errors, errors.Is; RFC 9457 problem+json | (val,ok,error) returns, errRefreshRejected/errIDPUnavailable sentinels, problem+json | ✅ idiomatic |
+| [Fastify](../gateways/node-fastify/README.md) | setErrorHandler with RFC 9457 application/problem+json responses | setErrorHandler plus sendProblem helper emitting problem+json (problems.ts) | ✅ idiomatic |
+| [OpenResty (Lua)](../gateways/openresty/README.md) | Lua-emitted error bodies; format is app choice | RFC 9457 application/problem+json via problem.lua | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | Response helpers or exception handlers returning problem+json | Small problem helper returns RFC 9457 application/problem+json; callback failures redirect not 500 | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | Typed errors or response helpers implementing IntoResponse | Small problem helper returns RFC 9457 application/problem+json; callback failures redirect not 500 | ✅ idiomatic |
 | [YARP](../gateways/yarp/README.md) | RFC 9457 problem+json responses; avoid leaking 500s | Problems.Write problem+json helper; OIDC callback failures redirect not 500 | ✅ idiomatic |
