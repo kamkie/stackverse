@@ -1,7 +1,9 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -20,10 +22,10 @@ import jakarta.ws.rs.core.UriInfo;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class BookmarksResource {
-    private final StackverseService service;
+    private final BookmarkService service;
 
     @Inject
-    public BookmarksResource(StackverseService service) {
+    public BookmarksResource(BookmarkService service) {
         this.service = service;
     }
 
@@ -33,7 +35,9 @@ public class BookmarksResource {
     }
 
     @POST
-    public Response createBookmark(JsonNode body) {
+    @Authenticated
+    public Response createBookmark(
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid BookmarkInput body) {
         return service.createBookmark(body);
     }
 
@@ -45,12 +49,16 @@ public class BookmarksResource {
 
     @PUT
     @Path("/{id}")
-    public Response updateBookmark(@PathParam("id") String rawId, JsonNode body) {
+    @Authenticated
+    public Response updateBookmark(
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid BookmarkInput body) {
         return service.updateBookmark(rawId, body);
     }
 
     @DELETE
     @Path("/{id}")
+    @Authenticated
     public Response deleteBookmark(@PathParam("id") String rawId) {
         return service.deleteBookmark(rawId);
     }

@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.quarkus.security.identity.SecurityIdentity;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validation;
 import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
@@ -80,8 +82,8 @@ class BackendSupportTest {
 
     @Test
     void bookmarkResponseSortsTagsAndOmitsMissingOptionalFields() {
-        Map<String, Object> response =
-                StackverseService.bookmarkResponse(
+        BookmarkResponse response =
+                BookmarkService.bookmarkResponse(
                         new Bookmark(
                                 BOOKMARK_ID,
                                 "alice",
@@ -94,10 +96,10 @@ class BackendSupportTest {
                                 CREATED,
                                 UPDATED));
 
-        assertEquals(BOOKMARK_ID.toString(), response.get("id"));
-        assertEquals(List.of("api", "java"), response.get("tags"));
-        assertEquals("2026-07-01T12:00:00Z", response.get("createdAt"));
-        assertFalse(response.containsKey("notes"));
+        assertEquals(BOOKMARK_ID, response.id());
+        assertEquals(List.of("api", "java"), response.tags());
+        assertEquals(CREATED, response.createdAt());
+        assertNull(response.notes());
     }
 
     @Test
@@ -127,15 +129,175 @@ class BackendSupportTest {
                         "hidden",
                         CREATED);
 
-        Map<String, Object> openResponse = StackverseService.reportResponse(open);
-        Map<String, Object> actionedResponse = StackverseService.reportResponse(actioned);
+        ReportResponse openResponse = ReportService.reportResponse(open);
+        ReportResponse actionedResponse = ReportService.reportResponse(actioned);
 
-        assertFalse(openResponse.containsKey("comment"));
-        assertFalse(openResponse.containsKey("resolvedAt"));
-        assertEquals("duplicate", actionedResponse.get("comment"));
-        assertEquals("moderator", actionedResponse.get("resolvedBy"));
-        assertEquals("2026-07-02T12:00:00Z", actionedResponse.get("resolvedAt"));
-        assertEquals("hidden", actionedResponse.get("resolutionNote"));
+        assertNull(openResponse.comment());
+        assertNull(openResponse.resolvedAt());
+        assertEquals("duplicate", actionedResponse.comment());
+        assertEquals("moderator", actionedResponse.resolvedBy());
+        assertEquals(UPDATED, actionedResponse.resolvedAt());
+        assertEquals("hidden", actionedResponse.resolutionNote());
+    }
+
+    @Test
+    void typedBookmarkInputNormalizesValuesBeforeBeanValidation() {
+        BookmarkInput input =
+                new BookmarkInput(
+                        "  https://example.com/path  ",
+                        "  Example  ",
+                        null,
+                        List.of(" Java ", "java", "api"),
+                        null);
+
+        assertEquals("https://example.com/path", input.url());
+        assertEquals("Example", input.title());
+        assertEquals(List.of("java", "api"), input.tags());
+        assertEquals("private", input.visibility());
+    }
+
+    @Test
+    void beanValidationUsesContractMessageKeysForTypedInputs() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            var violations =
+                    validator.validate(
+                            new BookmarkInput(
+                                    "ftp://example.com",
+                                    "",
+                                    null,
+                                    List.of("not valid!"),
+                                    "private"));
+            Set<String> keys =
+                    violations.stream()
+                            .map(violation -> violation.getMessage())
+                            .collect(java.util.stream.Collectors.toSet());
+
+            assertTrue(keys.contains("validation.url.invalid"));
+            assertTrue(keys.contains("validation.title.required"));
+            assertTrue(keys.contains("validation.tag.invalid"));
+        }
+    }
+
+    @Test
+    void beanValidationMapsBlockedUserReasonToTheContractField() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations = factory.getValidator().validate(new UserStatusInput("blocked", null));
+
+            assertEquals(1, violations.size());
+            var violation = violations.iterator().next();
+            assertEquals("reason", violation.getPropertyPath().toString());
+            assertEquals("validation.block.reason.required", violation.getMessage());
+        }
+    }
+
+    @Test
+    void beanValidationPreservesContractValidWhitespaceMessageText() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations =
+                    factory.getValidator()
+                            .validate(new MessageInput("example.title", "en", "   ", null));
+
+            assertTrue(violations.isEmpty());
+        }
+    }
+
+    @Test
+    void beanValidationCountsUnicodeCodePointsInsteadOfUtf16Units() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var validator = factory.getValidator();
+            String emoji = "\uD83D\uDE00";
+
+            var validBookmark =
+                    validator.validate(
+                            new BookmarkInput(
+                                    "https://example.com",
+                                    emoji.repeat(200),
+                                    null,
+                                    List.of(),
+                                    "private"));
+            var longBookmark =
+                    validator.validate(
+                            new BookmarkInput(
+                                    "https://example.com",
+                                    emoji.repeat(201),
+                                    null,
+                                    List.of(),
+                                    "private"));
+            var validReason =
+                    validator.validate(new UserStatusInput("blocked", emoji.repeat(1000)));
+            var longReason = validator.validate(new UserStatusInput("blocked", emoji.repeat(1001)));
+
+            assertTrue(validBookmark.isEmpty());
+            assertTrue(validReason.isEmpty());
+            assertEquals(
+                    Set.of("validation.title.too-long"),
+                    longBookmark.stream()
+                            .map(violation -> violation.getMessage())
+                            .collect(java.util.stream.Collectors.toSet()));
+            assertEquals(
+                    Set.of("validation.block.reason.too-long"),
+                    longReason.stream()
+                            .map(violation -> violation.getMessage())
+                            .collect(java.util.stream.Collectors.toSet()));
+        }
+    }
+
+    @Test
+    void conditionalEtagResponsesRetainNoCacheHeader() {
+        HttpResponses responses =
+                new HttpResponses(new com.fasterxml.jackson.databind.ObjectMapper());
+        Response initial = responses.etag(requestContext(null), Map.of("message", "hello"), null);
+        Response notModified =
+                responses.etag(
+                        requestContext(initial.getHeaderString("ETag")),
+                        Map.of("message", "hello"),
+                        null);
+
+        assertEquals(200, initial.getStatus());
+        assertEquals(304, notModified.getStatus());
+        assertEquals("no-cache", initial.getHeaderString("Cache-Control"));
+        assertEquals("no-cache", notModified.getHeaderString("Cache-Control"));
+    }
+
+    @Test
+    void featureServicesUseNarrowCompositionInsteadOfASharedBaseClass() {
+        List<Class<?>> featureServices =
+                List.of(
+                        AdminService.class,
+                        BookmarkService.class,
+                        HealthService.class,
+                        IdentityService.class,
+                        MessageService.class,
+                        ReportService.class);
+
+        featureServices.forEach(service -> assertEquals(Object.class, service.getSuperclass()));
+    }
+
+    @Test
+    void constraintMapperProducesLocalizedProblemFieldsFromBeanValidation() {
+        try (var factory = Validation.buildDefaultValidatorFactory()) {
+            var violations =
+                    factory.getValidator()
+                            .validate(new BookmarkInput("", "", null, List.of(), "private"));
+            Response response =
+                    new ConstraintViolationMapper(new StubLocalizer())
+                            .toResponse(new ConstraintViolationException(violations));
+            Map<?, ?> body = assertInstanceOf(Map.class, response.getEntity());
+            List<?> errors = assertInstanceOf(List.class, body.get("errors"));
+            Set<String> fields =
+                    errors.stream()
+                            .map(
+                                    error ->
+                                            assertInstanceOf(Map.class, error)
+                                                    .get("field")
+                                                    .toString())
+                            .collect(java.util.stream.Collectors.toSet());
+
+            assertEquals("application/problem+json", response.getMediaType().toString());
+            assertTrue(fields.contains("url"));
+            assertTrue(fields.contains("title"));
+        }
     }
 
     @Test
@@ -253,10 +415,10 @@ class BackendSupportTest {
         SQLException unique = new SQLException("duplicate key", "23505");
         SQLException other = new SQLException("connection failed", "08006");
 
-        assertTrue(StackverseService.isUniqueViolation(new DbException(unique)));
-        assertTrue(StackverseService.isUniqueViolation(new RuntimeException(unique)));
-        assertFalse(StackverseService.isUniqueViolation(new DbException(other)));
-        assertFalse(StackverseService.isUniqueViolation(new IllegalStateException("not SQL")));
+        assertTrue(PersistenceSupport.isUniqueViolation(new DbException(unique)));
+        assertTrue(PersistenceSupport.isUniqueViolation(new RuntimeException(unique)));
+        assertFalse(PersistenceSupport.isUniqueViolation(new DbException(other)));
+        assertFalse(PersistenceSupport.isUniqueViolation(new IllegalStateException("not SQL")));
     }
 
     private static Bookmark bookmark(String owner, String visibility, String status) {
@@ -317,6 +479,18 @@ class BackendSupportTest {
                             case "getPath" -> path;
                             default -> defaultValue(method.getReturnType());
                         });
+    }
+
+    private static RequestContext requestContext(String ifNoneMatch) {
+        HttpHeaders headers =
+                proxy(
+                        HttpHeaders.class,
+                        (method, args) ->
+                                "getHeaderString".equals(method.getName())
+                                                && HttpHeaders.IF_NONE_MATCH.equals(args[0])
+                                        ? ifNoneMatch
+                                        : defaultValue(method.getReturnType()));
+        return new RequestContext(null, headers);
     }
 
     @SuppressWarnings("unchecked")

@@ -58,9 +58,19 @@ standard Quarkus layout.
 
 - **Quarkus build-time wiring with explicit JDBC** — REST resources and CDI are
   Quarkus-native, while SQL remains visible and contract-shaped.
-- **Focused resources over the full contract** — five REST resources delegate
-  to a shared application service and reuse helpers for pagination, RFC 9457
-  problem documents, localization, ETags, audit writes, and transaction handling.
+- **Feature-focused application services** — thin REST resources delegate to
+  bookmark, report, message, identity, admin, and health services; no
+  full-contract service owns unrelated use cases.
+- **Typed REST boundaries** — request and response records are serialized by
+  RESTEasy/Jackson. `@Valid` Bean Validation constraints use the contract's
+  localized `validation.*` message keys, with focused custom constraints for
+  HTTP URLs and cross-field account-status rules.
+- **Declarative security** — `@Authenticated` and `@RolesAllowed` express the
+  endpoint policy. Focused Quarkus exception mappers retain Stackverse's RFC
+  9457 problem documents for authentication and authorization failures.
+- **Quarkus-native tests** — `@QuarkusTest` and RestAssured exercise the live
+  HTTP/security boundary; focused JUnit tests cover normalization, validation,
+  localization, serialization, and contract helpers.
 - **JWT validation by configuration** — SmallRye JWT validates issuer, audience,
   signature, and expiry from `OIDC_ISSUER_URI` / `OIDC_JWKS_URI`; the code derives
   identity from `preferred_username` and roles from `realm_access.roles`.
@@ -73,9 +83,11 @@ standard Quarkus layout.
 
 ## Deliberate deviations worth comparing
 
-- The implementation uses plain JDBC rather than Hibernate/Panache. That makes the
-  Quarkus variant a useful contrast to Spring Data JPA and keeps row locking for
-  moderation flows explicit.
+- The implementation deliberately uses plain JDBC rather than Hibernate/Panache.
+  SQL and row-locking remain explicit inside feature services. Narrow CDI
+  collaborators own transactions, authorization, request parameters, HTTP
+  caching, and audit writes; REST resources never handle connections or SQL
+  directly.
 - Enum wire values are stored lowercase in PostgreSQL, matching the API contract
   directly.
 - `LOG_FORMAT=text` is mapped to Quarkus' JSON-console switch through a small

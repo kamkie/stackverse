@@ -1,7 +1,9 @@
 package dev.stackverse.backend;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import io.quarkus.security.Authenticated;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -18,11 +20,12 @@ import jakarta.ws.rs.core.UriInfo;
 @Path("/api/v1/reports")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Authenticated
 public class ReportsResource {
-    private final StackverseService service;
+    private final ReportService service;
 
     @Inject
-    public ReportsResource(StackverseService service) {
+    public ReportsResource(ReportService service) {
         this.service = service;
     }
 
@@ -33,7 +36,9 @@ public class ReportsResource {
 
     @PUT
     @Path("/{id}")
-    public Response updateMyReport(@PathParam("id") String rawId, JsonNode body) {
+    public Response updateMyReport(
+            @PathParam("id") String rawId,
+            @NotNull(message = ConstraintViolationMapper.MALFORMED_BODY) @Valid ReportInput body) {
         return service.updateMyReport(rawId, body);
     }
 

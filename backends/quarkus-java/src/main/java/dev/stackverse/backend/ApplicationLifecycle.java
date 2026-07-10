@@ -34,19 +34,25 @@ public class ApplicationLifecycle {
     private final DataSource dataSource;
     private final ObjectMapper mapper;
     private final String seedMessagesDir;
+    private final boolean seedMessagesEnabled;
 
     @Inject
     public ApplicationLifecycle(
             DataSource dataSource,
             ObjectMapper mapper,
-            @ConfigProperty(name = "stackverse.seed.messages-dir") String seedMessagesDir) {
+            @ConfigProperty(name = "stackverse.seed.messages-dir") String seedMessagesDir,
+            @ConfigProperty(name = "stackverse.seed.enabled", defaultValue = "true")
+                    boolean seedMessagesEnabled) {
         this.dataSource = dataSource;
         this.mapper = mapper;
         this.seedMessagesDir = seedMessagesDir;
+        this.seedMessagesEnabled = seedMessagesEnabled;
     }
 
     void onStart(@Observes StartupEvent event) {
-        seedMessages();
+        if (seedMessagesEnabled) {
+            seedMessages();
+        }
         StackverseLog.event(
                 LOG,
                 Logger.Level.INFO,
@@ -104,8 +110,8 @@ public class ApplicationLifecycle {
                     statement.setString(2, entry.getKey());
                     statement.setString(3, language);
                     statement.setString(4, entry.getValue());
-                    statement.setTimestamp(5, Timestamp.from(StackverseService.now()));
-                    statement.setTimestamp(6, Timestamp.from(StackverseService.now()));
+                    statement.setTimestamp(5, Timestamp.from(PersistenceSupport.now()));
+                    statement.setTimestamp(6, Timestamp.from(PersistenceSupport.now()));
                     inserted += statement.executeUpdate();
                 }
             }

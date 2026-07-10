@@ -9,10 +9,10 @@ import jakarta.ws.rs.core.Response;
 
 @Path("/")
 public class HealthResource {
-    private final StackverseService service;
+    private final HealthService service;
 
     @Inject
-    public HealthResource(StackverseService service) {
+    public HealthResource(HealthService service) {
         this.service = service;
     }
 
