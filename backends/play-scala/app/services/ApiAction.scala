@@ -17,6 +17,7 @@ import support.Wire
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
+import scala.util.Try
 import scala.util.control.NonFatal
 
 final class OptionalCallerRequest[A](val caller: Option[Caller], request: Request[A]) extends WrappedRequest[A](request)
@@ -46,11 +47,15 @@ class ApiAction @Inject() (
 
   override def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
     val started = System.nanoTime()
-    Future(block(request))(using executionContext).flatten.recover {
-      case problem: ValidationProblem => validationResult(request, problem)
-      case problem: ApiProblem        => apiProblemResult(request, problem)
-      case NonFatal(error)            => unexpectedResult(error, (System.nanoTime() - started) / 1000000)
-    }(using executionContext)
+    def durationMs: Long = (System.nanoTime() - started) / 1000000
+
+    Future(block(request))(using executionContext).flatten
+      .recover {
+        case problem: ValidationProblem => validationResult(request, problem)
+        case problem: ApiProblem        => apiProblemResult(request, problem)
+        case NonFatal(error)            => unexpectedResult(error, durationMs)
+      }(using executionContext)
+      .recover { case NonFatal(error) => unexpectedResult(error, durationMs) }(using executionContext)
   }
 
   private final class OptionalCallerRefiner extends ActionRefiner[Request, OptionalCallerRequest] {
@@ -107,24 +112,26 @@ class ApiAction @Inject() (
   }
 
   private def unexpectedResult(error: Throwable, durationMs: Long): Result = {
-    SqlErrors.state(error) match {
-      case Some(state) =>
-        logger.eventError(
-          "dependency_call_failed",
-          "failure",
-          "PostgreSQL call failed during a request",
-          error,
-          "dependency" -> JsString("postgres"),
-          "duration_ms" -> Json.toJson(durationMs),
-          "error_code" -> JsString(state)
-        )
-      case None =>
-        logger.error(
-          "Unhandled request failure",
-          error,
-          "duration_ms" -> Json.toJson(durationMs),
-          "error_code" -> JsString("unhandled_exception")
-        )
+    Try {
+      SqlErrors.state(error) match {
+        case Some(state) =>
+          logger.eventError(
+            "dependency_call_failed",
+            "failure",
+            "PostgreSQL call failed during a request",
+            error,
+            "dependency" -> JsString("postgres"),
+            "duration_ms" -> Json.toJson(durationMs),
+            "error_code" -> JsString(state)
+          )
+        case None =>
+          logger.error(
+            "Unhandled request failure",
+            error,
+            "duration_ms" -> Json.toJson(durationMs),
+            "error_code" -> JsString("unhandled_exception")
+          )
+      }
     }
     Wire.problem(500, "Internal Server Error", Some("An unexpected error occurred."))
   }

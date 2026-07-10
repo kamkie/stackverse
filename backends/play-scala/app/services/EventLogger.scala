@@ -40,7 +40,7 @@ class EventLogger @Inject() (config: BackendConfig) {
   def error(message: String, error: Throwable, fields: (String, JsValue)*): Unit =
     write("error", message, None, None, (fields ++ exceptionFields(error))*)
 
-  private def write(
+  protected def write(
       level: String,
       message: String,
       eventName: Option[String],
