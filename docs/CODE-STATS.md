@@ -30,7 +30,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | elixir-phoenix | 2802 | 310 | 0.11 | 58 | 9 | 25 | 93 | 25 | Elixir |
 | go | 3500 | 1277 | 0.36 | 28 | 15 | 14 | 110 | 14 | Go, SQL |
 | go-echo | 3539 | 1291 | 0.36 | 29 | 15 | 14 | 122 | 14 | Go, SQL |
-| grails | 1922 | 289 | 0.15 | 38 | 7 | 187 | 71 | 20 | Groovy, SQL, YAML |
+| grails | 2286 | 695 | 0.30 | 50 | 12 | 187 | 84 | 20 | Groovy, SQL, YAML |
 | ktor-kotlin | 1897 | 291 | 0.15 | 17 | 4 | 243 | 67 | 20 | Kotlin, SQL |
 | micronaut-java | 2706 | 496 | 0.18 | 29 | 8 | 259 | 89 | 19 | Java, SQL, YAML |
 | node-nestjs | 2120 | 445 | 0.21 | 36 | 6 | 146 | 120 | 23 | TypeScript |
@@ -46,7 +46,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | scala-http4s | 2302 | 587 | 0.25 | 29 | 2 | 27 | 113 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 53226 | 10970 | | 715 | 138 | 2990 | 1905 | 428 | |
+| **subtotal** | 53590 | 11376 | | 727 | 143 | 2990 | 1918 | 428 | |
 
 ## Gateway
 

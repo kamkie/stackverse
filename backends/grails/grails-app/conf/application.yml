@@ -21,15 +21,22 @@ grails:
 server:
   port: ${PORT:8080}
 
+dataSource:
+  pooled: true
+  jmxExport: true
+  type: com.zaxxer.hikari.HikariDataSource
+  driverClassName: org.postgresql.Driver
+  dialect: org.hibernate.dialect.PostgreSQLDialect
+  dbCreate: none
+  url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stackverse}
+  username: ${DB_USER:stackverse}
+  password: ${DB_PASSWORD:stackverse}
+  properties:
+    maximumPoolSize: 10
+
 spring:
   main:
     banner-mode: "off"
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:stackverse}
-    username: ${DB_USER:stackverse}
-    password: ${DB_PASSWORD:stackverse}
-    hikari:
-      maximum-pool-size: 10
   flyway:
     locations: classpath:db/migration
   jackson:

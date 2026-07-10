@@ -2,11 +2,14 @@ package dev.stackverse.backend
 
 import dev.stackverse.backend.account.UserAccountService
 import dev.stackverse.backend.auth.AuthService
+import dev.stackverse.backend.command.UserStatusCommand
+import dev.stackverse.backend.message.MessageService
 import dev.stackverse.backend.support.ControllerSupport
 import dev.stackverse.backend.support.Paging
 
 class AdminUserController implements ControllerSupport {
     AuthService authService
+    MessageService messageService
     UserAccountService userAccountService
 
     def list() {
@@ -19,8 +22,9 @@ class AdminUserController implements ControllerSupport {
         json(userAccountService.require(username))
     }
 
-    def setStatus(String username) {
+    def setStatus(String username, UserStatusCommand command) {
         Map user = authService.requireRole("admin")
-        json(userAccountService.setStatus(username, user.username, body()))
+        json(userAccountService.setStatus(username, user.username,
+            command.validated(messageService, lang(), acceptLanguage())))
     }
 }

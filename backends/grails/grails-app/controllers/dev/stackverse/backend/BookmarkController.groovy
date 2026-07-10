@@ -2,11 +2,15 @@ package dev.stackverse.backend
 
 import dev.stackverse.backend.auth.AuthService
 import dev.stackverse.backend.bookmark.BookmarkService
+import dev.stackverse.backend.command.BookmarkCommand
+import dev.stackverse.backend.command.ReportCommand
+import dev.stackverse.backend.message.MessageService
 import dev.stackverse.backend.support.ControllerSupport
 
 class BookmarkController implements ControllerSupport {
     AuthService authService
     BookmarkService bookmarkService
+    MessageService messageService
 
     def listV1() {
         Map user = authService.currentUser()
@@ -35,9 +39,9 @@ class BookmarkController implements ControllerSupport {
         ], user?.username, lang(), acceptLanguage()))
     }
 
-    def create() {
+    def create(BookmarkCommand command) {
         Map user = authService.requireUser()
-        Map created = bookmarkService.create(body(), user.username, lang(), acceptLanguage())
+        Map created = bookmarkService.create(command.validated(messageService, lang(), acceptLanguage()), user.username)
         json(created, 201, ["Location": "/api/v1/bookmarks/${created.id}"])
     }
 
@@ -46,9 +50,10 @@ class BookmarkController implements ControllerSupport {
         json(bookmarkService.getVisible(uuid(id), user?.username))
     }
 
-    def update(String id) {
+    def update(String id, BookmarkCommand command) {
         Map user = authService.requireUser()
-        json(bookmarkService.update(uuid(id), body(), user.username, lang(), acceptLanguage()))
+        json(bookmarkService.update(uuid(id), command.validated(messageService, lang(), acceptLanguage()),
+            user.username, lang(), acceptLanguage()))
     }
 
     def delete(String id) {
@@ -57,8 +62,9 @@ class BookmarkController implements ControllerSupport {
         noContent()
     }
 
-    def report(String id) {
+    def report(String id, ReportCommand command) {
         Map user = authService.requireUser()
-        json(bookmarkService.report(uuid(id), body(), user.username, lang(), acceptLanguage()), 201)
+        json(bookmarkService.report(uuid(id), command.validated(messageService, lang(), acceptLanguage()),
+            user.username), 201)
     }
 }

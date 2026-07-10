@@ -24,6 +24,22 @@ jobs:
     name: Backend · Grails (Groovy)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: stackverse
+          POSTGRES_USER: stackverse
+          POSTGRES_PASSWORD: stackverse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackverse -d stackverse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      STACKVERSE_DB_TESTS: 'true'
     defaults:
       run:
         working-directory: backends/grails
@@ -49,7 +65,7 @@ jobs:
         continue-on-error: true
         with:
           report_type: test_results
-          directory: backends/grails/build/test-results/test
+          directory: backends/grails/build/test-results
           flags: backend-grails
           token: ${{ secrets.CODECOV_TOKEN }}
 

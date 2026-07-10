@@ -1,6 +1,7 @@
 plugins {
     id "groovy"
     id "org.apache.grails.gradle.grails-web" version "7.2.0"
+    id "codenarc"
     id "jacoco"
 }
 
@@ -32,12 +33,14 @@ dependencies {
     implementation "org.apache.grails:grails-converters"
     implementation "org.apache.grails:grails-logging"
     implementation "org.apache.grails:grails-databinding"
+    implementation "org.apache.grails:grails-data-hibernate5"
 
     runtimeOnly "org.postgresql:postgresql"
     implementation "com.zaxxer:HikariCP"
     runtimeOnly "org.fusesource.jansi:jansi"
 
     testImplementation "org.apache.grails:grails-testing-support-web"
+    testImplementation "org.apache.grails:grails-testing-support-datamapping"
     testImplementation "org.springframework.boot:spring-boot-starter-test"
     testImplementation "org.springframework.security:spring-security-test"
     testImplementation "org.spockframework:spock-core"
@@ -46,18 +49,34 @@ dependencies {
 
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
-    finalizedBy tasks.jacocoTestReport
 }
 
 jacoco {
     toolVersion = "0.8.15"
 }
 
+codenarc {
+    toolVersion = "3.6.0-groovy-4.0"
+    configFile = file("config/codenarc/rules.groovy")
+}
+
+tasks.withType(CodeNarc).configureEach {
+    reports {
+        html.required = true
+        text.required = true
+    }
+}
+
 tasks.jacocoTestReport {
-    dependsOn tasks.test
+    dependsOn tasks.withType(Test)
+    executionData tasks.withType(Test)
     reports {
         xml.required = true
     }
+}
+
+tasks.check {
+    dependsOn tasks.jacocoTestReport
 }
 
 tasks.jar {

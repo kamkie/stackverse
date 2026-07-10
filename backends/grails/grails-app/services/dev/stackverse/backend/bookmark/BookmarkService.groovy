@@ -2,6 +2,8 @@ package dev.stackverse.backend.bookmark
 
 import dev.stackverse.backend.config.EventLogger
 import dev.stackverse.backend.message.MessageService
+import dev.stackverse.backend.persistence.Bookmark
+import dev.stackverse.backend.persistence.Report
 import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.BookmarkCursor
 import dev.stackverse.backend.support.Paging
@@ -9,9 +11,9 @@ import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.SqlLike
 import dev.stackverse.backend.support.SqlRows
 import dev.stackverse.backend.support.TimeSource
-import org.springframework.dao.DuplicateKeyException
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.transaction.annotation.Transactional
+import grails.gorm.transactions.Transactional
 
 import java.sql.Timestamp
 import java.util.regex.Pattern
@@ -78,72 +80,73 @@ class BookmarkService {
     }
 
     @Transactional
-    Map create(Map input, String username, String explicitLang, String acceptLanguage) {
-        Map valid = validate(input, explicitLang, acceptLanguage)
+    Map create(Map valid, String username) {
         UUID id = UUID.randomUUID()
         def now = timeSource.now()
-        jdbcTemplate.update("""
-            insert into bookmarks (id, owner, url, title, notes, visibility, status, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, 'active', ?, ?)
-        """, id, username, valid.url, valid.title, valid.notes, valid.visibility, Timestamp.from(now), Timestamp.from(now))
+        Bookmark bookmark = new Bookmark(
+            owner: username,
+            url: valid.url,
+            title: valid.title,
+            notes: valid.notes,
+            visibility: valid.visibility,
+            status: 'active',
+            createdAt: now,
+            updatedAt: now
+        )
+        bookmark.id = id
+        bookmark.save(failOnError: true, flush: true)
         replaceTags(id, valid.tags)
         find(id)
     }
 
     @Transactional
-    Map update(UUID id, Map input, String username, String explicitLang, String acceptLanguage) {
-        Map existing = find(id)
+    Map update(UUID id, Map valid, String username, String explicitLang, String acceptLanguage) {
+        Bookmark existing = Bookmark.get(id)
         if (!existing || existing.owner != username) {
             throw ApiError.notFound()
         }
-        Map valid = validate(input, explicitLang, acceptLanguage)
         if (existing.status == "hidden" && valid.visibility == "public") {
             throw ApiError.conflict(messageService.validationMessage("error.bookmark.hidden-publish", explicitLang, acceptLanguage))
         }
-        def now = timeSource.now()
-        jdbcTemplate.update("""
-            update bookmarks
-            set url = ?, title = ?, notes = ?, visibility = ?, updated_at = ?
-            where id = ?
-        """, valid.url, valid.title, valid.notes, valid.visibility, Timestamp.from(now), id)
+        existing.url = valid.url
+        existing.title = valid.title
+        existing.notes = valid.notes
+        existing.visibility = valid.visibility
+        existing.updatedAt = timeSource.now()
+        existing.save(failOnError: true, flush: true)
         replaceTags(id, valid.tags)
         find(id)
     }
 
     @Transactional
     void delete(UUID id, String username) {
-        Map existing = find(id)
+        Bookmark existing = Bookmark.get(id)
         if (!existing || existing.owner != username) {
             throw ApiError.notFound()
         }
-        jdbcTemplate.update("delete from bookmarks where id = ?", id)
+        existing.delete(flush: true)
     }
 
     @Transactional
-    Map report(UUID bookmarkId, Map input, String username, String explicitLang, String acceptLanguage) {
+    Map report(UUID bookmarkId, Map input, String username) {
         Map bookmark = find(bookmarkId)
         if (!bookmark || bookmark.visibility != "public" || bookmark.status != "active") {
             throw ApiError.notFound()
         }
-        List errors = []
-        if (!(input.reason in ["spam", "offensive", "broken-link", "other"])) {
-            errors << messageService.validationError("reason", "validation.report.reason.invalid", explicitLang, acceptLanguage)
-        }
-        if (input.comment != null && input.comment.toString().size() > 1000) {
-            errors << messageService.validationError("comment", "validation.report.comment.too-long", explicitLang, acceptLanguage)
-        }
-        if (errors) {
-            eventLogger.info("input_validation_failed", "failure", "Report validation failed", [actor: username])
-            throw ApiError.badRequest("Validation failed.", errors)
-        }
         UUID id = UUID.randomUUID()
         def now = timeSource.now()
         try {
-            jdbcTemplate.update("""
-                insert into reports (id, bookmark_id, reporter, reason, comment, status, created_at)
-                values (?, ?, ?, ?, ?, 'open', ?)
-            """, id, bookmarkId, username, input.reason, input.comment, Timestamp.from(now))
-        } catch (DuplicateKeyException ignored) {
+            Report report = new Report(
+                bookmarkId: bookmarkId,
+                reporter: username,
+                reason: input.reason,
+                comment: input.comment,
+                status: 'open',
+                createdAt: now
+            )
+            report.id = id
+            report.save(failOnError: true, flush: true)
+        } catch (DataIntegrityViolationException ignored) {
             throw ApiError.conflict("The caller already has an open report on this bookmark.")
         }
         eventLogger.info("report_created", "success", "Report created", [actor: username, resource_type: "report", resource_id: id.toString()])
@@ -163,21 +166,13 @@ class BookmarkService {
     }
 
     Map find(UUID id) {
-        List rows = jdbcTemplate.query("""
-            select id, owner, url, title, notes, visibility, status, created_at, updated_at
-            from bookmarks
-            where id = ?
-        """, { rs, rowNum -> bookmarkRow(rs) }, id)
-        rows = withTags(rows)
-        rows ? rows[0] : null
+        Bookmark bookmark = Bookmark.get(id)
+        bookmark ? withTags([bookmarkMap(bookmark)])[0] : null
     }
 
     Map reportRow(UUID id) {
-        List rows = jdbcTemplate.query("""
-            select id, bookmark_id, reporter, reason, comment, status, resolved_by, resolved_at, resolution_note, created_at
-            from reports where id = ?
-        """, { rs, rowNum -> ReportRows.row(rs) }, id)
-        rows ? rows[0] : null
+        Report report = Report.get(id)
+        report ? reportMap(report) : null
     }
 
     private QueryParts listWhere(Map params, String username, String explicitLang, String acceptLanguage) {
@@ -212,66 +207,6 @@ class BookmarkService {
         parts
     }
 
-    private Map validate(Map input, String explicitLang, String acceptLanguage) {
-        List errors = []
-        String url = input.url instanceof String ? input.url.trim() : null
-        String title = input.title instanceof String ? input.title : null
-        String notes = input.notes instanceof String ? input.notes : null
-        String visibility = input.visibility ?: "private"
-        List tags = normalizeTags(input.tags)
-
-        if (!url) {
-            errors << messageService.validationError("url", "validation.url.required", explicitLang, acceptLanguage)
-        } else if (url.size() > 2000 || !validHttpUrl(url)) {
-            errors << messageService.validationError("url", "validation.url.invalid", explicitLang, acceptLanguage)
-        }
-        if (!title) {
-            errors << messageService.validationError("title", "validation.title.required", explicitLang, acceptLanguage)
-        } else if (title.size() > 200) {
-            errors << messageService.validationError("title", "validation.title.too-long", explicitLang, acceptLanguage)
-        }
-        if (notes != null && notes.size() > 4000) {
-            errors << messageService.validationError("notes", "validation.notes.too-long", explicitLang, acceptLanguage)
-        }
-        if (!(visibility in ["private", "public"])) {
-            errors << messageService.validationError("visibility", "validation.visibility.invalid", explicitLang, acceptLanguage)
-        }
-        if (tags.size() > 10) {
-            errors << messageService.validationError("tags", "validation.tags.too-many", explicitLang, acceptLanguage)
-        }
-        if (tags.any { !(it ==~ TAG) }) {
-            errors << messageService.validationError("tags", "validation.tag.invalid", explicitLang, acceptLanguage)
-        }
-        if (errors) {
-            eventLogger.info("input_validation_failed", "failure", "Bookmark validation failed")
-            throw ApiError.badRequest("Validation failed.", errors)
-        }
-        [url: url, title: title, notes: notes, visibility: visibility, tags: tags]
-    }
-
-    private static boolean validHttpUrl(String value) {
-        try {
-            URI uri = new URI(value)
-            uri.absolute && uri.scheme in ["http", "https"] && uri.host
-        } catch (Exception ignored) {
-            false
-        }
-    }
-
-    private static List<String> normalizeTags(Object value) {
-        if (value == null) {
-            return []
-        }
-        Collection raw = value instanceof Collection ? value : [value]
-        LinkedHashSet normalized = new LinkedHashSet()
-        raw.each {
-            if (it != null) {
-                normalized << it.toString().trim().toLowerCase(Locale.ROOT)
-            }
-        }
-        normalized.findAll { it != "" } as List
-    }
-
     private void replaceTags(UUID id, List<String> tags) {
         jdbcTemplate.update("delete from bookmark_tags where bookmark_id = ?", id)
         tags.each { jdbcTemplate.update("insert into bookmark_tags (bookmark_id, tag) values (?, ?)", id, it) }
@@ -290,6 +225,36 @@ class BookmarkService {
             owner     : rs.getString("owner"),
             createdAt : SqlRows.rfc3339(SqlRows.instant(rs, "created_at")),
             updatedAt : SqlRows.rfc3339(SqlRows.instant(rs, "updated_at"))
+        ]
+    }
+
+    private static Map bookmarkMap(Bookmark bookmark) {
+        [
+            id        : bookmark.id.toString(),
+            url       : bookmark.url,
+            title     : bookmark.title,
+            notes     : bookmark.notes,
+            tags      : [],
+            visibility: bookmark.visibility,
+            status    : bookmark.status,
+            owner     : bookmark.owner,
+            createdAt : SqlRows.rfc3339(bookmark.createdAt),
+            updatedAt : SqlRows.rfc3339(bookmark.updatedAt)
+        ]
+    }
+
+    private static Map reportMap(Report report) {
+        [
+            id            : report.id.toString(),
+            bookmarkId    : report.bookmarkId.toString(),
+            reporter      : report.reporter,
+            reason        : report.reason,
+            comment       : report.comment,
+            status        : report.status,
+            resolvedBy    : report.resolvedBy,
+            resolvedAt    : SqlRows.rfc3339(report.resolvedAt),
+            resolutionNote: report.resolutionNote,
+            createdAt     : SqlRows.rfc3339(report.createdAt)
         ]
     }
 
