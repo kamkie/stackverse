@@ -53,4 +53,18 @@ defmodule StackverseBackend.ValidationTest do
     assert {:error, errors} = Validation.validate_report(%{"reason" => "unknown"})
     assert [%{message_key: "validation.report.reason.invalid"}] = errors
   end
+
+  test "changeset validation rejects non-string enum fields without raising" do
+    assert {:error, bookmark_errors} =
+             Validation.validate_bookmark(%{
+               "url" => "https://example.com",
+               "title" => "Example",
+               "visibility" => 42
+             })
+
+    assert {:error, report_errors} = Validation.validate_report(%{"reason" => %{}})
+
+    assert Enum.any?(bookmark_errors, &(&1.message_key == "validation.visibility.invalid"))
+    assert Enum.any?(report_errors, &(&1.message_key == "validation.report.reason.invalid"))
+  end
 end

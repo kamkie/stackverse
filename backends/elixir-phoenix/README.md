@@ -50,9 +50,13 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 - **Phoenix as a thin API boundary** — the router is explicit and a single
   authentication plug validates JWTs, lazily provisions accounts, and rejects
   blocked users before controller actions run.
-- **Ecto-owned persistence** — the backend owns its migrations and runs them
-  on startup; contract-sensitive reads and writes use parameterized SQL
-  through `Ecto.Adapters.SQL`.
+- **Contexts and focused controllers** — bookmark, message, report,
+  moderation, account, audit, and stats contexts own application/data
+  behavior; focused Phoenix controllers own only HTTP parsing, authorization,
+  and response rendering.
+- **Ecto-owned persistence and input schemas** — the backend owns its
+  migrations and runs them on startup; embedded Ecto schemas and changesets
+  type and validate request bodies while preserving Stackverse message keys.
 - **BEAM supervision shape** — Repo starts under the application supervisor;
   migrations and message seed run before the Endpoint is added, so `/readyz`
   is not exposed until the schema exists.
@@ -65,17 +69,16 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 
 ## Deliberate deviations worth comparing
 
-- Persistence uses explicit SQL through Ecto rather than Ecto schemas and
-  changesets. The Stackverse contract leans on PostgreSQL array containment,
-  row locks, partial unique indexes, and body-stable pagination; keeping those
-  SQL shapes visible is more instructive here than hiding them behind schemas.
-- Validation is hand-written instead of changeset-based. The API must return
-  localized RFC 9457 field errors with Stackverse message keys, and the small
-  validator keeps that contract direct.
-- The controller is intentionally broad. Phoenix contexts would be natural in a
-  product app; this variant keeps the cross-stack comparison points close
-  together while helpers (`Validation`, `I18n`, `Cursor`, `Problem`) hold the
-  reusable pieces.
+- Normal application/data behavior sits behind Phoenix contexts, but
+  persistence remains explicit parameterized SQL through Ecto. PostgreSQL
+  array containment, row locks, partial unique indexes, and dynamic cursor
+  filters are contract-sensitive operations whose SQL is clearer when visible.
+- Responses are rendered from typed context results rather than Ecto-backed
+  view schemas. This keeps lowercase wire enums and RFC 9457 omission rules
+  explicit while request typing and validation use embedded schemas.
+- `ConnCase` endpoint tests and `DataCase` changeset tests cover Phoenix/Ecto
+  boundaries without requiring a database; the shared black-box conformance
+  suite owns exhaustive live PostgreSQL behavior.
 
 ## Logging conformance
 
