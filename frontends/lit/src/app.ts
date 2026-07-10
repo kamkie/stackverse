@@ -237,8 +237,9 @@ function rememberDialogFormState(
   form: HTMLFormElement,
   values: FormValues,
   errorUpdate: DialogFormErrorUpdate,
+  expectedDialog: DialogState | null = state.dialog,
 ): void {
-  if (!state.dialog) return;
+  if (!state.dialog || state.dialog !== expectedDialog) return;
 
   const expectedKind = dialogKindForForm(form.dataset.form);
   if (!expectedKind || state.dialog.kind !== expectedKind) return;
@@ -303,6 +304,7 @@ function messageBody(values: FormValues): MessageInput {
 
 async function handleForm(form: HTMLFormElement): Promise<void> {
   if (!state.dialog) return;
+  const submittedDialog = state.dialog;
   const values = formValues(form);
   try {
     switch (form.dataset.form) {
@@ -327,8 +329,8 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
       case "report-bookmark": {
         if (state.dialog.kind !== "report-bookmark") return;
-        const submittedDialog = state.dialog;
-        const bookmarkId = submittedDialog.bookmark.id;
+        const submittedReportDialog = state.dialog;
+        const bookmarkId = submittedReportDialog.bookmark.id;
         try {
           await apiSend<Report>(
             "POST",
@@ -344,7 +346,7 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
           }
         }
         addReportedId(bookmarkId);
-        if (state.dialog === submittedDialog) state.dialog = null;
+        if (state.dialog === submittedReportDialog) state.dialog = null;
         break;
       }
       case "edit-report": {
@@ -395,7 +397,12 @@ async function handleForm(form: HTMLFormElement): Promise<void> {
       }
     }
   } catch (error) {
-    rememberDialogFormState(form, values, { kind: "set", error });
+    rememberDialogFormState(
+      form,
+      values,
+      { kind: "set", error },
+      submittedDialog,
+    );
   }
   await renderApp();
 }
