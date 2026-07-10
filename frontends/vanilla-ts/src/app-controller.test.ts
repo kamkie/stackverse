@@ -397,6 +397,80 @@ describe("app controller event boundary", () => {
     });
   });
 
+  it("closes a committed message deletion before its bundle refresh completes", async () => {
+    const refresh = deferred<Response>();
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    let bundleRequests = 0;
+    let deleteRequests = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/api/v1/messages/bundle") {
+        bundleRequests += 1;
+        if (bundleRequests === 2) return refresh.promise;
+      }
+      if (
+        url.pathname === "/api/v1/messages/message-1" &&
+        init?.method === "DELETE"
+      ) {
+        deleteRequests += 1;
+        return new Response(null, { status: 204 });
+      }
+      return defaultFetch(input, init);
+    });
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+
+    state.dialog = {
+      kind: "delete-message",
+      message: {
+        id: "message-1",
+        key: "ui.test.message",
+        language: "en",
+        text: "Test",
+        createdAt: "2026-07-10T00:00:00Z",
+        updatedAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-message-delete";
+    root!.append(confirm);
+    confirm.click();
+
+    await vi.waitFor(() => {
+      expect(bundleRequests).toBe(2);
+      expect(deleteRequests).toBe(1);
+      expect(state.dialog).toBeNull();
+      expect(
+        root!.querySelector<HTMLElement>(".sv-toast.sv-toast--success")
+          ?.textContent,
+      ).toBe("Message deleted.");
+      expect(root!.querySelector("dialog.sv-dialog")).toBeNull();
+    });
+
+    confirm.click();
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    expect(deleteRequests).toBe(1);
+
+    refresh.resolve(
+      jsonResponse({
+        language: "en",
+        messages: {
+          "ui.app.title": "Refreshed title",
+          "ui.nav.public-feed": "Public feed",
+          "ui.bookmarks.empty": "No bookmarks yet.",
+          "ui.toast.message-deleted": "Message deleted.",
+        },
+      }),
+    );
+    await vi.waitFor(() => expect(document.title).toBe("Refreshed title"));
+    expect(deleteRequests).toBe(1);
+    expect(state.dialog).toBeNull();
+  });
+
   it("prevents a stopped controller's bundle refresh from overwriting its replacement", async () => {
     const staleBundle = deferred<Response>();
     const fetchMock = installFetchMock();

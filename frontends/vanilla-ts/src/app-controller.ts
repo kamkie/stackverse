@@ -638,12 +638,15 @@ async function handleAction(
     case "confirm-message-delete":
       if (state.dialog?.kind === "delete-message") {
         const submittedDialog = state.dialog;
+        element.setAttribute("disabled", "");
         await apiSend<void>(
           "DELETE",
           pathForApi("/api/v1/messages", submittedDialog.message.id),
         );
         if (!isActiveController(epoch)) return;
         pushToast(t("ui.toast.message-deleted"));
+        if (state.dialog === submittedDialog) state.dialog = null;
+        await renderApp();
         try {
           await i18n.load(i18n.lang, { signal });
         } catch (error) {
@@ -654,9 +657,9 @@ async function handleAction(
             throw error;
           }
           // The mutation committed; a bundle refresh is optional to its success.
+          return;
         }
         if (!isActiveController(epoch)) return;
-        if (state.dialog === submittedDialog) state.dialog = null;
         await renderApp();
       }
       break;
