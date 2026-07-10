@@ -96,7 +96,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | Django apps/settings plus request-scoped view functions/classes; no DI container | Settings/apps wire framework services; DRF views call focused helper modules | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, ApiAction builder, audit service, and focused controllers | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Cats Effect `Resource` wiring or tagless-final algebras passed explicitly | Resource-managed object graph with explicit config/logger/DB/auth/routes construction | ✅ idiomatic |
-| [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | Focused @ApplicationScoped services use constructor @Inject; filters and problem mappers are @Provider beans | ✅ idiomatic |
+| [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor injection, @Provider | Focused @ApplicationScoped services use Quarkus simplified constructor injection; filters and problem mappers are @Provider beans | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Axum/Tower state extractors; no DI container | Cloned AppState injected through State and middleware state | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails autoloading, controllers, concerns, service objects instead of a DI container | Zeitwerk-autoloaded controllers/models/services; module singletons for stateless helpers | ✅ idiomatic |
 
