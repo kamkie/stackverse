@@ -263,4 +263,175 @@ describe("app controller event boundary", () => {
     expect(window.location.pathname).toBe("/feed");
     expect(replacementRoot.textContent).not.toContain("999");
   });
+
+  it("resolves a feed report action from the feed cache when bookmark ids overlap", async () => {
+    installFetchMock();
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+    state.session = { authenticated: true, username: "demo" };
+    const personalBookmark = {
+      id: "shared-bookmark",
+      owner: "demo",
+      url: "https://personal.example",
+      title: "Older personal title",
+      tags: [],
+      visibility: "public" as const,
+      status: "active" as const,
+      createdAt: "2026-07-09T00:00:00Z",
+      updatedAt: "2026-07-09T00:00:00Z",
+    };
+    const feedBookmark = {
+      ...personalBookmark,
+      url: "https://feed.example",
+      title: "Current feed title",
+      updatedAt: "2026-07-10T00:00:00Z",
+    };
+    state.bookmarks.pages = [{ items: [personalBookmark] }];
+    state.bookmarks.loadedGeneration = state.bookmarks.generation;
+    state.feed.pages = [{ items: [feedBookmark] }];
+    state.feed.loadedGeneration = state.feed.generation;
+
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    const report = await vi.waitFor(() => {
+      expect(root!.textContent).toContain("Current feed title");
+      expect(root!.textContent).not.toContain("Older personal title");
+      const button = root!.querySelector<HTMLButtonElement>(
+        '[data-action="open-report"][data-id="shared-bookmark"]',
+      );
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    report.click();
+
+    await vi.waitFor(() => {
+      expect(state.dialog?.kind).toBe("report-bookmark");
+      if (state.dialog?.kind !== "report-bookmark") return;
+      expect(state.dialog.bookmark).toBe(feedBookmark);
+      expect(state.dialog.bookmark.title).toBe("Current feed title");
+      expect(root!.querySelector(".sv-dialog-title")?.textContent).toContain(
+        "Current feed title",
+      );
+    });
+  });
+
+  it("publishes only the current out-of-order page and resolves its row actions", async () => {
+    const staleUsers = deferred<Response>();
+    const currentUsers = deferred<Response>();
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    let currentPageRequests = 0;
+    const currentUser = {
+      username: "current-user",
+      firstSeen: "2026-07-10T00:00:00Z",
+      lastSeen: "2026-07-10T00:00:00Z",
+      status: "active",
+      bookmarkCount: 2,
+    } as const;
+    const staleUser = {
+      username: "stale-user",
+      firstSeen: "2026-07-09T00:00:00Z",
+      lastSeen: "2026-07-09T00:00:00Z",
+      status: "active",
+      bookmarkCount: 1,
+    } as const;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (url.pathname === "/api/v1/admin/users") {
+        const page = url.searchParams.get("page");
+        if (page === "0") return staleUsers.promise;
+        if (page === "1") {
+          currentPageRequests += 1;
+          if (currentPageRequests === 1) return currentUsers.promise;
+          return jsonResponse({
+            items: [currentUser],
+            page: 1,
+            size: 20,
+            totalItems: 2,
+            totalPages: 2,
+          });
+        }
+      }
+      return defaultFetch(input, init);
+    });
+
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+    state.session = { authenticated: true, username: "admin" };
+    state.me = { username: "admin", roles: ["admin"] };
+    history.pushState(null, "", "/admin/users");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await vi.waitFor(() => {
+      expect(
+        fetchMock.mock.calls.some(
+          ([input]) =>
+            new URL(String(input), window.location.origin).pathname ===
+              "/api/v1/admin/users" &&
+            new URL(String(input), window.location.origin).searchParams.get(
+              "page",
+            ) === "0",
+        ),
+      ).toBe(true);
+    });
+
+    const nextPage = document.createElement("button");
+    nextPage.dataset.action = "page";
+    nextPage.dataset.bind = "users";
+    nextPage.dataset.page = "1";
+    root!.append(nextPage);
+    nextPage.click();
+    await vi.waitFor(() => expect(currentPageRequests).toBe(1));
+
+    currentUsers.resolve(
+      jsonResponse({
+        items: [currentUser],
+        page: 1,
+        size: 20,
+        totalItems: 2,
+        totalPages: 2,
+      }),
+    );
+    await vi.waitFor(() => {
+      expect(state.users.items).toEqual([currentUser]);
+      expect(root!.textContent).toContain("current-user");
+      expect(root!.textContent).not.toContain("stale-user");
+    });
+
+    const staleResponse = jsonResponse({
+      items: [staleUser],
+      page: 0,
+      size: 20,
+      totalItems: 2,
+      totalPages: 2,
+    });
+    const staleJson = vi.spyOn(staleResponse, "json");
+    staleUsers.resolve(staleResponse);
+    await vi.waitFor(() => expect(staleJson).toHaveBeenCalledOnce());
+    await staleJson.mock.results[0]!.value;
+    await Promise.resolve();
+
+    expect(state.users.page).toBe(1);
+    expect(state.users.items).toEqual([currentUser]);
+    expect(root!.textContent).toContain("current-user");
+    expect(root!.textContent).not.toContain("stale-user");
+
+    const block = root!.querySelector<HTMLButtonElement>(
+      '[data-action="open-block-user"][data-username="current-user"]',
+    );
+    expect(block).not.toBeNull();
+    block!.click();
+    await vi.waitFor(() => {
+      expect(state.dialog?.kind).toBe("block-user");
+      if (state.dialog?.kind !== "block-user") return;
+      expect(state.dialog.user).toEqual(currentUser);
+      expect(
+        root!.querySelector('dialog[data-ctx="user:current-user"]'),
+      ).not.toBeNull();
+    });
+  });
 });

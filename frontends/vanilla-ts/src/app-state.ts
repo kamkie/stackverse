@@ -29,6 +29,9 @@ export interface BookmarkListState {
   tags: string[];
   pages: BookmarkCursorPage[];
   nextCursor?: string;
+  generation: number;
+  loadedGeneration: number;
+  pending?: Promise<void>;
 }
 
 export type FormValues = Record<string, string>;
@@ -78,8 +81,20 @@ function createInitialState() {
     dialog: null as DialogState | null,
     toasts: [] as Toast[],
     nextToastId: 0,
-    bookmarks: { q: "", tags: [], pages: [] } as BookmarkListState,
-    feed: { q: "", tags: [], pages: [] } as BookmarkListState,
+    bookmarks: {
+      q: "",
+      tags: [],
+      pages: [],
+      generation: 0,
+      loadedGeneration: -1,
+    } as BookmarkListState,
+    feed: {
+      q: "",
+      tags: [],
+      pages: [],
+      generation: 0,
+      loadedGeneration: -1,
+    } as BookmarkListState,
     myReports: {
       status: "" as ReportStatus | "",
       page: 0,

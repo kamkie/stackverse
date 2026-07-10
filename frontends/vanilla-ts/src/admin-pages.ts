@@ -5,6 +5,8 @@ import {
   bookmarkContextMap,
   tagListHtml,
 } from "./bookmark-pages";
+import { renderedPage } from "./page-render";
+import type { RenderedPage } from "./page-render";
 import {
   t,
   escapeHtml,
@@ -25,14 +27,17 @@ import type {
   UserAccount,
 } from "./types";
 
-export async function adminPageHtml(path: string): Promise<string> {
-  if (!state.session?.authenticated) return loginPromptHtml();
+export async function adminPageHtml(path: string): Promise<RenderedPage> {
+  if (!state.session?.authenticated) return renderedPage(loginPromptHtml());
   if (!isModerator(state.me)) {
-    return `<div class="sv-alert sv-alert--danger" role="alert">403</div>`;
+    return renderedPage(
+      `<div class="sv-alert sv-alert--danger" role="alert">403</div>`,
+    );
   }
 
   const content = await adminContentHtml(path);
-  return `<div class="sv-layout">
+  return renderedPage(
+    `<div class="sv-layout">
     <aside class="sv-sidebar">
       <h2 class="sv-sidebar-title">${escapeHtml(t("ui.nav.admin"))}</h2>
       <nav class="sv-nav sv-nav--vertical" aria-label="${escapeHtml(t("ui.nav.admin"))}">
@@ -47,11 +52,13 @@ export async function adminPageHtml(path: string): Promise<string> {
         }
       </nav>
     </aside>
-    <section class="sv-content">${content}</section>
-  </div>`;
+    <section class="sv-content">${content.html}</section>
+  </div>`,
+    content.publish,
+  );
 }
 
-async function adminContentHtml(path: string): Promise<string> {
+async function adminContentHtml(path: string): Promise<RenderedPage> {
   if (path === "/admin/reports") return adminReportsPageHtml();
   if (path === "/admin/users") return usersPageHtml();
   if (path === "/admin/audit") return auditPageHtml();
@@ -93,7 +100,7 @@ function dailyChartHtml(daily: AdminStats["daily"]): string {
   </svg>`;
 }
 
-async function dashboardPageHtml(): Promise<string> {
+async function dashboardPageHtml(): Promise<RenderedPage> {
   const stats = await apiGet<AdminStats>("/api/v1/admin/stats");
   const totals = [
     ["ui.admin.stats.users", stats.totals.users],
@@ -102,7 +109,7 @@ async function dashboardPageHtml(): Promise<string> {
     ["ui.admin.stats.hidden-bookmarks", stats.totals.hiddenBookmarks],
     ["ui.admin.stats.open-reports", stats.totals.openReports],
   ] as const;
-  return `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.dashboard"))}</h1>
+  return renderedPage(`<h1 class="sv-page-title">${escapeHtml(t("ui.admin.dashboard"))}</h1>
     <div class="sv-stats-grid">${totals
       .map(([key, value]) => {
         const body = `<span class="sv-stat-value">${value}</span><span class="sv-stat-label">${escapeHtml(key === "ui.admin.stats.open-reports" ? i18n.tCount(key, value) : t(key))}</span>`;
@@ -122,17 +129,17 @@ async function dashboardPageHtml(): Promise<string> {
       stats.topTags.length
         ? `<div class="sv-card"><h2 class="sv-sidebar-title">${escapeHtml(t("ui.nav.tags"))}</h2>${tagListHtml(stats.topTags, [], "bookmarks", false)}</div>`
         : ""
-    }`;
+    }`);
 }
 
-async function adminReportsPageHtml(): Promise<string> {
+async function adminReportsPageHtml(): Promise<RenderedPage> {
   const data = await apiGet<Page<Report>>("/api/v1/admin/reports", {
     status: state.adminReports.status,
     page: state.adminReports.page,
   });
-  state.adminReports.items = data.items;
   const contexts = await bookmarkContextMap(data.items);
-  return `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.reports"))}</h1>
+  return renderedPage(
+    `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.reports"))}</h1>
     <div class="sv-toolbar">
       <select class="sv-select" data-bind="admin-reports-status">
         ${(["open", "dismissed", "actioned"] as ReportStatus[])
@@ -180,16 +187,20 @@ async function adminReportsPageHtml(): Promise<string> {
             .join("")}</tbody>
         </table></div>`
     }
-    ${paginationHtml(state.adminReports.page, data.totalPages, "admin-reports")}`;
+    ${paginationHtml(state.adminReports.page, data.totalPages, "admin-reports")}`,
+    () => {
+      state.adminReports.items = data.items;
+    },
+  );
 }
 
-async function usersPageHtml(): Promise<string> {
+async function usersPageHtml(): Promise<RenderedPage> {
   const data = await apiGet<Page<UserAccount>>("/api/v1/admin/users", {
     ...(state.users.q ? { q: state.users.q } : {}),
     page: state.users.page,
   });
-  state.users.items = data.items;
-  return `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.users"))}</h1>
+  return renderedPage(
+    `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.users"))}</h1>
     <div class="sv-toolbar">
       <input type="search" class="sv-input" role="searchbox" placeholder="${escapeHtml(t("ui.users.search.placeholder"))}" aria-label="${escapeHtml(t("ui.users.search.placeholder"))}" data-bind="users-q" value="${escapeHtml(state.users.q)}">
     </div>
@@ -224,7 +235,11 @@ async function usersPageHtml(): Promise<string> {
         )
         .join("")}</tbody>
     </table></div>
-    ${paginationHtml(state.users.page, data.totalPages, "users")}`;
+    ${paginationHtml(state.users.page, data.totalPages, "users")}`,
+    () => {
+      state.users.items = data.items;
+    },
+  );
 }
 
 function endOfDayIso(day: string): string {
@@ -233,7 +248,7 @@ function endOfDayIso(day: string): string {
     .replace(".999Z", ".999999Z");
 }
 
-async function auditPageHtml(): Promise<string> {
+async function auditPageHtml(): Promise<RenderedPage> {
   const data = await apiGet<Page<AuditEntry>>("/api/v1/admin/audit-log", {
     ...(state.audit.actor ? { actor: state.audit.actor } : {}),
     ...(state.audit.action ? { action: state.audit.action } : {}),
@@ -252,7 +267,7 @@ async function auditPageHtml(): Promise<string> {
     "user.blocked",
     "user.unblocked",
   ];
-  return `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.audit"))}</h1>
+  return renderedPage(`<h1 class="sv-page-title">${escapeHtml(t("ui.admin.audit"))}</h1>
     <div class="sv-toolbar">
       <input class="sv-input" placeholder="${escapeHtml(t("ui.field.actor"))}" data-bind="audit-actor" value="${escapeHtml(state.audit.actor)}">
       <input class="sv-input" placeholder="${escapeHtml(t("ui.audit.action.placeholder"))}" aria-label="${escapeHtml(t("ui.audit.action.placeholder"))}" list="audit-known-actions" data-bind="audit-action" value="${escapeHtml(state.audit.action)}">
@@ -281,17 +296,17 @@ async function auditPageHtml(): Promise<string> {
         )
         .join("")}</tbody>
     </table></div>
-    ${paginationHtml(state.audit.page, data.totalPages, "audit")}`;
+    ${paginationHtml(state.audit.page, data.totalPages, "audit")}`);
 }
 
-async function messagesPageHtml(): Promise<string> {
+async function messagesPageHtml(): Promise<RenderedPage> {
   const data = await apiGet<Page<Message>>("/api/v1/messages", {
     ...(state.messages.q ? { q: state.messages.q } : {}),
     ...(state.messages.language ? { language: state.messages.language } : {}),
     page: state.messages.page,
   });
-  state.messages.items = data.items;
-  return `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.messages"))}</h1>
+  return renderedPage(
+    `<h1 class="sv-page-title">${escapeHtml(t("ui.admin.messages"))}</h1>
     <div class="sv-toolbar">
       <input class="sv-input" placeholder="${escapeHtml(t("ui.messages.search.placeholder"))}" aria-label="${escapeHtml(t("ui.messages.search.placeholder"))}" data-bind="messages-q" value="${escapeHtml(state.messages.q)}">
       <select class="sv-select" aria-label="${escapeHtml(t("ui.field.language"))}" data-bind="messages-language">
@@ -327,5 +342,9 @@ async function messagesPageHtml(): Promise<string> {
             .join("")}</tbody>
         </table></div>`
     }
-    ${paginationHtml(state.messages.page, data.totalPages, "messages")}`;
+    ${paginationHtml(state.messages.page, data.totalPages, "messages")}`,
+    () => {
+      state.messages.items = data.items;
+    },
+  );
 }

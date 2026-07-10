@@ -1,6 +1,8 @@
 import { apiGet } from "./api";
 import { i18n, state } from "./app-state";
 import type { BookmarkListState } from "./app-state";
+import { renderedPage } from "./page-render";
+import type { RenderedPage } from "./page-render";
 import {
   t,
   escapeHtml,
@@ -21,40 +23,66 @@ import type {
 } from "./types";
 
 export function resetBookmarkList(list: BookmarkListState): void {
-  list.pages = [];
-  delete list.nextCursor;
+  list.generation += 1;
+  delete list.pending;
 }
 
 export async function fetchNextBookmarks(
   list: BookmarkListState,
   visibility?: Visibility,
 ): Promise<void> {
-  const page = await apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
-    ...(list.tags.length > 0 ? { tag: list.tags } : {}),
-    ...(list.q ? { q: list.q } : {}),
-    ...(visibility ? { visibility } : {}),
-    ...(list.nextCursor ? { cursor: list.nextCursor } : {}),
-  });
-  list.pages.push(page);
-  if (page.nextCursor === undefined) delete list.nextCursor;
-  else list.nextCursor = page.nextCursor;
+  if (list.pending) return list.pending;
+  const generation = list.generation;
+  const replace = list.loadedGeneration !== generation;
+  const tags = [...list.tags];
+  const q = list.q;
+  const cursor = replace ? undefined : list.nextCursor;
+  const pending = (async () => {
+    let page: BookmarkCursorPage;
+    try {
+      page = await apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
+        ...(tags.length > 0 ? { tag: tags } : {}),
+        ...(q ? { q } : {}),
+        ...(visibility ? { visibility } : {}),
+        ...(cursor ? { cursor } : {}),
+      });
+    } catch (error) {
+      if (list.generation !== generation) return;
+      throw error;
+    }
+    if (list.generation !== generation) return;
+    if (replace) list.pages = [page];
+    else list.pages.push(page);
+    list.loadedGeneration = generation;
+    if (page.nextCursor === undefined) delete list.nextCursor;
+    else list.nextCursor = page.nextCursor;
+  })();
+  list.pending = pending;
+  try {
+    await pending;
+  } finally {
+    if (list.pending === pending) delete list.pending;
+  }
 }
 
 async function ensureBookmarks(
   list: BookmarkListState,
   visibility?: Visibility,
 ): Promise<void> {
-  if (list.pages.length === 0) await fetchNextBookmarks(list, visibility);
+  if (list.loadedGeneration !== list.generation || list.pages.length === 0) {
+    await fetchNextBookmarks(list, visibility);
+  }
 }
 
 function allBookmarks(list: BookmarkListState): Bookmark[] {
   return list.pages.flatMap((page) => page.items);
 }
 
-export function findBookmark(id: string): Bookmark | undefined {
-  return [...allBookmarks(state.bookmarks), ...allBookmarks(state.feed)].find(
-    (bookmark) => bookmark.id === id,
-  );
+export function findBookmark(
+  id: string,
+  listName: "bookmarks" | "feed",
+): Bookmark | undefined {
+  return allBookmarks(state[listName]).find((bookmark) => bookmark.id === id);
 }
 
 export function tagListHtml(
@@ -124,9 +152,11 @@ function bookmarkListHtml(
     }`;
 }
 
-export async function myBookmarksPageHtml(): Promise<string> {
+export async function myBookmarksPageHtml(): Promise<RenderedPage> {
   if (!state.session?.authenticated) {
-    return `<section class="sv-content"><h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-bookmarks"))}</h1>${loginPromptHtml()}</section>`;
+    return renderedPage(
+      `<section class="sv-content"><h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-bookmarks"))}</h1>${loginPromptHtml()}</section>`,
+    );
   }
 
   const [tags] = await Promise.all([
@@ -134,7 +164,7 @@ export async function myBookmarksPageHtml(): Promise<string> {
     ensureBookmarks(state.bookmarks),
   ]);
   const filtered = state.bookmarks.q !== "" || state.bookmarks.tags.length > 0;
-  return `<div class="sv-layout">
+  return renderedPage(`<div class="sv-layout">
     <aside class="sv-sidebar">
       <h2 class="sv-sidebar-title">${escapeHtml(t("ui.nav.tags"))}</h2>
       ${tagListHtml(tags.tags, state.bookmarks.tags, "bookmarks")}
@@ -154,15 +184,15 @@ export async function myBookmarksPageHtml(): Promise<string> {
         filtered ? t("ui.bookmarks.no-matches") : undefined,
       )}
     </section>
-  </div>`;
+  </div>`);
 }
 
-export async function publicFeedPageHtml(): Promise<string> {
+export async function publicFeedPageHtml(): Promise<RenderedPage> {
   await ensureBookmarks(state.feed, "public");
   const reported = readReportedIds();
   const authenticated = state.session?.authenticated === true;
   const filtered = state.feed.q !== "" || state.feed.tags.length > 0;
-  return `<section class="sv-content">
+  return renderedPage(`<section class="sv-content">
     <h1 class="sv-page-title">${escapeHtml(t("ui.nav.public-feed"))}</h1>
     <div class="sv-toolbar">
       <input type="search" class="sv-input" placeholder="${escapeHtml(t("ui.bookmarks.search.placeholder"))}" aria-label="${escapeHtml(t("ui.bookmarks.search.placeholder"))}" data-bind="feed-q" value="${escapeHtml(state.feed.q)}">
@@ -178,7 +208,7 @@ export async function publicFeedPageHtml(): Promise<string> {
           : "",
       filtered ? t("ui.bookmarks.no-matches") : undefined,
     )}
-  </section>`;
+  </section>`);
 }
 
 export async function bookmarkContextMap(
@@ -214,17 +244,19 @@ export function bookmarkCellHtml(
     <div class="sv-field-hint">${escapeHtml(t("ui.reports.bookmark-unavailable"))}</div>`;
 }
 
-export async function myReportsPageHtml(): Promise<string> {
+export async function myReportsPageHtml(): Promise<RenderedPage> {
   if (!state.session?.authenticated) {
-    return `<section class="sv-content"><h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-reports"))}</h1>${loginPromptHtml()}</section>`;
+    return renderedPage(
+      `<section class="sv-content"><h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-reports"))}</h1>${loginPromptHtml()}</section>`,
+    );
   }
   const data = await apiGet<Page<Report>>("/api/v1/reports", {
     ...(state.myReports.status ? { status: state.myReports.status } : {}),
     page: state.myReports.page,
   });
-  state.myReports.items = data.items;
   const contexts = await bookmarkContextMap(data.items);
-  return `<h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-reports"))}</h1>
+  return renderedPage(
+    `<h1 class="sv-page-title">${escapeHtml(t("ui.nav.my-reports"))}</h1>
     <div class="sv-toolbar">
       <select class="sv-select" aria-label="${escapeHtml(t("ui.field.status"))}" data-bind="my-reports-status">
         <option value=""${selected(state.myReports.status, "")}>${escapeHtml(t("ui.my-reports.filter.all-statuses"))}</option>
@@ -268,5 +300,9 @@ export async function myReportsPageHtml(): Promise<string> {
               .join("")}</tbody>
           </table></div>`
     }
-    ${paginationHtml(state.myReports.page, data.totalPages, "my-reports")}`;
+    ${paginationHtml(state.myReports.page, data.totalPages, "my-reports")}`,
+    () => {
+      state.myReports.items = data.items;
+    },
+  );
 }
