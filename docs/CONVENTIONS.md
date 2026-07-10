@@ -46,7 +46,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | Django project + app layout, urls.py route table, models/migrations in the app | `stackverse_django` project plus `stackverse_api` app with models, migrations, DRF views, and helpers | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Separate health, identity, bookmark, message, moderation, and admin controllers own feature actions; a focused bookmark repository owns the lookup shared with moderation | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Main composes resources/server only; focused route/service pairs plus separate auth, persistence, validation/wire, config, boot, and logging modules | ✅ idiomatic |
-| [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Maven layout; thin JAX-RS resources delegate the entire application to one ~2,043-line StackverseService | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Standard Maven layout; thin JAX-RS resources delegate to focused bookmark, report, message, identity, admin, and health services | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one ~2,769-line handlers.rs | 🔴 undocumented |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails API app with app/controllers, app/models, app/services, config/routes.rb | Standard Rails API layout; controllers plus contract-heavy services under app/services/stackverse | ✅ idiomatic |
 
@@ -96,7 +96,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | Django apps/settings plus request-scoped view functions/classes; no DI container | Settings/apps wire framework services; DRF views call focused helper modules | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Guice with per-collaborator @Inject constructor injection (Play default) | Guice-managed config, logger, Db, I18n, AuthService, startup, ApiAction builder, audit service, and focused controllers | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Cats Effect `Resource` wiring or tagless-final algebras passed explicitly | Resource-managed object graph with explicit config/logger/DB/auth/routes construction | ✅ idiomatic |
-| [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | @ApplicationScoped service, constructor @Inject, @Provider filters/mappers | ✅ idiomatic |
+| [Quarkus](../backends/quarkus-java/README.md) | CDI/Arc: @ApplicationScoped beans, constructor @Inject, @Provider | Focused @ApplicationScoped services use constructor @Inject; filters and problem mappers are @Provider beans | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Axum/Tower state extractors; no DI container | Cloned AppState injected through State and middleware state | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails autoloading, controllers, concerns, service objects instead of a DI container | Zeitwerk-autoloaded controllers/models/services; module singletons for stateless helpers | ✅ idiomatic |
 
@@ -121,7 +121,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | DRF authentication classes and permission checks | Custom DRF authentication class validates JWKS/PyJWT; view helpers enforce Stackverse roles | ✅ idiomatic |
 | [Play (Scala)](../backends/play-scala/README.md) | Play filters/action-builders or Silhouette/pac4j for auth | ApiAction composes optional/authenticated ActionRefiners and role ActionFilters over Nimbus JOSE JWT verification against Keycloak JWKS | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | http4s auth middleware/tsec or a Kleisli auth layer | One Kleisli-based http4s AuthMiddleware attaches optional Caller context to the aggregate API routes; protected operations require that authoritative caller and caller-based role helpers enforce endpoints | ✅ idiomatic |
-| [Quarkus](../backends/quarkus-java/README.md) | SmallRye JWT bearer with @RolesAllowed/@Authenticated annotation RBAC | SmallRye JWT config-driven; proactive auth off; roles enforced manually via requireRole | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | SmallRye JWT bearer with @RolesAllowed/@Authenticated annotation RBAC | SmallRye JWT config-driven with @Authenticated/@RolesAllowed; focused Quarkus security mappers retain contract problem bodies | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Tower/Axum middleware validating JWT and attaching request state | Axum middleware validates JWKS/JWT, provisions accounts, and exposes Identity in request extensions | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rack middleware/controller before_action auth; JWT via a library | ApplicationController before_action validates JWKS/JWT and role helpers enforce endpoints | ✅ idiomatic |
 
@@ -196,7 +196,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | DRF serializers validate request bodies and query parameters | DRF parses bodies; hand-rolled Validator functions preserve localized contract keys | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Total typed Reads return JsError with contract message keys; InputJson maps the result once to RFC 9457 domain problems | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe decoders/refined types, cats-validated, or explicit validation | Manual Validator accumulator over Circe JsonObject lookups with message keys | 🟡 deliberate |
-| [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Manual Validator over raw Jackson JsonNode collecting FieldViolations | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Typed request records use @Valid, standard constraints, focused URL/cross-field validators, and a localized contract mapper | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | validator crate or explicit domain validation | Hand-written Validator collecting localized FieldViolations | 🟡 deliberate |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveModel validations on models/form objects or dry-validation | Programmatic Validator collecting localized FieldViolations for RFC 9457 responses | 🟡 deliberate |
 
@@ -221,7 +221,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | pytest/pytest-django or Django TestCase with APIClient integration tests | pytest unit tests of helpers; HTTP/DB acceptance lives in shared conformance | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | ScalaTestPlusPlay with GuiceApplicationBuilder for controller/app tests | Guice tests inspect router documentation without executing JDBC and exercise action/auth/error boundaries; focused helper and total-codec units | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | MUnit/Cats Effect testing or ScalaTest with http4s route tests | ScalaTest executes route/service fakes, auth middleware allow/deny behavior, helpers, and row mappers | ✅ idiomatic |
-| [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | Plain JUnit 5 unit tests with JDK dynamic-proxy mocks; contract via external conformance suite | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | @QuarkusTest + RestAssured cover live health/authn/authz boundaries; JUnit units cover DTOs and contract helpers; external conformance covers PostgreSQL flows | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | cargo test covers helpers, validation, pagination, language, and AppError rendering | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Minitest/Rails test, request tests, fixtures or factories | Minitest unit tests for helpers; HTTP contract covered by shared conformance suite | 🟡 deliberate |
 
@@ -271,7 +271,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | Django models plus DRF serializers for request/response DTOs | Django models for domain; manual response dict mappers omit optional null fields | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Total typed request Reads and production row OWrites preserve message keys, omission, and string-enum contract details | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe codecs/DTO case classes and typed domain values | Case-class rows plus manual Circe Json builders; wire enums kept as strings | 🟡 deliberate |
-| [Quarkus](../backends/quarkus-java/README.md) | Records/POJOs as request and response DTOs, framework-serialized | Records for domain/inputs; responses hand-built as LinkedHashMap, requests read from JsonNode | 🔴 undocumented |
+| [Quarkus](../backends/quarkus-java/README.md) | Records/POJOs as request and response DTOs, framework-serialized | Typed request/entity/page/cursor response records are RESTEasy/Jackson-serialized; flexible problem and aggregate bodies remain explicit maps | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | Serde DTO structs, enums for closed sets, typed IDs | Serde request/response structs and FromRow rows; wire values kept as strings | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveRecord models plus Jbuilder/serializers or render json hashes | ActiveRecord rows and hand-built response hashes with wire-string enums and nil omission | 🟡 deliberate |
 
