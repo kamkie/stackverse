@@ -1,4 +1,4 @@
-import { ApiError } from "./api";
+import { ApiError, messageOf } from "./api";
 import { state, SUPPORTED_LANGUAGES } from "./app-state";
 import type { DialogState } from "./app-state";
 import {
@@ -82,6 +82,22 @@ function confirmDialogHtml({
   );
 }
 
+function nonFieldErrorHtml(
+  error: unknown,
+  fields: readonly string[],
+  handledStatuses: readonly number[] = [],
+): string {
+  if (error === undefined || error === null) return "";
+  if (
+    error instanceof ApiError &&
+    (fields.some((field) => fieldError(error, field) !== undefined) ||
+      handledStatuses.includes(error.status))
+  ) {
+    return "";
+  }
+  return `<div class="sv-alert sv-alert--danger" role="alert">${escapeHtml(messageOf(error))}</div>`;
+}
+
 function bookmarkFormDialogHtml(
   dialog: Extract<DialogState, { kind: "bookmark-form" }>,
 ): string {
@@ -116,6 +132,7 @@ function bookmarkFormDialogHtml(
         ],
       })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(t("error.bookmark.hidden-publish"))}</div>` : ""}
+      ${nonFieldErrorHtml(error, ["url", "title", "notes", "tags", "visibility"], [409])}
       <div class="sv-form-actions">
         <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.save"))}</button>
@@ -151,6 +168,7 @@ function reportBookmarkDialogHtml(
         })),
       })}
       ${textareaFieldHtml({ name: "comment", label: t("ui.field.comment"), value: values.comment ?? "", error: fieldError(error, "comment") })}
+      ${nonFieldErrorHtml(error, ["reason", "comment"])}
       <div class="sv-form-actions">
         <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.report"))}</button>
@@ -183,6 +201,7 @@ function editReportDialogHtml(
       })}
       ${textareaFieldHtml({ name: "comment", label: t("ui.field.comment"), value: values.comment ?? "", error: fieldError(error, "comment") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
+      ${nonFieldErrorHtml(error, ["reason", "comment"], [409])}
       <div class="sv-form-actions">
         <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.save"))}</button>
@@ -202,6 +221,7 @@ function blockUserDialogHtml(
     `<form class="sv-form" data-form="block-user">
       ${textareaFieldHtml({ name: "reason", label: t("ui.field.reason"), value: values.reason ?? "", error: fieldError(error, "reason") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
+      ${nonFieldErrorHtml(error, ["reason"], [409])}
       <div class="sv-form-actions">
         <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--danger">${escapeHtml(t("ui.action.block"))}</button>
@@ -243,6 +263,7 @@ function messageFormDialogHtml(
       ${textareaFieldHtml({ name: "text", label: t("ui.field.text"), value: values.text ?? "", error: fieldError(error, "text") })}
       ${textareaFieldHtml({ name: "description", label: t("ui.field.description"), value: values.description ?? "", error: fieldError(error, "description") })}
       ${error instanceof ApiError && error.status === 409 ? `<div class="sv-alert sv-alert--warning" role="alert">${escapeHtml(error.message)}</div>` : ""}
+      ${nonFieldErrorHtml(error, ["key", "language", "text", "description"], [409])}
       <div class="sv-form-actions">
         <button type="button" class="sv-button" data-action="close-dialog">${escapeHtml(t("ui.action.cancel"))}</button>
         <button type="submit" class="sv-button sv-button--primary">${escapeHtml(t("ui.action.save"))}</button>

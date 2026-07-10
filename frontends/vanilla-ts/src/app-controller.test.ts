@@ -117,6 +117,7 @@ describe("app controller event boundary", () => {
       expect(state.dialog.error).toBeInstanceOf(ApiError);
       expect((state.dialog.error as ApiError).status).toBe(422);
       expect(root!.textContent).toContain("must be a valid URL");
+      expect(root!.querySelector(".sv-alert--danger")).toBeNull();
     });
 
     const createCall = fetchMock.mock.calls.find(([input, init]) => {
@@ -131,6 +132,98 @@ describe("app controller event boundary", () => {
       visibility: "private",
     });
   });
+
+  it.each([
+    {
+      name: "server failure",
+      respond: () =>
+        jsonResponse(
+          {
+            title: "Service unavailable",
+            status: 500,
+            detail: "Please try again later.",
+          },
+          500,
+        ),
+      expected: "Please try again later.",
+    },
+    {
+      name: "authorization failure",
+      respond: () =>
+        jsonResponse(
+          {
+            title: "Forbidden",
+            status: 403,
+            detail: "You cannot create bookmarks.",
+          },
+          403,
+        ),
+      expected: "You cannot create bookmarks.",
+    },
+    {
+      name: "network failure",
+      respond: () => {
+        throw new TypeError("Network unavailable");
+      },
+      expected: "Network unavailable",
+    },
+  ])(
+    "renders $name as a non-field alert and preserves submitted values",
+    async ({ respond, expected }) => {
+      const fetchMock = installFetchMock();
+      const defaultFetch = fetchMock.getMockImplementation()!;
+      fetchMock.mockImplementation(async (input, init) => {
+        const url = new URL(String(input), window.location.origin);
+        if (url.pathname === "/api/v1/bookmarks" && init?.method === "POST") {
+          return respond();
+        }
+        return defaultFetch(input, init);
+      });
+      const root = document.querySelector<HTMLElement>("#app");
+      expect(root).not.toBeNull();
+      stopController = await startAppController(root!, {
+        enableDevInstrumentation: false,
+      });
+
+      state.dialog = { kind: "bookmark-form", mode: "create" };
+      const form = document.createElement("form");
+      form.dataset.form = "bookmark";
+      form.innerHTML = `
+        <input name="url" value="https://retry.example">
+        <input name="title" value="Retry bookmark">
+        <textarea name="notes">Keep these notes</textarea>
+        <input name="tags" value="retry test">
+        <select name="visibility"><option value="private" selected>Private</option></select>
+      `;
+      root!.append(form);
+      form.dispatchEvent(
+        new SubmitEvent("submit", { bubbles: true, cancelable: true }),
+      );
+
+      await vi.waitFor(() => {
+        expect(state.dialog?.kind).toBe("bookmark-form");
+        if (state.dialog?.kind !== "bookmark-form") return;
+        expect(state.dialog.values).toMatchObject({
+          url: "https://retry.example",
+          title: "Retry bookmark",
+          notes: "Keep these notes",
+          tags: "retry test",
+          visibility: "private",
+        });
+        const alert = root!.querySelector<HTMLElement>(
+          '.sv-dialog .sv-alert--danger[role="alert"]',
+        );
+        expect(alert?.textContent).toBe(expected);
+        expect(
+          root!.querySelector<HTMLInputElement>('input[name="title"]')?.value,
+        ).toBe("Retry bookmark");
+        expect(
+          root!.querySelector<HTMLTextAreaElement>('textarea[name="notes"]')
+            ?.value,
+        ).toBe("Keep these notes");
+      });
+    },
+  );
 
   it("delegates logout clicks and clears authenticated state", async () => {
     const fetchMock = installFetchMock();
