@@ -1,6 +1,7 @@
 import {
   keyFallback,
   localizeFieldError,
+  MessageBundleLoadError,
   readStoredLanguage,
   RuntimeI18n,
   storeLanguage,
@@ -135,9 +136,58 @@ describe("i18n helpers", () => {
       new Response(null, { status: 503 }),
     );
 
-    await expect(new RuntimeI18n().load("pl")).rejects.toThrow(
-      "Failed to load message bundle: 503",
+    await expect(new RuntimeI18n().load("pl")).rejects.toEqual(
+      expect.objectContaining({
+        name: "MessageBundleLoadError",
+        message: "Failed to load message bundle: 503",
+      }),
     );
+  });
+
+  it("types malformed bundle responses as operational load failures", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("{", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(new RuntimeI18n().load("en")).rejects.toBeInstanceOf(
+      MessageBundleLoadError,
+    );
+  });
+
+  it("does not apply or cache a bundle after its load is aborted", async () => {
+    let resolveResponse!: (response: Response) => void;
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    vi.spyOn(globalThis, "fetch").mockReturnValue(response);
+    document.documentElement.lang = "pl";
+    document.title = "Current title";
+    const controller = new AbortController();
+    const i18n = new RuntimeI18n();
+
+    const load = i18n.load("en", { signal: controller.signal });
+    controller.abort();
+    resolveResponse(
+      new Response(
+        JSON.stringify({
+          language: "en",
+          messages: { "ui.app.title": "Stale title" },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+    await expect(load).resolves.toBeUndefined();
+
+    expect(i18n.t("ui.app.title")).toBe("title");
+    expect(document.documentElement.lang).toBe("pl");
+    expect(document.title).toBe("Current title");
+    expect(localStorage.getItem("stackverse.bundle.en")).toBeNull();
   });
 
   it("stores the selected language and reloads that language", async () => {

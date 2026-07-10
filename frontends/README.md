@@ -113,9 +113,11 @@ and reports; `admin` sees everything:
     select over the supported languages, and one click clears both filters.
 
 Validation errors (RFC 9457 problem documents with an `errors` array) must be surfaced
-on the corresponding form fields, not as a generic toast. Toasts are for success
-confirmations only (report submitted, message saved, deletions); destructive actions
-(deleting a bookmark or message) ask for confirmation in a dialog first.
+on the corresponding form fields, not as a generic toast. Success toasts confirm
+completed actions (report submitted, message saved, deletions); operational action
+failures use accessible danger feedback without hiding field-level validation.
+Destructive actions (deleting a bookmark or message) ask for confirmation in a dialog
+first.
 
 For local demos against a real backend, use the root
 `./scripts/seed-test-data.sh` / `.ps1` helper to populate public and private
