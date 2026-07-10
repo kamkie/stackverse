@@ -35,7 +35,13 @@ class BookmarkRequest extends ContractFormRequest
                 'string',
                 'max:2000',
                 static function (string $attribute, mixed $value, Closure $fail): void {
-                    if (! is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false) {
+                    if (! is_string($value)) {
+                        return;
+                    }
+                    if (mb_strlen($value) > 2000) {
+                        return;
+                    }
+                    if (filter_var($value, FILTER_VALIDATE_URL) === false) {
                         $fail('validation.url.invalid');
 
                         return;

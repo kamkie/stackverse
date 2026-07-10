@@ -68,6 +68,58 @@ class FrameworkBoundariesTest extends TestCase
             ->assertJsonPath('errors.0.message', 'validation.url.required');
     }
 
+    public function test_url_validation_keeps_type_and_format_violations_distinct(): void
+    {
+        Auth::guard('api')->setUser(new Caller('demo', []));
+
+        $this->postJson('/api/v1/bookmarks', ['url' => 123, 'title' => 'Example'])
+            ->assertStatus(400)
+            ->assertJsonCount(1, 'errors')
+            ->assertJsonPath('errors.0.field', 'url')
+            ->assertJsonPath('errors.0.messageKey', 'validation.url.required');
+
+        $this->postJson('/api/v1/bookmarks', ['url' => 'not-a-url', 'title' => 'Example'])
+            ->assertStatus(400)
+            ->assertJsonCount(1, 'errors')
+            ->assertJsonPath('errors.0.field', 'url')
+            ->assertJsonPath('errors.0.messageKey', 'validation.url.invalid');
+
+        $this->postJson('/api/v1/bookmarks', [
+            'url' => 'https://example.com/'.str_repeat('a', 2000),
+            'title' => 'Example',
+        ])->assertStatus(400)
+            ->assertJsonCount(1, 'errors')
+            ->assertJsonPath('errors.0.field', 'url')
+            ->assertJsonPath('errors.0.messageKey', 'validation.url.invalid');
+    }
+
+    public function test_form_requests_enforce_canonical_types_and_limits(): void
+    {
+        Auth::guard('api')->setUser(new Caller('demo', []));
+
+        $this->postJson('/api/v1/bookmarks', [
+            'url' => 'https://example.com',
+            'title' => 'Example',
+            'visibility' => null,
+        ])->assertStatus(400)->assertJsonMissingPath('errors');
+
+        $this->postJson('/api/v1/bookmarks', [
+            'url' => 'https://example.com',
+            'title' => 'Example',
+            'tags' => [5],
+        ])->assertStatus(400)
+            ->assertJsonCount(1, 'errors')
+            ->assertJsonPath('errors.0.messageKey', 'validation.tag.invalid');
+
+        Auth::guard('api')->setUser(new Caller('admin', ['admin']));
+        $this->putJson('/api/v1/admin/users/target/status', [
+            'status' => 'active',
+            'reason' => str_repeat('x', 1001),
+        ])->assertStatus(400)
+            ->assertJsonCount(1, 'errors')
+            ->assertJsonPath('errors.0.messageKey', 'validation.block.reason.too-long');
+    }
+
     public function test_form_requests_preserve_generic_enum_errors_without_unseeded_message_keys(): void
     {
         Auth::guard('api')->setUser(new Caller('demo', []));

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Auth\Caller;
+use App\Http\Middleware\AuthenticateBearer;
 use App\Http\Resources\AuditEntryResource;
 use App\Http\Resources\BookmarkResource;
 use App\Http\Resources\MessageResource;
@@ -13,6 +14,7 @@ use App\Models\Bookmark;
 use App\Models\Message;
 use App\Models\Report;
 use App\Models\UserAccount;
+use App\Services\I18nService;
 use App\Support\Cursor;
 use App\Support\Wire;
 use Carbon\CarbonImmutable;
@@ -120,6 +122,40 @@ class EloquentBoundariesTest extends TestCase
                 'targetId' => $newerId,
             ]))->assertOk()->assertJsonPath('items.0.id', $audit->id);
         } finally {
+            Auth::guard('api')->forgetUser();
+            DB::rollBack();
+        }
+    }
+
+    public function test_authentication_upsert_reads_status_under_a_row_lock(): void
+    {
+        DB::beginTransaction();
+        try {
+            $username = 'laravel-auth-'.Str::lower(Str::random(8));
+            Auth::guard('api')->setUser(new Caller($username, []));
+            $i18n = $this->createMock(I18nService::class);
+            $i18n->method('requestLanguage')->willReturn('en');
+            $i18n->method('localize')->willReturn('Blocked');
+            $middleware = new AuthenticateBearer($i18n);
+
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $request = Request::create('/api/v1/me');
+            $response = $middleware->handle($request, static fn () => response()->json(['ok' => true]));
+            $queries = DB::getQueryLog();
+
+            $this->assertSame(200, $response->getStatusCode());
+            $this->assertSame($username, $request->attributes->get('caller')->username);
+            $this->assertSame('active', UserAccount::findOrFail($username)->status);
+            $this->assertTrue(collect($queries)->contains(
+                static fn (array $query): bool => str_contains(strtolower($query['query']), 'for update'),
+            ));
+
+            UserAccount::whereKey($username)->update(['status' => 'blocked']);
+            $blocked = $middleware->handle(Request::create('/api/v1/me'), static fn () => response()->json(['ok' => true]));
+            $this->assertSame(403, $blocked->getStatusCode());
+        } finally {
+            DB::disableQueryLog();
             Auth::guard('api')->forgetUser();
             DB::rollBack();
         }

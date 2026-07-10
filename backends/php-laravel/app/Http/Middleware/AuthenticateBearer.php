@@ -10,6 +10,7 @@ use App\Support\Problems;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -34,13 +35,16 @@ class AuthenticateBearer
             return $next($request);
         }
 
-        $now = now();
-        UserAccount::upsert(
-            [['username' => $caller->username, 'first_seen' => $now, 'last_seen' => $now, 'status' => 'active']],
-            ['username'],
-            ['last_seen'],
-        );
-        $account = UserAccount::findOrFail($caller->username);
+        $account = DB::transaction(function () use ($caller): UserAccount {
+            $now = now();
+            UserAccount::upsert(
+                [['username' => $caller->username, 'first_seen' => $now, 'last_seen' => $now, 'status' => 'active']],
+                ['username'],
+                ['last_seen'],
+            );
+
+            return UserAccount::query()->lockForUpdate()->findOrFail($caller->username);
+        });
 
         if ($account->status === 'blocked') {
             Logger::event('warn', 'blocked_user_rejected', 'denied', 'Refused a request from a blocked account', [
