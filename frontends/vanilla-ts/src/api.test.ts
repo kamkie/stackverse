@@ -1,5 +1,6 @@
 import {
   ApiError,
+  ApiNetworkError,
   apiGet,
   apiSend,
   buildUrl,
@@ -156,6 +157,27 @@ describe("apiGet", () => {
         },
       ],
     });
+  });
+
+  it("distinguishes transport failures from programmer errors", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
+
+    await expect(apiGet("/api/v1/bookmarks")).rejects.toEqual(
+      expect.objectContaining({
+        name: "ApiNetworkError",
+        message: "Failed to fetch",
+      }),
+    );
+    await expect(apiGet("/api/v1/bookmarks")).rejects.toBeInstanceOf(
+      ApiNetworkError,
+    );
+
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("programmer failure"));
+    await expect(apiGet("/api/v1/bookmarks")).rejects.toThrow(
+      "programmer failure",
+    );
   });
 });
 

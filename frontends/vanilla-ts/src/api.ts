@@ -19,6 +19,13 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiNetworkError extends Error {
+  constructor(cause: TypeError) {
+    super(cause.message, { cause });
+    this.name = "ApiNetworkError";
+  }
+}
+
 export function fieldErrorFor(
   error: unknown,
   field: string,
@@ -67,6 +74,18 @@ function csrfToken(): string | undefined {
     ?.slice(CSRF_COOKIE.length + 1);
 }
 
+async function fetchApi(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch (error) {
+    if (error instanceof TypeError) throw new ApiNetworkError(error);
+    throw error;
+  }
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204 || response.status === 304) {
     return undefined as T;
@@ -110,7 +129,7 @@ async function withApiLog<T>(
 
 export async function apiGet<T>(path: string, query?: QueryParams): Promise<T> {
   return withApiLog("GET", path, async () => {
-    const response = await fetch(buildUrl(path, query), {
+    const response = await fetchApi(buildUrl(path, query), {
       credentials: "include",
       headers: { Accept: "application/json" },
     });
@@ -126,7 +145,7 @@ export async function apiSend<T>(
   return withApiLog(method, path, async () => {
     const execute = () => {
       const token = csrfToken();
-      return fetch(buildUrl(path), {
+      return fetchApi(buildUrl(path), {
         method,
         credentials: "include",
         headers: {
@@ -148,7 +167,7 @@ export async function apiSend<T>(
 
 export async function fetchSession<T>(path: string): Promise<T> {
   return withApiLog("GET", path, async () => {
-    const response = await fetch(buildUrl(path), {
+    const response = await fetchApi(buildUrl(path), {
       credentials: "include",
       headers: { Accept: "application/json" },
     });

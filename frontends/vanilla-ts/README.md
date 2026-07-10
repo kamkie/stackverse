@@ -39,6 +39,9 @@ library is introduced. Async page renderers stage HTML and entity-cache updates
 together; the controller publishes both only for the current render generation.
 Cursor bookmark lists likewise discard responses from superseded filter
 generations, keeping delegated row actions aligned with the data on screen.
+Delegated actions handle API and transport failures at one
+controller boundary, render localized action context with the failure detail in a
+danger toast, and preserve the current dialog or page state for retry.
 
 ## Dev action log
 

@@ -30,6 +30,8 @@ function installFetchMock() {
           messages: {
             "ui.nav.public-feed": "Public feed",
             "ui.bookmarks.empty": "No bookmarks yet.",
+            "ui.action.delete": "Delete",
+            "ui.action.withdraw": "Withdraw",
           },
         });
       }
@@ -149,6 +151,108 @@ describe("app controller event boundary", () => {
           return url.pathname === "/auth/logout" && init?.method === "POST";
         }),
       ).toBe(true);
+    });
+  });
+
+  it("renders a destructive 4xx as feedback and preserves its dialog", async () => {
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (
+        url.pathname === "/api/v1/bookmarks/bookmark-1" &&
+        init?.method === "DELETE"
+      ) {
+        return jsonResponse(
+          {
+            title: "Conflict",
+            status: 409,
+            detail: "Bookmark cannot be deleted.",
+          },
+          409,
+        );
+      }
+      return defaultFetch(input, init);
+    });
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+
+    const dialog = {
+      kind: "delete-bookmark" as const,
+      bookmark: {
+        id: "bookmark-1",
+        owner: "demo",
+        url: "https://example.com",
+        title: "Example",
+        tags: [],
+        visibility: "private" as const,
+        status: "active" as const,
+        createdAt: "2026-07-10T00:00:00Z",
+        updatedAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    state.dialog = dialog;
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-bookmark-delete";
+    root!.append(confirm);
+    confirm.click();
+
+    await vi.waitFor(() => {
+      expect(state.dialog).toBe(dialog);
+      const toast = root!.querySelector<HTMLElement>(
+        ".sv-toast.sv-toast--danger",
+      );
+      expect(toast?.textContent).toBe("Delete: Bookmark cannot be deleted.");
+      expect(root!.querySelector("dialog.sv-dialog")).not.toBeNull();
+    });
+  });
+
+  it("renders a destructive network failure and preserves its dialog", async () => {
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      if (
+        url.pathname === "/api/v1/reports/report-1" &&
+        init?.method === "DELETE"
+      ) {
+        throw new TypeError("Failed to fetch");
+      }
+      return defaultFetch(input, init);
+    });
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+
+    const dialog = {
+      kind: "withdraw-report" as const,
+      report: {
+        id: "report-1",
+        bookmarkId: "bookmark-1",
+        reporter: "demo",
+        reason: "spam" as const,
+        status: "open" as const,
+        createdAt: "2026-07-10T00:00:00Z",
+      },
+    };
+    state.dialog = dialog;
+    const confirm = document.createElement("button");
+    confirm.dataset.action = "confirm-report-withdraw";
+    root!.append(confirm);
+    confirm.click();
+
+    await vi.waitFor(() => {
+      expect(state.dialog).toBe(dialog);
+      const toast = root!.querySelector<HTMLElement>(
+        ".sv-toast.sv-toast--danger",
+      );
+      expect(toast?.textContent).toBe("Withdraw: Failed to fetch");
+      expect(root!.querySelector("dialog.sv-dialog")).not.toBeNull();
     });
   });
 

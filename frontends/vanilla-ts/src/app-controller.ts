@@ -1,4 +1,11 @@
-import { ApiError, apiGet, apiSend, fetchSession } from "./api";
+import {
+  ApiError,
+  ApiNetworkError,
+  apiGet,
+  apiSend,
+  fetchSession,
+  messageOf,
+} from "./api";
 import { adminPageHtml } from "./admin-pages";
 import {
   fetchNextBookmarks,
@@ -631,6 +638,45 @@ function isImmediateControl(
   return input.tagName === "SELECT" || input.getAttribute("type") === "date";
 }
 
+function actionLabel(element: HTMLElement): string {
+  switch (element.dataset.action) {
+    case "confirm-bookmark-delete":
+    case "confirm-message-delete":
+      return t("ui.action.delete");
+    case "confirm-report-withdraw":
+      return t("ui.action.withdraw");
+    case "resolve-report":
+      switch (element.dataset.resolution) {
+        case "open":
+          return t("ui.action.reopen");
+        case "actioned":
+          return t("ui.action.action");
+        default:
+          return t("ui.action.dismiss");
+      }
+    case "unblock-user":
+      return t("ui.action.unblock");
+    default:
+      return t("ui.field.action");
+  }
+}
+
+async function handleActionAtBoundary(
+  element: HTMLElement,
+  epoch: number,
+): Promise<void> {
+  try {
+    await handleAction(element);
+  } catch (error) {
+    if (!(error instanceof ApiError || error instanceof ApiNetworkError)) {
+      throw error;
+    }
+    if (epoch !== activeControllerEpoch) return;
+    pushToast(`${actionLabel(element)}: ${messageOf(error)}`, "danger");
+    await renderApp();
+  }
+}
+
 export async function startAppController(
   rootElement: HTMLElement,
   options: { enableDevInstrumentation?: boolean } = {},
@@ -664,7 +710,7 @@ export async function startAppController(
       const action = target.closest<HTMLElement>("[data-action]");
       if (action) {
         event.preventDefault();
-        void handleAction(action);
+        void handleActionAtBoundary(action, epoch);
       }
     },
     listenerOptions,
