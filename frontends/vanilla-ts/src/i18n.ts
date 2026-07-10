@@ -1,5 +1,5 @@
 import type { FieldError, MessageBundle } from "./types";
-import { fetchWithNetworkError } from "./api";
+import { ApiNetworkError, fetchWithNetworkError } from "./api";
 
 const LANG_STORAGE_KEY = "stackverse.lang";
 const bundleStorageKey = (lang: string | null) =>
@@ -87,6 +87,8 @@ export function keyFallback(key: string): string {
 
 export class RuntimeI18n {
   private bundle: MessageBundle | null = null;
+  private latestRequest = 0;
+  private pendingLanguage: string | undefined;
 
   lang: string | null = readStoredLanguage();
 
@@ -99,10 +101,62 @@ export class RuntimeI18n {
     document.title = bundle.messages["ui.app.title"] ?? document.title;
   }
 
-  async load(
-    lang: string | null = this.lang,
-    options: LoadOptions = {},
+  private clearPendingLanguage(
+    request: number,
+    lang: string | null,
+    publishLanguage: boolean,
+  ): void {
+    if (
+      request === this.latestRequest &&
+      publishLanguage &&
+      this.pendingLanguage === lang
+    ) {
+      this.pendingLanguage = undefined;
+    }
+  }
+
+  private shouldIgnore(
+    request: number,
+    lang: string | null,
+    publishLanguage: boolean,
+    signal?: AbortSignal,
+  ): boolean {
+    if (request !== this.latestRequest) return true;
+    if (!signal?.aborted) return false;
+    this.clearPendingLanguage(request, lang, publishLanguage);
+    return true;
+  }
+
+  private applyBundle(
+    request: number,
+    lang: string | null,
+    bundle: MessageBundle,
+    fresh: CachedBundle | null,
+    publishLanguage: boolean,
+    signal?: AbortSignal,
+  ): void {
+    if (this.shouldIgnore(request, lang, publishLanguage, signal)) return;
+
+    if (fresh) writeCachedBundle(lang, fresh);
+    this.bundle = bundle;
+    this.applyDocumentBundle(bundle);
+    if (publishLanguage && lang !== null && this.pendingLanguage === lang) {
+      this.lang = lang;
+      storeLanguage(lang);
+      this.pendingLanguage = undefined;
+    }
+  }
+
+  private async requestBundle(
+    lang: string | null,
+    publishLanguage: boolean,
+    options: LoadOptions,
   ): Promise<void> {
+    if (options.signal?.aborted) return;
+    const request = ++this.latestRequest;
+    if (this.pendingLanguage !== undefined && this.pendingLanguage !== lang) {
+      this.pendingLanguage = undefined;
+    }
     const cached = readCachedBundle(lang);
     const headers = new Headers();
     if (cached?.etag) headers.set("If-None-Match", cached.etag);
@@ -117,23 +171,50 @@ export class RuntimeI18n {
         ...(options.signal ? { signal: options.signal } : {}),
       });
     } catch (error) {
-      if (options.signal?.aborted) return;
+      if (this.shouldIgnore(request, lang, publishLanguage, options.signal))
+        return;
+      if (error instanceof ApiNetworkError && cached) {
+        this.applyBundle(
+          request,
+          lang,
+          cached.bundle,
+          null,
+          publishLanguage,
+          options.signal,
+        );
+        return;
+      }
+      this.clearPendingLanguage(request, lang, publishLanguage);
       throw error;
     }
 
-    if (options.signal?.aborted) return;
+    if (this.shouldIgnore(request, lang, publishLanguage, options.signal))
+      return;
 
     if (response.status === 304 && cached) {
-      this.bundle = cached.bundle;
-      this.applyDocumentBundle(cached.bundle);
+      this.applyBundle(
+        request,
+        lang,
+        cached.bundle,
+        null,
+        publishLanguage,
+        options.signal,
+      );
       return;
     }
     if (!response.ok) {
       if (cached) {
-        this.bundle = cached.bundle;
-        this.applyDocumentBundle(cached.bundle);
+        this.applyBundle(
+          request,
+          lang,
+          cached.bundle,
+          null,
+          publishLanguage,
+          options.signal,
+        );
         return;
       }
+      this.clearPendingLanguage(request, lang, publishLanguage);
       throw new MessageBundleLoadError(
         `Failed to load message bundle: ${response.status}`,
       );
@@ -147,23 +228,41 @@ export class RuntimeI18n {
       }
       bundle = body;
     } catch (error) {
-      if (options.signal?.aborted) return;
+      if (this.shouldIgnore(request, lang, publishLanguage, options.signal))
+        return;
+      this.clearPendingLanguage(request, lang, publishLanguage);
       if (error instanceof MessageBundleLoadError) throw error;
       throw new MessageBundleLoadError("Invalid message bundle response", {
         cause: error,
       });
     }
-    if (options.signal?.aborted) return;
+    if (this.shouldIgnore(request, lang, publishLanguage, options.signal))
+      return;
     const fresh = { etag: response.headers.get("ETag"), bundle };
-    writeCachedBundle(lang, fresh);
-    this.bundle = bundle;
-    this.applyDocumentBundle(bundle);
+    this.applyBundle(
+      request,
+      lang,
+      bundle,
+      fresh,
+      publishLanguage,
+      options.signal,
+    );
+  }
+
+  async load(
+    lang: string | null | undefined = undefined,
+    options: LoadOptions = {},
+  ): Promise<void> {
+    const targetLanguage =
+      lang === undefined ? (this.pendingLanguage ?? this.lang) : lang;
+    const publishLanguage = this.pendingLanguage === targetLanguage;
+    await this.requestBundle(targetLanguage, publishLanguage, options);
   }
 
   async setLanguage(lang: string, options: LoadOptions = {}): Promise<void> {
-    this.lang = lang;
-    storeLanguage(lang);
-    await this.load(lang, options);
+    if (options.signal?.aborted) return;
+    this.pendingLanguage = lang;
+    await this.requestBundle(lang, true, options);
   }
 
   t = (key: string): string => {

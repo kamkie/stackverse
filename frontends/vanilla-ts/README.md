@@ -43,6 +43,14 @@ Delegated actions handle API and transport failures at one
 controller boundary, render localized action context with the failure detail in a
 danger toast, and preserve the current dialog or page state for retry.
 
+`RuntimeI18n` owns ETag-aware message-bundle loading. It treats language changes
+as transactions: a requested language is published to memory and local storage
+only after its bundle loads (or a valid cached bundle is selected), and only the
+latest concurrent request may update the cache, runtime bundle, or document
+metadata. Refreshes inherit an in-flight language choice so incidental bundle
+updates cannot silently cancel the user's selection. Cached bundles also keep
+bootstrap available when a refresh fails at the HTTP or transport layer.
+
 ## Dev action log
 
 In dev the browser console is mirrored to the dev server (`[browser]` lines in
