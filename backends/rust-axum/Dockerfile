@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-rust-axum:local -f backends/rust-axum/Dockerfile .
 
-FROM rust:1.96.1-bookworm AS build
+FROM rust:1.97.0-bookworm AS build
 WORKDIR /build
 COPY backends/rust-axum/Cargo.toml backends/rust-axum/Cargo.lock ./
 COPY backends/rust-axum/migrations ./migrations
