@@ -138,6 +138,26 @@ final class MicronautHttpTest {
     }
 
     @Test
+    void authenticationPrecedesMalformedAndWrongTypedJsonBinding() {
+        for (String body : List.of("{", "{\"url\":false,\"title\":[]}")) {
+            var anonymous = HttpRequest.POST("/api/v1/bookmarks", body)
+                    .contentType(MediaType.APPLICATION_JSON_TYPE);
+            assertThatThrownBy(() -> client.toBlocking().exchange(anonymous, String.class))
+                    .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                            assertThat(failure.getStatus().getCode())
+                                    .isEqualTo(HttpStatus.UNAUTHORIZED.getCode()));
+
+            var authenticated = HttpRequest.POST("/api/v1/bookmarks", body)
+                    .contentType(MediaType.APPLICATION_JSON_TYPE)
+                    .bearerAuth("valid-token");
+            assertThatThrownBy(() -> client.toBlocking().exchange(authenticated, String.class))
+                    .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                            assertThat(failure.getStatus().getCode())
+                                    .isEqualTo(HttpStatus.BAD_REQUEST.getCode()));
+        }
+    }
+
+    @Test
     void roleCheckPrecedesValidation() {
         MessageInput body = new MessageInput(null, null, null, null);
 
@@ -145,6 +165,23 @@ final class MicronautHttpTest {
                 HttpRequest.POST("/api/v1/messages", body).bearerAuth("valid-token"), String.class))
                 .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
                         assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.FORBIDDEN.getCode()));
+    }
+
+    @Test
+    void roleCheckPrecedesMalformedJsonBinding() {
+        var denied = HttpRequest.POST("/api/v1/messages", "{")
+                .contentType(MediaType.APPLICATION_JSON_TYPE)
+                .bearerAuth("valid-token");
+        assertThatThrownBy(() -> client.toBlocking().exchange(denied, String.class))
+                .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                        assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.FORBIDDEN.getCode()));
+
+        var allowedToParse = HttpRequest.POST("/api/v1/messages", "{")
+                .contentType(MediaType.APPLICATION_JSON_TYPE)
+                .bearerAuth("admin-token");
+        assertThatThrownBy(() -> client.toBlocking().exchange(allowedToParse, String.class))
+                .isInstanceOfSatisfying(HttpClientResponseException.class, failure ->
+                        assertThat(failure.getStatus().getCode()).isEqualTo(HttpStatus.BAD_REQUEST.getCode()));
     }
 
     @Test
