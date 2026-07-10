@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { MessageBodyDto } from "./message.dto.js";
 import { MessagesService } from "./messages.service.js";
 
 @Controller()
@@ -22,12 +23,12 @@ export class MessagesController {
   }
 
   @Post("/api/v1/messages")
-  async create(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Body() body: unknown) {
+  async create(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Body() body: MessageBodyDto) {
     return this.messages.create(request, reply, body);
   }
 
   @Put("/api/v1/messages/:id")
-  async update(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: unknown) {
+  async update(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: MessageBodyDto) {
     return this.messages.update(request, id, body);
   }
 

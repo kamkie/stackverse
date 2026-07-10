@@ -31,7 +31,7 @@ message seed resolves to the repo's `spec/messages` automatically. Migrations
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests (plain unit tests, no containers):
+Tests (unit tests plus in-process Nest/Fastify HTTP tests, no containers):
 
 ```sh
 yarn lint
@@ -63,6 +63,14 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
   lazily provisions accounts, and enforces blocked-account rejection
   (`src/auth.ts`), while `ProblemFilter` is the single RFC 9457 renderer for
   validation, authorization, and unexpected errors.
+- **DTO validation pipeline** - concrete request DTO classes carry
+  `class-validator` metadata and `class-transformer` normalization; one global
+  `ValidationPipe` maps every failure back to the contract's localized RFC 9457
+  field-error shape.
+- **Nest testing infrastructure** - Vitest drives `@nestjs/testing`
+  `TestingModule` instances and Fastify injection, exercising controllers,
+  guards, global pipes, and exception filters together without a network or
+  database fixture.
 - **Nest CLI build/dev flow** - `nest-cli.json` points at the `server.ts`
   entrypoint; `yarn build` and `yarn dev` run through the Nest CLI.
 - **ESLint + Prettier scaffold scripts** - this variant has package-local
@@ -70,8 +78,8 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 - **Fastify adapter boundary** - Fastify is still the Nest platform adapter so
   the backend keeps pino integration and Fastify replies for explicit status,
   header, and ETag handling, but routes are not registered directly on a
-  Fastify instance. `fastify` is intentionally pinned to `5.8.5`, the exact
-  version resolved by `@nestjs/platform-fastify@^11.1.27`, so Yarn PnP loads a
+  Fastify instance. `fastify` is intentionally pinned to `5.10.0`, the exact
+  version resolved by `@nestjs/platform-fastify@^11.1.28`, so Yarn PnP loads a
   single Fastify copy and adapter hooks/decorators share one runtime instance.
 - **SQL without an ORM** - hand-written parameterized queries per feature
   service (`src/*/*.service.ts`), with a tiny `withTransaction` helper for the
@@ -100,10 +108,12 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
   controller, provider, guard, and filter layers while persistence stays
   explicit, so the TypeScript comparison can separate framework structure from
   ORM structure.
-- Validation stays in a hand-rolled `Validator` rather than class-validator DTO
-  decorators. The Stackverse contract requires localized field errors with
-  runtime-managed message keys, and keeping that accumulator explicit makes the
-  cross-stack comparison easier to read.
+- Authentication deliberately keeps a small global `CanActivate` guard backed
+  by `jose` instead of adding Passport. The same idempotent verifier must also
+  run as a Fastify `onRequest` hook so invalid and blocked bearer tokens win
+  before malformed/oversized body parsing, as required by the contract;
+  Passport's Nest guard runs after that parser boundary and would not replace
+  the hook.
 - Enum-like values are stored as their lowercase wire strings (`'public'`,
   `'open'`) - there is no enum layer to map through, so the database reads
   like the API.

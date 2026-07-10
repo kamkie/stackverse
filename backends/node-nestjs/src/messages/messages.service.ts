@@ -7,10 +7,10 @@ import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
 import { sendWithEtag } from "../etag.js";
 import { DEFAULT_LANGUAGE, messageBundle, resolveRequestLanguage } from "../i18n.js";
+import { MessageBodyDto } from "./message.dto.js";
 import {
   ConflictProblem,
   NotFoundProblem,
-  Validator,
   escapeLike,
   omitNulls,
   parseUuid,
@@ -18,9 +18,6 @@ import {
   requireValidPaging,
   singleParam,
 } from "../problems.js";
-
-const KEY_PATTERN = /^[a-z0-9-]+(\.[a-z0-9-]+)*$/;
-const LANGUAGE_PATTERN = /^[a-z]{2}$/;
 
 interface MessageRow {
   id: string;
@@ -42,34 +39,6 @@ const toMessageResponse = (row: MessageRow) =>
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   });
-
-interface MessageInput {
-  key: string;
-  language: string;
-  text: string;
-  description: string | null;
-}
-
-function validateMessageInput(body: unknown): MessageInput {
-  const input = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
-  const validator = new Validator();
-
-  const key = typeof input["key"] === "string" ? input["key"].trim() : "";
-  validator.check(KEY_PATTERN.test(key) && key.length <= 150, "key", "validation.message.key.invalid");
-
-  const language = typeof input["language"] === "string" ? input["language"].trim() : "";
-  validator.check(LANGUAGE_PATTERN.test(language), "language", "validation.message.language.invalid");
-
-  const text = typeof input["text"] === "string" ? input["text"] : "";
-  validator.check(text !== "", "text", "validation.message.text.required");
-  validator.check(text.length <= 2000, "text", "validation.message.text.too-long");
-
-  const description = typeof input["description"] === "string" ? input["description"] : null;
-  validator.check((description?.length ?? 0) <= 1000, "description", "validation.message.description.too-long");
-
-  validator.throwIfInvalid();
-  return { key, language, text, description };
-}
 
 /** The message key is safe to log: validated against `KEY_PATTERN`, so no free-form client text. */
 function logMessageEvent(event: string, description: string, actor: string, message: MessageRow): void {
@@ -141,9 +110,8 @@ export class MessagesService {
     return sendWithEtag(request, reply, toMessageResponse(message));
   }
 
-  async create(request: FastifyRequest, reply: FastifyReply, body: unknown): Promise<FastifyReply> {
+  async create(request: FastifyRequest, reply: FastifyReply, input: MessageBodyDto): Promise<FastifyReply> {
     const caller = requireRole(request, "admin");
-    const input = validateMessageInput(body);
     // mutation + audit commit together (SPEC rule 18: every backoffice mutation is audited)
     const message = await withTransaction(async (client) => {
       const duplicate = await client.query("select 1 from messages where key = $1 and language = $2", [
@@ -171,10 +139,9 @@ export class MessagesService {
     return reply.code(201).header("location", `/api/v1/messages/${message.id}`).send(toMessageResponse(message));
   }
 
-  async update(request: FastifyRequest, idParam: string, body: unknown) {
+  async update(request: FastifyRequest, idParam: string, input: MessageBodyDto) {
     const caller = requireRole(request, "admin");
     const id = parseUuid(idParam);
-    const input = validateMessageInput(body);
     const message = await withTransaction(async (client) => {
       const existing = await client.query("select 1 from messages where id = $1", [id]);
       if (!existing.rowCount) throw new NotFoundProblem();

@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Put, Req } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
+import { UserStatusBodyDto } from "./user-status.dto.js";
 import { AdminUsersService } from "./admin-users.service.js";
 
 @Controller()
@@ -17,7 +18,11 @@ export class AdminUsersController {
   }
 
   @Put("/api/v1/admin/users/:username/status")
-  async setStatus(@Req() request: FastifyRequest, @Param("username") username: string, @Body() body: unknown) {
+  async setStatus(
+    @Req() request: FastifyRequest,
+    @Param("username") username: string,
+    @Body() body: UserStatusBodyDto,
+  ) {
     return this.users.setStatus(request, username, body);
   }
 }

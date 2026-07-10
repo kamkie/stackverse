@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { BookmarkBodyDto } from "./bookmark.dto.js";
 import { BookmarksService } from "./bookmarks.service.js";
 
 @Controller()
@@ -17,7 +18,7 @@ export class BookmarksController {
   }
 
   @Post("/api/v1/bookmarks")
-  async create(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Body() body: unknown) {
+  async create(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Body() body: BookmarkBodyDto) {
     return this.bookmarks.create(request, reply, body);
   }
 
@@ -27,7 +28,7 @@ export class BookmarksController {
   }
 
   @Put("/api/v1/bookmarks/:id")
-  async update(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: unknown) {
+  async update(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: BookmarkBodyDto) {
     return this.bookmarks.update(request, id, body);
   }
 

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { BookmarkStatusBodyDto, ReportBodyDto, ResolutionBodyDto } from "./moderation.dto.js";
 import { ModerationService } from "./moderation.service.js";
 
 @Controller()
@@ -11,7 +12,7 @@ export class ModerationController {
     @Req() request: FastifyRequest,
     @Res() reply: FastifyReply,
     @Param("id") id: string,
-    @Body() body: unknown,
+    @Body() body: ReportBodyDto,
   ) {
     return this.moderation.reportBookmark(request, reply, id, body);
   }
@@ -22,7 +23,7 @@ export class ModerationController {
   }
 
   @Put("/api/v1/reports/:id")
-  async updateMyReport(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: unknown) {
+  async updateMyReport(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: ReportBodyDto) {
     return this.moderation.updateMyReport(request, id, body);
   }
 
@@ -37,12 +38,16 @@ export class ModerationController {
   }
 
   @Put("/api/v1/admin/reports/:id")
-  async resolveReport(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: unknown) {
+  async resolveReport(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: ResolutionBodyDto) {
     return this.moderation.resolveReport(request, id, body);
   }
 
   @Put("/api/v1/admin/bookmarks/:id/status")
-  async setBookmarkStatus(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: unknown) {
+  async setBookmarkStatus(
+    @Req() request: FastifyRequest,
+    @Param("id") id: string,
+    @Body() body: BookmarkStatusBodyDto,
+  ) {
     return this.moderation.setBookmarkStatus(request, id, body);
   }
 }

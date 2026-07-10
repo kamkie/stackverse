@@ -5,6 +5,7 @@ import { AppModule } from "./app.module.js";
 import { registerFastifyAuth } from "./auth.js";
 import { logger } from "./logging.js";
 import { sendProblemForError } from "./problem.filter.js";
+import { contractValidationPipe } from "./validation.pipe.js";
 
 export async function buildApp(): Promise<NestFastifyApplication> {
   const adapter = new FastifyAdapter<RawServerDefault, RawRequestDefaultExpression<RawServerDefault>>({
@@ -22,6 +23,7 @@ export async function buildApp(): Promise<NestFastifyApplication> {
   // edge (gateway / operator), like the platform concerns in docs/LOGGING.md
   // Appendix A — not duplicated into every stateless backend.
   const app = await NestFactory.create<NestFastifyApplication>(AppModule, adapter, { logger: false });
+  app.useGlobalPipes(contractValidationPipe());
 
   // Fastify content parser failures (malformed JSON, oversized body) occur
   // before Nest guards/filters run, so bridge adapter-level failures into the
