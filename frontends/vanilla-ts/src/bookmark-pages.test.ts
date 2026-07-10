@@ -95,4 +95,58 @@ describe("bookmark list publication", () => {
     expect(state.feed.pages[0]?.items[0]?.id).toBe("current-bookmark");
     expect(state.feed.nextCursor).toBe("current-cursor");
   });
+
+  it("keeps the published action cache until the replacement generation commits", async () => {
+    state.feed.pages = [
+      {
+        items: [
+          {
+            id: "visible-bookmark",
+            owner: "demo",
+            url: "https://visible.example",
+            title: "Visible",
+            tags: [],
+            visibility: "public",
+            status: "active",
+            createdAt: "2026-07-10T00:00:00Z",
+            updatedAt: "2026-07-10T00:00:00Z",
+          },
+        ],
+        nextCursor: "visible-cursor",
+      },
+    ];
+    state.feed.nextCursor = "visible-cursor";
+    state.feed.loadedGeneration = state.feed.generation;
+    state.feed.q = "replacement";
+    resetBookmarkList(state.feed);
+
+    expect(state.feed.pages[0]?.items[0]?.id).toBe("visible-bookmark");
+    expect(state.feed.nextCursor).toBe("visible-cursor");
+    expect(state.feed.loadedGeneration).not.toBe(state.feed.generation);
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        items: [
+          {
+            id: "replacement-bookmark",
+            owner: "demo",
+            url: "https://replacement.example",
+            title: "Replacement",
+            tags: [],
+            visibility: "public",
+            status: "active",
+            createdAt: "2026-07-10T00:00:00Z",
+            updatedAt: "2026-07-10T00:00:00Z",
+          },
+        ],
+      }),
+    );
+
+    await fetchNextBookmarks(state.feed, "public");
+
+    expect(state.feed.pages).toHaveLength(1);
+    expect(state.feed.pages[0]?.items[0]?.id).toBe("replacement-bookmark");
+    expect(state.feed.nextCursor).toBeUndefined();
+    expect(state.feed.loadedGeneration).toBe(state.feed.generation);
+  });
 });

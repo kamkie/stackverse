@@ -30,6 +30,7 @@ export interface BookmarkListState {
   pages: BookmarkCursorPage[];
   nextCursor?: string;
   generation: number;
+  loadedGeneration: number;
   pending?: Promise<void>;
 }
 
@@ -85,8 +86,15 @@ function createInitialState() {
       tags: [],
       pages: [],
       generation: 0,
+      loadedGeneration: -1,
     } as BookmarkListState,
-    feed: { q: "", tags: [], pages: [], generation: 0 } as BookmarkListState,
+    feed: {
+      q: "",
+      tags: [],
+      pages: [],
+      generation: 0,
+      loadedGeneration: -1,
+    } as BookmarkListState,
     myReports: {
       status: "" as ReportStatus | "",
       page: 0,

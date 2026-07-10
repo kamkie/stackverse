@@ -24,8 +24,6 @@ import type {
 
 export function resetBookmarkList(list: BookmarkListState): void {
   list.generation += 1;
-  list.pages = [];
-  delete list.nextCursor;
   delete list.pending;
 }
 
@@ -35,9 +33,10 @@ export async function fetchNextBookmarks(
 ): Promise<void> {
   if (list.pending) return list.pending;
   const generation = list.generation;
+  const replace = list.loadedGeneration !== generation;
   const tags = [...list.tags];
   const q = list.q;
-  const cursor = list.nextCursor;
+  const cursor = replace ? undefined : list.nextCursor;
   const pending = (async () => {
     const page = await apiGet<BookmarkCursorPage>("/api/v2/bookmarks", {
       ...(tags.length > 0 ? { tag: tags } : {}),
@@ -46,7 +45,9 @@ export async function fetchNextBookmarks(
       ...(cursor ? { cursor } : {}),
     });
     if (list.generation !== generation) return;
-    list.pages.push(page);
+    if (replace) list.pages = [page];
+    else list.pages.push(page);
+    list.loadedGeneration = generation;
     if (page.nextCursor === undefined) delete list.nextCursor;
     else list.nextCursor = page.nextCursor;
   })();
@@ -62,7 +63,9 @@ async function ensureBookmarks(
   list: BookmarkListState,
   visibility?: Visibility,
 ): Promise<void> {
-  if (list.pages.length === 0) await fetchNextBookmarks(list, visibility);
+  if (list.loadedGeneration !== list.generation || list.pages.length === 0) {
+    await fetchNextBookmarks(list, visibility);
+  }
 }
 
 function allBookmarks(list: BookmarkListState): Bookmark[] {
