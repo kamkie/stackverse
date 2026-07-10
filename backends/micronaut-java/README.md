@@ -47,8 +47,9 @@ docker build -t stackverse/backend-micronaut-java:local -f backends/micronaut-ja
 - **Bean Validation at HTTP boundaries** - typed request records carry Jakarta
   constraints and an injected Micronaut `Validator` performs structural validation at
   the contract-selected point after authentication and resource lookup. A small adapter
-  preserves Stackverse's deterministic RFC 9457 field-error keys; domain-aware
-  normalization and conditional rules remain in controllers.
+  preserves Stackverse's deterministic RFC 9457 field-error keys, while focused JSON
+  exception handlers map pre-controller syntax and binding failures to the same problem
+  surface; domain-aware normalization and conditional rules remain in controllers.
 - **Plain JDBC as the persistence boundary** - SQL is visible in the feature controllers
   and helpers, with Flyway owning the schema and HikariCP owning connections.
 - **Custom bearer-token filter** - the service validates issuer, audience, expiry and
