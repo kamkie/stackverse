@@ -90,6 +90,14 @@ class CommandWebBindingSpec extends Specification {
         message.language == 'en'
         message.text == 'Web-bound message'
         message.description == 'Bound description'
+
+        when:
+        HttpResponse<String> duplicateResponse = jsonRequest('POST', '/api/v1/messages', admin, 'admin', [
+            key: message.key, language: message.language, text: 'Duplicate message'
+        ])
+
+        then:
+        duplicateResponse.statusCode() == 409
     }
 
     void 'user-status application/json binds through the real HTTP action boundary'() {
@@ -134,6 +142,18 @@ class CommandWebBindingSpec extends Specification {
         report.reporter == reporter
         report.reason == 'spam'
         report.comment == 'Bound report comment'
+
+        when:
+        HttpResponse<String> duplicateReportResponse = jsonRequest(
+            'POST',
+            "/api/v1/bookmarks/${bookmark.id}/reports",
+            reporter,
+            'regular',
+            [reason: 'other', comment: 'Duplicate report']
+        )
+
+        then:
+        duplicateReportResponse.statusCode() == 409
 
         when:
         HttpResponse<String> resolutionResponse = jsonRequest('PUT', "/api/v1/admin/reports/${report.id}",

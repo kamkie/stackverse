@@ -27,7 +27,9 @@ Tests:
 ./gradlew build
 ```
 
-`build` runs the Spock suite, CodeNarc, packaging, and coverage generation.
+`build` runs the Spock suite, CodeNarc, packaging, and combined unit/integration
+coverage generation. CI enables the PostgreSQL-gated integration specs and
+uploads both unit and integration test results.
 
 Conformance, with the backend running:
 

@@ -58,10 +58,14 @@ class UserAccountService {
             criteria = criteria.where { status == statusValue }
         }
         Long total = criteria.count()
-        List items = criteria.list(max: size, offset: page * size) {
+        List<UserAccount> accounts = criteria.list(max: size, offset: page * size) {
             order('lastSeen', 'desc')
             order('username', 'asc')
-        }.collect { UserAccount account -> accountMap(account, Bookmark.countByOwner(account.username)) }
+        }
+        Map<String, Long> bookmarkCounts = bookmarkCounts(accounts*.username)
+        List items = accounts.collect { UserAccount account ->
+            accountMap(account, bookmarkCounts[account.username] ?: 0L)
+        }
         Paging.resultPage(items, page, size, total)
     }
 
@@ -101,5 +105,18 @@ class UserAccountService {
             blockedReason: account.blockedReason,
             bookmarkCount: bookmarkCount
         ]
+    }
+
+    private static Map<String, Long> bookmarkCounts(List<String> usernames) {
+        if (!usernames) {
+            return [:]
+        }
+        Bookmark.createCriteria().list {
+            inList('owner', usernames)
+            projections {
+                groupProperty('owner')
+                count('id')
+            }
+        }.collectEntries { row -> [(row[0].toString()): row[1] as Long] }
     }
 }

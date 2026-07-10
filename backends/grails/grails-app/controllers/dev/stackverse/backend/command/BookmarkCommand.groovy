@@ -45,7 +45,7 @@ class BookmarkCommand extends ContractCommand {
             if (value != null && !(value instanceof Collection)) {
                 return 'validation.tag.invalid'
             }
-            if (value instanceof Collection && value.size() > 10) {
+            if (value instanceof Collection && normalizeTags(value).size() > 10) {
                 return 'validation.tags.too-many'
             }
             if (value instanceof Collection && value.any { !(it instanceof String) || !(normalizeTag(it) ==~ TAG) }) {

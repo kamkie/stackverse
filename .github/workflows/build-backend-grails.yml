@@ -65,7 +65,7 @@ jobs:
         continue-on-error: true
         with:
           report_type: test_results
-          directory: backends/grails/build/test-results/test
+          directory: backends/grails/build/test-results
           flags: backend-grails
           token: ${{ secrets.CODECOV_TOKEN }}
 

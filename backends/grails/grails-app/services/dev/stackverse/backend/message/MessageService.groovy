@@ -221,18 +221,6 @@ class MessageService implements ApplicationRunner {
             .collect { it.language }
     }
 
-    private static Map messageRow(rs) {
-        [
-            id         : SqlRows.uuid(rs, "id").toString(),
-            key        : rs.getString("key"),
-            language   : rs.getString("language"),
-            text       : rs.getString("text"),
-            description: rs.getString("description"),
-            createdAt  : SqlRows.rfc3339(SqlRows.instant(rs, "created_at")),
-            updatedAt  : SqlRows.rfc3339(SqlRows.instant(rs, "updated_at"))
-        ]
-    }
-
     private static Map messageMap(Message message) {
         [
             id         : message.id.toString(),

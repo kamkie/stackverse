@@ -26,4 +26,17 @@ class ContractCommandSpec extends Specification {
             visibility: 'private'
         ]
     }
+
+    def "bookmark command counts normalized tags for the contract limit"() {
+        given:
+        BookmarkCommand command = new BookmarkCommand(
+            url: 'https://example.com',
+            title: 'Example',
+            tags: ['one', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+        )
+
+        expect:
+        command.validated(messages, null, null).tags ==
+            ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+    }
 }
