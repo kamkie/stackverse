@@ -1,79 +1,104 @@
+import { readFileSync } from "node:fs";
+import type { ArgumentMetadata } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { validateBookmarkInput, validateQueryTags } from "./bookmarks/bookmarks.service.js";
+import { UserStatusBodyDto } from "./admin-users/user-status.dto.js";
+import { BookmarkBodyDto } from "./bookmarks/bookmark.dto.js";
+import { validateQueryTags } from "./bookmarks/bookmarks.service.js";
+import { MessageBodyDto } from "./messages/message.dto.js";
+import { BookmarkStatusBodyDto, ReportBodyDto, ResolutionBodyDto } from "./moderation/moderation.dto.js";
 import { ValidationProblem } from "./problems.js";
+import { contractValidationPipe } from "./validation.pipe.js";
 
-const violations = (body: unknown): { field: string; messageKey: string }[] => {
+const metadata = (metatype: ArgumentMetadata["metatype"]): ArgumentMetadata => ({
+  type: "body",
+  metatype,
+});
+
+async function transform<T extends object>(metatype: new () => T, body: unknown): Promise<T> {
+  return contractValidationPipe().transform(body, metadata(metatype)) as Promise<T>;
+}
+
+async function violations<T extends object>(metatype: new () => T, body: unknown) {
   try {
-    validateBookmarkInput(body);
+    await transform(metatype, body);
     return [];
   } catch (error) {
     if (error instanceof ValidationProblem) return error.violations;
     throw error;
   }
-};
+}
 
-describe("bookmark validation (SPEC rules 5 + 11)", () => {
-  it("accepts a minimal valid input and applies defaults", () => {
-    const input = validateBookmarkInput({ url: "https://example.com", title: " t " });
-    expect(input.title).toBe("t");
-    expect(input.visibility).toBe("private");
-    expect(input.tags).toEqual([]);
-  });
+describe("DTO validation metadata", () => {
+  it("normalizes bookmark inputs and applies defaults", async () => {
+    const input = await transform(BookmarkBodyDto, {
+      url: " https://example.com ",
+      title: " t ",
+      tags: [" Node ", "node", "web"],
+    });
 
-  it("normalizes tags before validating: trimmed, lowercased, deduplicated", () => {
-    const input = validateBookmarkInput({
+    expect(input).toMatchObject({
       url: "https://example.com",
       title: "t",
-      tags: [" Kotlin ", "kotlin", "web"],
+      notes: null,
+      tags: ["node", "web"],
+      visibility: "private",
     });
-    expect(input.tags).toEqual(["kotlin", "web"]);
   });
 
-  it("collects every field error into one problem", () => {
-    const fields = violations({}).map((violation) => violation.field);
-    expect(fields).toContain("url");
-    expect(fields).toContain("title");
+  it("maps malformed bookmark values to canonical keys without coercion", async () => {
+    await expect(violations(BookmarkBodyDto, { title: "t" })).resolves.toContainEqual({
+      field: "url",
+      messageKey: "validation.url.required",
+    });
+    await expect(
+      violations(BookmarkBodyDto, { url: "https://example.com", title: "t", tags: [42] }),
+    ).resolves.toContainEqual({ field: "tags", messageKey: "validation.tag.invalid" });
+    await expect(
+      violations(BookmarkBodyDto, { url: "https://example.com", title: "t", notes: 42 }),
+    ).resolves.toContainEqual({ field: "notes", messageKey: "validation.notes.too-long" });
   });
 
   it.each([
-    ["/not/absolute", "validation.url.invalid"],
-    ["ftp://example.com", "validation.url.invalid"],
-    ["", "validation.url.required"],
-    ["https://", "validation.url.invalid"],
-  ])("rejects url %j with %s", (url, messageKey) => {
-    expect(violations({ url, title: "t" })).toContainEqual({ field: "url", messageKey });
+    [
+      MessageBodyDto,
+      { key: "example", language: "en", text: "x", description: 42 },
+      "description",
+      "validation.message.description.too-long",
+    ],
+    [ReportBodyDto, { reason: "spam", comment: 42 }, "comment", "validation.report.comment.too-long"],
+    [ResolutionBodyDto, { resolution: "dismissed", note: 42 }, "note", "validation.resolution.note.too-long"],
+    [BookmarkStatusBodyDto, { status: "active", note: 42 }, "note", "validation.bookmark-status.note.too-long"],
+    [UserStatusBodyDto, { status: "active", reason: 42 }, "reason", "validation.block.reason.too-long"],
+  ] as const)("rejects wrong optional scalar types for %s", async (metatype, body, field, messageKey) => {
+    await expect(violations(metatype, body)).resolves.toContainEqual({ field, messageKey });
   });
+});
 
-  it("bounds title, notes and tags", () => {
-    expect(violations({ url: "https://example.com", title: "x".repeat(201) })).toContainEqual({
-      field: "title",
-      messageKey: "validation.title.too-long",
-    });
-    expect(violations({ url: "https://example.com", title: "t", notes: "x".repeat(4001) })).toContainEqual({
-      field: "notes",
-      messageKey: "validation.notes.too-long",
-    });
-    expect(
-      violations({ url: "https://example.com", title: "t", tags: Array.from({ length: 11 }, (_, i) => `t-${i}`) }),
-    ).toContainEqual({ field: "tags", messageKey: "validation.tags.too-many" });
-    expect(violations({ url: "https://example.com", title: "t", tags: ["no spaces!"] })).toContainEqual({
-      field: "tags",
-      messageKey: "validation.tag.invalid",
-    });
-  });
-
+describe("remaining query validation", () => {
   it("normalizes and validates query tags", () => {
-    expect(validateQueryTags([" Node ", "web"])).toEqual(["node", "web"]);
-
-    expect(() => validateQueryTags(["valid", "no spaces!"])).toThrow(ValidationProblem);
-    try {
-      validateQueryTags(["valid", "no spaces!"]);
-    } catch (error) {
-      expect(error).toBeInstanceOf(ValidationProblem);
-      expect((error as ValidationProblem).violations).toContainEqual({
-        field: "tag",
-        messageKey: "validation.tag.invalid",
-      });
-    }
+    expect(validateQueryTags([" Node ", "WEB"])).toEqual(["node", "web"]);
+    expect(() => validateQueryTags(["no spaces!"])).toThrow(ValidationProblem);
   });
+});
+
+describe("DTO validation message seeds", () => {
+  const seeds = Object.fromEntries(
+    ["en", "pl"].map((language) => [
+      language,
+      JSON.parse(readFileSync(new URL(`../../../spec/messages/${language}.json`, import.meta.url), "utf8")) as Record<
+        string,
+        string
+      >,
+    ]),
+  );
+
+  it.each(["validation.visibility.invalid", "validation.user-status.invalid"])(
+    "provides localized text for %s",
+    (messageKey) => {
+      expect(seeds.en[messageKey]).toEqual(expect.any(String));
+      expect(seeds.pl[messageKey]).toEqual(expect.any(String));
+      expect(seeds.en[messageKey]).not.toBe(messageKey);
+      expect(seeds.pl[messageKey]).not.toBe(messageKey);
+    },
+  );
 });

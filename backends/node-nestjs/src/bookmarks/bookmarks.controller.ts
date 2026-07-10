@@ -1,5 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { Public } from "../auth.js";
+import { BookmarkBodyDto } from "./bookmark.dto.js";
 import { BookmarksService } from "./bookmarks.service.js";
 
 @Controller()
@@ -7,27 +9,30 @@ export class BookmarksController {
   constructor(private readonly bookmarks: BookmarksService) {}
 
   @Get("/api/v1/bookmarks")
+  @Public()
   async listV1(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
     return this.bookmarks.listV1(request, reply);
   }
 
   @Get("/api/v2/bookmarks")
+  @Public()
   async listV2(@Req() request: FastifyRequest) {
     return this.bookmarks.listV2(request);
   }
 
   @Post("/api/v1/bookmarks")
-  async create(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Body() body: unknown) {
+  async create(@Req() request: FastifyRequest, @Res() reply: FastifyReply, @Body() body: BookmarkBodyDto) {
     return this.bookmarks.create(request, reply, body);
   }
 
   @Get("/api/v1/bookmarks/:id")
+  @Public()
   async get(@Req() request: FastifyRequest, @Param("id") id: string) {
     return this.bookmarks.get(request, id);
   }
 
   @Put("/api/v1/bookmarks/:id")
-  async update(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: unknown) {
+  async update(@Req() request: FastifyRequest, @Param("id") id: string, @Body() body: BookmarkBodyDto) {
     return this.bookmarks.update(request, id, body);
   }
 

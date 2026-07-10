@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { pool, withTransaction, type Queryable } from "../db.js";
 import { encodeCursor, decodeCursor, type BookmarkCursor } from "../cursor.js";
+import { BookmarkBodyDto, VISIBILITIES, type Visibility } from "./bookmark.dto.js";
 import { requireCaller } from "../auth.js";
 import {
   BadRequestProblem,
@@ -28,8 +29,6 @@ const V1_BOOKMARKS_SUNSET = "Thu, 01 Jul 2027 00:00:00 GMT";
 const V1_BOOKMARKS_SUCCESSOR = '</api/v2/bookmarks>; rel="successor-version"';
 
 const TAG_PATTERN = /^[a-z0-9-]{1,30}$/;
-const VISIBILITIES = ["private", "public"] as const;
-type Visibility = (typeof VISIBILITIES)[number];
 
 export interface BookmarkRow {
   id: string;
@@ -57,61 +56,6 @@ export const toBookmarkResponse = (row: BookmarkRow) =>
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   });
-
-interface BookmarkInput {
-  url: string;
-  title: string;
-  notes: string | null;
-  tags: string[];
-  visibility: Visibility;
-}
-
-const isHttpUrl = (value: string): boolean => {
-  try {
-    const url = new URL(value);
-    return (url.protocol === "http:" || url.protocol === "https:") && url.hostname.length > 0;
-  } catch {
-    return false;
-  }
-};
-
-/** SPEC rules 5 + 11: all field errors collected into one problem document. */
-export function validateBookmarkInput(body: unknown): BookmarkInput {
-  const input = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
-  const validator = new Validator();
-
-  const url = typeof input["url"] === "string" ? input["url"].trim() : "";
-  if (url === "") {
-    validator.reject("url", "validation.url.required");
-  } else {
-    validator.check(url.length <= 2000 && isHttpUrl(url), "url", "validation.url.invalid");
-  }
-
-  const title = typeof input["title"] === "string" ? input["title"].trim() : "";
-  validator.check(title !== "", "title", "validation.title.required");
-  validator.check(title.length <= 200, "title", "validation.title.too-long");
-
-  const notes = typeof input["notes"] === "string" ? input["notes"] : null;
-  validator.check((notes?.length ?? 0) <= 4000, "notes", "validation.notes.too-long");
-
-  // normalized before validation: " Kotlin " and "kotlin" are the same tag
-  const rawTags = Array.isArray(input["tags"]) ? input["tags"] : [];
-  const tags = [...new Set(rawTags.map((tag) => String(tag).trim().toLowerCase()))];
-  validator.check(tags.length <= 10, "tags", "validation.tags.too-many");
-  validator.check(
-    tags.every((tag) => TAG_PATTERN.test(tag)),
-    "tags",
-    "validation.tag.invalid",
-  );
-
-  const visibility = input["visibility"] ?? "private";
-  if (!VISIBILITIES.includes(visibility as Visibility)) {
-    throw new BadRequestProblem(`unknown visibility: ${String(visibility)}`);
-  }
-
-  validator.throwIfInvalid();
-  return { url, title, notes, tags, visibility: visibility as Visibility };
-}
 
 interface ListFilters {
   tags: string[];
@@ -253,9 +197,8 @@ export class BookmarksService {
     };
   }
 
-  async create(request: FastifyRequest, reply: FastifyReply, body: unknown): Promise<FastifyReply> {
+  async create(request: FastifyRequest, reply: FastifyReply, input: BookmarkBodyDto): Promise<FastifyReply> {
     const caller = requireCaller(request);
-    const input = validateBookmarkInput(body);
     const now = new Date();
     const id = randomUUID();
     const result = await pool.query(
@@ -279,10 +222,9 @@ export class BookmarksService {
     return toBookmarkResponse(bookmark);
   }
 
-  async update(request: FastifyRequest, idParam: string, body: unknown): Promise<Partial<BookmarkRow>> {
+  async update(request: FastifyRequest, idParam: string, input: BookmarkBodyDto): Promise<Partial<BookmarkRow>> {
     const caller = requireCaller(request);
     const id = parseUuid(idParam);
-    const input = validateBookmarkInput(body);
     // lock the row so a concurrent moderation hide cannot slip between the
     // hidden-publish check and the write (SPEC rule 15) — moderation takes the
     // same `for update` lock, so the two serialize

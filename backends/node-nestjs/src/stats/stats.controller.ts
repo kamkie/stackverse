@@ -1,8 +1,10 @@
 import { Controller, Get, Req, Res } from "@nestjs/common";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { Roles } from "../auth.js";
 import { StatsService } from "./stats.service.js";
 
 @Controller()
+@Roles("moderator")
 export class StatsController {
   constructor(private readonly stats: StatsService) {}
 

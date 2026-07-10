@@ -4,11 +4,11 @@ import { pool, withTransaction } from "../db.js";
 import { requireRole } from "../auth.js";
 import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
+import { UserStatusBodyDto } from "./user-status.dto.js";
 import {
   BadRequestProblem,
   ConflictProblem,
   NotFoundProblem,
-  Validator,
   escapeLike,
   omitNulls,
   requireMaxLength,
@@ -94,18 +94,11 @@ export class AdminUsersService {
   }
 
   /** SPEC rule 17: block/unblock with audit; admins cannot block themselves. */
-  async setStatus(request: FastifyRequest, username: string, body: unknown) {
+  async setStatus(request: FastifyRequest, username: string, input: UserStatusBodyDto) {
     const caller = requireRole(request, "admin");
-    const inputBody = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
-    const status = inputBody["status"];
-    if (status !== "active" && status !== "blocked") throw new BadRequestProblem("status is required");
-    const reason = typeof inputBody["reason"] === "string" ? inputBody["reason"].trim() : undefined;
+    const { status, reason } = input;
 
     if (status === "blocked") {
-      const validator = new Validator();
-      validator.check(reason !== undefined && reason !== "", "reason", "validation.block.reason.required");
-      validator.check((reason?.length ?? 0) <= 1000, "reason", "validation.block.reason.too-long");
-      validator.throwIfInvalid();
       if (username === caller.username) throw new ConflictProblem("Admins cannot block themselves.");
     }
 

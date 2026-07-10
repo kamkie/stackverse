@@ -8,19 +8,21 @@ import { recordAudit } from "../audit.js";
 import { logEvent } from "../logging.js";
 import { toBookmarkResponse, type BookmarkRow } from "../bookmarks/bookmarks.service.js";
 import {
+  BookmarkStatusBodyDto,
+  ReportBodyDto,
+  REPORT_STATUSES,
+  ResolutionBodyDto,
+  type ReportStatus,
+} from "./moderation.dto.js";
+import {
   BadRequestProblem,
   ConflictProblem,
   NotFoundProblem,
-  Validator,
   omitNulls,
   parseUuid,
   requireValidPaging,
   singleParam,
 } from "../problems.js";
-
-const REPORT_REASONS = ["spam", "offensive", "broken-link", "other"] as const;
-const REPORT_STATUSES = ["open", "dismissed", "actioned"] as const;
-type ReportStatus = (typeof REPORT_STATUSES)[number];
 
 interface ReportRow {
   id: string;
@@ -48,26 +50,6 @@ const toReportResponse = (row: ReportRow) =>
     resolvedAt: row.resolved_at?.toISOString(),
     resolutionNote: row.resolution_note,
   });
-
-interface ReportInput {
-  reason: string;
-  comment: string | null;
-}
-
-function validateReportInput(body: unknown): ReportInput {
-  const input = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
-  const validator = new Validator();
-  const reason = input["reason"];
-  validator.check(
-    typeof reason === "string" && (REPORT_REASONS as readonly string[]).includes(reason),
-    "reason",
-    "validation.report.reason.invalid",
-  );
-  const comment = typeof input["comment"] === "string" ? input["comment"] : null;
-  validator.check((comment?.length ?? 0) <= 1000, "comment", "validation.report.comment.too-long");
-  validator.throwIfInvalid();
-  return { reason: reason as string, comment };
-}
 
 function validatedStatus(value: string | undefined): ReportStatus | undefined {
   if (value === undefined) return undefined;
@@ -146,11 +128,10 @@ export class ModerationService {
     request: FastifyRequest,
     reply: FastifyReply,
     bookmarkIdParam: string,
-    body: unknown,
+    input: ReportBodyDto,
   ): Promise<FastifyReply> {
     const caller = requireCaller(request);
     const bookmarkId = parseUuid(bookmarkIdParam);
-    const input = validateReportInput(body);
     // lock the bookmark and recheck visibility inside the transaction: a
     // concurrent hide (which takes the same lock) must not let an open report
     // land on a now-hidden bookmark
@@ -216,12 +197,11 @@ export class ModerationService {
   }
 
   /** SPEC rule 13: the reporter may revise reason/comment while the report is open. */
-  async updateMyReport(request: FastifyRequest, idParam: string, body: unknown) {
+  async updateMyReport(request: FastifyRequest, idParam: string, input: ReportBodyDto) {
     const caller = requireCaller(request);
     const id = parseUuid(idParam);
     return withTransaction(async (client) => {
       const report = await ownReport(client, caller.username, id);
-      const input = validateReportInput(body);
       requireOpen(report);
       const updated = await client.query("update reports set reason = $2, comment = $3 where id = $1 returning *", [
         id,
@@ -286,22 +266,11 @@ export class ModerationService {
    * in opposite orders and deadlock. Taking the bookmark lock up front
    * serializes `actioned` resolutions per bookmark.
    */
-  async resolveReport(request: FastifyRequest, idParam: string, body: unknown) {
+  async resolveReport(request: FastifyRequest, idParam: string, input: ResolutionBodyDto) {
     const caller = requireRole(request, "moderator");
     const id = parseUuid(idParam);
 
-    const inputBody = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
-    const validator = new Validator();
-    const resolution = inputBody["resolution"];
-    validator.check(
-      typeof resolution === "string" && (REPORT_STATUSES as readonly string[]).includes(resolution),
-      "resolution",
-      "validation.resolution.invalid",
-    );
-    const note = typeof inputBody["note"] === "string" ? inputBody["note"] : null;
-    validator.check((note?.length ?? 0) <= 1000, "note", "validation.resolution.note.too-long");
-    validator.throwIfInvalid();
-    const target = resolution as ReportStatus;
+    const { resolution: target, note } = input;
 
     return withTransaction(async (client) => {
       if (target === "actioned") {
@@ -372,17 +341,11 @@ export class ModerationService {
   }
 
   /** SPEC rule 15: hide/restore switches `status` only; `visibility` is never touched. */
-  async setBookmarkStatus(request: FastifyRequest, idParam: string, body: unknown) {
+  async setBookmarkStatus(request: FastifyRequest, idParam: string, input: BookmarkStatusBodyDto) {
     const caller = requireRole(request, "moderator");
     const id = parseUuid(idParam);
 
-    const inputBody = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
-    const validator = new Validator();
-    const status = inputBody["status"];
-    validator.check(status === "active" || status === "hidden", "status", "validation.bookmark-status.invalid");
-    const note = typeof inputBody["note"] === "string" ? inputBody["note"] : null;
-    validator.check((note?.length ?? 0) <= 1000, "note", "validation.bookmark-status.note.too-long");
-    validator.throwIfInvalid();
+    const { status, note } = input;
 
     return withTransaction(async (client) => {
       const found = await client.query("select * from bookmarks where id = $1 for update", [id]);
