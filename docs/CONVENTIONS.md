@@ -47,7 +47,7 @@ issue closes.
 | [Play (Scala)](../backends/play-scala/README.md) | conf/routes maps to focused controllers, models, services, and repositories in standard app/* packages | Separate health, identity, bookmark, message, moderation, and admin controllers own feature actions; a focused bookmark repository owns the lookup shared with moderation | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | sbt project with src/main/scala, explicit routes, and focused modules | Main composes resources/server only; focused route/service pairs plus separate auth, persistence, validation/wire, config, boot, and logging modules | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Standard Maven src/main/java tree; JAX-RS resources and focused application/data services per aggregate | Standard Maven layout; thin JAX-RS resources delegate to focused bookmark, report, message, identity, admin, and health services | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate, but every feature handler and its SQL live in one ~2,769-line handlers.rs | 🔴 undocumented |
+| [Rust (Axum)](../backends/rust-axum/README.md) | Cargo crate with focused src/*.rs modules; workspace only when splitting libraries | Single binary crate with focused bookmark, message, report, admin, and identity handler modules plus narrow common/wire helpers | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | Rails API app with app/controllers, app/models, app/services, config/routes.rb | Standard Rails API layout; controllers plus contract-heavy services under app/services/stackverse | ✅ idiomatic |
 
 ### Persistence / data access
@@ -247,7 +247,7 @@ issue closes.
 | [Play (Scala)](../backends/play-scala/README.md) | scalafmt (and often scalafix) config checked in | scalafmt config checked by CI; Scala compilation uses deprecation/feature warnings with `-Werror` | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | scalafmt (and often scalafix) config checked in | scalafmt config checked by CI; deprecation/feature warnings compile with `-Werror` | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
-| [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
+| [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check/test, and all-target/all-feature Clippy with warnings denied | ✅ idiomatic |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | RuboCop plus rails-omakase or StandardRB in CI | No RuboCop/Standard configured; CI runs Zeitwerk and Minitest only | 🔴 undocumented |
 
 ### API & domain-type modeling
