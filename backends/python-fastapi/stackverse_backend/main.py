@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import get_args, get_type_hints
 
 import psycopg
 import uvicorn
@@ -16,6 +17,7 @@ from .i18n import localize, resolve_language
 from .logging_setup import log_event, logger
 from .problems import AppProblem, ValidationProblem, first_param, problem_response
 from .routers import register_routes
+from .schemas import ContractModel
 from .seed import seed_messages
 from .telemetry import configure_telemetry, shutdown_telemetry
 
@@ -90,7 +92,7 @@ def build_app() -> FastAPI:
         return problem_response(exc.status, exc.title, detail)
 
     @app.exception_handler(RequestValidationError)
-    async def request_validation_handler(_request: Request, _exc: RequestValidationError):
+    async def request_validation_handler(request: Request, exc: RequestValidationError):
         log_event(
             "info",
             "input_validation_failed",
@@ -98,7 +100,25 @@ def build_app() -> FastAPI:
             "Request validation failed",
             error_code="request_validation_failed",
         )
-        return problem_response(400, "Bad Request", "Request validation failed.")
+        request_model = _request_model(request)
+        violations = _request_validation_violations(request_model, exc)
+        if not violations:
+            detail = request_model.missing_body_detail if request_model is not None else None
+            return problem_response(400, "Bad Request", detail or "Request validation failed.")
+        language = await run_in_threadpool(
+            resolve_language,
+            first_param(request, "lang"),
+            request.headers.get("accept-language"),
+        )
+        errors = [
+            {
+                "field": field,
+                "messageKey": message_key,
+                "message": await run_in_threadpool(localize, message_key, language),
+            }
+            for field, message_key in violations
+        ]
+        return problem_response(400, "Bad Request", "Request validation failed.", errors)
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(_request: Request, exc: StarletteHTTPException):
@@ -122,7 +142,62 @@ def build_app() -> FastAPI:
 
     register_routes(app)
     configure_telemetry(app)
+    _normalize_local_openapi(app)
     return app
+
+
+def _request_model(request: Request) -> type[ContractModel] | None:
+    endpoint = request.scope.get("endpoint")
+    if not callable(endpoint):
+        return None
+    try:
+        body_annotation = get_type_hints(endpoint).get("body")
+    except NameError, TypeError:
+        return None
+    for candidate in (body_annotation, *get_args(body_annotation)):
+        if isinstance(candidate, type) and issubclass(candidate, ContractModel):
+            return candidate
+    return None
+
+
+def _request_validation_violations(
+    request_model: type[ContractModel] | None,
+    exc: RequestValidationError,
+) -> list[tuple[str, str]]:
+    if request_model is None:
+        return []
+    has_root_body_error = any(tuple(error.get("loc", ())) == ("body",) for error in exc.errors())
+    return list(request_model.missing_body_violations) if has_root_body_error else []
+
+
+def _normalize_local_openapi(app: FastAPI) -> None:
+    default_openapi = app.openapi
+
+    def contract_aware_openapi() -> dict[str, object]:
+        schema = default_openapi()
+        for path_item in schema.get("paths", {}).values():
+            if not isinstance(path_item, dict):
+                continue
+            for operation in path_item.values():
+                if not isinstance(operation, dict):
+                    continue
+                responses = operation.get("responses")
+                if not isinstance(responses, dict):
+                    continue
+                if "requestBody" in operation:
+                    responses.pop("422", None)
+                for response in responses.values():
+                    if not isinstance(response, dict):
+                        continue
+                    content = response.get("content")
+                    if not isinstance(content, dict) or "application/problem+json" not in content:
+                        continue
+                    json_content = content.pop("application/json", None)
+                    if isinstance(json_content, dict):
+                        content["application/problem+json"] = json_content
+        return schema
+
+    app.openapi = contract_aware_openapi
 
 
 app = build_app()

@@ -195,7 +195,7 @@ issue closes.
 | [NestJS](../backends/node-nestjs/README.md) | class-validator/class-transformer DTOs with a global ValidationPipe | Hand-rolled Validator collector, no pipes, no DTO decorators | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Bean Validation (@Valid / Hibernate Validator) on inputs | Hand-rolled Validator collecting FieldViolations, keyed message localization | 🟡 deliberate |
 | [PHP Laravel](../backends/php-laravel/README.md) | FormRequest / Validator facade with validation rules | Hand-rolled Validator collecting localized FieldViolations | 🟡 deliberate |
-| [FastAPI](../backends/python-fastapi/README.md) | Pydantic models bind and validate request bodies | Bodies bound as `Annotated[Any, Body()]`; hand-rolled Validator functions | 🟡 deliberate |
+| [FastAPI](../backends/python-fastapi/README.md) | Pydantic models bind and validate request bodies | Typed Pydantic body models with focused domain validators preserving localized RFC 9457 errors | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | DRF serializers validate request bodies and query parameters | DRF parses bodies; hand-rolled Validator functions preserve localized contract keys | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Total typed Reads return JsError with contract message keys; InputJson maps the result once to RFC 9457 domain problems | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe decoders/refined types, cats-validated, or explicit validation | Manual Validator accumulator over Circe JsonObject lookups with message keys | 🟡 deliberate |
@@ -270,7 +270,7 @@ issue closes.
 | [NestJS](../backends/node-nestjs/README.md) | DTO classes + entities; enums; @nestjs/swagger OpenAPI generation | Plain TS interfaces, string-literal unions, wire-string enums, omitNulls helper | 🟡 deliberate |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Typed DTOs bound by JSON-B/Jackson, often OpenAPI-generated | Map&lt;String,Object&gt; + Jackson for wire; records for internal inputs, no DTOs | 🔴 undocumented |
 | [PHP Laravel](../backends/php-laravel/README.md) | Eloquent API resources / JsonResource DTOs or arrays | Hand-built response arrays, lowercase wire strings, omitNulls helper | 🟡 deliberate |
-| [FastAPI](../backends/python-fastapi/README.md) | Pydantic models as request/response schemas with response_model | Plain dict[str, Any] in/out; dataclasses only for Caller and Config | 🟡 deliberate |
+| [FastAPI](../backends/python-fastapi/README.md) | Pydantic models as request/response schemas with response_model | Pydantic request/response schemas declared on every JSON route; optional fields excluded when absent | ✅ idiomatic |
 | [Django + DRF](../backends/python-django/README.md) | Django models plus DRF serializers for request/response DTOs | Django models for domain; manual response dict mappers omit optional null fields | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Json.format macros / Reads-Writes on case classes; typed IDs | Total typed request Reads and production row OWrites preserve message keys, omission, and string-enum contract details | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe codecs/DTO case classes and typed domain values | Case-class rows plus manual Circe Json builders; wire enums kept as strings | 🟡 deliberate |

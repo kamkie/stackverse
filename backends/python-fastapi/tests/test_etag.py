@@ -3,6 +3,7 @@ import json
 from starlette.requests import Request
 
 from stackverse_backend.etag import response_with_etag
+from stackverse_backend.schemas import MessageBundle
 
 
 def make_request(if_none_match: str | None = None) -> Request:
@@ -24,6 +25,7 @@ def test_response_with_etag_serializes_compact_json_and_cache_headers() -> None:
     response = response_with_etag(
         make_request(),
         {"language": "pl", "messages": {"ui.greeting": "Czesc"}},
+        MessageBundle,
         {"Content-Language": "pl"},
     )
 
@@ -37,8 +39,9 @@ def test_response_with_etag_serializes_compact_json_and_cache_headers() -> None:
 
 
 def test_response_with_etag_returns_304_when_any_validator_matches() -> None:
-    fresh = response_with_etag(make_request(), {"items": []})
-    cached = response_with_etag(make_request(f'"stale", {fresh.headers["ETag"]}'), {"items": []})
+    payload = {"language": "en", "messages": {}}
+    fresh = response_with_etag(make_request(), payload, MessageBundle)
+    cached = response_with_etag(make_request(f'"stale", {fresh.headers["ETag"]}'), payload, MessageBundle)
 
     assert cached.status_code == 304
     assert cached.body == b""

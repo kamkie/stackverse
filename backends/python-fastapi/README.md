@@ -50,11 +50,12 @@ docker build -t stackverse/backend-python-fastapi:local -f backends/python-fasta
 
 ## What this implementation demonstrates
 
-- **FastAPI with a thin service layer** — handlers live in resource-oriented
-  `APIRouter` modules and use `Depends` for caller/role injection, while
-  request bodies are validated by contract-specific functions so RFC 9457
-  problem documents carry the localized `validation.*` keys the shared suite
-  asserts.
+- **FastAPI with typed Pydantic boundaries** — handlers live in resource-oriented
+  `APIRouter` modules, use `Depends` for caller/role injection, bind request bodies
+  to Pydantic models, and declare response models. Focused domain validation stays
+  separate so RFC 9457 problem documents retain the localized `validation.*` keys
+  asserted by the shared suite; unknown JSON fields remain ignored by contract and
+  response-model exclusion omits absent optional fields.
 - **Plain SQL with psycopg** — feature logic stays close to PostgreSQL:
   arrays for tags, partial unique indexes for one open report per reporter,
   row locks for the moderation state machine, and keyset pagination over
@@ -82,9 +83,6 @@ docker build -t stackverse/backend-python-fastapi:local -f backends/python-fasta
   easier to read for a contract-first comparison, while authentication
   dependencies move blocking verification/account provisioning off the event
   loop.
-- Optional response fields are omitted rather than serialized as `null`, using
-  small response mappers instead of a global serializer policy.
-
 ## Logging conformance
 
 Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) §10;

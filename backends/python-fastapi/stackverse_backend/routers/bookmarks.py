@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Any
 from uuid import uuid4
 
-from fastapi import APIRouter, Body, Request, Response
+from fastapi import APIRouter, Request, Response
 from psycopg import sql
 
 from ..api import (
@@ -23,13 +23,21 @@ from ..auth import CurrentCaller, OptionalCaller
 from ..cursor import BookmarkCursor, decode_cursor, encode_cursor
 from ..db import execute, one, query, transaction
 from ..problems import ConflictProblem, NotFoundProblem, parse_uuid, require_valid_paging, single_param
+from ..schemas import (
+    Bookmark,
+    BookmarkCursorPage,
+    BookmarkInput,
+    BookmarkPage,
+    TagList,
+    body_payload,
+    problem_responses,
+)
 from ..time import now_utc
 
 router = APIRouter()
-RequestBody = Annotated[Any, Body()]
 
 
-@router.get("/api/v1/bookmarks")
+@router.get("/api/v1/bookmarks", response_model=BookmarkPage, response_model_exclude_none=True)
 def list_bookmarks_v1(request: Request, response: Response, caller: OptionalCaller) -> dict[str, Any]:
     response.headers["Deprecation"] = V1_BOOKMARKS_DEPRECATION
     response.headers["Sunset"] = V1_BOOKMARKS_SUNSET
@@ -53,7 +61,7 @@ def list_bookmarks_v1(request: Request, response: Response, caller: OptionalCall
     return page_of(items, page, size, total, to_bookmark_response)
 
 
-@router.get("/api/v2/bookmarks")
+@router.get("/api/v2/bookmarks", response_model=BookmarkCursorPage, response_model_exclude_none=True)
 def list_bookmarks_v2(request: Request, caller: OptionalCaller) -> dict[str, Any]:
     _page, size = require_valid_paging(request)
     filters = parse_bookmark_filters(request)
@@ -82,9 +90,15 @@ def list_bookmarks_v2(request: Request, caller: OptionalCaller) -> dict[str, Any
     return payload
 
 
-@router.post("/api/v1/bookmarks", status_code=201)
-def create_bookmark(response: Response, caller: CurrentCaller, body: RequestBody = None) -> dict[str, Any]:
-    input_data = validate_bookmark_input(body)
+@router.post(
+    "/api/v1/bookmarks",
+    status_code=201,
+    response_model=Bookmark,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401),
+)
+def create_bookmark(response: Response, caller: CurrentCaller, body: BookmarkInput) -> dict[str, Any]:
+    input_data = validate_bookmark_input(body_payload(body))
     bookmark_id = str(uuid4())
     now = now_utc()
     row = one(
@@ -109,7 +123,7 @@ def create_bookmark(response: Response, caller: CurrentCaller, body: RequestBody
     return to_bookmark_response(row)
 
 
-@router.get("/api/v1/bookmarks/{bookmark_id}")
+@router.get("/api/v1/bookmarks/{bookmark_id}", response_model=Bookmark, response_model_exclude_none=True)
 def get_bookmark(bookmark_id: str, caller: OptionalCaller) -> dict[str, Any]:
     bookmark = find_bookmark(parse_uuid(bookmark_id))
     username = caller.username if caller else None
@@ -118,10 +132,15 @@ def get_bookmark(bookmark_id: str, caller: OptionalCaller) -> dict[str, Any]:
     return to_bookmark_response(bookmark)
 
 
-@router.put("/api/v1/bookmarks/{bookmark_id}")
-def update_bookmark(bookmark_id: str, caller: CurrentCaller, body: RequestBody = None) -> dict[str, Any]:
+@router.put(
+    "/api/v1/bookmarks/{bookmark_id}",
+    response_model=Bookmark,
+    response_model_exclude_none=True,
+    responses=problem_responses(400, 401, 404, 409),
+)
+def update_bookmark(bookmark_id: str, caller: CurrentCaller, body: BookmarkInput) -> dict[str, Any]:
     parsed_bookmark_id = parse_uuid(bookmark_id)
-    input_data = validate_bookmark_input(body)
+    input_data = validate_bookmark_input(body_payload(body))
     with transaction() as conn:
         bookmark = conn.execute("select * from bookmarks where id = %s for update", (parsed_bookmark_id,)).fetchone()
         if bookmark is None or bookmark["owner"] != caller.username:
@@ -158,7 +177,7 @@ def delete_bookmark(bookmark_id: str, caller: CurrentCaller) -> Response:
     return Response(status_code=204)
 
 
-@router.get("/api/v1/tags")
+@router.get("/api/v1/tags", response_model=TagList)
 def list_tags(caller: CurrentCaller) -> dict[str, Any]:
     rows = query(
         """
