@@ -27,7 +27,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | dotnet | 3340 | 1022 | 0.31 | 46 | 12 | 84 | 102 | 21 | C#, JSON |
-| elixir-phoenix | 2393 | 60 | 0.03 | 23 | 3 | 25 | 82 | 25 | Elixir |
+| elixir-phoenix | 2802 | 310 | 0.11 | 58 | 9 | 25 | 93 | 25 | Elixir |
 | go | 3500 | 1277 | 0.36 | 28 | 15 | 14 | 110 | 14 | Go, SQL |
 | go-echo | 3539 | 1291 | 0.36 | 29 | 15 | 14 | 122 | 14 | Go, SQL |
 | grails | 1922 | 289 | 0.15 | 38 | 7 | 187 | 71 | 20 | Groovy, SQL, YAML |
@@ -35,7 +35,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | micronaut-java | 2706 | 496 | 0.18 | 29 | 8 | 259 | 89 | 19 | Java, SQL, YAML |
 | node-nestjs | 2120 | 445 | 0.21 | 36 | 6 | 146 | 120 | 23 | TypeScript |
 | node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
-| open-liberty-java | 2238 | 308 | 0.14 | 19 | 2 | 519 | 86 | 18 | Java, SQL, XML |
+| open-liberty-java | 3080 | 624 | 0.20 | 34 | 6 | 587 | 114 | 18 | Java, SQL, XML |
 | php-laravel | 2747 | 87 | 0.03 | 49 | 5 | 36 | 81 | 36 | PHP, JSON, XML |
 | play-scala | 2238 | 585 | 0.26 | 24 | 3 | 25 | 115 | 25 | Scala, SQL |
 | python-django | 1964 | 169 | 0.09 | 27 | 7 | 63 | 90 | 21 | Python |
@@ -46,7 +46,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | scala-http4s | 2302 | 587 | 0.25 | 29 | 2 | 27 | 113 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 51975 | 10404 | | 665 | 128 | 2922 | 1866 | 428 | |
+| **subtotal** | 53226 | 10970 | | 715 | 138 | 2990 | 1905 | 428 | |
 
 ## Gateway
 

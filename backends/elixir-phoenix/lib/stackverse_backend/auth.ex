@@ -1,7 +1,8 @@
 defmodule StackverseBackend.Auth do
   @moduledoc false
 
-  alias StackverseBackend.{Jwks, Repo}
+  alias StackverseBackend.{Jwks, Query, Repo}
+  alias StackverseBackend.Schemas.UserAccount
 
   @app_roles ~w[admin moderator]
 
@@ -54,18 +55,22 @@ defmodule StackverseBackend.Auth do
   def has_role?(_caller, _role), do: false
 
   def record_seen(username) do
-    %{rows: [[status]]} =
-      Repo.query!(
-        """
-        insert into user_accounts (username, first_seen, last_seen, status)
-        values ($1, $2, $2, 'active')
-        on conflict (username) do update set last_seen = excluded.last_seen
-        returning status
-        """,
-        [username, DateTime.utc_now()]
-      )
+    now = Query.now()
 
-    status
+    case Repo.get(UserAccount, username) do
+      nil ->
+        username
+        |> UserAccount.new(now)
+        |> Repo.insert!(
+          on_conflict: [set: [last_seen: now]],
+          conflict_target: :username,
+          returning: true
+        )
+        |> Map.fetch!(:status)
+
+      account ->
+        account |> UserAccount.seen_changeset(now) |> Repo.update!() |> Map.fetch!(:status)
+    end
   end
 
   defp validate_claims(claims) do

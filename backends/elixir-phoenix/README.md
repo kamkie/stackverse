@@ -32,6 +32,11 @@ mix compile --warnings-as-errors
 mix test
 ```
 
+CI also starts PostgreSQL and runs the database-tagged `DataCase` regression
+tests. To include those locally, point the standard `DB_*` variables at a test
+database, set `STACKVERSE_DB_TESTS=true`, run
+`MIX_ENV=test mix ecto.migrate`, and then run `MIX_ENV=test mix test`.
+
 Conformance (the acceptance gate), with the backend running:
 
 ```sh
@@ -50,9 +55,15 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 - **Phoenix as a thin API boundary** — the router is explicit and a single
   authentication plug validates JWTs, lazily provisions accounts, and rejects
   blocked users before controller actions run.
-- **Ecto-owned persistence** — the backend owns its migrations and runs them
-  on startup; contract-sensitive reads and writes use parameterized SQL
-  through `Ecto.Adapters.SQL`.
+- **Contexts and focused controllers** — bookmark, message, report,
+  moderation, account, audit, and stats contexts own application/data
+  behavior; focused Phoenix controllers own only HTTP parsing, authorization,
+  and response rendering. Shared input, persistence-error, and JSON-view
+  support keeps contract-sensitive boundary rules in one place.
+- **Ecto-owned persistence and input schemas** — typed schemas, `Ecto.Query`,
+  and `Repo` own normal bookmark, message, report, account, and audit
+  persistence. Embedded schemas use `cast/4` before normalization and map cast
+  failures to the established Stackverse message keys.
 - **BEAM supervision shape** — Repo starts under the application supervisor;
   migrations and message seed run before the Endpoint is added, so `/readyz`
   is not exposed until the schema exists.
@@ -65,17 +76,18 @@ docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoen
 
 ## Deliberate deviations worth comparing
 
-- Persistence uses explicit SQL through Ecto rather than Ecto schemas and
-  changesets. The Stackverse contract leans on PostgreSQL array containment,
-  row locks, partial unique indexes, and body-stable pagination; keeping those
-  SQL shapes visible is more instructive here than hiding them behind schemas.
-- Validation is hand-written instead of changeset-based. The API must return
-  localized RFC 9457 field errors with Stackverse message keys, and the small
-  validator keeps that contract direct.
-- The controller is intentionally broad. Phoenix contexts would be natural in a
-  product app; this variant keeps the cross-stack comparison points close
-  together while helpers (`Validation`, `I18n`, `Cursor`, `Problem`) hold the
-  reusable pieces.
+- Normal persistence uses `Ecto.Schema`, `Ecto.Query`, changesets, constraints,
+  and `Repo` CRUD. Explicit SQL is limited to three PostgreSQL-shaped
+  aggregates/imports: array `unnest` for tag counts, timezone-aware daily
+  statistics, and the bulk message-seed `unnest`/`on conflict` insert. Tag
+  containment remains one reviewed Ecto `fragment`; row locks and partial
+  unique constraints use Ecto query/changeset APIs.
+- Responses are explicit maps converted from persistence structs. This keeps
+  lowercase wire enums, camel-case field names, and RFC 9457 omission rules at
+  the JSON boundary without replacing the typed persistence model.
+- `ConnCase` endpoint/parser tests, `DataCase` input/schema tests, and
+  PostgreSQL-backed Repo/query regressions cover Phoenix/Ecto boundaries; the
+  shared black-box conformance suite owns exhaustive live behavior.
 
 ## Logging conformance
 

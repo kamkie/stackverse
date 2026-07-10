@@ -1,7 +1,10 @@
 defmodule StackverseBackend.I18n do
   @moduledoc false
 
+  import Ecto.Query
+
   alias StackverseBackend.Repo
+  alias StackverseBackend.Schemas.Message
 
   @default_language "en"
 
@@ -61,48 +64,40 @@ defmodule StackverseBackend.I18n do
   end
 
   def localize(key, language) do
-    languages = Enum.uniq([language, @default_language])
-
-    """
-    select text from messages
-    where key = $1 and language = any($2::text[])
-    order by case when language = $3 then 0 else 1 end
-    limit 1
-    """
-    |> Repo.query!([key, languages, language])
-    |> case do
-      %{rows: [[text]]} -> text
-      _ -> key
-    end
+    text_for(key, language) || text_for(key, @default_language) || key
   end
 
   def bundle(language) do
     languages = Enum.uniq([language, @default_language])
 
-    result =
-      Repo.query!(
-        """
-        select key, language, text from messages
-        where language = any($1::text[])
-        order by key, case when language = $2 then 1 else 0 end
-        """,
-        [languages, language]
-      )
+    messages = Message |> where([message], message.language in ^languages) |> Repo.all()
 
-    Enum.reduce(result.rows, %{}, fn [key, row_language, text], acc ->
-      if row_language == language or not Map.has_key?(acc, key) do
-        Map.put(acc, key, text)
-      else
-        acc
-      end
-    end)
+    fallback =
+      messages
+      |> Enum.filter(&(&1.language == @default_language))
+      |> Map.new(&{&1.key, &1.text})
+
+    requested =
+      messages
+      |> Enum.filter(&(&1.language == language))
+      |> Map.new(&{&1.key, &1.text})
+
+    Map.merge(fallback, requested)
   end
 
   defp supported_languages do
-    %{rows: rows} = Repo.query!("select distinct language from messages", [])
-
-    rows
-    |> Enum.map(fn [language] -> language end)
+    Message
+    |> distinct([message], message.language)
+    |> select([message], message.language)
+    |> Repo.all()
     |> MapSet.new()
+  end
+
+  defp text_for(key, language) do
+    Repo.one(
+      from message in Message,
+        where: message.key == ^key and message.language == ^language,
+        select: message.text
+    )
   end
 end
