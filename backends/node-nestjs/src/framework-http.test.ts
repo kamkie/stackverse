@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { FastifyAdapter, type NestFastifyApplication } from "@nestjs/platform-fastify";
@@ -70,6 +71,17 @@ describe("Nest framework HTTP boundaries", () => {
   });
 
   afterEach(async () => app.close());
+
+  it("emits controller parameter metadata for the global DTO pipe", () => {
+    const parameterTypes = Reflect.getMetadata(
+      "design:paramtypes",
+      BookmarksController.prototype,
+      "create",
+    ) as unknown[];
+
+    expect(parameterTypes).toHaveLength(3);
+    expect(parameterTypes[2]).toBe(BookmarkBodyDto);
+  });
 
   it("keeps explicitly public reads anonymous-capable", async () => {
     const response = await app.inject({ method: "GET", url: "/api/v1/bookmarks?visibility=public" });

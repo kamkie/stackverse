@@ -1,7 +1,9 @@
+import { readFileSync } from "node:fs";
 import type { ArgumentMetadata } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import { UserStatusBodyDto } from "./admin-users/user-status.dto.js";
 import { BookmarkBodyDto } from "./bookmarks/bookmark.dto.js";
+import { validateQueryTags } from "./bookmarks/bookmarks.service.js";
 import { MessageBodyDto } from "./messages/message.dto.js";
 import { BookmarkStatusBodyDto, ReportBodyDto, ResolutionBodyDto } from "./moderation/moderation.dto.js";
 import { ValidationProblem } from "./problems.js";
@@ -70,4 +72,33 @@ describe("DTO validation metadata", () => {
   ] as const)("rejects wrong optional scalar types for %s", async (metatype, body, field, messageKey) => {
     await expect(violations(metatype, body)).resolves.toContainEqual({ field, messageKey });
   });
+});
+
+describe("remaining query validation", () => {
+  it("normalizes and validates query tags", () => {
+    expect(validateQueryTags([" Node ", "WEB"])).toEqual(["node", "web"]);
+    expect(() => validateQueryTags(["no spaces!"])).toThrow(ValidationProblem);
+  });
+});
+
+describe("DTO validation message seeds", () => {
+  const seeds = Object.fromEntries(
+    ["en", "pl"].map((language) => [
+      language,
+      JSON.parse(readFileSync(new URL(`../../../spec/messages/${language}.json`, import.meta.url), "utf8")) as Record<
+        string,
+        string
+      >,
+    ]),
+  );
+
+  it.each(["validation.visibility.invalid", "validation.user-status.invalid"])(
+    "provides localized text for %s",
+    (messageKey) => {
+      expect(seeds.en[messageKey]).toEqual(expect.any(String));
+      expect(seeds.pl[messageKey]).toEqual(expect.any(String));
+      expect(seeds.en[messageKey]).not.toBe(messageKey);
+      expect(seeds.pl[messageKey]).not.toBe(messageKey);
+    },
+  );
 });
