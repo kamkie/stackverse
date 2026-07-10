@@ -196,7 +196,7 @@ issue closes.
 | [Django + DRF](../backends/python-django/README.md) | DRF serializers validate request bodies and query parameters | DRF parses bodies; hand-rolled Validator functions preserve localized contract keys | 🟡 deliberate |
 | [Play (Scala)](../backends/play-scala/README.md) | Play Form binding or JSON Reads/validate combinators | Total typed Reads return JsError with contract message keys; InputJson maps the result once to RFC 9457 domain problems | ✅ idiomatic |
 | [Scala http4s](../backends/scala-http4s/README.md) | Circe decoders/refined types, cats-validated, or explicit validation | Manual Validator accumulator over Circe JsonObject lookups with message keys | 🟡 deliberate |
-| [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Typed request records use @Valid, standard constraints, focused URL/cross-field validators, and a localized contract mapper | ✅ idiomatic |
+| [Quarkus](../backends/quarkus-java/README.md) | Hibernate Validator / Bean Validation via @Valid on mapped DTOs | Typed request records use @Valid, standard constraints, focused URL/code-point/cross-field validators, imperative visibility/query checks, and a localized contract mapper | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | validator crate or explicit domain validation | Hand-written Validator collecting localized FieldViolations | 🟡 deliberate |
 | [Ruby on Rails API](../backends/ruby-rails/README.md) | ActiveModel validations on models/form objects or dry-validation | Programmatic Validator collecting localized FieldViolations for RFC 9457 responses | 🟡 deliberate |
 
