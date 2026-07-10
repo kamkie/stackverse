@@ -37,7 +37,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
 | open-liberty-java | 2238 | 308 | 0.14 | 19 | 2 | 519 | 86 | 18 | Java, SQL, XML |
 | php-laravel | 2747 | 87 | 0.03 | 49 | 5 | 36 | 81 | 36 | PHP, JSON, XML |
-| play-scala | 2077 | 471 | 0.23 | 20 | 3 | 25 | 98 | 25 | Scala, SQL |
+| play-scala | 2232 | 542 | 0.24 | 24 | 3 | 25 | 115 | 25 | Scala, SQL |
 | python-django | 1964 | 169 | 0.09 | 27 | 7 | 63 | 90 | 21 | Python |
 | python-fastapi | 2022 | 619 | 0.31 | 24 | 10 | 62 | 91 | 21 | Python, SQL |
 | quarkus-java | 3203 | 357 | 0.11 | 22 | 1 | 540 | 81 | 20 | Java, SQL |
@@ -46,7 +46,7 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 | scala-http4s | 1671 | 265 | 0.16 | 2 | 1 | 27 | 86 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
 | spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 49978 | 9141 | | 607 | 125 | 2908 | 1800 | 428 | |
+| **subtotal** | 50133 | 9212 | | 611 | 125 | 2908 | 1817 | 428 | |
 
 ## Gateway
 
