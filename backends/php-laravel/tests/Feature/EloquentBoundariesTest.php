@@ -13,6 +13,7 @@ use App\Models\Bookmark;
 use App\Models\Message;
 use App\Models\Report;
 use App\Models\UserAccount;
+use App\Support\Cursor;
 use App\Support\Wire;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -83,6 +84,16 @@ class EloquentBoundariesTest extends TestCase
                 '100002',
                 DB::table('bookmarks')->where('id', $newerId)->selectRaw("to_char(created_at, 'US') as micros")->value('micros'),
             );
+
+            $firstPage = $this->getJson('/api/v2/bookmarks?size=1')
+                ->assertOk()
+                ->assertJsonPath('items.0.id', $newerId);
+            $cursor = $firstPage->json('nextCursor');
+            $this->assertIsString($cursor);
+            $this->assertSame('2026-07-10T06:00:00.100002Z', Cursor::decode($cursor)['createdAt']);
+            $this->getJson('/api/v2/bookmarks?'.http_build_query(['size' => 1, 'cursor' => $cursor]))
+                ->assertOk()
+                ->assertJsonPath('items.0.id', $olderId);
 
             $auditTime = CarbonImmutable::parse('2026-07-10T06:00:00.654321Z');
             Carbon::setTestNow($auditTime);

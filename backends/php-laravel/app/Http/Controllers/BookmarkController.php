@@ -66,7 +66,10 @@ class BookmarkController extends Controller
         $payload = ['items' => $items->map(fn (Bookmark $bookmark): array => $this->toBookmark($bookmark, $request))->values()->all()];
         if ($rows->count() > $size && $items->isNotEmpty()) {
             $last = $items->last();
-            $payload['nextCursor'] = Cursor::encode(['createdAt' => (string) $last->created_at, 'id' => $last->id]);
+            $payload['nextCursor'] = Cursor::encode([
+                'createdAt' => $last->created_at->utc()->format('Y-m-d\TH:i:s.u\Z'),
+                'id' => $last->id,
+            ]);
         }
 
         return response()->json($payload);
