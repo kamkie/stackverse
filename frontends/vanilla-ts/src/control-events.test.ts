@@ -129,13 +129,14 @@ describe("delegated control events", () => {
     visibility.value = "public";
     visibility.dispatchEvent(new InputEvent("input", { bubbles: true }));
     visibility.dispatchEvent(new Event("change", { bubbles: true }));
+    window.dispatchEvent(new PopStateEvent("popstate"));
 
     await vi.waitFor(() => {
-      expect(
-        document.querySelector<HTMLSelectElement>(
-          'form[data-form="bookmark"] select[name="visibility"]',
-        )?.value,
-      ).toBe("public");
+      const rerendered = document.querySelector<HTMLSelectElement>(
+        'form[data-form="bookmark"] select[name="visibility"]',
+      );
+      expect(rerendered).not.toBe(visibility);
+      expect(rerendered?.value).toBe("public");
     });
   });
 });
