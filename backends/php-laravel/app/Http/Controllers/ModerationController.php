@@ -205,10 +205,11 @@ class ModerationController extends Controller
             if ($existing === null) {
                 throw new NotFoundProblem;
             }
+            $previousStatus = $existing->status;
             $existing->status = $input['status'];
             $existing->save();
             $this->audit->record($caller->username, 'bookmark.status-changed', 'bookmark', $bookmarkId, [
-                'from' => $existing->status,
+                'from' => $previousStatus,
                 'to' => $input['status'],
                 'note' => $input['note'],
             ]);
@@ -216,7 +217,7 @@ class ModerationController extends Controller
                 'actor' => $caller->username,
                 'resource_type' => 'bookmark',
                 'resource_id' => $bookmarkId,
-                'from' => $existing->status,
+                'from' => $previousStatus,
                 'to' => $input['status'],
             ]);
 

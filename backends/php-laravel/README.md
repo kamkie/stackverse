@@ -56,7 +56,11 @@ docker build -t stackverse/backend-php-laravel:local -f backends/php-laravel/Doc
 - **Laravel as an API-only resource server** — routes live in `routes/api.php`,
   the `api` guard resolves bearer callers, route middleware applies caller/role
   policy before controllers, and Laravel sessions remain unused because the
-  gateway owns browser session state.
+  gateway owns browser session state. The optional bearer middleware is placed
+  ahead of Laravel's authentication priority marker so verification failures
+  are normalized before protected-route checks, and guest redirects are
+  disabled so missing credentials remain API `401` responses rather than
+  browser redirects.
 - **FormRequest validation and API resources** — concrete request classes own
   structural rules, normalization, and exact localized contract keys; Eloquent
   models plus unwrapped `JsonResource` classes own normal persistence and wire
@@ -68,7 +72,10 @@ docker build -t stackverse/backend-php-laravel:local -f backends/php-laravel/Doc
 - **Eloquent plus focused PostgreSQL SQL** — models/query builders handle normal
   CRUD, filters, pagination, and row locks. Raw SQL remains only where
   PostgreSQL arrays, tuple keysets, aggregates, or readiness probes make the
-  database-specific operation clearer.
+  database-specific operation clearer. The shared application `BaseModel`
+  serializes timestamps with microseconds and the PostgreSQL connection runs in
+  UTC, preserving instants and ordering for pagination, cursors, and
+  time-filtered audit queries.
 - **Maintained JOSE/JWT boundary** — Laravel's request guard delegates JWK and
   RS256 verification to `firebase/php-jwt`, validates `iss`/`aud`, and derives
   identity from `preferred_username`; no application-owned cryptography remains.

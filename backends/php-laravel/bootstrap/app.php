@@ -6,6 +6,7 @@ use App\Support\ApiProblem;
 use App\Support\Problems;
 use App\Support\ValidationProblem;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Contracts\Auth\Middleware\AuthenticatesRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands()
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->api(append: [AuthenticateBearer::class]);
+        $middleware->prependToPriorityList(AuthenticatesRequests::class, AuthenticateBearer::class);
+        $middleware->redirectGuestsTo(static fn (): ?string => null);
         $middleware->alias(['role' => RequireRole::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

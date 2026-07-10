@@ -2,9 +2,7 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-class AuditEntry extends Model
+class AuditEntry extends BaseModel
 {
     public $incrementing = false;
 
