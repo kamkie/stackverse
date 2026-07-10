@@ -9,9 +9,9 @@ lazy val root = (project in file("."))
     organization := "dev.stackverse",
     version := "0.1.0",
     Compile / mainClass := Some("dev.stackverse.http4s.Main"),
-    scalacOptions ++= Seq("-deprecation", "-feature"),
+    scalacOptions ++= Seq("-deprecation", "-feature", "-Werror"),
     libraryDependencies ++= Seq(
-      "org.typelevel" %% "cats-effect" % "3.7-4972921",
+      "org.typelevel" %% "cats-effect" % "3.7.0",
       "org.http4s" %% "http4s-ember-server" % "0.23.36",
       "org.http4s" %% "http4s-dsl" % "0.23.36",
       "org.http4s" %% "http4s-circe" % "0.23.36",
@@ -28,5 +28,6 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.63.0",
       "org.scalatest" %% "scalatest" % "3.2.20" % Test
     ),
-    Test / fork := true
+    Test / fork := true,
+    scalafmtOnCompile := false
   )
