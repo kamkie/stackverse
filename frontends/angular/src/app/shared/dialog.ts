@@ -1,11 +1,4 @@
-import {
-  afterNextRender,
-  Component,
-  ElementRef,
-  input,
-  output,
-  viewChild,
-} from '@angular/core';
+import { afterNextRender, Component, ElementRef, input, output, viewChild } from '@angular/core';
 
 /**
  * Modal dialog on top of the native `<dialog>` element. Render it
@@ -14,12 +7,7 @@ import {
 @Component({
   selector: 'sv-dialog',
   template: `
-    <dialog
-      #dlg
-      class="sv-dialog"
-      [attr.data-ctx]="ctx() || null"
-      (close)="closed.emit()"
-    >
+    <dialog #dlg class="sv-dialog" [attr.data-ctx]="ctx() || null" (close)="closed.emit()">
       <h2 class="sv-dialog-title">{{ title() }}</h2>
       <ng-content />
     </dialog>

@@ -127,7 +127,7 @@ function defaultFetch(url: string): Response {
     });
   }
   if (hasOrigin(url, BACKEND_ORIGIN)) {
-    return Response.json({ ok: true }, { headers: { "cache-control": "no-cache", etag: "\"bundle-v1\"" } });
+    return Response.json({ ok: true }, { headers: { "cache-control": "no-cache", etag: '"bundle-v1"' } });
   }
   if (hasOrigin(url, FRONTEND_ORIGIN)) {
     return new Response("<h1>Stackverse frontend stub</h1>", { headers: { "content-type": "text/html" } });
@@ -349,167 +349,202 @@ describe("node-fastify gateway", () => {
       expect(api.headers["x-content-type-options"]).toBe("nosniff");
       expect(api.headers["content-security-policy"]).toBeUndefined();
       expect(api.headers["cache-control"]).toBe("no-cache");
-      expect(api.headers.etag).toBe("\"bundle-v1\"");
+      expect(api.headers.etag).toBe('"bundle-v1"');
     });
   });
 
   it("streams API response bodies with upstream framing intact", async () => {
-    await withApp(async (app) => {
-      const response = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
+    await withApp(
+      async (app) => {
+        const response = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
 
-      expect(response.statusCode).toBe(200);
-      expect(response.headers["content-encoding"]).toBe("gzip");
-      expect(response.headers["content-length"]).toBe(String(Buffer.byteLength(response.body)));
-      expect(response.body).toBe("{\"ok\":true}");
-    }, testConfig(), (url) => {
-      if (hasOrigin(url, BACKEND_ORIGIN)) {
-        const body = "{\"ok\":true}";
-        return new Response("{\"ok\":true}", {
-          headers: {
-            "content-encoding": "gzip",
-            "content-length": String(Buffer.byteLength(body)),
-          },
-        });
-      }
-      return defaultFetch(url);
-    });
+        expect(response.statusCode).toBe(200);
+        expect(response.headers["content-encoding"]).toBe("gzip");
+        expect(response.headers["content-length"]).toBe(String(Buffer.byteLength(response.body)));
+        expect(response.body).toBe('{"ok":true}');
+      },
+      testConfig(),
+      (url) => {
+        if (hasOrigin(url, BACKEND_ORIGIN)) {
+          const body = '{"ok":true}';
+          return new Response('{"ok":true}', {
+            headers: {
+              "content-encoding": "gzip",
+              "content-length": String(Buffer.byteLength(body)),
+            },
+          });
+        }
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("passes through API responses that must not carry a body", async () => {
-    await withApp(async (app) => {
-      const notModified = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
-      expect(notModified.statusCode).toBe(304);
-      expect(notModified.headers.etag).toBe("\"bundle-v1\"");
-      expect(notModified.body).toBe("");
+    await withApp(
+      async (app) => {
+        const notModified = await app.inject({ method: "GET", url: "/api/v1/messages/bundle" });
+        expect(notModified.statusCode).toBe(304);
+        expect(notModified.headers.etag).toBe('"bundle-v1"');
+        expect(notModified.body).toBe("");
 
-      const head = await app.inject({ method: "HEAD", url: "/api/v1/messages/bundle" });
-      expect(head.statusCode).toBe(200);
-      expect(head.headers["cache-control"]).toBe("no-cache");
-      expect(head.body).toBe("");
-    }, testConfig(), (url, init) => {
-      if (hasOrigin(url, BACKEND_ORIGIN) && init?.method === "GET") {
-        return new Response(null, {
-          status: 304,
-          headers: { "cache-control": "no-cache", etag: "\"bundle-v1\"" },
-        });
-      }
-      return defaultFetch(url);
-    });
+        const head = await app.inject({ method: "HEAD", url: "/api/v1/messages/bundle" });
+        expect(head.statusCode).toBe(200);
+        expect(head.headers["cache-control"]).toBe("no-cache");
+        expect(head.body).toBe("");
+      },
+      testConfig(),
+      (url, init) => {
+        if (hasOrigin(url, BACKEND_ORIGIN) && init?.method === "GET") {
+          return new Response(null, {
+            status: 304,
+            headers: { "cache-control": "no-cache", etag: '"bundle-v1"' },
+          });
+        }
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("returns an upstream problem document when backend proxying fails", async () => {
-    await withApp(async (app) => {
-      const response = await app.inject({ method: "GET", url: "/api/v1/bookmarks" });
+    await withApp(
+      async (app) => {
+        const response = await app.inject({ method: "GET", url: "/api/v1/bookmarks" });
 
-      expect(response.statusCode).toBe(502);
-      expect(response.headers["content-type"]).toContain("application/problem+json");
-      expect(response.json()).toMatchObject({
-        type: "about:blank",
-        title: "Bad Gateway",
-        status: 502,
-        detail: "The upstream service is unavailable.",
-      });
-    }, testConfig(), (url) => {
-      if (hasOrigin(url, BACKEND_ORIGIN)) {
-        throw new Error("backend offline");
-      }
-      return defaultFetch(url);
-    });
+        expect(response.statusCode).toBe(502);
+        expect(response.headers["content-type"]).toContain("application/problem+json");
+        expect(response.json()).toMatchObject({
+          type: "about:blank",
+          title: "Bad Gateway",
+          status: 502,
+          detail: "The upstream service is unavailable.",
+        });
+      },
+      testConfig(),
+      (url) => {
+        if (hasOrigin(url, BACKEND_ORIGIN)) {
+          throw new Error("backend offline");
+        }
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("emits hsts only when PUBLIC_URL is https", async () => {
-    await withApp(async (app) => {
-      const response = await app.inject({ method: "GET", url: "/auth/session" });
-      expect(response.headers["strict-transport-security"]).toBe(STRICT_TRANSPORT_SECURITY);
-    }, testConfig({ PUBLIC_URL: "https://stackverse.example" }));
+    await withApp(
+      async (app) => {
+        const response = await app.inject({ method: "GET", url: "/auth/session" });
+        expect(response.headers["strict-transport-security"]).toBe(STRICT_TRANSPORT_SECURITY);
+      },
+      testConfig({ PUBLIC_URL: "https://stackverse.example" }),
+    );
   });
 
   it("destroys a session and degrades to anonymous when the IdP rejects refresh", async () => {
-    await withApp(async (app, store, calls) => {
-      await store.saveSession("session-id", freshSession({ expiresAt: Date.now() - 60_000 }), 3600);
+    await withApp(
+      async (app, store, calls) => {
+        await store.saveSession("session-id", freshSession({ expiresAt: Date.now() - 60_000 }), 3600);
 
-      const response = await app.inject({
-        method: "GET",
-        url: "/api/v1/bookmarks",
-        headers: { cookie: "stackverse_session=session-id; XSRF-TOKEN=token" },
-      });
+        const response = await app.inject({
+          method: "GET",
+          url: "/api/v1/bookmarks",
+          headers: { cookie: "stackverse_session=session-id; XSRF-TOKEN=token" },
+        });
 
-      expect(response.statusCode).toBe(200);
-      expect(await store.getSession("session-id")).toBeNull();
-      const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
-      expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
-    }, testConfig(), (url) => {
-      if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
-      if (url.endsWith("/protocol/openid-connect/token")) return new Response("bad grant", { status: 400 });
-      return defaultFetch(url);
-    });
+        expect(response.statusCode).toBe(200);
+        expect(await store.getSession("session-id")).toBeNull();
+        const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
+        expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
+      },
+      testConfig(),
+      (url) => {
+        if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
+        if (url.endsWith("/protocol/openid-connect/token")) return new Response("bad grant", { status: 400 });
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("keeps the session and returns 503 when the IdP is unavailable during refresh", async () => {
-    await withApp(async (app, store, calls) => {
-      await store.saveSession("session-id", freshSession({ expiresAt: Date.now() - 60_000 }), 3600);
+    await withApp(
+      async (app, store, calls) => {
+        await store.saveSession("session-id", freshSession({ expiresAt: Date.now() - 60_000 }), 3600);
 
-      const response = await app.inject({
-        method: "GET",
-        url: "/api/v1/bookmarks",
-        headers: { cookie: "stackverse_session=session-id; XSRF-TOKEN=token" },
-      });
+        const response = await app.inject({
+          method: "GET",
+          url: "/api/v1/bookmarks",
+          headers: { cookie: "stackverse_session=session-id; XSRF-TOKEN=token" },
+        });
 
-      expect(response.statusCode).toBe(503);
-      expect(response.headers["content-type"]).toContain("application/problem+json");
-      expect(await store.getSession("session-id")).not.toBeNull();
-      expect(calls.some((call) => hasOrigin(call.url, BACKEND_ORIGIN))).toBe(false);
-    }, testConfig(), (url) => {
-      if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
-      if (url.endsWith("/protocol/openid-connect/token")) return new Response("idp down", { status: 503 });
-      return defaultFetch(url);
-    });
+        expect(response.statusCode).toBe(503);
+        expect(response.headers["content-type"]).toContain("application/problem+json");
+        expect(await store.getSession("session-id")).not.toBeNull();
+        expect(calls.some((call) => hasOrigin(call.url, BACKEND_ORIGIN))).toBe(false);
+      },
+      testConfig(),
+      (url) => {
+        if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
+        if (url.endsWith("/protocol/openid-connect/token")) return new Response("idp down", { status: 503 });
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("updates Redis session data after a successful refresh", async () => {
-    await withApp(async (app, store, calls) => {
-      await store.saveSession("session-id", freshSession({ accessToken: "old", expiresAt: Date.now() - 60_000 }), 3600);
+    await withApp(
+      async (app, store, calls) => {
+        await store.saveSession(
+          "session-id",
+          freshSession({ accessToken: "old", expiresAt: Date.now() - 60_000 }),
+          3600,
+        );
 
-      const response = await app.inject({
-        method: "GET",
-        url: "/api/v1/bookmarks",
-        headers: { cookie: "stackverse_session=session-id; XSRF-TOKEN=token" },
-      });
+        const response = await app.inject({
+          method: "GET",
+          url: "/api/v1/bookmarks",
+          headers: { cookie: "stackverse_session=session-id; XSRF-TOKEN=token" },
+        });
 
-      expect(response.statusCode).toBe(200);
-      const updated = await store.getSession("session-id");
-      expect(updated?.accessToken).toBe("new-access");
-      expect(updated?.refreshToken).toBe("new-refresh");
-      const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
-      expect(header(backend?.init?.headers as Headers, "authorization")).toBe("Bearer new-access");
-    }, testConfig(), (url) => {
-      if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
-      if (url.endsWith("/protocol/openid-connect/token")) {
-        return Response.json({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 300 });
-      }
-      return defaultFetch(url);
-    });
+        expect(response.statusCode).toBe(200);
+        const updated = await store.getSession("session-id");
+        expect(updated?.accessToken).toBe("new-access");
+        expect(updated?.refreshToken).toBe("new-refresh");
+        const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
+        expect(header(backend?.init?.headers as Headers, "authorization")).toBe("Bearer new-access");
+      },
+      testConfig(),
+      (url) => {
+        if (url.endsWith("/.well-known/openid-configuration")) return defaultFetch(url);
+        if (url.endsWith("/protocol/openid-connect/token")) {
+          return Response.json({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 300 });
+        }
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("retries OIDC discovery after a transient failure", async () => {
     let discoveryAttempts = 0;
-    await withApp(async (app) => {
-      const first = await app.inject({ method: "GET", url: "/auth/login" });
-      expect(first.statusCode).toBe(503);
+    await withApp(
+      async (app) => {
+        const first = await app.inject({ method: "GET", url: "/auth/login" });
+        expect(first.statusCode).toBe(503);
 
-      const second = await app.inject({ method: "GET", url: "/auth/login" });
-      expect(second.statusCode).toBe(302);
-      expect(second.headers.location).toContain("/protocol/openid-connect/auth");
-      expect(discoveryAttempts).toBe(2);
-    }, testConfig(), (url) => {
-      if (url.endsWith("/.well-known/openid-configuration")) {
-        discoveryAttempts += 1;
-        if (discoveryAttempts === 1) {
-          throw new Error("connection reset");
+        const second = await app.inject({ method: "GET", url: "/auth/login" });
+        expect(second.statusCode).toBe(302);
+        expect(second.headers.location).toContain("/protocol/openid-connect/auth");
+        expect(discoveryAttempts).toBe(2);
+      },
+      testConfig(),
+      (url) => {
+        if (url.endsWith("/.well-known/openid-configuration")) {
+          discoveryAttempts += 1;
+          if (discoveryAttempts === 1) {
+            throw new Error("connection reset");
+          }
         }
-      }
-      return defaultFetch(url);
-    });
+        return defaultFetch(url);
+      },
+    );
   });
 
   it("destroys local session before best-effort IdP logout", async () => {
@@ -551,31 +586,34 @@ describe("node-fastify gateway", () => {
     await writeFile(path.join(root, "assets", "app.js"), "window.stackverse = true;");
 
     try {
-      await withApp(async (app) => {
-        const asset = await app.inject({ method: "GET", url: "/assets/app.js" });
-        expect(asset.statusCode).toBe(200);
-        expect(asset.headers["content-type"]).toBe("application/javascript; charset=utf-8");
-        expect(asset.body).toBe("window.stackverse = true;");
+      await withApp(
+        async (app) => {
+          const asset = await app.inject({ method: "GET", url: "/assets/app.js" });
+          expect(asset.statusCode).toBe(200);
+          expect(asset.headers["content-type"]).toBe("application/javascript; charset=utf-8");
+          expect(asset.body).toBe("window.stackverse = true;");
 
-        const fallback = await app.inject({ method: "GET", url: "/admin/users" });
-        expect(fallback.statusCode).toBe(200);
-        expect(fallback.headers["content-type"]).toBe("text/html; charset=utf-8");
-        expect(fallback.body).toBe("<main>fallback shell</main>");
+          const fallback = await app.inject({ method: "GET", url: "/admin/users" });
+          expect(fallback.statusCode).toBe(200);
+          expect(fallback.headers["content-type"]).toBe("text/html; charset=utf-8");
+          expect(fallback.body).toBe("<main>fallback shell</main>");
 
-        const unknownPath = await app.inject({ method: "GET", url: "/%2e%2e/secret.txt" });
-        expect(unknownPath.statusCode).toBe(200);
-        expect(unknownPath.body).toBe("<main>fallback shell</main>");
+          const unknownPath = await app.inject({ method: "GET", url: "/%2e%2e/secret.txt" });
+          expect(unknownPath.statusCode).toBe(200);
+          expect(unknownPath.body).toBe("<main>fallback shell</main>");
 
-        if (process.platform === "win32") {
-          const driveQualifiedPath = await app.inject({ method: "GET", url: "/%43:%5CWindows%5Cwin.ini" });
-          expect(driveQualifiedPath.statusCode).toBe(200);
-          expect(driveQualifiedPath.body).toBe("<main>fallback shell</main>");
-        }
+          if (process.platform === "win32") {
+            const driveQualifiedPath = await app.inject({ method: "GET", url: "/%43:%5CWindows%5Cwin.ini" });
+            expect(driveQualifiedPath.statusCode).toBe(200);
+            expect(driveQualifiedPath.body).toBe("<main>fallback shell</main>");
+          }
 
-        const unsupportedMethod = await app.inject({ method: "POST", url: "/admin/users" });
-        expect(unsupportedMethod.statusCode).toBe(404);
-        expect(unsupportedMethod.headers["content-type"]).toContain("application/problem+json");
-      }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
+          const unsupportedMethod = await app.inject({ method: "POST", url: "/admin/users" });
+          expect(unsupportedMethod.statusCode).toBe(404);
+          expect(unsupportedMethod.headers["content-type"]).toContain("application/problem+json");
+        },
+        testConfig({ FRONTEND_URL: "", SPA_ROOT: root }),
+      );
     } finally {
       await rm(root, { force: true, recursive: true });
     }
@@ -588,15 +626,18 @@ describe("node-fastify gateway", () => {
     await writeFile(path.join(root, "assets", "app.js"), "window.stackverse = true;");
 
     try {
-      await withApp(async (app) => {
-        for (let attempt = 0; attempt < 600; attempt += 1) {
-          const response = await app.inject({ method: "GET", url: "/assets/app.js" });
-          expect(response.statusCode).toBe(200);
-        }
+      await withApp(
+        async (app) => {
+          for (let attempt = 0; attempt < 600; attempt += 1) {
+            const response = await app.inject({ method: "GET", url: "/assets/app.js" });
+            expect(response.statusCode).toBe(200);
+          }
 
-        const limited = await app.inject({ method: "GET", url: "/assets/app.js" });
-        expect(limited.statusCode).toBe(429);
-      }, testConfig({ FRONTEND_URL: "", SPA_ROOT: root }));
+          const limited = await app.inject({ method: "GET", url: "/assets/app.js" });
+          expect(limited.statusCode).toBe(429);
+        },
+        testConfig({ FRONTEND_URL: "", SPA_ROOT: root }),
+      );
     } finally {
       await rm(root, { force: true, recursive: true });
     }

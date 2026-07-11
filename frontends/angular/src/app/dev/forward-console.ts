@@ -52,7 +52,7 @@ function flush() {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(batch),
     keepalive: true,
-  }).catch(() => {});
+  }).catch(() => undefined);
 }
 
 export function forwardConsoleToDevServer() {

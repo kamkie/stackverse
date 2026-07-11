@@ -70,11 +70,7 @@ function blockedGuard(request: Request): Response | null {
   const account = db.users.find((u) => u.username === user.username);
   if (account?.status !== "blocked") return null;
   return HttpResponse.json(
-    problem(
-      403,
-      "Forbidden",
-      lookupMessage("error.account.blocked", requestLanguage(request)),
-    ),
+    problem(403, "Forbidden", lookupMessage("error.account.blocked", requestLanguage(request))),
     { status: 403, headers: { "Content-Type": "application/problem+json" } },
   );
 }
@@ -205,8 +201,7 @@ const listBookmarksV2 = http.get("/api/v2/bookmarks", ({ query, response }) => {
   const q = query.get("q")?.toLowerCase();
   if (q) {
     items = items.filter(
-      (b) =>
-        b.title.toLowerCase().includes(q) || b.notes?.toLowerCase().includes(q),
+      (b) => b.title.toLowerCase().includes(q) || b.notes?.toLowerCase().includes(q),
     );
   }
   items = [...items].sort(byNewest);
@@ -280,50 +275,45 @@ const getBookmark = http.get("/api/v1/bookmarks/{id}", ({ params, response }) =>
   return response(200).json(bookmark);
 });
 
-const updateBookmark = http.put(
-  "/api/v1/bookmarks/{id}",
-  async ({ params, request, response }) => {
-    const user = getCurrentUser();
-    if (!user) return response(401).json(unauthorized());
+const updateBookmark = http.put("/api/v1/bookmarks/{id}", async ({ params, request, response }) => {
+  const user = getCurrentUser();
+  if (!user) return response(401).json(unauthorized());
 
-    const bookmark = db.bookmarks.find((b) => b.id === params.id);
-    if (!bookmark || bookmark.owner !== user.username) {
-      return response(404).json(notFound());
-    }
+  const bookmark = db.bookmarks.find((b) => b.id === params.id);
+  if (!bookmark || bookmark.owner !== user.username) {
+    return response(404).json(notFound());
+  }
 
-    const input = await request.json();
-    const errors = validateBookmark(input, requestLanguage(request));
-    if (errors.length > 0) return response(400).json(validationProblem(errors));
+  const input = await request.json();
+  const errors = validateBookmark(input, requestLanguage(request));
+  if (errors.length > 0) return response(400).json(validationProblem(errors));
 
-    if (bookmark.status === "hidden" && input.visibility === "public") {
-      return response(409).json(
-        problem(
-          409,
-          "Conflict",
-          lookupMessage("error.bookmark.hidden-publish", requestLanguage(request)),
-        ),
-      );
-    }
+  if (bookmark.status === "hidden" && input.visibility === "public") {
+    return response(409).json(
+      problem(
+        409,
+        "Conflict",
+        lookupMessage("error.bookmark.hidden-publish", requestLanguage(request)),
+      ),
+    );
+  }
 
-    bookmark.url = input.url;
-    bookmark.title = input.title;
-    if (input.notes) bookmark.notes = input.notes;
-    else delete bookmark.notes;
-    bookmark.tags = normalizeTags(input.tags);
-    bookmark.visibility = input.visibility ?? "private";
-    bookmark.updatedAt = new Date().toISOString();
-    touchStats();
-    return response(200).json(bookmark);
-  },
-);
+  bookmark.url = input.url;
+  bookmark.title = input.title;
+  if (input.notes) bookmark.notes = input.notes;
+  else delete bookmark.notes;
+  bookmark.tags = normalizeTags(input.tags);
+  bookmark.visibility = input.visibility ?? "private";
+  bookmark.updatedAt = new Date().toISOString();
+  touchStats();
+  return response(200).json(bookmark);
+});
 
 const deleteBookmark = http.delete("/api/v1/bookmarks/{id}", ({ params, response }) => {
   const user = getCurrentUser();
   if (!user) return response(401).json(unauthorized());
 
-  const index = db.bookmarks.findIndex(
-    (b) => b.id === params.id && b.owner === user.username,
-  );
+  const index = db.bookmarks.findIndex((b) => b.id === params.id && b.owner === user.username);
   if (index === -1) return response(404).json(notFound());
 
   db.bookmarks.splice(index, 1);
@@ -382,10 +372,7 @@ const reportBookmark = http.post(
     if (errors.length > 0) return response(400).json(validationProblem(errors));
 
     const existing = db.reports.find(
-      (r) =>
-        r.bookmarkId === bookmark.id &&
-        r.reporter === user.username &&
-        r.status === "open",
+      (r) => r.bookmarkId === bookmark.id && r.reporter === user.username && r.status === "open",
     );
     if (existing) {
       return response(409).json(
@@ -420,57 +407,51 @@ const listMyReports = http.get("/api/v1/reports", ({ query, response }) => {
   return response(200).json(paginate(items, query.get("page"), query.get("size")));
 });
 
-const updateMyReport = http.put(
-  "/api/v1/reports/{id}",
-  async ({ params, request, response }) => {
-    const user = getCurrentUser();
-    if (!user) return response(401).json(unauthorized());
+const updateMyReport = http.put("/api/v1/reports/{id}", async ({ params, request, response }) => {
+  const user = getCurrentUser();
+  if (!user) return response(401).json(unauthorized());
 
-    // Someone else's report is a 404 mask — existence is not disclosed.
-    const report = db.reports.find((r) => r.id === params.id);
-    if (!report || report.reporter !== user.username) {
-      return response(404).json(notFound());
-    }
+  // Someone else's report is a 404 mask — existence is not disclosed.
+  const report = db.reports.find((r) => r.id === params.id);
+  if (!report || report.reporter !== user.username) {
+    return response(404).json(notFound());
+  }
 
-    const input = await request.json();
-    const lang = requestLanguage(request);
-    const errors: FieldError[] = [];
-    if (!["spam", "offensive", "broken-link", "other"].includes(input.reason)) {
-      errors.push(fieldError("reason", "validation.report.reason.invalid", lang));
-    }
-    if (input.comment && input.comment.length > 1000) {
-      errors.push(fieldError("comment", "validation.report.comment.too-long", lang));
-    }
-    if (errors.length > 0) return response(400).json(validationProblem(errors));
+  const input = await request.json();
+  const lang = requestLanguage(request);
+  const errors: FieldError[] = [];
+  if (!["spam", "offensive", "broken-link", "other"].includes(input.reason)) {
+    errors.push(fieldError("reason", "validation.report.reason.invalid", lang));
+  }
+  if (input.comment && input.comment.length > 1000) {
+    errors.push(fieldError("comment", "validation.report.comment.too-long", lang));
+  }
+  if (errors.length > 0) return response(400).json(validationProblem(errors));
 
-    if (report.status !== "open") {
-      return response(409).json(problem(409, "Conflict", "The report is not open."));
-    }
-    report.reason = input.reason;
-    if (input.comment) report.comment = input.comment;
-    else delete report.comment;
-    return response(200).json(report);
-  },
-);
+  if (report.status !== "open") {
+    return response(409).json(problem(409, "Conflict", "The report is not open."));
+  }
+  report.reason = input.reason;
+  if (input.comment) report.comment = input.comment;
+  else delete report.comment;
+  return response(200).json(report);
+});
 
-const withdrawReport = http.delete(
-  "/api/v1/reports/{id}",
-  ({ params, response }) => {
-    const user = getCurrentUser();
-    if (!user) return response(401).json(unauthorized());
+const withdrawReport = http.delete("/api/v1/reports/{id}", ({ params, response }) => {
+  const user = getCurrentUser();
+  if (!user) return response(401).json(unauthorized());
 
-    const report = db.reports.find((r) => r.id === params.id);
-    if (!report || report.reporter !== user.username) {
-      return response(404).json(notFound());
-    }
-    if (report.status !== "open") {
-      return response(409).json(problem(409, "Conflict", "The report is not open."));
-    }
-    db.reports.splice(db.reports.indexOf(report), 1);
-    touchStats();
-    return response(204).empty();
-  },
-);
+  const report = db.reports.find((r) => r.id === params.id);
+  if (!report || report.reporter !== user.username) {
+    return response(404).json(notFound());
+  }
+  if (report.status !== "open") {
+    return response(409).json(problem(409, "Conflict", "The report is not open."));
+  }
+  db.reports.splice(db.reports.indexOf(report), 1);
+  touchStats();
+  return response(204).empty();
+});
 
 const listReports = http.get("/api/v1/admin/reports", ({ query, response }) => {
   if (!getCurrentUser()) return response(401).json(unauthorized());
@@ -525,10 +506,7 @@ const resolveReport = http.put(
       }
       // Sibling auto-resolution (docs/SPEC.md rule 14).
       for (const sibling of db.reports) {
-        if (
-          sibling.bookmarkId === report.bookmarkId &&
-          sibling.status === "open"
-        ) {
+        if (sibling.bookmarkId === report.bookmarkId && sibling.status === "open") {
           resolve(sibling);
           writeAudit("report.resolved", "report", sibling.id, {
             resolution: "actioned",
@@ -577,17 +555,14 @@ const listUserAccounts = http.get("/api/v1/admin/users", ({ query, response }) =
   return response(200).json(paginate(items, query.get("page"), query.get("size")));
 });
 
-const getUserAccount = http.get(
-  "/api/v1/admin/users/{username}",
-  ({ params, response }) => {
-    if (!getCurrentUser()) return response(401).json(unauthorized());
-    if (!hasRole("admin")) return response(403).json(forbidden());
+const getUserAccount = http.get("/api/v1/admin/users/{username}", ({ params, response }) => {
+  if (!getCurrentUser()) return response(401).json(unauthorized());
+  if (!hasRole("admin")) return response(403).json(forbidden());
 
-    const user = db.users.find((u) => u.username === params.username);
-    if (!user) return response(404).json(notFound());
-    return response(200).json(user);
-  },
-);
+  const user = db.users.find((u) => u.username === params.username);
+  if (!user) return response(404).json(notFound());
+  return response(200).json(user);
+});
 
 const setUserAccountStatus = http.put(
   "/api/v1/admin/users/{username}/status",
@@ -601,9 +576,7 @@ const setUserAccountStatus = http.put(
 
     const input = await request.json();
     if (input.status === "blocked" && params.username === caller.username) {
-      return response(409).json(
-        problem(409, "Conflict", "Admins cannot block themselves."),
-      );
+      return response(409).json(problem(409, "Conflict", "Admins cannot block themselves."));
     }
     if (input.status === "blocked" && !input.reason?.trim()) {
       return response(400).json(
@@ -707,7 +680,10 @@ function resolveLanguage(lang: string | null, acceptLanguage: string | null): st
       const [tag = "", ...params] = part.trim().split(";");
       const qParam = params.map((p) => p.trim()).find((p) => p.startsWith("q="));
       const q = qParam ? Number(qParam.slice(2)) : 1;
-      return { code: tag.trim().toLowerCase().slice(0, 2), q: Number.isNaN(q) ? 0 : q };
+      return {
+        code: tag.trim().toLowerCase().slice(0, 2),
+        q: Number.isNaN(q) ? 0 : q,
+      };
     })
     .filter((entry) => entry.code && entry.q > 0)
     .sort((a, b) => b.q - a.q);
@@ -717,36 +693,30 @@ function resolveLanguage(lang: string | null, acceptLanguage: string | null): st
   return "en";
 }
 
-const getMessageBundle = http.get(
-  "/api/v1/messages/bundle",
-  ({ query, request, response }) => {
-    const language = resolveLanguage(
-      query.get("lang"),
-      request.headers.get("Accept-Language"),
-    );
-    const etag = `W/"bundle-${language}-${db.messagesVersion}"`;
-    const headers = {
-      ETag: etag,
-      "Cache-Control": "no-cache",
-      "Content-Language": language,
-    };
-    if (request.headers.get("If-None-Match") === etag) {
-      return response(304).empty({ headers });
-    }
+const getMessageBundle = http.get("/api/v1/messages/bundle", ({ query, request, response }) => {
+  const language = resolveLanguage(query.get("lang"), request.headers.get("Accept-Language"));
+  const etag = `W/"bundle-${language}-${db.messagesVersion}"`;
+  const headers = {
+    ETag: etag,
+    "Cache-Control": "no-cache",
+    "Content-Language": language,
+  };
+  if (request.headers.get("If-None-Match") === etag) {
+    return response(304).empty({ headers });
+  }
 
-    // Keys missing in the resolved language fall back to their en text.
-    const messages: Record<string, string> = {};
+  // Keys missing in the resolved language fall back to their en text.
+  const messages: Record<string, string> = {};
+  for (const message of db.messages) {
+    if (message.language === "en") messages[message.key] = message.text;
+  }
+  if (language !== "en") {
     for (const message of db.messages) {
-      if (message.language === "en") messages[message.key] = message.text;
+      if (message.language === language) messages[message.key] = message.text;
     }
-    if (language !== "en") {
-      for (const message of db.messages) {
-        if (message.language === language) messages[message.key] = message.text;
-      }
-    }
-    return response(200).json({ language, messages }, { headers });
-  },
-);
+  }
+  return response(200).json({ language, messages }, { headers });
+});
 
 const listMessages = http.get("/api/v1/messages", ({ query, request, response }) => {
   const etag = `W/"messages-${db.messagesVersion}"`;
@@ -816,39 +786,36 @@ const getMessage = http.get("/api/v1/messages/{id}", ({ params, request, respons
   return response(200).json(message, { headers });
 });
 
-const updateMessage = http.put(
-  "/api/v1/messages/{id}",
-  async ({ params, request, response }) => {
-    if (!getCurrentUser()) return response(401).json(unauthorized());
-    if (!hasRole("admin")) return response(403).json(forbidden());
+const updateMessage = http.put("/api/v1/messages/{id}", async ({ params, request, response }) => {
+  if (!getCurrentUser()) return response(401).json(unauthorized());
+  if (!hasRole("admin")) return response(403).json(forbidden());
 
-    const message = db.messages.find((m) => m.id === params.id);
-    if (!message) return response(404).json(notFound());
+  const message = db.messages.find((m) => m.id === params.id);
+  if (!message) return response(404).json(notFound());
 
-    const input = await request.json();
-    const errors = validateMessage(input, requestLanguage(request));
-    if (errors.length > 0) return response(400).json(validationProblem(errors));
-    if (
-      db.messages.some(
-        (m) => m.id !== message.id && m.key === input.key && m.language === input.language,
-      )
-    ) {
-      return response(409).json(
-        problem(409, "Conflict", "A message with this key and language already exists."),
-      );
-    }
+  const input = await request.json();
+  const errors = validateMessage(input, requestLanguage(request));
+  if (errors.length > 0) return response(400).json(validationProblem(errors));
+  if (
+    db.messages.some(
+      (m) => m.id !== message.id && m.key === input.key && m.language === input.language,
+    )
+  ) {
+    return response(409).json(
+      problem(409, "Conflict", "A message with this key and language already exists."),
+    );
+  }
 
-    message.key = input.key;
-    message.language = input.language;
-    message.text = input.text;
-    if (input.description) message.description = input.description;
-    else delete message.description;
-    message.updatedAt = new Date().toISOString();
-    db.messagesVersion += 1;
-    writeAudit("message.updated", "message", message.id, { key: message.key });
-    return response(200).json(message);
-  },
-);
+  message.key = input.key;
+  message.language = input.language;
+  message.text = input.text;
+  if (input.description) message.description = input.description;
+  else delete message.description;
+  message.updatedAt = new Date().toISOString();
+  db.messagesVersion += 1;
+  writeAudit("message.updated", "message", message.id, { key: message.key });
+  return response(200).json(message);
+});
 
 const deleteMessage = http.delete("/api/v1/messages/{id}", ({ params, response }) => {
   if (!getCurrentUser()) return response(401).json(unauthorized());
@@ -859,7 +826,10 @@ const deleteMessage = http.delete("/api/v1/messages/{id}", ({ params, response }
 
   const [removed] = db.messages.splice(index, 1);
   db.messagesVersion += 1;
-  if (removed) writeAudit("message.deleted", "message", removed.id, { key: removed.key });
+  if (removed)
+    writeAudit("message.deleted", "message", removed.id, {
+      key: removed.key,
+    });
   return response(204).empty();
 });
 

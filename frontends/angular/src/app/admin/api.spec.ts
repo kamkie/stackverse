@@ -117,7 +117,12 @@ describe('AdminApi', () => {
     const updateRequest = controller.expectOne('/api/v1/admin/users/demo%2Fuser/status');
     expect(updateRequest.request.method).toBe('PUT');
     expect(updateRequest.request.body).toEqual({ status: 'blocked', reason: 'abuse' });
-    updateRequest.flush({ ...user, username: 'demo/user', status: 'blocked', blockedReason: 'abuse' });
+    updateRequest.flush({
+      ...user,
+      username: 'demo/user',
+      status: 'blocked',
+      blockedReason: 'abuse',
+    });
     await expect(update).resolves.toMatchObject({ status: 'blocked', blockedReason: 'abuse' });
   });
 

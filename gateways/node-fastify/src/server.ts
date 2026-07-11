@@ -40,7 +40,10 @@ function redactedRedisEndpoint(redisUrl: string): string {
     const parsed = new URL(redisUrl);
     return `${parsed.protocol}//${parsed.hostname}${parsed.port ? `:${parsed.port}` : ""}`;
   } catch {
-    return redisUrl.split(",").filter((part) => !part.includes("=")).join(",");
+    return redisUrl
+      .split(",")
+      .filter((part) => !part.includes("="))
+      .join(",");
   }
 }
 

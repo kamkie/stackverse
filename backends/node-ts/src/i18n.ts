@@ -36,10 +36,7 @@ const supportedLanguages = async (): Promise<Set<string>> => {
  * down the chain, never error. "Supported" means at least one message exists
  * in that language.
  */
-export async function resolveLanguage(
-  lang: string | undefined,
-  acceptLanguage: string | undefined,
-): Promise<string> {
+export async function resolveLanguage(lang: string | undefined, acceptLanguage: string | undefined): Promise<string> {
   const supported = await supportedLanguages();
   if (lang && supported.has(lang)) return lang;
   for (const code of parseAcceptLanguage(acceptLanguage)) {

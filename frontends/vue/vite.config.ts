@@ -10,10 +10,14 @@ const FORWARDED_LEVELS = new Set(["log", "info", "warn", "error", "debug"]);
 const MAX_FIELD_CHARS = 4096;
 
 function sanitizeLogField(value: unknown): string {
-  return String(value)
-    .slice(0, MAX_FIELD_CHARS)
-    .replace(/\r?\n/g, "\\n")
-    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+  return (
+    String(value)
+      .slice(0, MAX_FIELD_CHARS)
+      .replace(/\r?\n/g, "\\n")
+      // Control characters are exactly what this log-sanitizer must remove.
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "")
+  );
 }
 
 function clientLogForwarder(): Plugin {
@@ -75,9 +79,7 @@ export default defineConfig({
       "/auth": {
         target: "http://localhost:8000",
         bypass: (req) =>
-          mockEnabled && req.url?.includes("/auth/login")
-            ? "/index.html"
-            : undefined,
+          mockEnabled && req.url?.includes("/auth/login") ? "/index.html" : undefined,
       },
     },
     fs: {

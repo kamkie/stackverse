@@ -35,10 +35,7 @@ export function fieldErrorsOf(error: unknown): FieldError[] {
  */
 export function fieldErrorFor(error: unknown, field: string): FieldError | undefined {
   return fieldErrorsOf(error).find(
-    (e) =>
-      e.field === field ||
-      e.field.startsWith(`${field}[`) ||
-      e.field.startsWith(`${field}.`),
+    (e) => e.field === field || e.field.startsWith(`${field}[`) || e.field.startsWith(`${field}.`),
   );
 }
 

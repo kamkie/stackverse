@@ -93,9 +93,7 @@ export class PublicFeedPage {
   // create and a 409 duplicate (ReportDialog confirms both).
   protected readonly reportedIds = signal<ReadonlySet<string>>(readReportedIds());
 
-  protected readonly filtered = computed(
-    () => this.q() !== '' || this.activeTags().length > 0,
-  );
+  protected readonly filtered = computed(() => this.q() !== '' || this.activeTags().length > 0);
 
   protected toggleTag(tag: string): void {
     this.activeTags.update((tags) =>

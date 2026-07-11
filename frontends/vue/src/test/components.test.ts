@@ -1,24 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createApp, h, nextTick, type Component } from "vue";
+import { enableAutoUnmount, mount } from "@vue/test-utils";
+import { h, nextTick } from "vue";
 import type { Bookmark } from "../types";
 
-function mountComponent(
-  component: Component,
-  props: Record<string, unknown> = {},
-  slots?: Record<string, (props: Record<string, unknown>) => unknown>,
-) {
-  const host = document.createElement("div");
-  document.body.append(host);
-  const app = createApp({ render: () => h(component, props, slots) });
-  app.mount(host);
-  return {
-    host,
-    unmount: () => {
-      app.unmount();
-      host.remove();
-    },
-  };
-}
+enableAutoUnmount(afterEach);
 
 const bookmark: Bookmark = {
   id: "00000000-0000-4000-8000-000000000123",
@@ -59,10 +44,9 @@ describe("shared components", () => {
     vi.resetModules();
     const { default: Field } = await import("../components/Field.vue");
 
-    const { host } = mountComponent(
-      Field,
-      { label: "Title", hint: "Required", error: "Title is required" },
-      {
+    const wrapper = mount(Field, {
+      props: { label: "Title", hint: "Required", error: "Title is required" },
+      slots: {
         default: (slotProps) =>
           h("input", {
             id: slotProps["inputId"],
@@ -71,47 +55,39 @@ describe("shared components", () => {
             "aria-invalid": slotProps["invalid"] || undefined,
           }),
       },
-    );
+    });
 
-    const label = host.querySelector(".sv-field");
-    const input = host.querySelector<HTMLInputElement>("input[name='title']");
-    const hint = host.querySelector(".sv-field-hint");
-    const error = host.querySelector(".sv-field-error");
+    const label = wrapper.get(".sv-field");
+    const input = wrapper.get<HTMLInputElement>("input[name='title']");
+    const hint = wrapper.get(".sv-field-hint");
+    const error = wrapper.get(".sv-field-error");
 
-    expect(host.querySelector(".sv-field")?.classList.contains("is-invalid")).toBe(true);
-    expect(host.textContent).toContain("Title");
-    expect(host.textContent).toContain("Required");
-    expect(host.textContent).toContain("Title is required");
-    expect(input).not.toBeNull();
-    expect(input?.id).toBeTruthy();
-    expect(label?.getAttribute("for")).toBe(input?.id);
-    expect(input?.getAttribute("aria-invalid")).toBe("true");
-    expect(input?.getAttribute("aria-describedby")).toBe(`${hint?.id} ${error?.id}`);
-    expect(error?.getAttribute("role")).toBe("alert");
+    expect(label.classes()).toContain("is-invalid");
+    expect(wrapper.text()).toContain("Title");
+    expect(wrapper.text()).toContain("Required");
+    expect(wrapper.text()).toContain("Title is required");
+    expect(input.element.id).toBeTruthy();
+    expect(label.attributes("for")).toBe(input.element.id);
+    expect(input.attributes("aria-invalid")).toBe("true");
+    expect(input.attributes("aria-describedby")).toBe(`${hint.element.id} ${error.element.id}`);
+    expect(error.attributes("role")).toBe("alert");
   });
 
   it("emits previous and next page requests with accessible labels", async () => {
     vi.resetModules();
     await seedMessages();
     const { default: Pagination } = await import("../components/Pagination.vue");
-    const requestedPages: number[] = [];
-
-    const { host } = mountComponent(Pagination, {
-      page: 1,
-      totalPages: 3,
-      onPage: (page: number) => requestedPages.push(page),
+    const wrapper = mount(Pagination, {
+      props: { page: 1, totalPages: 3 },
     });
-    const buttons = [...host.querySelectorAll("button")];
+    const buttons = wrapper.findAll("button");
 
-    expect(host.textContent).toContain("2 / 3");
-    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
-      "Previous",
-      "Next",
-    ]);
-    buttons[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    buttons[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(wrapper.text()).toContain("2 / 3");
+    expect(buttons.map((button) => button.attributes("aria-label"))).toEqual(["Previous", "Next"]);
+    await buttons[0]?.trigger("click");
+    await buttons[1]?.trigger("click");
 
-    expect(requestedPages).toEqual([0, 2]);
+    expect(wrapper.emitted("page")).toEqual([[0], [2]]);
   });
 
   it("omits pagination when there is only one page", async () => {
@@ -119,36 +95,29 @@ describe("shared components", () => {
     await seedMessages();
     const { default: Pagination } = await import("../components/Pagination.vue");
 
-    const { host } = mountComponent(Pagination, { page: 0, totalPages: 1 });
+    const wrapper = mount(Pagination, { props: { page: 0, totalPages: 1 } });
 
-    expect(host.querySelector("nav")).toBeNull();
+    expect(wrapper.find("nav").exists()).toBe(false);
   });
 
   it("renders owned bookmark actions and emits the selected bookmark", async () => {
     vi.resetModules();
     await seedMessages();
     const { default: BookmarkCard } = await import("../components/BookmarkCard.vue");
-    const edited: Bookmark[] = [];
-    const deleted: Bookmark[] = [];
-
-    const { host } = mountComponent(BookmarkCard, {
-      bookmark: { ...bookmark, status: "hidden" },
-      mode: "mine",
-      onEdit: (value: Bookmark) => edited.push(value),
-      onDelete: (value: Bookmark) => deleted.push(value),
+    const hiddenBookmark = { ...bookmark, status: "hidden" as const };
+    const wrapper = mount(BookmarkCard, {
+      props: { bookmark: hiddenBookmark, mode: "mine" },
     });
-    const buttons = [...host.querySelectorAll("button")];
+    const buttons = wrapper.findAll("button");
 
-    expect(host.innerHTML).toContain(
-      'data-ctx="bookmark:00000000-0000-4000-8000-000000000123"',
-    );
-    expect(host.textContent).toContain("Hidden");
-    expect(host.textContent).toContain("vue");
-    buttons.find((button) => button.textContent?.trim() === "Edit")?.click();
-    buttons.find((button) => button.textContent?.trim() === "Delete")?.click();
+    expect(wrapper.attributes("data-ctx")).toBe("bookmark:00000000-0000-4000-8000-000000000123");
+    expect(wrapper.text()).toContain("Hidden");
+    expect(wrapper.text()).toContain("vue");
+    await buttons.find((button) => button.text() === "Edit")?.trigger("click");
+    await buttons.find((button) => button.text() === "Delete")?.trigger("click");
 
-    expect(edited).toEqual([{ ...bookmark, status: "hidden" }]);
-    expect(deleted).toEqual([{ ...bookmark, status: "hidden" }]);
+    expect(wrapper.emitted("edit")).toEqual([[hiddenBookmark]]);
+    expect(wrapper.emitted("delete")).toEqual([[hiddenBookmark]]);
   });
 
   it("shows report actions only for authenticated feed users and disables already-reported bookmarks", async () => {
@@ -159,27 +128,26 @@ describe("shared components", () => {
       import("../auth"),
       import("../reportedStore"),
     ]);
-    const reported: Bookmark[] = [];
-
-    const loggedOut = mountComponent(BookmarkCard, { bookmark, mode: "feed" });
-    expect(loggedOut.host.querySelector("button")).toBeNull();
+    const loggedOut = mount(BookmarkCard, {
+      props: { bookmark, mode: "feed" },
+    });
+    expect(loggedOut.find("button").exists()).toBe(false);
     loggedOut.unmount();
 
     auth.session.value = { authenticated: true, username: "demo" };
-    const active = mountComponent(BookmarkCard, {
-      bookmark,
-      mode: "feed",
-      onReport: (value: Bookmark) => reported.push(value),
+    const active = mount(BookmarkCard, {
+      props: { bookmark, mode: "feed" },
     });
-    active.host.querySelector("button")?.click();
-    expect(reported).toEqual([bookmark]);
+    await active.get("button").trigger("click");
+    expect(active.emitted("report")).toEqual([[bookmark]]);
     active.unmount();
 
     reportedStore.markReported(bookmark.id);
-    const disabled = mountComponent(BookmarkCard, { bookmark, mode: "feed" });
+    const disabled = mount(BookmarkCard, { props: { bookmark, mode: "feed" } });
+    const disabledButton = disabled.get("button");
 
-    expect(disabled.host.querySelector("button")?.textContent?.trim()).toBe("Reported");
-    expect(disabled.host.querySelector("button")?.hasAttribute("disabled")).toBe(true);
+    expect(disabledButton.text()).toBe("Reported");
+    expect(disabledButton.attributes()).toHaveProperty("disabled");
   });
 
   it("renders toast messages and removes them after the display timeout", async () => {
@@ -189,17 +157,17 @@ describe("shared components", () => {
       import("../components/ToastRegion.vue"),
       import("../toast"),
     ]);
-    const { host } = mountComponent(ToastRegion);
+    const wrapper = mount(ToastRegion);
 
     toast.showToast("Saved", "success");
     await nextTick();
 
-    expect(host.textContent).toContain("Saved");
-    expect(host.querySelector(".sv-toast--success")).not.toBeNull();
+    expect(wrapper.text()).toContain("Saved");
+    expect(wrapper.find(".sv-toast--success").exists()).toBe(true);
 
     vi.advanceTimersByTime(3500);
     await nextTick();
 
-    expect(host.textContent).not.toContain("Saved");
+    expect(wrapper.text()).not.toContain("Saved");
   });
 });

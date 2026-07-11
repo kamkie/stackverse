@@ -43,6 +43,10 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-frontend-angular-
       - name: Install dependencies
         run: yarn install --immutable
+      - name: Lint TypeScript and templates
+        run: yarn lint
+      - name: Check formatting
+        run: yarn format:check
       # `ng build` type-checks (AOT + strict templates) as part of the build
       - name: Typecheck and build
         run: yarn build

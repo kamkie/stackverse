@@ -41,6 +41,8 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-gateway-node-fastify-
       - name: Install dependencies
         run: yarn install --immutable
+      - name: Lint and check formatting
+        run: yarn lint && yarn format:check
       - name: Typecheck and build
         run: yarn build
       - name: Test with coverage

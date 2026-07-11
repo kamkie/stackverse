@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "ng serve",
     "build": "ng build",
+    "lint": "ng lint",
+    "format": "prettier --write \"src/**/*.{css,html,ts}\" \"public/**/*.js\" \"*.{html,js,json,mjs,ts}\"",
+    "format:check": "prettier --check \"src/**/*.{css,html,ts}\" \"public/**/*.js\" \"*.{html,js,json,mjs,ts}\"",
     "test": "ng test",
     "test:watch": "ng test --watch"
   },
@@ -23,9 +26,16 @@
     "@angular/build": "^22.0.5",
     "@angular/cli": "^22.0.5",
     "@angular/compiler-cli": "^22.0.5",
+    "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.9",
+    "angular-eslint": "^22.0.0",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
     "jsdom": "^29.1.1",
+    "prettier": "^3.9.4",
     "typescript": "~6.0.3",
+    "typescript-eslint": "^8.63.0",
     "vitest": "^4.1.9"
   },
   "resolutions": {

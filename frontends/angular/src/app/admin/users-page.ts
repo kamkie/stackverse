@@ -23,14 +23,17 @@ import { AdminApi } from './api';
       (closed)="closed.emit()"
     >
       <form class="sv-form" (ngSubmit)="submit()">
-        <sv-field [label]="t('ui.field.reason')" forId="block-reason" [error]="fieldError('reason')">
+        <sv-field
+          [label]="t('ui.field.reason')"
+          forId="block-reason"
+          [error]="fieldError('reason')"
+        >
           <textarea
             id="block-reason"
             class="sv-textarea"
             name="reason"
             [(ngModel)]="reason"
             [attr.aria-invalid]="fieldError('reason') ? true : null"
-            autofocus
           ></textarea>
         </sv-field>
         @if (conflict()) {
@@ -181,11 +184,7 @@ export class BlockDialog {
         />
       }
       @if (blocking(); as user) {
-        <app-block-dialog
-          [user]="user"
-          (blocked)="users.reload()"
-          (closed)="blocking.set(null)"
-        />
+        <app-block-dialog [user]="user" (blocked)="users.reload()" (closed)="blocking.set(null)" />
       }
     }
   `,

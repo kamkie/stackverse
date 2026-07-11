@@ -3,9 +3,7 @@ import { api, unwrap } from "./api/client";
 import { isUnauthorized } from "./api/problem";
 import type { User } from "./types";
 
-export type Session =
-  | { authenticated: true; username: string }
-  | { authenticated: false };
+export type Session = { authenticated: true; username: string } | { authenticated: false };
 
 export const LOGIN_URL = "/auth/login";
 export const session = ref<Session | null>(null);
@@ -21,9 +19,7 @@ export function isAdmin(user: User | null = me.value): boolean {
 
 export async function loadSession(): Promise<void> {
   const response = await fetch(new URL("/auth/session", location.origin));
-  session.value = response.ok
-    ? ((await response.json()) as Session)
-    : { authenticated: false };
+  session.value = response.ok ? ((await response.json()) as Session) : { authenticated: false };
   if (session.value.authenticated) {
     await loadMe();
   } else {

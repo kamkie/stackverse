@@ -46,9 +46,7 @@ function describeElement(element: Element): string {
     element instanceof HTMLInputElement ||
     element instanceof HTMLTextAreaElement ||
     element instanceof HTMLSelectElement
-      ? element.name ||
-        element.getAttribute("aria-label") ||
-        element.getAttribute("placeholder")
+      ? element.name || element.getAttribute("aria-label") || element.getAttribute("placeholder")
       : (element.getAttribute("aria-label") ?? element.textContent);
   const parts = [tag];
   if (id) parts.push(`#${id}`);
@@ -89,9 +87,7 @@ function logClicks() {
       const description = interactive
         ? describeElement(interactive)
         : `${describeElement(event.target)} (non-interactive)`;
-      console.debug(
-        `[action] click ${description}${contextOf(event.target)} @ ${here()}`,
-      );
+      console.debug(`[action] click ${description}${contextOf(event.target)} @ ${here()}`);
     },
     { capture: true },
   );
@@ -101,14 +97,12 @@ function logSubmits() {
   document.addEventListener(
     "submit",
     (event) => {
-      const form =
-        event.target instanceof Element ? describeElement(event.target) : "form";
+      const form = event.target instanceof Element ? describeElement(event.target) : "form";
       const submitter =
         event instanceof SubmitEvent && event.submitter
           ? ` via ${describeElement(event.submitter)}`
           : "";
-      const context =
-        event.target instanceof Element ? contextOf(event.target) : "";
+      const context = event.target instanceof Element ? contextOf(event.target) : "";
       console.debug(`[action] submit ${form}${submitter}${context} @ ${here()}`);
     },
     { capture: true },
@@ -138,10 +132,7 @@ function logNavigations() {
 
 function logApiCalls() {
   const originalFetch = globalThis.fetch.bind(globalThis);
-  globalThis.fetch = async (
-    input: RequestInfo | URL,
-    init?: RequestInit,
-  ): Promise<Response> => {
+  globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     let url: URL;
     try {
       url = new URL(input instanceof Request ? input.url : String(input), location.origin);

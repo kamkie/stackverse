@@ -20,11 +20,13 @@ const MAX_FIELD_CHARS = 4096;
 // encode newlines, and cap length so a console.log (or crafted POST) can't
 // forge or flood log lines (docs/LOGGING.md §6).
 function sanitizeLogField(value) {
-  return String(value)
-    .slice(0, MAX_FIELD_CHARS)
-    .replace(/\r?\n/g, '\\n')
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '');
+  return (
+    String(value)
+      .slice(0, MAX_FIELD_CHARS)
+      .replace(/\r?\n/g, '\\n')
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, '')
+  );
 }
 
 const sink = createServer((req, res) => {

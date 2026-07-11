@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { fieldErrorFor, isConflict, messageOf } from '../api/problem';
 import type { FieldError, Page, Report, ReportReason, ReportStatus } from '../api/types';
@@ -27,7 +27,11 @@ const STATUSES: ReportStatus[] = ['open', 'dismissed', 'actioned'];
       (closed)="closed.emit()"
     >
       <form class="sv-form" (ngSubmit)="submit()">
-        <sv-field [label]="t('ui.field.reason')" forId="edit-report-reason" [error]="fieldError('reason')">
+        <sv-field
+          [label]="t('ui.field.reason')"
+          forId="edit-report-reason"
+          [error]="fieldError('reason')"
+        >
           <select id="edit-report-reason" class="sv-select" name="reason" [(ngModel)]="reason">
             @for (option of reasons; track option) {
               <option [value]="option">{{ t('ui.report.reason.' + option) }}</option>
@@ -62,7 +66,7 @@ const STATUSES: ReportStatus[] = ['open', 'dismissed', 'actioned'];
     </sv-dialog>
   `,
 })
-export class EditReportDialog {
+export class EditReportDialog implements OnInit {
   protected readonly t = inject(I18n).t;
   private readonly api = inject(BookmarksApi);
   private readonly toast = inject(ToastStore);
@@ -171,7 +175,9 @@ export class EditReportDialog {
               @for (report of page.items; track report.id) {
                 <tr [attr.data-ctx]="'report:' + report.id">
                   <td>
-                    <time [attr.datetime]="report.createdAt">{{ formatDate(report.createdAt) }}</time>
+                    <time [attr.datetime]="report.createdAt">{{
+                      formatDate(report.createdAt)
+                    }}</time>
                   </td>
                   <td><app-bookmark-cell [bookmarkId]="report.bookmarkId" /></td>
                   <td>
@@ -210,7 +216,11 @@ export class EditReportDialog {
           </table>
         </div>
       }
-      <sv-pagination [page]="page.page" [totalPages]="page.totalPages" (paged)="pageIndex.set($event)" />
+      <sv-pagination
+        [page]="page.page"
+        [totalPages]="page.totalPages"
+        (paged)="pageIndex.set($event)"
+      />
       @if (editing(); as report) {
         <app-edit-report-dialog
           [report]="report"

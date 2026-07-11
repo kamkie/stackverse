@@ -43,6 +43,8 @@ jobs:
           restore-keys: yarn-${{ runner.os }}-frontend-vue-
       - name: Install dependencies
         run: yarn install --immutable
+      - name: Lint and check formatting
+        run: yarn lint && yarn format:check
       # the committed src/api/schema.ts must match spec/openapi.yaml
       - name: Check generated API types are current
         run: yarn generate:api:check

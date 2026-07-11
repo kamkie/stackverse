@@ -168,10 +168,16 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       return sendProblem(reply, 403, "Forbidden", "Cross-origin state-changing requests are not supported.");
     }
     if (!hasValidCsrf(request)) {
-      logEvent("info", "csrf_validation_failed", "denied", "Rejected a state-changing /api request without a matching CSRF header", {
-        method: sanitizeLogValue(request.method),
-        path: sanitizeLogValue(request.url.split("?")[0]),
-      });
+      logEvent(
+        "info",
+        "csrf_validation_failed",
+        "denied",
+        "Rejected a state-changing /api request without a matching CSRF header",
+        {
+          method: sanitizeLogValue(request.method),
+          path: sanitizeLogValue(request.url.split("?")[0]),
+        },
+      );
       return sendProblem(reply, 403, "Forbidden", `Missing or mismatched ${XSRF_HEADER.toUpperCase()} header.`);
     }
 
@@ -182,17 +188,28 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
         accessToken = await accessTokenForSession(loaded.id, loaded.session, sessionStore, oidc);
       } catch (error) {
         if (error instanceof IdpUnavailableError) {
-          return sendProblem(reply, 503, "Service Unavailable", "Authentication is temporarily unavailable; please retry.");
+          return sendProblem(
+            reply,
+            503,
+            "Service Unavailable",
+            "Authentication is temporarily unavailable; please retry.",
+          );
         }
         throw error;
       }
       if (!accessToken) {
         await sessionStore.destroySession(loaded.id);
         clearSessionCookie(reply, gateway.cookiesSecure);
-        logEvent("info", "session_destroyed", "success", "Session destroyed after a failed token refresh; request degraded to anonymous", {
-          reason: "token_refresh_failed",
-          actor: loaded.session.username,
-        });
+        logEvent(
+          "info",
+          "session_destroyed",
+          "success",
+          "Session destroyed after a failed token refresh; request degraded to anonymous",
+          {
+            reason: "token_refresh_failed",
+            actor: loaded.session.username,
+          },
+        );
       }
     }
 

@@ -4,10 +4,22 @@ import { tagsFromInput, tagsToInput, toFieldErrorMap } from "../forms";
 import type { FieldError, Problem } from "../api/problem";
 
 const fieldErrors: FieldError[] = [
-  { field: "title", messageKey: "validation.required", message: "Title is required" },
+  {
+    field: "title",
+    messageKey: "validation.required",
+    message: "Title is required",
+  },
   { field: "tags[0]", messageKey: "validation.tag", message: "Invalid tag" },
-  { field: "tags.1", messageKey: "validation.tag", message: "Second invalid tag" },
-  { field: "notes", messageKey: "validation.length", message: "Notes are too long" },
+  {
+    field: "tags.1",
+    messageKey: "validation.tag",
+    message: "Second invalid tag",
+  },
+  {
+    field: "notes",
+    messageKey: "validation.length",
+    message: "Notes are too long",
+  },
 ];
 
 describe("API problem helpers", () => {

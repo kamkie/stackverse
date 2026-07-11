@@ -1,9 +1,5 @@
 import { setupWorker } from "msw/browser";
-import {
-  handlers,
-  performMockLogin,
-  restorePersistedSession,
-} from "./handlers";
+import { handlers, performMockLogin, restorePersistedSession } from "./handlers";
 
 // A full-page navigation to /auth/login cannot be answered by the service
 // worker (MSW ignores document requests). The Vite dev server serves the SPA

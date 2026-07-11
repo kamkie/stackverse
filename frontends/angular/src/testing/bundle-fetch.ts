@@ -34,10 +34,13 @@ export function stubBundleFetch(): BundleFetchStub {
     if (sent.get('If-None-Match') === etag) {
       return new Response(null, { status: 304 });
     }
-    return new Response(JSON.stringify({ language: language in SEEDS ? language : 'en', messages }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json', ETag: etag },
-    });
+    return new Response(
+      JSON.stringify({ language: language in SEEDS ? language : 'en', messages }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ETag: etag },
+      },
+    );
   }) as typeof fetch;
   return {
     ifNoneMatch,

@@ -151,11 +151,42 @@ function createDb(): Db {
     : [];
 
   const users: UserAccount[] = [
-    { username: "demo", firstSeen: daysAgo(30), lastSeen: daysAgo(0), status: "active", bookmarkCount: bookmarks.filter((b) => b.owner === "demo").length },
-    { username: "moderator", firstSeen: daysAgo(28), lastSeen: daysAgo(1), status: "active", bookmarkCount: 0 },
-    { username: "admin", firstSeen: daysAgo(28), lastSeen: daysAgo(0), status: "active", bookmarkCount: 0 },
-    { username: "carol", firstSeen: daysAgo(14), lastSeen: daysAgo(4), status: "active", bookmarkCount: bookmarks.filter((b) => b.owner === "carol").length },
-    { username: "mallory", firstSeen: daysAgo(20), lastSeen: daysAgo(9), status: "blocked", blockedReason: "Repeated spam.", bookmarkCount: 0 },
+    {
+      username: "demo",
+      firstSeen: daysAgo(30),
+      lastSeen: daysAgo(0),
+      status: "active",
+      bookmarkCount: bookmarks.filter((b) => b.owner === "demo").length,
+    },
+    {
+      username: "moderator",
+      firstSeen: daysAgo(28),
+      lastSeen: daysAgo(1),
+      status: "active",
+      bookmarkCount: 0,
+    },
+    {
+      username: "admin",
+      firstSeen: daysAgo(28),
+      lastSeen: daysAgo(0),
+      status: "active",
+      bookmarkCount: 0,
+    },
+    {
+      username: "carol",
+      firstSeen: daysAgo(14),
+      lastSeen: daysAgo(4),
+      status: "active",
+      bookmarkCount: bookmarks.filter((b) => b.owner === "carol").length,
+    },
+    {
+      username: "mallory",
+      firstSeen: daysAgo(20),
+      lastSeen: daysAgo(9),
+      status: "blocked",
+      blockedReason: "Repeated spam.",
+      bookmarkCount: 0,
+    },
   ];
 
   const audit: AuditEntry[] = [
@@ -170,16 +201,15 @@ function createDb(): Db {
     },
   ];
 
-  const messages: Message[] = Object.entries(SEED_MESSAGES).flatMap(
-    ([language, entries]) =>
-      Object.entries(entries).map(([key, text]) => ({
-        id: nextId(),
-        key,
-        language,
-        text,
-        createdAt: daysAgo(30),
-        updatedAt: daysAgo(30),
-      })),
+  const messages: Message[] = Object.entries(SEED_MESSAGES).flatMap(([language, entries]) =>
+    Object.entries(entries).map(([key, text]) => ({
+      id: nextId(),
+      key,
+      language,
+      text,
+      createdAt: daysAgo(30),
+      updatedAt: daysAgo(30),
+    })),
   );
 
   return {

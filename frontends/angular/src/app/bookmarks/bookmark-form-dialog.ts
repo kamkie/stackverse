@@ -29,7 +29,6 @@ import { BookmarksApi } from './api';
             name="url"
             [(ngModel)]="url"
             [attr.aria-invalid]="fieldError('url') ? true : null"
-            autofocus
           />
         </sv-field>
         <sv-field

@@ -14,8 +14,7 @@ if (config.otelEnabled) {
     serviceName: process.env["OTEL_SERVICE_NAME"] ?? "stackverse-gateway-node-fastify",
     instrumentations: [
       new HttpInstrumentation({
-        ignoreIncomingRequestHook: (request) =>
-          request.url === "/healthz" || request.url === "/readyz",
+        ignoreIncomingRequestHook: (request) => request.url === "/healthz" || request.url === "/readyz",
       }),
     ],
     traceExporter: new OTLPTraceExporter(),

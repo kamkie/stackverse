@@ -142,7 +142,10 @@ describe('BookmarksApi', () => {
     const reportRequest = controller.expectOne('/api/v1/bookmarks/bookmark-1/reports');
     expect(reportRequest.request.method).toBe('POST');
     expect(reportRequest.request.body).toEqual({ reason: 'spam', comment: 'ads' });
-    reportRequest.flush({ ...report, reason: 'spam', comment: 'ads' }, { status: 201, statusText: 'Created' });
+    reportRequest.flush(
+      { ...report, reason: 'spam', comment: 'ads' },
+      { status: 201, statusText: 'Created' },
+    );
     await expect(createReport).resolves.toMatchObject({ reason: 'spam', comment: 'ads' });
 
     const tags: TagList = { tags: [{ tag: 'angular', count: 3 }] };

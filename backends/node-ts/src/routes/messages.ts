@@ -171,10 +171,7 @@ export function registerMessageRoutes(app: FastifyInstance): void {
       return row;
     });
     logMessageEvent("message_created", "Message created", caller.username, message);
-    return reply
-      .code(201)
-      .header("location", `/api/v1/messages/${message.id}`)
-      .send(toMessageResponse(message));
+    return reply.code(201).header("location", `/api/v1/messages/${message.id}`).send(toMessageResponse(message));
   });
 
   app.put("/api/v1/messages/:id", async (request) => {
@@ -184,10 +181,11 @@ export function registerMessageRoutes(app: FastifyInstance): void {
     const message = await withTransaction(async (client) => {
       const existing = await client.query("select 1 from messages where id = $1", [id]);
       if (!existing.rowCount) throw new NotFoundProblem();
-      const duplicate = await client.query(
-        "select 1 from messages where key = $1 and language = $2 and id <> $3",
-        [input.key, input.language, id],
-      );
+      const duplicate = await client.query("select 1 from messages where key = $1 and language = $2 and id <> $3", [
+        input.key,
+        input.language,
+        id,
+      ]);
       if (duplicate.rowCount) throw duplicateConflict(input);
       let row: MessageRow;
       try {

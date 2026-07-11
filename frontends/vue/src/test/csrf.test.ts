@@ -6,27 +6,30 @@ import { api } from "../api/client";
 
 function stubFetch(): Request[] {
   const requests: Request[] = [];
-  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
-    const request = input instanceof Request ? input : new Request(input);
-    requests.push(request);
-    if (request.method === "GET") {
-      return Response.json({ tags: [] });
-    }
-    return Response.json(
-      {
-        id: "00000000-0000-4000-8000-000000000001",
-        owner: "demo",
-        url: "https://example.com",
-        title: "t",
-        tags: [],
-        visibility: "private",
-        status: "active",
-        createdAt: new Date(0).toISOString(),
-        updatedAt: new Date(0).toISOString(),
-      },
-      { status: 201 },
-    );
-  }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL) => {
+      const request = input instanceof Request ? input : new Request(input);
+      requests.push(request);
+      if (request.method === "GET") {
+        return Response.json({ tags: [] });
+      }
+      return Response.json(
+        {
+          id: "00000000-0000-4000-8000-000000000001",
+          owner: "demo",
+          url: "https://example.com",
+          title: "t",
+          tags: [],
+          visibility: "private",
+          status: "active",
+          createdAt: new Date(0).toISOString(),
+          updatedAt: new Date(0).toISOString(),
+        },
+        { status: 201 },
+      );
+    }),
+  );
   return requests;
 }
 
@@ -36,7 +39,12 @@ describe("csrf double-submit", () => {
     const requests = stubFetch();
 
     const result = await api.POST("/api/v1/bookmarks", {
-      body: { url: "https://example.com", title: "t", tags: [], visibility: "private" },
+      body: {
+        url: "https://example.com",
+        title: "t",
+        tags: [],
+        visibility: "private",
+      },
     });
 
     expect(result.response.status).toBe(201);
@@ -49,7 +57,12 @@ describe("csrf double-submit", () => {
 
     await api.GET("/api/v1/tags");
     await api.POST("/api/v1/bookmarks", {
-      body: { url: "https://example.com", title: "t", tags: [], visibility: "private" },
+      body: {
+        url: "https://example.com",
+        title: "t",
+        tags: [],
+        visibility: "private",
+      },
     });
 
     expect(requests).toHaveLength(2);
@@ -87,7 +100,12 @@ describe("csrf double-submit", () => {
     );
 
     const result = await api.POST("/api/v1/bookmarks", {
-      body: { url: "https://example.com", title: "t", tags: [], visibility: "private" },
+      body: {
+        url: "https://example.com",
+        title: "t",
+        tags: [],
+        visibility: "private",
+      },
     });
 
     expect(result.response.status).toBe(201);

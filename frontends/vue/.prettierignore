@@ -1,0 +1,8 @@
+.pnp.*
+.yarn/
+coverage/
+dist/
+public/mockServiceWorker.js
+src/api/schema.ts
+test-results/
+yarn.lock

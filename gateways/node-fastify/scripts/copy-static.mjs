@@ -5,6 +5,6 @@ const source = resolve("src/static");
 const target = resolve("dist/static");
 
 if (existsSync(source)) {
-  mkdirSync(target, { recursive: true });
-  cpSync(source, target, { recursive: true });
+    mkdirSync(target, { recursive: true });
+    cpSync(source, target, { recursive: true });
 }

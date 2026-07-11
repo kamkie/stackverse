@@ -68,10 +68,12 @@ describe('ReportDialog', () => {
 
   it('treats a 409 duplicate as confirmation, not an error (SPEC rule 13)', async () => {
     submit();
-    controller.expectOne('/api/v1/bookmarks/b1/reports').flush(
-      { title: 'Conflict', detail: 'You already have an open report on this bookmark.' },
-      { status: 409, statusText: 'Conflict' },
-    );
+    controller
+      .expectOne('/api/v1/bookmarks/b1/reports')
+      .flush(
+        { title: 'Conflict', detail: 'You already have an open report on this bookmark.' },
+        { status: 409, statusText: 'Conflict' },
+      );
     await flushAsync();
     fixture.detectChanges();
 
