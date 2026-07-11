@@ -146,7 +146,9 @@ class DatabaseApplicationSpec
         body = Some(bookmarkBody("https://example.test/hidden", "Hidden", "public"))
       )
       status(republish).shouldBe(CONFLICT)
-      (contentAsJson(republish) \ "detail").as[String].shouldNot(be("error.bookmark.hidden-publish"))
+      (contentAsJson(republish) \ "detail")
+        .as[String]
+        .shouldBe("This bookmark was hidden by moderation and cannot be made public.")
 
       val privatized = callRoute(
         PUT,
@@ -464,7 +466,8 @@ class DatabaseApplicationSpec
       (statsJson \ "totals" \ "users").as[Long].shouldBe(2L)
       (statsJson \ "totals" \ "bookmarks").as[Long].shouldBe(1L)
       (statsJson \ "totals" \ "openReports").as[Long].shouldBe(1L)
-      (statsJson \ "daily").as[JsArray].value.size.shouldBe(30)
+      val statsDaily = (statsJson \ "daily").as[JsArray].value
+      statsDaily.size.shouldBe(30)
       (statsJson \ "topTags").as[Seq[JsObject]].map(value => (value \ "tag").as[String]).should(contain("scala"))
 
       val statsEtag = header("ETag", stats).value
@@ -475,7 +478,14 @@ class DatabaseApplicationSpec
         roles = Seq("moderator", "admin"),
         headers = Seq("If-None-Match" -> statsEtag)
       )
-      status(cached).shouldBe(NOT_MODIFIED)
+      status(cached) match {
+        case NOT_MODIFIED => succeed
+        case OK           =>
+          val cachedDaily = (contentAsJson(cached) \ "daily").as[JsArray].value
+          (cachedDaily.last \ "date").as[String].shouldNot(be((statsDaily.last \ "date").as[String]))
+          header("ETag", cached).value.shouldNot(be(statsEtag))
+        case unexpected => fail(s"Unexpected stats revalidation status: $unexpected")
+      }
 
       val unblocked = setUserStatus("target-user", "active", None)
       status(unblocked).shouldBe(OK)
@@ -546,15 +556,29 @@ class DatabaseApplicationSpec
             }
           )
           .value
-        auth.optional(request).value.username.shouldBe("jwt-user")
-        val nextLastSeen = database
-          .withConnection(conn =>
-            database.one(conn, "select last_seen from user_accounts where username = ?", Seq("jwt-user"))(
+        val staleLastSeen = database.withConnection { conn =>
+          database.execute(
+            conn,
+            "update user_accounts set last_seen = last_seen - interval '1 second' where username = ?",
+            Seq("jwt-user")
+          )
+          database
+            .one(conn, "select last_seen from user_accounts where username = ?", Seq("jwt-user"))(
               _.getTimestamp("last_seen").toInstant
             )
+            .value
+        }
+        auth.optional(request).value.username.shouldBe("jwt-user")
+        val nextSeen = database
+          .withConnection(conn =>
+            database.one(conn, "select first_seen, last_seen from user_accounts where username = ?", Seq("jwt-user")) {
+              rs =>
+                rs.getTimestamp("first_seen").toInstant -> rs.getTimestamp("last_seen").toInstant
+            }
           )
           .value
-        nextLastSeen.isBefore(firstSeen._2).shouldBe(false)
+        nextSeen._1.shouldBe(firstSeen._1)
+        nextSeen._2.isAfter(staleLastSeen).shouldBe(true)
 
         auth.requireRole(caller, "moderator").shouldBe(caller)
         intercept[ForbiddenProblem](auth.requireRole(caller, "admin"))
@@ -566,7 +590,7 @@ class DatabaseApplicationSpec
             Seq("jwt-user")
           )
         )
-        intercept[ForbiddenProblem](auth.optional(request)).detail.value.shouldNot(be("error.account.blocked"))
+        intercept[ForbiddenProblem](auth.optional(request)).detail.value.shouldBe("Your account has been blocked.")
 
         val wrongAudience = JwtFixtures.signedToken(
           key,
