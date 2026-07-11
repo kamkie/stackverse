@@ -376,6 +376,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | Static `.astro` shell with selectively hydrated framework islands or an external client entry for fully interactive applications | Static Astro document with an external Solid client entry for the authenticated SPA and strict gateway CSP | 🟡 deliberate |
 | [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Light-DOM LitElement shell plus a stable dialog element, composed from focused route and view modules | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `component$` components in TSX with QRL callbacks and typed props | `component$` TSX components, `$` event handlers, typed props interfaces | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
@@ -389,6 +390,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | TanStack Query for server state; Context/hooks for local | TanStack Query + Context (i18n/toast) + web-storage helpers; no global store | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Signals (signal/computed/effect) with zoneless change detection | Plain signal stores + effect/untracked; zoneless; RxJS only at HttpClient | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | State stays inside client islands or entries; no client runtime for static regions | Solid signals inside the client application; Astro owns no runtime state | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | ReactiveElement properties/state or local controllers for component state | Plain module state; shell updates are requested explicitly and dialog markup crosses a reactive property boundary | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `useStore`/`useSignal` for reactive state; context when cross-component | Component stores/signals plus a tiny route store; no global state library | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Fine-grained signals/memos for local and shared state; context only when needed | Component and module-level `createSignal`/`createMemo`, no global store | ✅ idiomatic |
@@ -402,6 +404,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | File-based routes for documents; client router inside a client application when navigation cannot reload session state | One generated document plus a History API signal router in the Solid application | 🟡 deliberate |
 | [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/app.ts` | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
@@ -415,6 +418,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Typed client generated from OpenAPI schema | openapi-fetch over openapi-typescript schema.ts, RFC 9457 unwrap | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | HttpClient + interceptors; types generated from OpenAPI | HttpClient (fetch) + csrf interceptor; hand-written types from spec | 🟡 deliberate |
+| [Astro](../frontends/astro/README.md) | Typed fetch client inside interactive client code, generated types preferred | Hand-written fetch wrapper and types transcribed from OpenAPI inside the Solid application | 🟡 deliberate |
 | [Lit (Web Components)](../frontends/lit/README.md) | Typed fetch wrapper, often with generated OpenAPI types | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | Generated OpenAPI types with a typed fetch wrapper | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | Generated OpenAPI types with a typed fetch wrapper | Hand-written fetch wrapper and types transcribed from OpenAPI | 🟡 deliberate |
@@ -428,6 +432,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Semantic HTML, labeled controls, ARIA wiring, roles | native &lt;dialog&gt;, useId label/aria-invalid/aria-describedby, roles, &lt;time&gt; | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | label/for, aria-invalid, roles, aria-live, native dialog | label/for, aria-invalid, role/aria-live/aria-label, native &lt;dialog&gt; showModal | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | Semantic static shell plus accessible client-rendered markup | Native dialog, labeled fields, roles, aria-live, and time elements in the Solid application | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Semantic light-DOM HTML, labeled controls, ARIA wiring, native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Semantic HTML, labels, ARIA roles, keyboard-operable native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Semantic HTML, ARIA labels/roles, keyboard-operable native controls | native &lt;dialog&gt;, labeled fields, roles, aria-live, &lt;time&gt; | ✅ idiomatic |
@@ -441,6 +446,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | `src/pages` for Astro routes and `src/components` for islands/components | `src/pages/index.astro` shell plus Solid `components`, `screens`, and `lib` modules | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, view/controller modules, and an app entry | Composition-only main.ts plus focused state, navigation, view, bookmark, admin, dialog, and app-controller modules | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
@@ -454,6 +460,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Vitest + Testing Library, role queries, MSW mocks | Vitest + Testing Library + user-event, jsdom, shared MSW handlers | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | TestBed + HttpTestingController; Vitest now default over Karma/Jasmine | Vitest via @angular/build:unit-test, TestBed, HttpTestingController, jsdom | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | Astro check/build plus framework-native tests for hydrated islands | Astro check/build and Vitest + jsdom Solid component/helper tests | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vitest plus Open WC or Testing Library for custom elements | Vitest helper tests plus Open WC fixture-based light-DOM custom-element mounting | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Vitest with Qwik/browser component testing for UI behavior | Vitest helper tests plus Qwik `createDOM` component rendering; shared e2e covers full behavior | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
@@ -467,6 +474,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | angular-eslint flat config covers TypeScript, inline/external templates, and template accessibility; Prettier keeps the CLI-native single-quote style; both checks run in CI | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | Astro check plus ESLint/Prettier with Astro support | Astro check enforces templates and TypeScript; no separate formatter/linter yet | 🟡 deliberate |
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | ESLint flat config with Lit/Web Components/TypeScript rules plus Prettier | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |

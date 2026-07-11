@@ -143,6 +143,7 @@ provide a richer resolved graph than static manifest parsing (see
 | Gateway | YARP (ASP.NET Core) | `gateways/yarp` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=gateway-yarp)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | React | `frontends/react` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-react)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Angular | `frontends/angular` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-angular)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
+| Frontend | Astro | `frontends/astro` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-astro)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Lit (Web Components) | `frontends/lit` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-lit)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | Qwik | `frontends/qwik` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-qwik)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 | Frontend | SolidJS | `frontends/solid` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-solid)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
