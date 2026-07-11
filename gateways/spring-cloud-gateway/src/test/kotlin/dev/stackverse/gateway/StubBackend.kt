@@ -13,8 +13,11 @@ class StubBackend : AutoCloseable {
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
 
     @Volatile var lastPath: String? = null
+
     @Volatile var lastAuthorization: String = ""
+
     @Volatile var lastCookie: String = ""
+
     @Volatile var lastCsrfHeader: String = ""
 
     init {

@@ -36,7 +36,8 @@ object Csrf {
 class CsrfWebFilter(
     private val gateway: GatewayProperties,
     private val csrfTokens: ServerCsrfTokenRepository,
-) : WebFilter, Ordered {
+) : WebFilter,
+    Ordered {
 
     private val log = LoggerFactory.getLogger(javaClass)
     private val expectedOrigin = canonicalOrigin(gateway.publicUrl)
@@ -50,41 +51,43 @@ class CsrfWebFilter(
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         return issueToken(exchange)
-            .then(Mono.defer {
-                if (!isSameOrigin(exchange.request)) {
-                    // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
-                    log.logEvent(
-                        Level.INFO, "csrf_validation_failed", "denied",
-                        "Rejected a cross-origin state-changing /api request",
-                        "method" to sanitizeForLog(exchange.request.method.name()),
-                        // the decoded path is client-controlled input (§6)
-                        "path" to sanitizeForLog(exchange.request.path.value()),
-                    )
-                    return@defer Problems.write(
-                        exchange, HttpStatus.FORBIDDEN,
-                        "Forbidden", "Cross-origin state-changing requests are not supported.",
-                    )
-                }
-                hasValidCsrfToken(exchange)
-                    .flatMap { valid ->
-                        if (valid) {
-                            chain.filter(exchange)
-                        } else {
-                            // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
-                            log.logEvent(
-                                Level.INFO, "csrf_validation_failed", "denied",
-                                "Rejected a state-changing /api request without a matching CSRF header",
-                                "method" to sanitizeForLog(exchange.request.method.name()),
-                                // the decoded path is client-controlled input (§6)
-                                "path" to sanitizeForLog(exchange.request.path.value()),
-                            )
-                            Problems.write(
-                                exchange, HttpStatus.FORBIDDEN,
-                                "Forbidden", "Missing or mismatched ${Csrf.HEADER_NAME} header.",
-                            )
-                        }
+            .then(
+                Mono.defer {
+                    if (!isSameOrigin(exchange.request)) {
+                        // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+                        log.logEvent(
+                            Level.INFO, "csrf_validation_failed", "denied",
+                            "Rejected a cross-origin state-changing /api request",
+                            "method" to sanitizeForLog(exchange.request.method.name()),
+                            // the decoded path is client-controlled input (§6)
+                            "path" to sanitizeForLog(exchange.request.path.value()),
+                        )
+                        return@defer Problems.write(
+                            exchange, HttpStatus.FORBIDDEN,
+                            "Forbidden", "Cross-origin state-changing requests are not supported.",
+                        )
                     }
-            })
+                    hasValidCsrfToken(exchange)
+                        .flatMap { valid ->
+                            if (valid) {
+                                chain.filter(exchange)
+                            } else {
+                                // expected client behavior and a security signal — never above INFO (docs/LOGGING.md §3)
+                                log.logEvent(
+                                    Level.INFO, "csrf_validation_failed", "denied",
+                                    "Rejected a state-changing /api request without a matching CSRF header",
+                                    "method" to sanitizeForLog(exchange.request.method.name()),
+                                    // the decoded path is client-controlled input (§6)
+                                    "path" to sanitizeForLog(exchange.request.path.value()),
+                                )
+                                Problems.write(
+                                    exchange, HttpStatus.FORBIDDEN,
+                                    "Forbidden", "Missing or mismatched ${Csrf.HEADER_NAME} header.",
+                                )
+                            }
+                        }
+                },
+            )
     }
 
     /** Issues the readable double-submit cookie to any browser that lacks one. */

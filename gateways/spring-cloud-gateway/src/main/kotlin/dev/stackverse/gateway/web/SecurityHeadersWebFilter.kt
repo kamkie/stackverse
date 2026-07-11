@@ -10,7 +10,9 @@ import reactor.core.publisher.Mono
 
 /** Contracted browser hardening headers for gateway-owned responses. */
 @Component
-class SecurityHeadersWebFilter(private val gateway: GatewayProperties) : WebFilter, Ordered {
+class SecurityHeadersWebFilter(private val gateway: GatewayProperties) :
+    WebFilter,
+    Ordered {
 
     /**
      * Before Spring Security's WebFilterChainProxy (order -100), because the OIDC
