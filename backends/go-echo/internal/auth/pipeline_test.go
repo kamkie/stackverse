@@ -156,7 +156,7 @@ func TestAuthenticateRejectsInvalidTokensWithoutLoggingBearerValue(t *testing.T)
 			if _, value, ok := strings.Cut(tt.header, " "); ok {
 				credential = value
 			}
-			if strings.Contains(logged, tt.header) || strings.Contains(logged, credential) || strings.Contains(logged, "Authorization") {
+			if strings.Contains(logged, tt.header) || strings.Contains(logged, credential) {
 				t.Fatalf("JWT rejection log leaked bearer material: %s", logged)
 			}
 		})

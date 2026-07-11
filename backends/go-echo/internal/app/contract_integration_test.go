@@ -114,7 +114,12 @@ func TestPostgresBackedContractBoundaries(t *testing.T) {
 		).Scan(&firstSeen, &firstLastSeen); err != nil {
 			t.Fatalf("read lazily provisioned account: %v", err)
 		}
-		time.Sleep(2 * time.Millisecond)
+		staleLastSeen := time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)
+		if _, err := h.pool.Exec(context.Background(),
+			"update user_accounts set last_seen = $1 where username = 'demo'", staleLastSeen,
+		); err != nil {
+			t.Fatalf("make last_seen stale before refresh: %v", err)
+		}
 		requireStatus(t, h.do(t, http.MethodGet, "/api/v1/me", demoToken, nil, nil), http.StatusOK)
 		var secondFirstSeen, secondLastSeen time.Time
 		if err := h.pool.QueryRow(context.Background(),
@@ -122,7 +127,7 @@ func TestPostgresBackedContractBoundaries(t *testing.T) {
 		).Scan(&secondFirstSeen, &secondLastSeen); err != nil {
 			t.Fatalf("read updated provisioned account: %v", err)
 		}
-		if !secondFirstSeen.Equal(firstSeen) || !secondLastSeen.After(firstLastSeen) {
+		if !secondFirstSeen.Equal(firstSeen) || !secondLastSeen.After(staleLastSeen) {
 			t.Fatalf("lazy provisioning timestamps changed incorrectly: first=(%s,%s) second=(%s,%s)",
 				firstSeen, firstLastSeen, secondFirstSeen, secondLastSeen)
 		}

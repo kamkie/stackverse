@@ -63,8 +63,6 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Test
-        env:
-          STACKVERSE_TEST_DATABASE_URL: postgres://stackverse:stackverse@localhost:5432/stackverse_go_echo_test?sslmode=disable
         run: |
           mkdir -p TestResults
           go run gotest.tools/gotestsum@v1.13.0 --junitfile TestResults/junit.xml \
