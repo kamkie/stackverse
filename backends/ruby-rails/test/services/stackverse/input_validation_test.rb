@@ -5,7 +5,7 @@ class StackverseInputValidationTest < ActiveSupport::TestCase
     input = Stackverse::InputValidation.validate_bookmark(
       "url" => "https://example.com",
       "title" => "Example",
-      "tags" => ["Ruby", " ruby ", "rails-api"]
+      "tags" => [ "Ruby", " ruby ", "rails-api" ]
     )
 
     assert_equal %w[ruby rails-api], input[:tags]

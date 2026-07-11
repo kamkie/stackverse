@@ -5,7 +5,7 @@ class MessagesController < ApplicationController
     language = query_params.single("language")
     q = query_params.single("q")
     Stackverse::InputValidation.max_length(q, 200, "q")
-    conditions = ["true"]
+    conditions = [ "true" ]
     conditions << "key = #{Stackverse::Sql.quote(key)}" if key
     conditions << "language = #{Stackverse::Sql.quote(language)}" if language
     if q.present?

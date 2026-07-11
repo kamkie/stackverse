@@ -84,7 +84,7 @@ module Stackverse
       note = input["note"].is_a?(String) ? input["note"] : nil
       validator.check(note.to_s.length <= 1000, "note", "validation.resolution.note.too-long")
       validator.throw_if_invalid
-      [resolution, note]
+      [ resolution, note ]
     end
 
     def validate_bookmark_status(body)
@@ -95,7 +95,7 @@ module Stackverse
       note = input["note"].is_a?(String) ? input["note"] : nil
       validator.check(note.to_s.length <= 1000, "note", "validation.bookmark-status.note.too-long")
       validator.throw_if_invalid
-      [status, note]
+      [ status, note ]
     end
 
     def validate_message(body)
@@ -126,7 +126,7 @@ module Stackverse
         validator.throw_if_invalid
         Errors.conflict("Admins cannot block themselves.") if target_username == actor_username
       end
-      [status, reason]
+      [ status, reason ]
     end
 
     def parse_datetime(value, name)

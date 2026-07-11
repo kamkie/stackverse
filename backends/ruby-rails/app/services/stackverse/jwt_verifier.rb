@@ -45,7 +45,7 @@ module Stackverse
         token,
         key,
         true,
-        algorithms: ["RS256"],
+        algorithms: [ "RS256" ],
         iss: Stackverse.config.oidc_issuer_uri,
         verify_iss: true,
         aud: Stackverse.config.oidc_audience,

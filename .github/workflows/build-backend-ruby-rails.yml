@@ -36,6 +36,8 @@ jobs:
           ruby-version: "4.0.5"
           bundler-cache: true
           working-directory: backends/ruby-rails
+      - name: Lint
+        run: bundle exec rubocop
       - name: Zeitwerk check
         run: bundle exec rails zeitwerk:check
       - name: Test

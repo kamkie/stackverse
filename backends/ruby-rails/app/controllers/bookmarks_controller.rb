@@ -150,7 +150,7 @@ class BookmarksController < ApplicationController
       pattern = Stackverse::Sql.like_pattern(q)
       conditions << "(title ilike #{Stackverse::Sql.quote(pattern)} escape E'\\\\' or notes ilike #{Stackverse::Sql.quote(pattern)} escape E'\\\\')"
     end
-    [conditions.join(" and "), []]
+    [ conditions.join(" and "), [] ]
   end
 
   def find_bookmark(bookmark_id)

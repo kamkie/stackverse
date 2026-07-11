@@ -25,7 +25,7 @@ module Stackverse
       size = integer(single("size"), 20, "size")
       Errors.bad_request("page must not be negative") if page.negative?
       Errors.bad_request("size must be between 1 and 100") if size < 1 || size > 100
-      [page, size]
+      [ page, size ]
     end
 
     private

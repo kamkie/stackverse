@@ -1,0 +1,6 @@
+inherit_gem:
+  rubocop-rails-omakase: rubocop.yml
+
+AllCops:
+  TargetRailsVersion: 8.1
+  TargetRubyVersion: 4.0
