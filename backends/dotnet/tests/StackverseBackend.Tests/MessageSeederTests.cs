@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using StackverseBackend.Data;
 using StackverseBackend.Messages;
 
 namespace StackverseBackend.Tests;
@@ -16,7 +15,7 @@ public class MessageSeederTests
             var englishFile = Path.Combine(directory, "en.json");
             await File.WriteAllTextAsync(englishFile, "{\"ui.a\":\"English A\",\"ui.b\":\"English B\"}");
             await File.WriteAllTextAsync(Path.Combine(directory, "pl.json"), "{\"ui.a\":\"Polish A\"}");
-            await using var db = CreateDb();
+            await using var db = TestDb.Create();
             var logger = new RecordingLogger<MessageSeederTests>();
 
             await MessageSeeder.SeedAsync(db, directory, logger);
@@ -61,7 +60,7 @@ public class MessageSeederTests
     public async Task Missing_seed_directory_fails_fast_with_actionable_configuration_hint()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"stackverse-missing-seed-{Guid.NewGuid()}");
-        await using var db = CreateDb();
+        await using var db = TestDb.Create();
         var logger = new RecordingLogger<MessageSeederTests>();
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
@@ -71,9 +70,4 @@ public class MessageSeederTests
         Assert.Contains(Path.GetFullPath(directory), exception.Message);
         Assert.Empty(logger.Entries);
     }
-
-    private static AppDbContext CreateDb() => new(
-        new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options);
 }

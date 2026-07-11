@@ -163,6 +163,14 @@ internal sealed class FailingSaveAppDbContext(DbContextOptions<AppDbContext> opt
     }
 }
 
+internal static class TestDb
+{
+    public static AppDbContext Create() => new(
+        new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options);
+}
+
 internal static class TestDatabaseFailure
 {
     public static DbUpdateException UniqueViolation(string constraintName) =>

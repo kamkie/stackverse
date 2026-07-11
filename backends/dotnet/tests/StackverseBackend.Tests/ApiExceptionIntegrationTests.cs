@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using StackverseBackend.Common;
 using StackverseBackend.Data;
@@ -71,7 +70,7 @@ public class ApiExceptionIntegrationTests
     [Fact]
     public async Task Unexpected_exception_clears_partial_output_logs_error_and_returns_sanitized_500()
     {
-        await using var db = CreateDb();
+        await using var db = TestDb.Create();
         var logger = new RecordingLogger<ApiExceptionMiddleware>();
         var middleware = new ApiExceptionMiddleware(async context =>
         {
@@ -96,7 +95,7 @@ public class ApiExceptionIntegrationTests
     [Fact]
     public async Task Nested_database_exception_keeps_one_dependency_error_and_suppresses_the_generic_log()
     {
-        await using var db = CreateDb();
+        await using var db = TestDb.Create();
         var logger = new RecordingLogger<ApiExceptionMiddleware>();
         var databaseException = new NpgsqlException("database secret");
         var middleware = new ApiExceptionMiddleware(_ =>
@@ -117,11 +116,6 @@ public class ApiExceptionIntegrationTests
         Assert.Same(databaseException, error.Exception);
         Assert.DoesNotContain("database secret", await BodyAsync(context));
     }
-
-    private static AppDbContext CreateDb() => new(
-        new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options);
 
     private static DefaultHttpContext Context() => new()
     {
