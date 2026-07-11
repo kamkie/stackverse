@@ -20,7 +20,7 @@ def admin_client() -> TestClient:
     return client_for(Caller("admin", ["admin", "moderator"]))
 
 
-def test_bookmark_moderation_status_change_is_transactional_audited_and_logged(monkeypatch) -> None:
+def test_bookmark_moderation_status_change_uses_one_transaction_boundary_with_audit_and_log(monkeypatch) -> None:
     original = bookmark_row(status="active")
     hidden = bookmark_row(status="hidden")
     connection = ScriptedConnection(

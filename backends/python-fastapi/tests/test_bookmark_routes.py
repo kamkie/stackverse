@@ -88,7 +88,9 @@ def test_bookmark_create_read_masking_delete_and_tags_use_authenticated_boundary
     assert client.get("/api/v1/tags").json() == {"tags": [{"tag": "python", "count": 2}]}
 
 
-def test_hidden_bookmark_cannot_be_republished_and_active_bookmark_updates_atomically(monkeypatch) -> None:
+def test_hidden_bookmark_cannot_be_republished_and_active_bookmark_updates_through_transaction_boundary(
+    monkeypatch,
+) -> None:
     hidden = bookmark_row(status="hidden", visibility="private")
     conflict_connection = ScriptedConnection(Step("select * from bookmarks", one=hidden))
     monkeypatch.setattr(bookmarks, "transaction", lambda: scripted_transaction(conflict_connection))

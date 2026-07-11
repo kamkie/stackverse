@@ -16,13 +16,11 @@ class Step:
     all: object = _UNSET
     params: tuple[object, ...] | None = None
     raises: Exception | None = None
-    rowcount: int = 1
 
 
 class FakeResult:
     def __init__(self, step: Step) -> None:
         self._step = step
-        self.rowcount = step.rowcount
 
     def fetchone(self) -> object:
         if self._step.one is not _UNSET:
@@ -35,8 +33,6 @@ class FakeResult:
     def fetchall(self) -> list[object]:
         if self._step.all is not _UNSET:
             return list(self._step.all)
-        if self._step.one is not _UNSET and self._step.one is not None:
-            return [self._step.one]
         return []
 
 
