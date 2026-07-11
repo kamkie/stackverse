@@ -597,10 +597,17 @@ do not match the Codecov flag/component path filters. Use
 `tools/normalize-coverage-paths.mjs` in the implementation workflow when a
 tool emits package-relative LCOV paths or Go module import paths.
 
-Every job — including conformance and e2e — also submits its JUnit test
-results to Codecov test analytics under the same flags, even when the tests
-fail. The README implementation matrix shows a per-flag coverage badge for
-each done implementation.
+Coverage percentages are not directly comparable across variants. Toolchains
+differ in branch/partial-line semantics, and some JavaScript configurations
+instrument every configured source file while others report only modules
+loaded by the suite. Inspect the tracked file set and covered/missed-line
+breadth in the underlying report before drawing conclusions from a badge; the
+numbers are diagnostics, not a cross-stack score.
+
+Jobs that emit a supported JUnit-compatible result submit it to Codecov test
+analytics under the same flag, even when tests fail. Conformance and e2e jobs
+also publish their JUnit results. The README implementation matrix shows a
+per-flag coverage badge for each done implementation.
 
 Two more automations live in `.github/`:
 
