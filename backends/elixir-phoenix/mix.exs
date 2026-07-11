@@ -9,13 +9,18 @@ defmodule StackverseBackend.MixProject do
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],
-      preferred_cli_env: [
+      deps: deps()
+    ]
+  end
+
+  def cli do
+    [
+      preferred_envs: [
         coveralls: :test,
         "coveralls.detail": :test,
         "coveralls.html": :test,
         "coveralls.lcov": :test
-      ],
-      deps: deps()
+      ]
     ]
   end
 
