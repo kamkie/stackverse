@@ -376,7 +376,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Function components with hooks; typed props interfaces | Function components, hooks, typed props interfaces, ReactNode/ReactElement | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Standalone components, signal inputs/outputs, @if/@for control flow | Standalone @Component, input()/output(), @if/@for, inline templates | ✅ idiomatic |
-| [Astro](../frontends/astro/README.md) | Static `.astro` shell with selectively hydrated framework islands or an external client entry for fully interactive applications | Static Astro document with an external Solid client entry for the authenticated SPA and strict gateway CSP | 🟡 deliberate |
+| [Astro](../frontends/astro/README.md) | Static `.astro` pages composed through layouts, with selectively hydrated islands or an external client entry for fully interactive content | Nine static Astro pages share one layout and load a CSP-safe external Solid client entry | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | LitElement custom elements; shadow DOM by default unless global CSS integration calls for light DOM | Light-DOM LitElement shell plus a stable dialog element, composed from focused route and view modules | 🟡 deliberate |
 | [Qwik](../frontends/qwik/README.md) | `component$` components in TSX with QRL callbacks and typed props | `component$` TSX components, `$` event handlers, typed props interfaces | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Function components in TSX with typed props and fine-grained JSX control flow | Function components in TSX, typed props, `<Show>`/`<For>` helpers | ✅ idiomatic |
@@ -404,7 +404,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
-| [Astro](../frontends/astro/README.md) | File-based routes for documents; client router inside a client application when navigation cannot reload session state | One generated document plus a History API signal router in the Solid application | 🟡 deliberate |
+| [Astro](../frontends/astro/README.md) | File-based routes under `src/pages`, with shared layouts for common document structure | Nine generated routes use native navigation and `AppLayout.astro`; no client router | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/app.ts` | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
@@ -446,7 +446,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
-| [Astro](../frontends/astro/README.md) | `src/pages` for Astro routes and `src/components` for islands/components | `src/pages/index.astro` shell plus Solid `components`, `screens`, and `lib` modules | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | `src/pages` for routes, `src/layouts` for shared documents, and `src/components` for islands/components | File-based pages plus `AppLayout.astro`, with Solid `components`, `screens`, and `lib` modules | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, view/controller modules, and an app entry | Composition-only main.ts plus focused state, navigation, view, bookmark, admin, dialog, and app-controller modules | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
