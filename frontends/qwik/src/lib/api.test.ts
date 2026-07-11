@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ApiError,
   api,
+  apiMessage,
   apiStatus,
   fieldErrorFor,
   jsonBody,
   queryString,
 } from "./api";
-import { endOfDayIso } from "./format";
+import { endOfDayIso, formatDate } from "./format";
 
 function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -25,6 +26,10 @@ afterEach(() => {
 });
 
 describe("queryString", () => {
+  it("omits the question mark when every value is empty", () => {
+    expect(queryString({ empty: "", nil: null, missing: undefined })).toBe("");
+  });
+
   it("skips empty values and repeats array params", () => {
     expect(
       queryString({ q: "text", tag: ["a", "b"], empty: "", nil: null }),
@@ -114,6 +119,17 @@ describe("api", () => {
     await expect(api<void>("/api/v1/messages/bundle")).resolves.toBeUndefined();
   });
 
+  it("returns undefined for a 204 response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 204 })),
+    );
+
+    await expect(
+      api<void>("/api/v1/bookmarks/id", { method: "DELETE" }),
+    ).resolves.toBeUndefined();
+  });
+
   it("throws ApiError with parsed problem details", async () => {
     const problem = {
       title: "Validation failed",
@@ -136,6 +152,49 @@ describe("api", () => {
       problem,
       message: "Validation failed",
     });
+  });
+
+  it("falls back to an HTTP status message for malformed problem JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("not-json", {
+          status: 502,
+          headers: { "Content-Type": "application/problem+json" },
+        }),
+      ),
+    );
+
+    await expect(api("/api/v1/bookmarks")).rejects.toMatchObject({
+      status: 502,
+      problem: null,
+      message: "HTTP 502",
+    });
+  });
+
+  it("does not retry a 403 when the CSRF cookie is unchanged", async () => {
+    document.cookie = "XSRF-TOKEN=same-token; path=/";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ title: "Forbidden", status: 403 }, { status: 403 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      api("/api/v1/bookmarks", { method: "POST", ...jsonBody({}) }),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("error helpers", () => {
+  it("extracts statuses and messages without assuming an ApiError instance", () => {
+    expect(apiStatus(new ApiError(409, null))).toBe(409);
+    expect(apiStatus({ status: "409" })).toBeUndefined();
+    expect(apiStatus(null)).toBeUndefined();
+    expect(apiMessage(new Error("network down"))).toBe("network down");
+    expect(apiMessage("plain failure")).toBe("plain failure");
   });
 });
 
@@ -178,5 +237,11 @@ describe("fieldErrorFor", () => {
 describe("endOfDayIso", () => {
   it("maps a local calendar day to the inclusive final microsecond", () => {
     expect(endOfDayIso("2026-07-05")).toMatch(/T.*:59\.999999Z$/);
+  });
+
+  it("formats timestamps using the selected runtime locale", () => {
+    const value = "2026-07-05T12:34:56Z";
+
+    expect(formatDate(value, "en")).toBe(new Date(value).toLocaleString("en"));
   });
 });

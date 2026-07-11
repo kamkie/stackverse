@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyTheme, readStoredTheme, THEME_STORAGE_KEY } from "./theme";
 
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("readStoredTheme", () => {
@@ -21,6 +25,14 @@ describe("readStoredTheme", () => {
 
     localStorage.setItem(THEME_STORAGE_KEY, "dark");
     expect(readStoredTheme()).toBe("dark");
+  });
+
+  it("falls back to auto when storage is unavailable", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("storage denied");
+    });
+
+    expect(readStoredTheme()).toBe("auto");
   });
 });
 
