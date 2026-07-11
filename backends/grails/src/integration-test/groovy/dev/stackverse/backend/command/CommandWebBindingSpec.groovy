@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.oauth2.jwt.BadJwtException
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import spock.lang.Requires
 import spock.lang.Specification
@@ -200,6 +201,9 @@ class TestJwtConfiguration {
     @Primary
     JwtDecoder testJwtDecoder() {
         { String token ->
+            if (token == 'invalid') {
+                throw new BadJwtException('Invalid test token')
+            }
             List<String> parts = token.tokenize('.')
             String username = parts[0]
             List<String> roles = switch (parts.size() > 1 ? parts[1] : 'regular') {

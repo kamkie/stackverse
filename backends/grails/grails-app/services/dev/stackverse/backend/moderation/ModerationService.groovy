@@ -10,6 +10,7 @@ import dev.stackverse.backend.support.ApiError
 import dev.stackverse.backend.support.Paging
 import dev.stackverse.backend.support.ReportRows
 import dev.stackverse.backend.support.TimeSource
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.jdbc.core.JdbcTemplate
 import grails.gorm.transactions.Transactional
 
@@ -89,11 +90,20 @@ class ModerationService {
         }
         String resolution = input.resolution
         if (resolution == "open") {
+            if (Report.findByBookmarkIdAndReporterAndStatusAndIdNot(
+                report.bookmarkId, report.reporter, 'open', report.id
+            )) {
+                throw reopenConflict()
+            }
             report.status = 'open'
             report.resolvedBy = null
             report.resolvedAt = null
             report.resolutionNote = null
-            report.save(failOnError: true, flush: true)
+            try {
+                report.save(failOnError: true, flush: true)
+            } catch (DataIntegrityViolationException ignored) {
+                throw reopenConflict()
+            }
             auditService.record(actor, "report.reopened", "report", id.toString())
             eventLogger.info("report_reopened", "success", "Report reopened", [actor: actor, resource_type: "report", resource_id: id.toString()])
             return reportMap(report)
@@ -153,6 +163,10 @@ class ModerationService {
             resolutionNote: report.resolutionNote,
             createdAt     : report.createdAt.toString()
         ]
+    }
+
+    private static ApiError reopenConflict() {
+        ApiError.conflict("The reporter already has another open report on this bookmark.")
     }
 
 }
