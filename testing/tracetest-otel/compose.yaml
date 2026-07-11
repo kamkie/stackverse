@@ -43,7 +43,7 @@ services:
 
   tracetest-postgres:
     profiles: [tracetest]
-    image: postgres:18-alpine
+    image: postgres:18.4-alpine
     environment:
       POSTGRES_DB: tracetest
       POSTGRES_USER: tracetest
@@ -56,7 +56,7 @@ services:
 
   tracetest:
     profiles: [tracetest]
-    image: ${TRACETEST_IMAGE:-kubeshop/tracetest:latest}
+    image: ${TRACETEST_IMAGE:-kubeshop/tracetest:v1.7.1}
     command:
       - --postgres.host
       - tracetest-postgres
@@ -87,7 +87,7 @@ services:
 
   tracetest-otel-collector:
     profiles: [tracetest]
-    image: otel/opentelemetry-collector-contrib:0.130.0
+    image: otel/opentelemetry-collector-contrib:0.156.0
     command:
       - --config=/etc/otelcol-contrib/config.yaml
     volumes:
@@ -100,7 +100,7 @@ services:
 
   tracetest-run:
     profiles: [tracetest]
-    image: ${TRACETEST_IMAGE:-kubeshop/tracetest:latest}
+    image: ${TRACETEST_IMAGE:-kubeshop/tracetest:v1.7.1}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
