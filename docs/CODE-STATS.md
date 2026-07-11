@@ -26,27 +26,27 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
-| dotnet | 3340 | 1022 | 0.31 | 46 | 12 | 84 | 102 | 21 | C#, JSON |
+| dotnet | 3344 | 1022 | 0.31 | 46 | 12 | 92 | 111 | 21 | C#, JSON |
 | elixir-phoenix | 2802 | 310 | 0.11 | 58 | 9 | 25 | 93 | 25 | Elixir |
 | go | 3500 | 1277 | 0.36 | 28 | 15 | 14 | 110 | 14 | Go, SQL |
 | go-echo | 3539 | 1291 | 0.36 | 29 | 15 | 14 | 122 | 14 | Go, SQL |
 | grails | 2286 | 695 | 0.30 | 50 | 12 | 187 | 84 | 20 | Groovy, SQL, YAML |
-| ktor-kotlin | 1897 | 291 | 0.15 | 17 | 4 | 243 | 67 | 20 | Kotlin, SQL |
+| ktor-kotlin | 1944 | 282 | 0.15 | 18 | 4 | 244 | 70 | 20 | Kotlin, SQL |
 | micronaut-java | 2706 | 496 | 0.18 | 29 | 8 | 259 | 89 | 19 | Java, SQL, YAML |
 | node-nestjs | 2238 | 628 | 0.28 | 41 | 7 | 149 | 132 | 23 | TypeScript |
-| node-ts | 1842 | 297 | 0.16 | 20 | 5 | 101 | 99 | 23 | TypeScript |
+| node-ts | 1826 | 299 | 0.16 | 20 | 5 | 138 | 103 | 23 | TypeScript |
 | open-liberty-java | 3080 | 624 | 0.20 | 34 | 6 | 587 | 114 | 18 | Java, SQL, XML |
 | php-laravel | 2993 | 522 | 0.17 | 68 | 9 | 36 | 101 | 36 | PHP, JSON, XML |
 | play-scala | 2238 | 585 | 0.26 | 24 | 3 | 25 | 115 | 25 | Scala, SQL |
 | python-django | 1964 | 169 | 0.09 | 27 | 7 | 63 | 90 | 21 | Python |
 | python-fastapi | 2406 | 878 | 0.36 | 25 | 11 | 62 | 92 | 21 | Python, SQL |
 | quarkus-java | 3792 | 807 | 0.21 | 38 | 2 | 554 | 93 | 20 | Java, SQL |
-| ruby-rails | 1813 | 73 | 0.04 | 51 | 5 | 29 | 75 | 29 | Ruby, YAML, Rakefile |
+| ruby-rails | 1813 | 73 | 0.04 | 51 | 5 | 29 | 78 | 29 | Ruby, YAML, Rakefile |
 | rust-axum | 4092 | 0 | 0.00 | 16 | 0 | 43 | 92 | 14 | Rust, SQL |
 | scala-http4s | 2302 | 587 | 0.25 | 29 | 2 | 27 | 113 | 27 | Scala, SQL |
 | spring-java | 2910 | 105 | 0.04 | 77 | 4 | 240 | 81 | 19 | Java, SQL, YAML |
-| spring-kotlin | 2214 | 1337 | 0.60 | 44 | 12 | 251 | 88 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 53954 | 11994 | | 751 | 148 | 2993 | 1952 | 428 | |
+| spring-kotlin | 2218 | 1337 | 0.60 | 44 | 12 | 252 | 91 | 19 | Kotlin, SQL, YAML |
+| **subtotal** | 53993 | 11987 | | 752 | 148 | 3040 | 1974 | 428 | |
 
 ## Gateway
 
@@ -54,24 +54,24 @@ with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor)
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
 | apisix | 1357 | 1070 | 0.79 | 16 | 2 | 14 | 109 | 14 | Lua, YAML, HTML |
 | go | 1288 | 1197 | 0.93 | 12 | 6 | 12 | 89 | 12 | Go, HTML |
-| node-fastify | 1074 | 661 | 0.62 | 12 | 3 | 100 | 99 | 21 | TypeScript, HTML, JavaScript |
+| node-fastify | 1140 | 702 | 0.62 | 12 | 3 | 137 | 105 | 21 | TypeScript, HTML, JavaScript |
 | openresty | 1185 | 958 | 0.81 | 13 | 3 | 28 | 119 | 21 | Lua, HTML |
 | python | 1059 | 351 | 0.33 | 12 | 1 | 59 | 98 | 17 | Python, HTML |
 | rust | 1883 | 728 | 0.39 | 10 | 1 | 48 | 89 | 11 | Rust, HTML |
-| spring-cloud-gateway | 952 | 1193 | 1.25 | 18 | 12 | 244 | 140 | 18 | Kotlin, HTML, YAML |
-| yarp | 1036 | 1815 | 1.75 | 13 | 13 | 69 | 131 | 14 | C#, JSON, HTML |
-| **subtotal** | 9834 | 7973 | | 106 | 41 | 574 | 874 | 128 | |
+| spring-cloud-gateway | 959 | 1211 | 1.26 | 18 | 12 | 245 | 143 | 18 | Kotlin, HTML, YAML |
+| yarp | 1037 | 1815 | 1.75 | 13 | 13 | 77 | 137 | 14 | C#, JSON, HTML |
+| **subtotal** | 9908 | 8032 | | 106 | 41 | 620 | 889 | 128 | |
 
 ## Frontend
 
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
-| angular | 3485 | 1288 | 0.37 | 46 | 15 | 230 | 84 | 13 | TypeScript, HTML, JavaScript |
+| angular | 3483 | 1291 | 0.37 | 46 | 15 | 289 | 93 | 13 | TypeScript, HTML, JavaScript |
 | lit | 2489 | 1143 | 0.46 | 17 | 7 | 209 | 90 | 13 | TypeScript, HTML, JavaScript |
 | qwik | 3660 | 299 | 0.08 | 35 | 5 | 210 | 87 | 13 | TSX, TypeScript, HTML |
 | react | 5636 | 1021 | 0.18 | 47 | 20 | 251 | 93 | 13 | TSX, TypeScript, JavaScript |
 | solid | 2704 | 465 | 0.17 | 33 | 6 | 154 | 71 | 13 | TSX, TypeScript, HTML |
 | svelte | 2124 | 484 | 0.23 | 34 | 7 | 230 | 72 | 13 | Svelte, TypeScript, HTML |
 | vanilla-ts | 2848 | 2530 | 0.89 | 16 | 9 | 199 | 94 | 13 | TypeScript, HTML, JavaScript |
-| vue | 3477 | 550 | 0.16 | 36 | 7 | 183 | 82 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 26423 | 7780 | | 264 | 76 | 1666 | 673 | 104 | |
+| vue | 3468 | 551 | 0.16 | 36 | 7 | 243 | 87 | 13 | TypeScript, Vue, JavaScript |
+| **subtotal** | 26412 | 7784 | | 264 | 76 | 1785 | 687 | 104 | |
