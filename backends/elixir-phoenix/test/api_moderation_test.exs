@@ -5,7 +5,9 @@ defmodule StackverseBackendWeb.ApiModerationTest do
   @moduletag :authenticated_api
   @moduletag skip: System.get_env("STACKVERSE_DB_TESTS") != "true"
 
-  alias StackverseBackend.{Repo, TestAuth}
+  import StackverseBackend.TestHTTP
+
+  alias StackverseBackend.Repo
   alias StackverseBackend.Schemas.{AuditEntry, Bookmark, Report}
 
   test "reporters can create, filter, revise, withdraw, and refile only visible open reports", %{
@@ -175,21 +177,6 @@ defmodule StackverseBackendWeb.ApiModerationTest do
       })
 
     assert %{"status" => "active", "visibility" => "public"} = json_response(restored, 200)
-  end
-
-  defp auth_conn(key, username, roles \\ []) do
-    build_conn()
-    |> put_req_header("authorization", "Bearer #{TestAuth.token(key, username, roles)}")
-  end
-
-  defp json_request(conn, method, path, body) do
-    conn = put_req_header(conn, "content-type", "application/json")
-    encoded = Jason.encode!(body)
-
-    case method do
-      :post -> post(conn, path, encoded)
-      :put -> put(conn, path, encoded)
-    end
   end
 
   defp create_bookmark(key, owner, visibility) do

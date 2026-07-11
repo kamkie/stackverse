@@ -5,6 +5,8 @@ defmodule StackverseBackendWeb.ApiAuthBookmarkTest do
   @moduletag :authenticated_api
   @moduletag skip: System.get_env("STACKVERSE_DB_TESTS") != "true"
 
+  import StackverseBackend.TestHTTP
+
   alias StackverseBackend.{Auth, Repo, TestAuth}
   alias StackverseBackend.Schemas.{Message, UserAccount}
 
@@ -189,21 +191,6 @@ defmodule StackverseBackendWeb.ApiAuthBookmarkTest do
 
     deleted = key |> auth_conn("owner") |> delete("/api/v1/bookmarks/#{id}")
     assert response(deleted, 204) == ""
-  end
-
-  defp auth_conn(key, username, roles \\ []) do
-    build_conn()
-    |> put_req_header("authorization", "Bearer #{TestAuth.token(key, username, roles)}")
-  end
-
-  defp json_request(conn, method, path, body) do
-    conn = put_req_header(conn, "content-type", "application/json")
-    encoded = Jason.encode!(body)
-
-    case method do
-      :post -> post(conn, path, encoded)
-      :put -> put(conn, path, encoded)
-    end
   end
 
   defp create_bookmark(key, owner, title, tags, visibility) do

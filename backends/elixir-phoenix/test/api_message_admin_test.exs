@@ -5,7 +5,9 @@ defmodule StackverseBackendWeb.ApiMessageAdminTest do
   @moduletag :authenticated_api
   @moduletag skip: System.get_env("STACKVERSE_DB_TESTS") != "true"
 
-  alias StackverseBackend.{Repo, TestAuth}
+  import StackverseBackend.TestHTTP
+
+  alias StackverseBackend.Repo
   alias StackverseBackend.Schemas.AuditEntry
 
   test "public message reads provide filters, language fallback, and stateless ETags", %{
@@ -243,21 +245,6 @@ defmodule StackverseBackendWeb.ApiMessageAdminTest do
            |> put_req_header("if-none-match", etag)
            |> get("/api/v1/admin/stats")
            |> response(304) == ""
-  end
-
-  defp auth_conn(key, username, roles \\ []) do
-    build_conn()
-    |> put_req_header("authorization", "Bearer #{TestAuth.token(key, username, roles)}")
-  end
-
-  defp json_request(conn, method, path, body) do
-    conn = put_req_header(conn, "content-type", "application/json")
-    encoded = Jason.encode!(body)
-
-    case method do
-      :post -> post(conn, path, encoded)
-      :put -> put(conn, path, encoded)
-    end
   end
 
   defp create_message(key, message_key, language, text, description \\ nil) do
