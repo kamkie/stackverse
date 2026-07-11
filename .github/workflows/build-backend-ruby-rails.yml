@@ -26,6 +26,27 @@ jobs:
     name: Backend · Ruby on Rails API
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: stackverse_test
+      DB_USER: stackverse
+      DB_PASSWORD: stackverse
+      RAILS_ENV: test
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: stackverse_test
+          POSTGRES_USER: stackverse
+          POSTGRES_PASSWORD: stackverse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackverse -d stackverse_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backends/ruby-rails
@@ -40,6 +61,8 @@ jobs:
         run: bundle exec rubocop
       - name: Zeitwerk check
         run: bundle exec rails zeitwerk:check
+      - name: Prepare test database
+        run: bundle exec rails db:prepare
       - name: Test
         run: bundle exec rails test
       - name: Upload coverage to Codecov

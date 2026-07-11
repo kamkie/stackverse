@@ -100,7 +100,13 @@ class ApplicationController < ActionController::API
         error_code: error.class.name.demodulize.underscore
       )
     else
-      Rails.logger.error(message: "Unhandled error", exception: "#{error.class}: #{error.message}")
+      exception_class = error.class.name || "AnonymousError"
+      Rails.logger.error(
+        message: "Unhandled error",
+        error_code: exception_class.demodulize.underscore,
+        exception_class: exception_class,
+        backtrace: Array(error.backtrace)
+      )
     end
     render_problem(500, "Internal Server Error", "An unexpected error occurred.")
   end

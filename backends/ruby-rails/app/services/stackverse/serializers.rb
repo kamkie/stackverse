@@ -56,13 +56,15 @@ module Stackverse
     end
 
     def audit(row)
+      detail = row["detail"]
+      detail = JSON.parse(detail) if detail.is_a?(String)
       omit_nil(
         id: row["id"].to_s,
         actor: row["actor"],
         action: row["action"],
         targetType: row["target_type"],
         targetId: row["target_id"],
-        detail: row["detail"],
+        detail: detail,
         createdAt: Clock.iso_time(row["created_at"])
       )
     end
