@@ -107,7 +107,7 @@ implemented in many stacks. Read these before changing anything:
   PR's current head SHA and reviews. When the latest review by `kamkie` is
   `APPROVED` for that head, the authoring agent must merge immediately if the
   required cross-review is recorded and triaged, all required checks pass, the PR
-  is not draft, mergeability is clean, and no blocking review remains. If those
+  is not draft, mergeability is clean, and no blocking review remains. If all other
   gates are satisfied but checks are still pending, enable auto-merge instead of
   bypassing them. In either case, re-read the head SHA immediately before the merge
   action and pass it to `gh pr merge --match-head-commit`; use the repository's
