@@ -32,6 +32,7 @@ jobs:
       backends: ${{ steps.list.outputs.backends }}
       frontends: ${{ steps.list.outputs.frontends }}
       expected_build_workflows: ${{ steps.list.outputs.expected_build_workflows }}
+      codeql_required: ${{ steps.list.outputs.codeql_required }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -123,13 +124,22 @@ jobs:
           all_frontend_contract=0
           all_contract_build_workflows=0
           all_build_workflows=0
+          codeql_required=true
 
           if [ "$GITHUB_EVENT_NAME" != "pull_request" ]; then
             cp "$all_backends" "$selected_backends"
             cp "$all_frontends" "$selected_frontends"
             select_all_build_workflows
           else
-            git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"
+            if ! git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"; then
+              echo "::error::could not classify changed files for $BASE_SHA...$HEAD_SHA"
+              exit 1
+            fi
+            if [ ! -s "$changed_files" ]; then
+              echo "::error::pull request diff unexpectedly contains no changed files"
+              exit 1
+            fi
+            codeql_required=$(.github/scripts/codeql-gate.sh classify "$changed_files")
 
             while IFS= read -r file; do
               [ -n "$file" ] || continue
@@ -220,6 +230,7 @@ jobs:
           echo "backends=$backends_json" | tee -a "$GITHUB_OUTPUT"
           echo "frontends=$frontends_json" | tee -a "$GITHUB_OUTPUT"
           echo "expected_build_workflows=$expected_builds_json" | tee -a "$GITHUB_OUTPUT"
+          echo "codeql_required=$codeql_required" | tee -a "$GITHUB_OUTPUT"
 
           {
             echo "### CI selection"
@@ -227,6 +238,7 @@ jobs:
             echo "- Backends for conformance: $backends_json"
             echo "- Frontends for e2e: $frontends_json"
             echo "- Expected build workflows: $expected_builds_json"
+            echo "- CodeQL required: $codeql_required"
           } >> "$GITHUB_STEP_SUMMARY"
 
   dispatch-build-workflows:
@@ -401,8 +413,10 @@ jobs:
   # The single merge gate: branch protection requires this one check instead
   # of naming every variant job. It waits for this workflow's selected jobs
   # and for the per-implementation build workflows expected from the same PR
-  # diff. Pushes to main, scheduled runs, and manual runs still expect every
-  # build workflow.
+  # diff. It also owns CodeQL merge enforcement: non-documentation PRs must
+  # have a successful full CodeQL workflow and no threshold-blocking alerts.
+  # Pushes to main, scheduled runs, and manual runs still expect every build
+  # workflow; push runs also wait for CodeQL on the exact commit.
   ci-ok:
     name: ci-ok
     runs-on: ubuntu-latest
@@ -413,6 +427,7 @@ jobs:
       actions: read
       checks: read
       contents: read
+      security-events: read
     steps:
       - name: Fail if a selected contract-suite job failed
         if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
@@ -420,6 +435,8 @@ jobs:
           echo "a needed job did not succeed: discover=${{ needs.discover.result }} dispatch-build-workflows=${{ needs.dispatch-build-workflows.result }} conformance=${{ needs.conformance.result }} e2e=${{ needs.e2e.result }}" >&2
           exit 1
       - uses: actions/checkout@v7
+      - name: Test CodeQL gate decisions
+        run: .github/scripts/test-codeql-gate.sh
       - name: Every implementation must have a build workflow
         run: |
           set -eu
@@ -441,11 +458,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          CODEQL_REQUIRED: ${{ needs.discover.outputs.codeql_required }}
           EXPECTED_BUILD_WORKFLOWS: ${{ needs.discover.outputs.expected_build_workflows }}
         run: |
           set -eu
           expected=$(echo "$EXPECTED_BUILD_WORKFLOWS" | jq -r '.[]')
           expected_event="$GITHUB_EVENT_NAME"
+          codeql_event=""
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] && [ "$CODEQL_REQUIRED" = "true" ]; then
+            codeql_event="pull_request"
+          elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            codeql_event="push"
+          fi
           min_created_at=""
           case "$GITHUB_EVENT_NAME" in
             schedule|workflow_dispatch)
@@ -460,6 +485,11 @@ jobs:
             echo "expected build workflow event: $expected_event"
           else
             echo "no per-implementation build workflows are expected for this change"
+          fi
+          if [ -n "$codeql_event" ]; then
+            echo "expecting a successful .github/workflows/codeql.yml run for $SHA ($codeql_event)"
+          else
+            echo "CodeQL is not expected for this event/change classification"
           fi
 
           for attempt in $(seq 1 90); do
@@ -491,7 +521,28 @@ jobs:
           $expected
           EOF
 
-            # 2) every other github-actions check run that did start must
+            # 2) CodeQL is an explicit dependency, rather than merely one of
+            #    the check runs that happened to exist when this loop began.
+            #    Waiting on a missing run closes the cross-workflow start race.
+            if [ -n "$codeql_event" ]; then
+              codeql_state=$(echo "$runs" | jq -r --arg e "$codeql_event" '
+                [.[] | select(.path == ".github/workflows/codeql.yml" and .event == $e)]
+                | sort_by(.run_number) | last
+                | if . == null then "missing"
+                  elif .status != "completed" then "running"
+                  elif .conclusion == "success" then "success"
+                  else "failed:" + .conclusion end')
+              case "$codeql_state" in
+                success) ;;
+                failed:*)
+                  echo "CodeQL concluded ${codeql_state#failed:} for $SHA" >&2
+                  exit 1
+                  ;;
+                *) waiting="$waiting .github/workflows/codeql.yml" ;;
+              esac
+            fi
+
+            # 3) every other github-actions check run that did start must
             #    complete successfully. This catches CodeQL, selected contract
             #    matrix jobs, and any unexpected workflow that ran and failed.
             #    Dependabot update checks are dependency-scanner work, not CI
@@ -511,13 +562,36 @@ jobs:
             fi
             pending=$(echo "$checks" | jq '[.[] | select(.status != "completed")]')
             if [ -z "$waiting" ] && [ "$(echo "$pending" | jq length)" -eq 0 ]; then
-              echo "all $(echo "$checks" | jq length) observed checks green; expected build workflows ran"
-              exit 0
+              break
             fi
             echo "attempt $attempt: still waiting"
             [ -n "$waiting" ] && echo "  no successful run yet for:$waiting"
             echo "$pending" | jq -r '.[] | "  \(.name): \(.status)"'
             sleep 20
           done
-          echo "timed out waiting for other checks" >&2
-          exit 1
+          if [ -n "$waiting" ] || [ "$(echo "$pending" | jq length)" -ne 0 ]; then
+            echo "timed out waiting for other checks" >&2
+            exit 1
+          fi
+
+          # Match the native ruleset thresholds: security-severity high or
+          # critical, plus ordinary severity error. GitHub uses security
+          # severity in preference to ordinary severity when it is present.
+          if [ -n "$codeql_event" ]; then
+            if [ -n "$PR_NUMBER" ]; then
+              alert_scope="pr=${PR_NUMBER}"
+            else
+              alert_scope="ref=refs/heads/${GITHUB_REF_NAME}"
+            fi
+            alerts=$(gh api --paginate --slurp \
+              "repos/${GITHUB_REPOSITORY}/code-scanning/alerts?state=open&tool_name=CodeQL&${alert_scope}&per_page=100" \
+              | jq '[.[][]]')
+            blocking=$(echo "$alerts" | .github/scripts/codeql-gate.sh blocking-alerts)
+            if [ "$(echo "$blocking" | jq length)" -gt 0 ]; then
+              echo "CodeQL found threshold-blocking open alerts:" >&2
+              echo "$blocking" | jq -r '.[] | "  #\(.number) \(.rule.id): security=\(.rule.security_severity_level // "none") severity=\(.rule.severity) \(.html_url)"' >&2
+              exit 1
+            fi
+            echo "CodeQL workflow succeeded and no open alerts cross the configured thresholds"
+          fi
+          echo "all $(echo "$checks" | jq length) observed checks green; expected workflows ran"

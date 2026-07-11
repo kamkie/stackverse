@@ -1,15 +1,17 @@
 # CodeQL static analysis over every language in the repo. Kotlin and Go both
 # need a real compile — build-mode none analyzes Java but skips Kotlin sources,
 # and Go has no buildless mode at all — so those matrix legs build manually;
-# the rest scan buildless. Markdown/CODEOWNERS-only pull requests still produce
-# the CodeQL result required by the main-branch ruleset, but run only the cheap
-# Actions analysis instead of compiling every language.
+# the rest scan buildless. Markdown/CODEOWNERS-only pull requests do not contain
+# analyzable source, so they skip this expensive matrix entirely.
 name: CodeQL
 
 on:
   push:
     branches: [main]
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".github/CODEOWNERS"
   schedule:
     - cron: "17 4 * * 1" # weekly, catches newly published queries
 
@@ -17,45 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  select-matrix:
-    name: Select CodeQL matrix
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      include: ${{ steps.matrix.outputs.include }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - id: matrix
-        name: Use a lightweight matrix for documentation-only PRs
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: |
-          set -eu
-          full='[{"language":"actions","sarif-language":"actions","build-mode":"none"},{"language":"csharp","sarif-language":"csharp","build-mode":"none"},{"language":"go","sarif-language":"go","build-mode":"manual"},{"language":"java-kotlin","sarif-language":"java","build-mode":"manual"},{"language":"javascript-typescript","sarif-language":"javascript","build-mode":"none"}]'
-          lightweight='[{"language":"actions","sarif-language":"actions","build-mode":"none"}]'
-
-          include="$full"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            changed_files=$(mktemp)
-            if ! git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"; then
-              echo "::warning::could not classify changed files; running the full CodeQL matrix"
-            elif ! grep -Evq '\.md$|^\.github/CODEOWNERS$' "$changed_files"; then
-              echo "documentation-only pull request: running Actions CodeQL only"
-              include="$lightweight"
-            else
-              echo "code-relevant pull request: running the full CodeQL matrix"
-            fi
-          else
-            echo "non-PR event: running the full CodeQL matrix"
-          fi
-          echo "include=$include" >> "$GITHUB_OUTPUT"
-
   analyze:
     name: Analyze (${{ matrix.language }})
-    needs: select-matrix
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -65,7 +30,22 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.select-matrix.outputs.include) }}
+        include:
+          - language: actions
+            sarif-language: actions
+            build-mode: none
+          - language: csharp
+            sarif-language: csharp
+            build-mode: none
+          - language: go
+            sarif-language: go
+            build-mode: manual
+          - language: java-kotlin
+            sarif-language: java
+            build-mode: manual
+          - language: javascript-typescript
+            sarif-language: javascript
+            build-mode: none
     steps:
       - uses: actions/checkout@v7
 
