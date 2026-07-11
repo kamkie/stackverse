@@ -166,8 +166,10 @@ describe("admin authorization and moderation views", () => {
         to: endOfDayIso("2026-07-11"),
       }),
     );
-    expect(endOfDayIso("2026-07-11")).toMatch(
-      /T21:59:59\.999999Z$|T22:59:59\.999999Z$|T23:59:59\.999999Z$/,
+    expect(endOfDayIso("2026-07-11")).toBe(
+      new Date("2026-07-11T23:59:59.999")
+        .toISOString()
+        .replace(".999Z", ".999999Z"),
     );
     expect(html).toContain("alice&lt;script&gt;");
     expect(html).toContain("user:bob&amp;co");
