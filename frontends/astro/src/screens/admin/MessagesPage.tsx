@@ -25,6 +25,8 @@ export default function MessagesPage(props: Props) {
   const [text, setText] = createSignal("");
   const [description, setDescription] = createSignal("");
   const [formError, setFormError] = createSignal<unknown>(undefined);
+  const [savePending, setSavePending] = createSignal(false);
+  const [deletePending, setDeletePending] = createSignal(false);
   let loadRequest = 0;
 
   async function load() {
@@ -68,6 +70,8 @@ export default function MessagesPage(props: Props) {
   }
 
   async function save() {
+    if (savePending()) return;
+    setSavePending(true);
     setFormError(undefined);
     const body: MessageInput = {
       key: key(),
@@ -92,15 +96,25 @@ export default function MessagesPage(props: Props) {
       await load();
     } catch (caught) {
       setFormError(caught);
+    } finally {
+      setSavePending(false);
     }
   }
 
   async function remove(message: Message) {
-    await api<void>(`/api/v1/messages/${message.id}`, { method: "DELETE" });
-    setDeleting(null);
-    props.toast(m(i18n(), "ui.toast.message-deleted"));
-    await refreshBundle();
-    await load();
+    if (deletePending()) return;
+    setDeletePending(true);
+    try {
+      await api<void>(`/api/v1/messages/${message.id}`, { method: "DELETE" });
+      props.toast(m(i18n(), "ui.toast.message-deleted"));
+      await refreshBundle();
+      await load();
+    } catch (caught) {
+      props.toast(caught instanceof Error ? caught.message : String(caught), "danger");
+    } finally {
+      setDeletePending(false);
+      setDeleting(null);
+    }
   }
 
   function clearFilters() {
@@ -235,7 +249,7 @@ export default function MessagesPage(props: Props) {
                 <button type="button" class="sv-button" onClick={() => setEditing(null)}>
                   {m(i18n(), "ui.action.cancel")}
                 </button>
-                <button type="submit" class="sv-button sv-button--primary">
+                <button type="submit" class="sv-button sv-button--primary" disabled={savePending()}>
                   {m(i18n(), "ui.action.save")}
                 </button>
               </div>
@@ -253,6 +267,7 @@ export default function MessagesPage(props: Props) {
             ctx={`message:${message().id}`}
             confirmLabel={m(i18n(), "ui.action.delete")}
             cancelLabel={m(i18n(), "ui.action.cancel")}
+            pending={deletePending()}
             onConfirm={() => remove(message())}
             onClose={() => setDeleting(null)}
           />
