@@ -25,9 +25,12 @@ export function ReportsContent() {
       const nextReports = await api<Page<Report>>(`/api/v1/admin/reports${queryString({ status: status(), page: page() })}`);
       if (request !== loadRequest) return;
       if (nextReports.items.length === 0 && page() > 0) {
-        setPage(Math.max(0, nextReports.totalPages - 1));
-        await load();
-        return;
+        const previousPage = Math.max(0, nextReports.totalPages - 1);
+        if (previousPage < page()) {
+          setPage(previousPage);
+          await load();
+          return;
+        }
       }
       setReports(nextReports);
     } catch (caught) {

@@ -66,14 +66,14 @@ Status against the template in [docs/LOGGING.md](../../docs/LOGGING.md) section 
 | OTLP log export behind `OTEL_SDK_DISABLED` | n/a |
 | lifecycle events at `INFO` | n/a |
 | expected 4xx not logged as errors | n/a |
-| secrets kept out of logs | yes |
+| secrets kept out of logs | ✅ |
 | `LOG_LEVEL` honored | n/a |
 | trace id on console lines when tracing on | n/a |
-| stable `event` names | n/a |
-| dependency events | n/a |
-| JSON console by default | n/a |
-| dev-only console forwarding, sanitized | yes |
-| dev-only user-action log, no field values | yes |
+| stable `event` names (§5: lifecycle, session, security, moderation) | n/a |
+| dependency events (§5: `dependency_call_failed`, `retry_exhausted`) | n/a |
+| JSON console by default (`LOG_FORMAT`) | n/a |
+| dev-only console forwarding, sanitized | ✅ |
+| dev-only user-action log (§9: `[action]`/`[nav]`/`[api]`, no field values) | ✅ |
 
 ## API types
 

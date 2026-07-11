@@ -25,6 +25,7 @@ export function MyReportsContent(props: Props) {
   const [error, setError] = createSignal<Error | null>(null);
   const [editing, setEditing] = createSignal<Report | null>(null);
   const [withdrawing, setWithdrawing] = createSignal<Report | null>(null);
+  const [withdrawPending, setWithdrawPending] = createSignal(false);
   const [editReason, setEditReason] = createSignal<ReportReason>(REPORT_REASONS[0]);
   const [editComment, setEditComment] = createSignal("");
   const [editError, setEditError] = createSignal<unknown>(undefined);
@@ -39,9 +40,12 @@ export function MyReportsContent(props: Props) {
       const nextReports = await api<Page<Report>>(`/api/v1/reports${queryString({ status: status(), page: page() })}`);
       if (request !== loadRequest) return;
       if (nextReports.items.length === 0 && page() > 0) {
-        setPage(Math.max(0, nextReports.totalPages - 1));
-        await load();
-        return;
+        const previousPage = Math.max(0, nextReports.totalPages - 1);
+        if (previousPage < page()) {
+          setPage(previousPage);
+          await load();
+          return;
+        }
       }
       setReports(nextReports);
     } catch (caught) {
@@ -86,6 +90,8 @@ export function MyReportsContent(props: Props) {
   }
 
   async function withdraw(report: Report) {
+    if (withdrawPending()) return;
+    setWithdrawPending(true);
     try {
       await api<void>(`/api/v1/reports/${report.id}`, { method: "DELETE" });
       removeReported(report.bookmarkId);
@@ -94,6 +100,8 @@ export function MyReportsContent(props: Props) {
       await load();
     } catch (caught) {
       props.toast(caught instanceof Error ? caught.message : String(caught), "danger");
+    } finally {
+      setWithdrawPending(false);
     }
   }
 
@@ -220,6 +228,7 @@ export function MyReportsContent(props: Props) {
             body={m(i18n(), "ui.confirm.withdraw-report")}
             ctx={`report:${report().id}`}
             confirmLabel={m(i18n(), "ui.action.withdraw")}
+            pending={withdrawPending()}
             cancelLabel={m(i18n(), "ui.action.cancel")}
             onConfirm={() => withdraw(report())}
             onClose={() => setWithdrawing(null)}

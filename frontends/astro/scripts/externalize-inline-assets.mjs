@@ -26,15 +26,18 @@ async function emit(content, extension) {
 for (const htmlPath of (await files(dist)).filter((path) => path.endsWith(".html"))) {
   let html = await readFile(htmlPath, "utf8");
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi)];
-  for (const match of scripts) {
+  for (const match of scripts.reverse()) {
     const src = await emit(match[2], "js");
-    html = html.replace(match[0], `<script${match[1]} src="${src}"></script>`);
+    const replacement = `<script${match[1]} src="${src}"></script>`;
+    html = html.slice(0, match.index) + replacement + html.slice(match.index + match[0].length);
   }
   const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];
-  for (const match of styles) {
+  for (const match of styles.reverse()) {
     const href = await emit(match[1], "css");
-    html = html.replace(match[0], `<link rel="stylesheet" href="${href}">`);
+    const replacement = `<link rel="stylesheet" href="${href}">`;
+    html = html.slice(0, match.index) + replacement + html.slice(match.index + match[0].length);
   }
+  if (/<script(?![^>]*\bsrc=)[^>]*>|<style(?:\s|>)/i.test(html)) throw new Error(`Inline asset remains in ${htmlPath}`);
   await writeFile(htmlPath, html);
   process.stdout.write(`externalized inline assets in ${relative(dist, htmlPath).split(sep).join("/")}\n`);
 }

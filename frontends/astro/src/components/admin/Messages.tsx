@@ -38,9 +38,12 @@ export function MessagesContent(props: Props) {
       const nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`);
       if (request !== loadRequest) return;
       if (nextMessages.items.length === 0 && page() > 0) {
-        setPage(Math.max(0, nextMessages.totalPages - 1));
-        await load();
-        return;
+        const previousPage = Math.max(0, nextMessages.totalPages - 1);
+        if (previousPage < page()) {
+          setPage(previousPage);
+          await load();
+          return;
+        }
       }
       setMessages(nextMessages);
     } catch (caught) {

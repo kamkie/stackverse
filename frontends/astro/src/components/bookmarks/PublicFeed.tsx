@@ -71,7 +71,7 @@ export function PublicFeedContent(props: Props) {
         ) : error() ? (
           <div class="sv-alert sv-alert--danger" role="alert">{error()?.message}</div>
         ) : bookmarks().length === 0 ? (
-          <div class="sv-empty">{m(i18n(), "ui.bookmarks.no-matches")}</div>
+          <div class="sv-empty">{m(i18n(), q() ? "ui.bookmarks.no-matches" : "ui.bookmarks.empty")}</div>
         ) : (
           <>
             <ul class="sv-card-list">
