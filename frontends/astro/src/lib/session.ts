@@ -16,7 +16,8 @@ export async function refreshSession(): Promise<Session> {
     next = { authenticated: false };
   }
   if (next.authenticated) {
-    await refreshMe();
+    const currentUser = await refreshMe();
+    if (!currentUser) next = { authenticated: false };
   } else {
     setMe(null);
   }
@@ -39,6 +40,11 @@ export async function logout(): Promise<void> {
   await fetch(new URL("/auth/logout", location.origin), { method: "POST" }).catch(
     () => {},
   );
+  setSession({ authenticated: false });
+  setMe(null);
+}
+
+export function expireSession(): void {
   setSession({ authenticated: false });
   setMe(null);
 }

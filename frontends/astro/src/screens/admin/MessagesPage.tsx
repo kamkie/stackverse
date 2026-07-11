@@ -25,12 +25,15 @@ export default function MessagesPage(props: Props) {
   const [text, setText] = createSignal("");
   const [description, setDescription] = createSignal("");
   const [formError, setFormError] = createSignal<unknown>(undefined);
+  let loadRequest = 0;
 
   async function load() {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
       const nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`);
+      if (request !== loadRequest) return;
       if (nextMessages.items.length === 0 && page() > 0) {
         setPage(Math.max(0, nextMessages.totalPages - 1));
         await load();
@@ -38,9 +41,11 @@ export default function MessagesPage(props: Props) {
       }
       setMessages(nextMessages);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 

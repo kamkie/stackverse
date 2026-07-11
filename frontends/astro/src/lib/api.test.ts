@@ -120,6 +120,19 @@ describe("api", () => {
     });
   });
 
+  it("announces an expired API session on 401", async () => {
+    const listener = vi.fn();
+    window.addEventListener("stackverse:unauthorized", listener);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(jsonResponse({ title: "Unauthorized" }, { status: 401 })),
+    );
+
+    await expect(api("/api/v1/me")).rejects.toMatchObject({ status: 401 });
+    expect(listener).toHaveBeenCalledOnce();
+    window.removeEventListener("stackverse:unauthorized", listener);
+  });
+
   it("does not replay a denied mutation unless the gateway rotated the CSRF cookie", async () => {
     document.cookie = "XSRF-TOKEN=unchanged; path=/";
     const fetchMock = vi.fn().mockResolvedValue(

@@ -75,7 +75,7 @@ describe("refreshSession", () => {
     expect(me()).toBeNull();
   });
 
-  it("keeps the authenticated session boundary while clearing unavailable user details", async () => {
+  it("returns to the anonymous boundary when user details are unavailable", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ authenticated: true, username: "demo" }))
@@ -87,12 +87,9 @@ describe("refreshSession", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(refreshSession()).resolves.toEqual({
-      authenticated: true,
-      username: "demo",
-    });
+    await expect(refreshSession()).resolves.toEqual({ authenticated: false });
 
-    expect(session()).toEqual({ authenticated: true, username: "demo" });
+    expect(session()).toEqual({ authenticated: false });
     expect(me()).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import {
   isAdmin,
   isModerator,
   logout,
+  expireSession,
   me,
   refreshSession,
   session,
@@ -36,6 +37,11 @@ export default function App() {
   const [toasts, setToasts] = createSignal<Toast[]>([]);
   let toastId = 0;
   let uninstallRouteListener: (() => void) | undefined;
+
+  function onUnauthorized() {
+    expireSession();
+    goto("/feed");
+  }
 
   function navClass(path: string, exact = true): string {
     const currentRoute = route();
@@ -142,12 +148,14 @@ export default function App() {
 
   onMount(() => {
     uninstallRouteListener = installRouteListener();
+    window.addEventListener("stackverse:unauthorized", onUnauthorized);
     void loadBundle();
     void refreshSession();
   });
 
   onCleanup(() => {
     uninstallRouteListener?.();
+    window.removeEventListener("stackverse:unauthorized", onUnauthorized);
   });
 
   return (

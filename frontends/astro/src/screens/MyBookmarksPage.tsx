@@ -23,6 +23,7 @@ export default function MyBookmarksPage(props: Props) {
     { mode: "create" } | { mode: "edit"; bookmark: Bookmark } | null
   >(null);
   const [deleting, setDeleting] = createSignal<Bookmark | null>(null);
+  const [deletePending, setDeletePending] = createSignal(false);
   const [tagReloadKey, setTagReloadKey] = createSignal(0);
   let loadRequest = 0;
 
@@ -53,6 +54,8 @@ export default function MyBookmarksPage(props: Props) {
   }
 
   async function remove(bookmark: Bookmark) {
+    if (deletePending()) return;
+    setDeletePending(true);
     try {
       await api<void>(`/api/v1/bookmarks/${bookmark.id}`, { method: "DELETE" });
       props.toast(m(i18n(), "ui.toast.bookmark-deleted"));
@@ -61,6 +64,8 @@ export default function MyBookmarksPage(props: Props) {
       setTagReloadKey((current) => current + 1);
     } catch (caught) {
       props.toast(caught instanceof Error ? caught.message : String(caught), "danger");
+    } finally {
+      setDeletePending(false);
     }
   }
 
@@ -159,6 +164,7 @@ export default function MyBookmarksPage(props: Props) {
             ctx={`bookmark:${bookmark().id}`}
             confirmLabel={m(i18n(), "ui.action.delete")}
             cancelLabel={m(i18n(), "ui.action.cancel")}
+            pending={deletePending()}
             onConfirm={() => remove(bookmark())}
             onClose={() => setDeleting(null)}
           />

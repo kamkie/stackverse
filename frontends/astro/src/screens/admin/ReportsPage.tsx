@@ -14,12 +14,15 @@ export default function ReportsPage() {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<Error | null>(null);
   const [resolvingId, setResolvingId] = createSignal<string | null>(null);
+  let loadRequest = 0;
 
   async function load() {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
       const nextReports = await api<Page<Report>>(`/api/v1/admin/reports${queryString({ status: status(), page: page() })}`);
+      if (request !== loadRequest) return;
       if (nextReports.items.length === 0 && page() > 0) {
         setPage(Math.max(0, nextReports.totalPages - 1));
         await load();
@@ -27,9 +30,11 @@ export default function ReportsPage() {
       }
       setReports(nextReports);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 

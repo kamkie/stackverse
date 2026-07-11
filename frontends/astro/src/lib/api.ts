@@ -97,6 +97,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     return undefined as T;
   }
   if (!response.ok) {
+    if (response.status === 401 && path.startsWith("/api/")) {
+      window.dispatchEvent(new Event("stackverse:unauthorized"));
+    }
     throw new ApiError(response.status, await parseProblem(response));
   }
   return (await response.json()) as T;
