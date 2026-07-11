@@ -48,11 +48,7 @@ export const api = createClient<paths>({
  * Unwraps an openapi-fetch result: returns the data on success, throws an
  * `ApiError` carrying the RFC 9457 problem document otherwise.
  */
-export function unwrap<T>(result: {
-  data?: T;
-  error?: unknown;
-  response: Response;
-}): T {
+export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (!result.response.ok) {
     throw new ApiError(result.response.status, result.error as Problem | undefined);
   }

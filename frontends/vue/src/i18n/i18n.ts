@@ -7,8 +7,7 @@ interface CachedBundle {
 }
 
 const LANG_STORAGE_KEY = "stackverse.lang";
-const bundleStorageKey = (lang: string | null) =>
-  `stackverse.bundle.${lang ?? "auto"}`;
+const bundleStorageKey = (lang: string | null) => `stackverse.bundle.${lang ?? "auto"}`;
 
 export const selectedLanguage = ref<string | null>(readStoredLanguage());
 export const bundle = ref<MessageBundle | null>(null);

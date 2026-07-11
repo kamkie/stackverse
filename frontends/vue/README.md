@@ -13,6 +13,8 @@ Messages screen without a deploy.
 yarn install
 yarn dev              # dev server on :5173, API mocked in-browser (MSW)
 VITE_API_MOCK=false yarn dev   # proxy /api and /auth to a gateway on :8000
+yarn lint             # ESLint flat config: Vue SFC, TypeScript, and Vue rules
+yarn format:check     # Prettier verification (use yarn format to rewrite)
 yarn test             # vitest client-behavior tests
 yarn build            # type-check + static production bundle in dist/
 yarn generate:api     # regenerate src/api/schema.ts from spec/openapi.yaml
@@ -22,6 +24,10 @@ yarn generate:api:check   # fail if the committed schema.ts is stale (runs in CI
 Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
 through `.pnp.cjs` and packages live in the global cache. Editor support:
 `yarn dlx @yarnpkg/sdks vscode` (SDKs are committed under `.yarn/sdks`).
+
+Component tests mount SFCs with `@vue/test-utils` and assert rendered DOM plus
+Vue-emitted events. ESLint uses `eslint-plugin-vue`'s recommended flat config,
+and Prettier provides the separate formatting gate; both run in CI.
 
 ## Dev action log
 
