@@ -9,7 +9,7 @@ RUN go mod download && go mod verify
 COPY . ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /gateway ./cmd/gateway
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 WORKDIR /app
 COPY --from=build /gateway /app/gateway
 ENV OTEL_SDK_DISABLED=true
