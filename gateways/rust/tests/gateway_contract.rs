@@ -1,8 +1,9 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use axum::body::{Body, to_bytes};
 use axum::extract::State;
-use axum::http::{HeaderMap, Method, Request, StatusCode, header};
+use axum::http::{HeaderMap, Method, Request, StatusCode, Uri, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
 use axum::{Json, Router};
@@ -237,8 +238,7 @@ async fn successful_callback_creates_redis_backed_session() {
 #[tokio::test]
 async fn refresh_rejected_destroys_session_and_relays_anonymous() {
     let harness = Harness::new(IdpBehavior {
-        refresh_status: StatusCode::BAD_REQUEST,
-        ..Default::default()
+        refresh: RefreshBehavior::Status(StatusCode::BAD_REQUEST),
     })
     .await;
     harness.store.put_session("s1", expired_session()).await;
@@ -259,8 +259,7 @@ async fn refresh_rejected_destroys_session_and_relays_anonymous() {
 #[tokio::test]
 async fn idp_outage_during_refresh_keeps_session_and_returns_503() {
     let harness = Harness::new(IdpBehavior {
-        refresh_status: StatusCode::SERVICE_UNAVAILABLE,
-        ..Default::default()
+        refresh: RefreshBehavior::Status(StatusCode::SERVICE_UNAVAILABLE),
     })
     .await;
     harness.store.put_session("s1", expired_session()).await;
@@ -313,6 +312,301 @@ async fn logout_destroys_local_session_and_returns_204() {
     assert_eq!(harness.idp.logout_calls().await, 1);
 }
 
+#[tokio::test]
+async fn health_readiness_and_anonymous_session_endpoints_expose_operational_boundaries() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+
+    let health = harness.request(Method::GET, "/healthz").send().await;
+    assert_eq!(health.status(), StatusCode::OK);
+    let ready = harness.request(Method::GET, "/readyz").send().await;
+    assert_eq!(ready.status(), StatusCode::OK);
+
+    let anonymous = harness.request(Method::GET, "/auth/session").send().await;
+    assert_eq!(anonymous.status(), StatusCode::OK);
+    assert_eq!(response_body(anonymous).await, r#"{"authenticated":false}"#);
+
+    let missing_ticket = harness
+        .request(Method::GET, "/auth/session")
+        .session_cookie("missing")
+        .send()
+        .await;
+    assert_eq!(
+        response_body(missing_ticket).await,
+        r#"{"authenticated":false}"#
+    );
+}
+
+#[tokio::test]
+async fn secure_public_url_adds_hsts_and_secure_cookie_attributes_by_cookie_role() {
+    let harness = Harness::with_options(
+        IdpBehavior::default(),
+        HarnessOptions {
+            public_url: "https://gateway.example:8443/base".to_string(),
+            ..Default::default()
+        },
+    )
+    .await;
+
+    let session = harness.request(Method::GET, "/auth/session").send().await;
+    assert_document_headers(&session, true);
+    let csrf_cookie = set_cookie(session.headers(), CSRF_COOKIE).expect("CSRF cookie");
+    assert!(csrf_cookie.contains("Secure"));
+    assert!(csrf_cookie.contains("SameSite=Lax"));
+    assert!(!csrf_cookie.contains("HttpOnly"));
+
+    let login = harness.request(Method::GET, "/auth/login").send().await;
+    assert_document_headers(&login, true);
+    let login_cookie = set_cookie(login.headers(), LOGIN_STATE_COOKIE).expect("login cookie");
+    assert!(login_cookie.contains("Secure"));
+    assert!(login_cookie.contains("HttpOnly"));
+    assert!(login_cookie.contains("Path=/auth/callback"));
+
+    let api = harness
+        .request(Method::GET, "/api/v2/bookmarks?visibility=public")
+        .send()
+        .await;
+    assert_api_headers(&api, true);
+    assert!(api.headers().get("access-control-allow-origin").is_none());
+}
+
+#[tokio::test]
+async fn every_contract_mutation_method_requires_double_submit_csrf() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+    for method in [Method::POST, Method::PUT, Method::PATCH, Method::DELETE] {
+        let denied = harness
+            .request(method.clone(), "/api/v1/admin/reports/report-1")
+            .send()
+            .await;
+        assert_eq!(denied.status(), StatusCode::FORBIDDEN, "{method}");
+
+        let allowed = harness
+            .request(method.clone(), "/api/v1/bookmarks/bookmark-1")
+            .header(header::COOKIE, format!("{CSRF_COOKIE}=token"))
+            .header(CSRF_HEADER, "token")
+            .header("sec-fetch-site", "none")
+            .send()
+            .await;
+        assert_eq!(allowed.status(), StatusCode::OK, "{method}");
+    }
+
+    let existing = harness
+        .request(Method::GET, "/auth/session")
+        .header(header::COOKIE, format!("{CSRF_COOKIE}=existing"))
+        .send()
+        .await;
+    assert!(set_cookie(existing.headers(), CSRF_COOKIE).is_none());
+}
+
+#[tokio::test]
+async fn backend_authorization_problem_for_moderation_is_relayed_without_gateway_rewrite() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+    harness
+        .store
+        .put_session("regular", future_session("regular-access", "refresh"))
+        .await;
+
+    let response = harness
+        .request(Method::GET, "/api/v1/admin/reports")
+        .session_cookie("regular")
+        .send()
+        .await;
+
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    assert_api_headers(&response, false);
+    assert_content_type(&response, "application/problem+json");
+    assert_eq!(
+        response_body(response).await,
+        r#"{"type":"about:blank","title":"Forbidden","status":403,"detail":"Moderator role required."}"#
+    );
+    let record = harness.backend.record().await;
+    assert_eq!(record.authorization, "Bearer regular-access");
+    assert_eq!(record.uri, "/api/v1/admin/reports");
+}
+
+#[tokio::test]
+async fn api_proxy_preserves_method_query_body_and_cache_revalidation_response() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+
+    let created = harness
+        .request(Method::POST, "/api/v1/bookmarks?source=test")
+        .header(header::COOKIE, format!("{CSRF_COOKIE}=token"))
+        .header(CSRF_HEADER, "token")
+        .json_body(r#"{"url":"https://example.com","title":"Example"}"#)
+        .send()
+        .await;
+    assert_eq!(created.status(), StatusCode::OK);
+    let record = harness.backend.record().await;
+    assert_eq!(record.method, Method::POST);
+    assert_eq!(record.uri, "/api/v1/bookmarks?source=test");
+    assert_eq!(
+        record.body,
+        r#"{"url":"https://example.com","title":"Example"}"#
+    );
+    assert_eq!(record.csrf, "");
+
+    let not_modified = harness
+        .request(Method::GET, "/api/v1/messages/bundle?not_modified=true")
+        .send()
+        .await;
+    assert_eq!(not_modified.status(), StatusCode::NOT_MODIFIED);
+    assert_eq!(
+        not_modified.headers().get(header::ETAG).unwrap(),
+        "\"bundle-v1\""
+    );
+    assert_eq!(
+        not_modified.headers().get(header::CACHE_CONTROL).unwrap(),
+        "no-cache"
+    );
+    assert_eq!(
+        not_modified
+            .headers()
+            .get(header::CONTENT_LANGUAGE)
+            .unwrap(),
+        "pl"
+    );
+    assert!(response_body(not_modified).await.is_empty());
+}
+
+#[tokio::test]
+async fn frontend_proxy_strips_browser_cookie_and_preserves_fallback_path() {
+    let harness = Harness::with_options(
+        IdpBehavior::default(),
+        HarnessOptions {
+            proxy_frontend: true,
+            ..Default::default()
+        },
+    )
+    .await;
+
+    let response = harness
+        .request(Method::GET, "/deep/frontend/route?tab=one")
+        .header(header::COOKIE, "stackverse_session=browser-only")
+        .send()
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_document_headers(&response, false);
+    let record = harness.backend.record().await;
+    assert_eq!(record.cookie, "");
+    assert_eq!(record.uri, "/deep/frontend/route?tab=one");
+}
+
+#[tokio::test]
+async fn spa_root_serves_assets_and_falls_back_to_index_for_client_routes() {
+    let root = std::env::temp_dir().join(format!("stackverse-rust-spa-{}", uuid::Uuid::new_v4()));
+    tokio::fs::create_dir_all(&root).await.unwrap();
+    tokio::fs::write(root.join("index.html"), b"<main>test shell</main>")
+        .await
+        .unwrap();
+    tokio::fs::write(root.join("app.js"), b"console.error('test')")
+        .await
+        .unwrap();
+    let harness = Harness::with_options(
+        IdpBehavior::default(),
+        HarnessOptions {
+            spa_root: Some(root.clone()),
+            ..Default::default()
+        },
+    )
+    .await;
+
+    let asset = harness.request(Method::GET, "/app.js").send().await;
+    assert_content_type(&asset, "text/javascript");
+    assert_eq!(response_body(asset).await, "console.error('test')");
+
+    let route = harness
+        .request(Method::GET, "/bookmarks/client-route")
+        .send()
+        .await;
+    assert_content_type(&route, "text/html");
+    assert_eq!(response_body(route).await, "<main>test shell</main>");
+
+    tokio::fs::remove_dir_all(root).await.unwrap();
+}
+
+#[tokio::test]
+async fn mismatched_callback_state_does_not_consume_the_server_side_login_state() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+    let login = harness.request(Method::GET, "/auth/login").send().await;
+    let location = login
+        .headers()
+        .get(header::LOCATION)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let state = url::Url::parse(location)
+        .unwrap()
+        .query_pairs()
+        .find(|(name, _)| name == "state")
+        .map(|(_, value)| value.to_string())
+        .unwrap();
+
+    let callback = harness
+        .request(
+            Method::GET,
+            &format!("/auth/callback?code=ok&state={state}"),
+        )
+        .header(
+            header::COOKIE,
+            format!("{LOGIN_STATE_COOKIE}=different-state"),
+        )
+        .send()
+        .await;
+    assert_eq!(callback.status(), StatusCode::FOUND);
+    assert!(set_cookie_value(callback.headers(), SESSION_COOKIE).is_none());
+    assert!(
+        harness
+            .store
+            .consume_oauth_state(&state)
+            .await
+            .unwrap()
+            .is_some()
+    );
+}
+
+#[tokio::test]
+async fn malformed_session_without_access_token_is_destroyed_and_relays_anonymous() {
+    let harness = Harness::new(IdpBehavior::default()).await;
+    harness
+        .store
+        .put_session("malformed", future_session("", "refresh"))
+        .await;
+
+    let response = harness
+        .request(Method::GET, "/api/v1/bookmarks")
+        .session_cookie("malformed")
+        .send()
+        .await;
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(!harness.store.has_session("malformed").await);
+    assert!(clears_cookie(response.headers(), SESSION_COOKIE));
+    let record = harness.backend.record().await;
+    assert_eq!(record.method, Method::GET);
+    assert_eq!(record.uri, "/api/v1/bookmarks");
+    assert_eq!(record.authorization, "");
+}
+
+#[tokio::test]
+async fn refresh_rate_limit_and_bad_success_payload_keep_session_and_return_503() {
+    for refresh in [
+        RefreshBehavior::Status(StatusCode::TOO_MANY_REQUESTS),
+        RefreshBehavior::MalformedJson,
+        RefreshBehavior::MissingAccessToken,
+    ] {
+        let harness = Harness::new(IdpBehavior { refresh }).await;
+        harness.store.put_session("s1", expired_session()).await;
+
+        let response = harness
+            .request(Method::GET, "/api/v1/bookmarks")
+            .session_cookie("s1")
+            .send()
+            .await;
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert!(harness.store.has_session("s1").await);
+        assert_content_type(&response, "application/problem+json");
+    }
+}
+
 struct Harness {
     app: Router,
     store: Arc<MemorySessionStore>,
@@ -320,22 +614,38 @@ struct Harness {
     idp: IdpServer,
 }
 
+#[derive(Default)]
+struct HarnessOptions {
+    public_url: String,
+    spa_root: Option<PathBuf>,
+    proxy_frontend: bool,
+}
+
 impl Harness {
     async fn new(idp_behavior: IdpBehavior) -> Self {
+        Self::with_options(idp_behavior, HarnessOptions::default()).await
+    }
+
+    async fn with_options(idp_behavior: IdpBehavior, options: HarnessOptions) -> Self {
         install_tls_provider();
         let backend = BackendServer::spawn().await;
         let idp = IdpServer::spawn(idp_behavior).await;
+        let public_url = if options.public_url.is_empty() {
+            "http://localhost:8000".to_string()
+        } else {
+            options.public_url
+        };
         let config = Arc::new(Config {
             port: "0".to_string(),
             backend_url: backend.url.parse().unwrap(),
-            frontend_url: None,
-            spa_root: None,
+            frontend_url: options.proxy_frontend.then(|| backend.url.parse().unwrap()),
+            spa_root: options.spa_root,
             redis_url: "redis://localhost:6379".to_string(),
             oidc_issuer_uri: format!("{}/realms/stackverse", idp.url),
             oidc_internal_issuer_uri: format!("{}/realms/stackverse", idp.url),
             oidc_client_id: "stackverse-gateway".to_string(),
             oidc_client_secret: "stackverse-secret".to_string(),
-            public_url: "http://localhost:8000".parse().unwrap(),
+            public_url: public_url.parse().unwrap(),
             log_level: "error".to_string(),
             log_format: "text".to_string(),
             otel_disabled: true,
@@ -416,11 +726,27 @@ struct BackendServer {
     _task: Arc<tokio::task::JoinHandle<()>>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 struct BackendRecord {
+    method: Method,
+    uri: String,
+    body: String,
     authorization: String,
     cookie: String,
     csrf: String,
+}
+
+impl Default for BackendRecord {
+    fn default() -> Self {
+        Self {
+            method: Method::GET,
+            uri: String::new(),
+            body: String::new(),
+            authorization: String::new(),
+            cookie: String::new(),
+            csrf: String::new(),
+        }
+    }
 }
 
 impl BackendServer {
@@ -444,9 +770,16 @@ impl BackendServer {
 
 async fn backend_handler(
     State(state): State<Arc<Mutex<BackendRecord>>>,
+    method: Method,
+    uri: Uri,
     headers: HeaderMap,
+    body: Body,
 ) -> Response {
+    let body = String::from_utf8(to_bytes(body, usize::MAX).await.unwrap().to_vec()).unwrap();
     let mut record = state.lock().await;
+    record.method = method;
+    record.uri = uri.to_string();
+    record.body = body;
     record.authorization = headers
         .get(header::AUTHORIZATION)
         .and_then(|value| value.to_str().ok())
@@ -462,6 +795,24 @@ async fn backend_handler(
         .and_then(|value| value.to_str().ok())
         .unwrap_or_default()
         .to_string();
+    if uri.path() == "/api/v1/admin/reports" {
+        return Response::builder()
+            .status(StatusCode::FORBIDDEN)
+            .header(header::CONTENT_TYPE, "application/problem+json")
+            .body(Body::from(
+                r#"{"type":"about:blank","title":"Forbidden","status":403,"detail":"Moderator role required."}"#,
+            ))
+            .unwrap();
+    }
+    if uri.query() == Some("not_modified=true") {
+        return Response::builder()
+            .status(StatusCode::NOT_MODIFIED)
+            .header(header::CACHE_CONTROL, "no-cache")
+            .header(header::ETAG, "\"bundle-v1\"")
+            .header(header::CONTENT_LANGUAGE, "pl")
+            .body(Body::empty())
+            .unwrap();
+    }
     let mut response = Json(json!({"ok": true})).into_response();
     response
         .headers_mut()
@@ -490,13 +841,21 @@ struct IdpState {
 
 #[derive(Clone)]
 struct IdpBehavior {
-    refresh_status: StatusCode,
+    refresh: RefreshBehavior,
+}
+
+#[derive(Clone)]
+enum RefreshBehavior {
+    Success,
+    Status(StatusCode),
+    MalformedJson,
+    MissingAccessToken,
 }
 
 impl Default for IdpBehavior {
     fn default() -> Self {
         Self {
-            refresh_status: StatusCode::OK,
+            refresh: RefreshBehavior::Success,
         }
     }
 }
@@ -565,12 +924,26 @@ async fn token_handler(
 ) -> Response {
     let state = state.lock().await;
     if form.get("grant_type").map(String::as_str) == Some("refresh_token") {
-        if state.behavior.refresh_status != StatusCode::OK {
-            return (
-                state.behavior.refresh_status,
-                Json(json!({"error": "temporary"})),
-            )
+        match &state.behavior.refresh {
+            RefreshBehavior::Status(status) => {
+                return (*status, Json(json!({"error": "temporary"}))).into_response();
+            }
+            RefreshBehavior::MalformedJson => {
+                return Response::builder()
+                    .status(StatusCode::OK)
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from("not-json"))
+                    .unwrap();
+            }
+            RefreshBehavior::MissingAccessToken => {
+                return Json(json!({
+                    "refresh_token": "refreshed-refresh",
+                    "expires_in": 300,
+                    "token_type": "Bearer"
+                }))
                 .into_response();
+            }
+            RefreshBehavior::Success => {}
         }
         return Json(json!({
             "access_token": "refreshed-access",
@@ -669,14 +1042,20 @@ async fn response_body(response: Response) -> String {
 }
 
 fn set_cookie_value(headers: &HeaderMap, name: &str) -> Option<String> {
+    let value = set_cookie(headers, name)?;
+    let (_, rest) = value.split_once('=')?;
+    Some(rest.split(';').next().unwrap_or_default().to_string())
+}
+
+fn set_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
     headers
         .get_all(header::SET_COOKIE)
         .iter()
         .find_map(|value| {
             let value = value.to_str().ok()?;
-            let (candidate, rest) = value.split_once('=')?;
+            let (candidate, _) = value.split_once('=')?;
             if candidate == name {
-                Some(rest.split(';').next().unwrap_or_default().to_string())
+                Some(value.to_string())
             } else {
                 None
             }

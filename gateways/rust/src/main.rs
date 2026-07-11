@@ -30,19 +30,27 @@ async fn main() -> anyhow::Result<()> {
     let oidc = Arc::new(OidcClient::new(config.clone(), http.clone()));
     let state = AppState::new(config.clone(), store, oidc, http);
 
+    let addr: SocketAddr = format!("0.0.0.0:{}", config.port).parse()?;
+    let listener = TcpListener::bind(addr).await?;
+    let backend_url = Config::url_for_logs(&config.backend_url);
+    let frontend_url = config
+        .frontend_url
+        .as_ref()
+        .map(Config::url_for_logs)
+        .unwrap_or_default();
+    let public_url = Config::url_for_logs(&config.public_url);
+
     tracing::info!(
         event = "application_start",
         outcome = "success",
         port = %config.port,
-        backend_url = %config.backend_url,
-        frontend_url = %config.frontend_url.as_ref().map(|url| url.as_str()).unwrap_or(""),
-        public_url = %config.public_url,
+        backend_url = %backend_url,
+        frontend_url = %frontend_url,
+        public_url = %public_url,
         redis = %config.redis_endpoint_for_logs(),
         "Rust Axum gateway listening"
     );
 
-    let addr: SocketAddr = format!("0.0.0.0:{}", config.port).parse()?;
-    let listener = TcpListener::bind(addr).await?;
     axum::serve(listener, app(state))
         .with_graceful_shutdown(async {
             let _ = tokio::signal::ctrl_c().await;

@@ -4,8 +4,11 @@ use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_appender_tracing::layer::OpenTelemetryTracingBridge;
 use opentelemetry_sdk::Resource;
 use opentelemetry_sdk::logs::SdkLoggerProvider;
+use opentelemetry_sdk::logs::log_processor_with_async_runtime::BatchLogProcessor;
 use opentelemetry_sdk::propagation::TraceContextPropagator;
+use opentelemetry_sdk::runtime;
 use opentelemetry_sdk::trace::SdkTracerProvider;
+use opentelemetry_sdk::trace::span_processor_with_async_runtime::BatchSpanProcessor;
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::prelude::*;
 
@@ -66,9 +69,11 @@ pub fn init(config: &Config) -> anyhow::Result<Guard> {
         .with_http()
         .build()
         .context("build OTLP span exporter")?;
+    let span_processor =
+        BatchSpanProcessor::builder(span_exporter, runtime::TokioCurrentThread).build();
     let tracer_provider = SdkTracerProvider::builder()
         .with_resource(resource.clone())
-        .with_simple_exporter(span_exporter)
+        .with_span_processor(span_processor)
         .build();
     global::set_tracer_provider(tracer_provider.clone());
     let tracer = tracer_provider.tracer("stackverse-gateway-rust");
@@ -78,9 +83,11 @@ pub fn init(config: &Config) -> anyhow::Result<Guard> {
         .with_http()
         .build()
         .context("build OTLP log exporter")?;
+    let log_processor =
+        BatchLogProcessor::builder(log_exporter, runtime::TokioCurrentThread).build();
     let logger_provider = SdkLoggerProvider::builder()
         .with_resource(resource)
-        .with_simple_exporter(log_exporter)
+        .with_log_processor(log_processor)
         .build();
     let log_filter = EnvFilter::try_new(&config.log_level)
         .or_else(|_| EnvFilter::try_new("info"))

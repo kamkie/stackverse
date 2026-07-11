@@ -81,6 +81,15 @@ impl Config {
                 }
             })
     }
+
+    pub fn url_for_logs(url: &Url) -> String {
+        let mut sanitized = url.clone();
+        let _ = sanitized.set_password(None);
+        let _ = sanitized.set_username("");
+        sanitized.set_query(None);
+        sanitized.set_fragment(None);
+        sanitized.to_string()
+    }
 }
 
 fn parse_url(raw: &str, name: &str) -> anyhow::Result<Url> {
@@ -127,5 +136,14 @@ mod tests {
 
         assert_eq!(config.redirect_uri(), "https://example.test/auth/callback");
         assert!(config.cookies_secure());
+    }
+
+    #[test]
+    fn url_for_logs_removes_credentials_query_and_fragment() {
+        let url = "https://api-user:api-password@backend.example/base?token=secret#fragment"
+            .parse()
+            .unwrap();
+
+        assert_eq!(Config::url_for_logs(&url), "https://backend.example/base");
     }
 }
