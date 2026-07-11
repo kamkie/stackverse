@@ -1,5 +1,6 @@
 package dev.stackverse.backend
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -16,6 +17,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.di.dependencies
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
@@ -27,6 +29,7 @@ import io.ktor.server.routing.post
 import io.ktor.server.routing.put
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 
@@ -35,15 +38,12 @@ fun main() {
     configureLogging(config)
     val mapper = jsonMapper()
     val logger = LoggerFactory.getLogger("dev.stackverse.backend.Application")
-    val dataSource = hikari(config)
-    val database = Database(dataSource)
-    val context = AppContext(config, mapper, database, logger)
 
     try {
-        context.migrate()
-        context.seedMessages()
         embeddedServer(Netty, port = config.port) {
-            stackverseModule(context)
+            configureStackverseDependencies(config, mapper, logger)
+            initializeStackverseData()
+            stackverseModule()
         }.start(wait = true)
     } catch (error: Throwable) {
         logger.atLevel(Level.ERROR)
@@ -52,27 +52,29 @@ fun main() {
             .addKeyValue("error_code", "startup_failed")
             .log("Application refused to start", error)
         throw error
-    } finally {
-        dataSource.close()
     }
 }
 
 private class StackverseRequestPluginConfig {
-    lateinit var context: AppContext
+    lateinit var jwtAuthenticator: JwtAuthenticator
+    lateinit var accounts: AccountRepository
+    lateinit var logger: Logger
 }
 
 private val StackverseRequestPlugin = createApplicationPlugin(
     name = "StackverseRequestPlugin",
     createConfiguration = ::StackverseRequestPluginConfig,
 ) {
-    val context = pluginConfig.context
+    val jwtAuthenticator = pluginConfig.jwtAuthenticator
+    val accounts = pluginConfig.accounts
+    val logger = pluginConfig.logger
     onCall { call ->
         call.appendDeprecatedBookmarkListHeaders()
-        val identity = context.jwtAuthenticator.authenticate(call)
+        val identity = jwtAuthenticator.authenticate(call)
         if (identity != null) {
-            val account = context.accounts.recordSeen(identity.username)
+            val account = accounts.recordSeen(identity.username)
             if (account.status == "blocked") {
-                context.logger.logEvent(
+                logger.logEvent(
                     Level.WARN,
                     "blocked_user_rejected",
                     "denied",
@@ -94,16 +96,29 @@ private fun ApplicationCall.appendDeprecatedBookmarkListHeaders() {
     }
 }
 
-fun Application.stackverseModule(context: AppContext) {
+fun Application.stackverseModule() {
+    val config: Config by dependencies
+    val mapper: ObjectMapper by dependencies
+    val logger: Logger by dependencies
+    val database: Database by dependencies
+    val audit: AuditRepository by dependencies
+    val bookmarks: BookmarkRepository by dependencies
+    val messages: MessageRepository by dependencies
+    val accounts: AccountRepository by dependencies
+    val moderation: ModerationRepository by dependencies
+    val stats: StatsRepository by dependencies
+    val localizer: MessageLocalizer by dependencies
+    val jwtAuthenticator: JwtAuthenticator by dependencies
+
     install(ContentNegotiation) {
-        register(ContentType.Application.Json, JacksonConverter(context.mapper))
+        register(ContentType.Application.Json, JacksonConverter(mapper))
     }
     install(StatusPages) {
         exception<ValidationProblem> { call, cause ->
-            context.logger.logEvent(Level.INFO, "input_validation_failed", "failure", "Input validation failed")
-            val localized = context.localizer.localizeAll(cause.violations.map { it.messageKey }, call)
+            logger.logEvent(Level.INFO, "input_validation_failed", "failure", "Input validation failed")
+            val localized = localizer.localizeAll(cause.violations.map { it.messageKey }, call)
             call.respondProblem(
-                context,
+                mapper,
                 Problem(
                     title = "Bad Request",
                     status = 400,
@@ -116,50 +131,52 @@ fun Application.stackverseModule(context: AppContext) {
         }
         exception<ApiProblem> { call, cause ->
             call.respondProblem(
-                context,
+                mapper,
                 Problem(
                     title = cause.title,
                     status = cause.status.value,
-                    detail = cause.detailKey?.let { context.localizer.localize(it, call) } ?: cause.detail,
+                    detail = cause.detailKey?.let { localizer.localize(it, call) } ?: cause.detail,
                 ),
                 cause.status,
             )
         }
         exception<BadRequestException> { call, _ ->
-            call.respondProblem(context, Problem("Bad Request", 400, detail = "Invalid request."), HttpStatusCode.BadRequest)
+            call.respondProblem(mapper, Problem("Bad Request", 400, detail = "Invalid request."), HttpStatusCode.BadRequest)
         }
         exception<Throwable> { call, cause ->
-            context.logger.atLevel(Level.ERROR)
+            logger.atLevel(Level.ERROR)
                 .addKeyValue("event", "request_failed")
                 .addKeyValue("outcome", "failure")
                 .addKeyValue("error_code", cause.javaClass.simpleName)
                 .log("Unhandled request failure", cause)
-            call.respondProblem(context, Problem("Internal Server Error", 500), HttpStatusCode.InternalServerError)
+            call.respondProblem(mapper, Problem("Internal Server Error", 500), HttpStatusCode.InternalServerError)
         }
     }
 
     install(StackverseRequestPlugin) {
-        this.context = context
+        this.jwtAuthenticator = jwtAuthenticator
+        this.accounts = accounts
+        this.logger = logger
     }
 
     monitor.subscribe(ApplicationStarted) {
-        context.logger.logEvent(
+        logger.logEvent(
             Level.INFO,
             "application_start",
             "success",
             "Application listening",
-            "port" to context.config.port,
-            "db_host" to context.config.dbHost,
-            "db_port" to context.config.dbPort,
-            "db_name" to context.config.dbName,
-            "oidc_issuer_uri" to context.config.issuerUri,
-            "oidc_jwks_uri_set" to context.config.jwksUri.isNotBlank(),
-            "log_format" to context.config.logFormat,
-            "log_level" to context.config.logLevel,
+            "port" to config.port,
+            "db_host" to config.dbHost,
+            "db_port" to config.dbPort,
+            "db_name" to config.dbName,
+            "oidc_issuer_uri" to config.issuerUri,
+            "oidc_jwks_uri_set" to config.jwksUri.isNotBlank(),
+            "log_format" to config.logFormat,
+            "log_level" to config.logLevel,
         )
     }
     monitor.subscribe(ApplicationStopped) {
-        context.logger.logEvent(Level.INFO, "application_stop", "success", "Application stopped")
+        logger.logEvent(Level.INFO, "application_stop", "success", "Application stopped")
     }
 
     routing {
@@ -167,7 +184,7 @@ fun Application.stackverseModule(context: AppContext) {
             call.respondText("ok")
         }
         get("/readyz") {
-            if (context.database.ready()) {
+            if (database.ready()) {
                 call.respondText("ok")
             } else {
                 call.respond(HttpStatusCode.ServiceUnavailable)
@@ -181,7 +198,7 @@ fun Application.stackverseModule(context: AppContext) {
 
         get("/api/v1/tags") {
             val identity = call.requireIdentity()
-            call.respond(TagListResponse(context.bookmarks.tags(identity.username)))
+            call.respond(TagListResponse(bookmarks.tags(identity.username)))
         }
 
         route("/api/v1/bookmarks") {
@@ -190,30 +207,30 @@ fun Application.stackverseModule(context: AppContext) {
                 val size = call.sizeParam()
                 val query = call.bookmarkQuery()
                 val identity = call.identity()
-                val result = context.bookmarks.listOffset(identity?.username, query, page, size)
+                val result = bookmarks.listOffset(identity?.username, query, page, size)
                 call.respond(result)
             }
             post {
                 val identity = call.requireIdentity()
-                val bookmark = context.bookmarks.create(identity.username, call.receiveBody())
+                val bookmark = bookmarks.create(identity.username, call.receiveBody())
                 call.response.headers.append(HttpHeaders.Location, "/api/v1/bookmarks/${bookmark.id}")
                 call.respond(HttpStatusCode.Created, bookmark)
             }
             get("{id}") {
-                call.respond(context.bookmarks.get(call.identity()?.username, call.uuidPath("id")))
+                call.respond(bookmarks.get(call.identity()?.username, call.uuidPath("id")))
             }
             put("{id}") {
                 val identity = call.requireIdentity()
-                call.respond(context.bookmarks.update(identity.username, call.uuidPath("id"), call.receiveBody()))
+                call.respond(bookmarks.update(identity.username, call.uuidPath("id"), call.receiveBody()))
             }
             delete("{id}") {
                 val identity = call.requireIdentity()
-                context.bookmarks.delete(identity.username, call.uuidPath("id"))
+                bookmarks.delete(identity.username, call.uuidPath("id"))
                 call.respond(HttpStatusCode.NoContent)
             }
             post("{id}/reports") {
                 val identity = call.requireIdentity()
-                val report = context.moderation.report(identity.username, call.uuidPath("id"), call.receiveBody())
+                val report = moderation.report(identity.username, call.uuidPath("id"), call.receiveBody())
                 call.respond(HttpStatusCode.Created, report)
             }
         }
@@ -222,7 +239,7 @@ fun Application.stackverseModule(context: AppContext) {
             val size = call.sizeParam()
             val query = call.bookmarkQuery()
             val cursor = call.request.queryParameters["cursor"]?.let { BookmarkCursor.decode(it) }
-            val slice = context.bookmarks.listKeyset(call.identity()?.username, query, cursor, size)
+            val slice = bookmarks.listKeyset(call.identity()?.username, query, cursor, size)
             call.respond(slice)
         }
 
@@ -232,41 +249,41 @@ fun Application.stackverseModule(context: AppContext) {
                 val page = call.pageParam()
                 val size = call.sizeParam()
                 val status = call.optionalReportStatus()
-                call.respond(context.moderation.listMine(identity.username, status, page, size))
+                call.respond(moderation.listMine(identity.username, status, page, size))
             }
             put("{id}") {
                 val identity = call.requireIdentity()
-                call.respond(context.moderation.updateMine(identity.username, call.uuidPath("id"), call.receiveBody()))
+                call.respond(moderation.updateMine(identity.username, call.uuidPath("id"), call.receiveBody()))
             }
             delete("{id}") {
                 val identity = call.requireIdentity()
-                context.moderation.withdraw(identity.username, call.uuidPath("id"))
+                moderation.withdraw(identity.username, call.uuidPath("id"))
                 call.respond(HttpStatusCode.NoContent)
             }
         }
 
         route("/api/v1/admin/reports") {
             get {
-                call.requireRole("moderator", context)
+                call.requireRole("moderator", logger)
                 val page = call.pageParam()
                 val size = call.sizeParam()
                 val status = call.optionalReportStatus() ?: "open"
-                call.respond(context.moderation.listAdmin(status, page, size))
+                call.respond(moderation.listAdmin(status, page, size))
             }
             put("{id}") {
-                val identity = call.requireRole("moderator", context)
-                call.respond(context.moderation.resolve(identity.username, call.uuidPath("id"), call.receiveBody()))
+                val identity = call.requireRole("moderator", logger)
+                call.respond(moderation.resolve(identity.username, call.uuidPath("id"), call.receiveBody()))
             }
         }
 
         put("/api/v1/admin/bookmarks/{id}/status") {
-            val identity = call.requireRole("moderator", context)
-            call.respond(context.moderation.setBookmarkStatus(identity.username, call.uuidPath("id"), call.receiveBody()))
+            val identity = call.requireRole("moderator", logger)
+            call.respond(moderation.setBookmarkStatus(identity.username, call.uuidPath("id"), call.receiveBody()))
         }
 
         route("/api/v1/admin/users") {
             get {
-                call.requireRole("admin", context)
+                call.requireRole("admin", logger)
                 val page = call.pageParam()
                 val size = call.sizeParam()
                 val q = call.request.queryParameters["q"]?.also { requireMaxLength(it, 100, "q") }
@@ -274,20 +291,20 @@ fun Application.stackverseModule(context: AppContext) {
                     if (it !in setOf("active", "blocked")) throw ValidationProblem.of("status", "validation.user.status.invalid")
                     it
                 }
-                call.respond(context.accounts.list(q, status, page, size))
+                call.respond(accounts.list(q, status, page, size))
             }
             get("{username}") {
-                call.requireRole("admin", context)
-                call.respond(context.accounts.get(call.parameters["username"].orEmpty()))
+                call.requireRole("admin", logger)
+                call.respond(accounts.get(call.parameters["username"].orEmpty()))
             }
             put("{username}/status") {
-                val identity = call.requireRole("admin", context)
-                call.respond(context.accounts.setStatus(identity.username, call.parameters["username"].orEmpty(), call.receiveBody()))
+                val identity = call.requireRole("admin", logger)
+                call.respond(accounts.setStatus(identity.username, call.parameters["username"].orEmpty(), call.receiveBody()))
             }
         }
 
         get("/api/v1/admin/audit-log") {
-            call.requireRole("admin", context)
+            call.requireRole("admin", logger)
             val page = call.pageParam()
             val size = call.sizeParam()
             val filter = AuditFilter(
@@ -298,12 +315,12 @@ fun Application.stackverseModule(context: AppContext) {
                 from = call.request.queryParameters["from"]?.let { parseInstantParam(it, "from") },
                 to = call.request.queryParameters["to"]?.let { parseInstantParam(it, "to") },
             )
-            call.respond(context.audit.list(filter, page, size))
+            call.respond(audit.list(filter, page, size))
         }
 
         get("/api/v1/admin/stats") {
-            call.requireRole("moderator", context)
-            call.respondJsonWithEtag(context, context.stats.stats(), cacheControl = true)
+            call.requireRole("moderator", logger)
+            call.respondJsonWithEtag(mapper, stats.stats(), cacheControl = true)
         }
 
         route("/api/v1/messages") {
@@ -311,39 +328,39 @@ fun Application.stackverseModule(context: AppContext) {
                 val page = call.pageParam()
                 val size = call.sizeParam()
                 val q = call.request.queryParameters["q"]?.also { requireMaxLength(it, 200, "q") }
-                val response = context.messages.list(
+                val response = messages.list(
                     key = call.request.queryParameters["key"],
                     language = call.request.queryParameters["language"],
                     q = q,
                     page = page,
                     size = size,
                 )
-                call.respondJsonWithEtag(context, response, cacheControl = true)
+                call.respondJsonWithEtag(mapper, response, cacheControl = true)
             }
             post {
-                val identity = call.requireRole("admin", context)
-                val message = context.messages.create(identity.username, call.receiveBody())
+                val identity = call.requireRole("admin", logger)
+                val message = messages.create(identity.username, call.receiveBody())
                 call.response.headers.append(HttpHeaders.Location, "/api/v1/messages/${message.id}")
                 call.respond(HttpStatusCode.Created, message)
             }
             get("bundle") {
-                val language = context.localizer.resolve(
+                val language = localizer.resolve(
                     call.request.queryParameters["lang"],
                     call.request.headers[HttpHeaders.AcceptLanguage],
                 )
                 call.response.headers.append(HttpHeaders.ContentLanguage, language)
-                call.respondJsonWithEtag(context, MessageBundleResponse(language, context.messages.bundle(language)), cacheControl = true)
+                call.respondJsonWithEtag(mapper, MessageBundleResponse(language, messages.bundle(language)), cacheControl = true)
             }
             get("{id}") {
-                call.respondJsonWithEtag(context, context.messages.get(call.uuidPath("id")), cacheControl = true)
+                call.respondJsonWithEtag(mapper, messages.get(call.uuidPath("id")), cacheControl = true)
             }
             put("{id}") {
-                val identity = call.requireRole("admin", context)
-                call.respond(context.messages.update(identity.username, call.uuidPath("id"), call.receiveBody()))
+                val identity = call.requireRole("admin", logger)
+                call.respond(messages.update(identity.username, call.uuidPath("id"), call.receiveBody()))
             }
             delete("{id}") {
-                val identity = call.requireRole("admin", context)
-                context.messages.delete(identity.username, call.uuidPath("id"))
+                val identity = call.requireRole("admin", logger)
+                messages.delete(identity.username, call.uuidPath("id"))
                 call.respond(HttpStatusCode.NoContent)
             }
         }

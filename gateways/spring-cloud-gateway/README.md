@@ -90,6 +90,8 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 - **PKCE is forced.** Spring auto-enables PKCE only for public clients; the
   authorization-request customizer adds it for this confidential client too, so all
   gateway stacks exhibit identical wire behavior (the realm requires S256).
+- **Build-enforced Kotlin style.** ktlint checks Kotlin sources and Gradle scripts in
+  the same Gradle build used locally and in CI.
 
 ## Logging conformance
 
@@ -142,12 +144,13 @@ backend's `OIDC_JWKS_URI`).
 
 ## Test
 
-Integration tests boot real Keycloak (realm imported from `infra/keycloak`) and
-Redis via Testcontainers, start the gateway on a random port, and drive the real
-authorization code flow plus token relay against a stub backend. Docker required.
+The full check includes ktlint plus the build and tests. Integration tests boot real
+Keycloak (realm imported from `infra/keycloak`) and Redis via Testcontainers, start
+the gateway on a random port, and drive the real authorization code flow plus token
+relay against a stub backend. Docker required.
 
 ```sh
-./gradlew test
+./gradlew ktlintCheck build
 ```
 
 ## Docker

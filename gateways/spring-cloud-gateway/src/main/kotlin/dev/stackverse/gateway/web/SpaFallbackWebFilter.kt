@@ -18,7 +18,9 @@ import reactor.core.publisher.Mono
  * owns page delivery then.
  */
 @Component
-class SpaFallbackWebFilter(gateway: GatewayProperties) : WebFilter, Ordered {
+class SpaFallbackWebFilter(gateway: GatewayProperties) :
+    WebFilter,
+    Ordered {
 
     private val active = gateway.frontendUrl == null
 

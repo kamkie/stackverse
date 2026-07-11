@@ -36,8 +36,8 @@ jobs:
           java-version: 25
       - uses: gradle/actions/setup-gradle@v6
       # integration tests bring up Keycloak and Redis via Testcontainers
-      - name: Build and test
-        run: ./gradlew build
+      - name: Style check, build, and test
+        run: ./gradlew ktlintCheck build
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         continue-on-error: true

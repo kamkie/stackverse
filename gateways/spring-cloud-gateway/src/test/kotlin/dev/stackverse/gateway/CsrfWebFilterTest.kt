@@ -27,10 +27,13 @@ class CsrfWebFilterTest {
         val exchange = exchange(MockServerHttpRequest.get("/auth/session"))
         var continued = false
 
-        filter().filter(exchange, WebFilterChain {
-            continued = true
-            it.response.setComplete()
-        }).block()
+        filter().filter(
+            exchange,
+            WebFilterChain {
+                continued = true
+                it.response.setComplete()
+            },
+        ).block()
 
         assertTrue(continued)
         val cookie = exchange.response.cookies.getFirst(Csrf.COOKIE_NAME)
@@ -67,10 +70,13 @@ class CsrfWebFilterTest {
         )
         var continued = false
 
-        filter().filter(exchange, WebFilterChain {
-            continued = true
-            it.response.setComplete()
-        }).block()
+        filter().filter(
+            exchange,
+            WebFilterChain {
+                continued = true
+                it.response.setComplete()
+            },
+        ).block()
 
         assertTrue(continued)
         assertNull(exchange.response.statusCode)
@@ -86,10 +92,13 @@ class CsrfWebFilterTest {
 
         for (exchange in cases) {
             var continued = false
-            filter().filter(exchange, WebFilterChain {
-                continued = true
-                it.response.setComplete()
-            }).block()
+            filter().filter(
+                exchange,
+                WebFilterChain {
+                    continued = true
+                    it.response.setComplete()
+                },
+            ).block()
 
             assertFalse(continued)
             assertForbidden(exchange, "Missing or mismatched X-XSRF-TOKEN header.")
@@ -116,10 +125,13 @@ class CsrfWebFilterTest {
             )
             var continued = false
 
-            filter().filter(exchange, WebFilterChain {
-                continued = true
-                it.response.setComplete()
-            }).block()
+            filter().filter(
+                exchange,
+                WebFilterChain {
+                    continued = true
+                    it.response.setComplete()
+                },
+            ).block()
 
             assertFalse(continued, "headers=${headers.toList()}")
             assertForbidden(exchange, "Cross-origin state-changing requests are not supported.")
@@ -132,10 +144,13 @@ class CsrfWebFilterTest {
             val exchange = exchange(MockServerHttpRequest.method(method, URI.create(path)))
             var continued = false
 
-            filter().filter(exchange, WebFilterChain {
-                continued = true
-                it.response.setComplete()
-            }).block()
+            filter().filter(
+                exchange,
+                WebFilterChain {
+                    continued = true
+                    it.response.setComplete()
+                },
+            ).block()
 
             assertTrue(continued, "$method $path")
             assertNull(exchange.response.statusCode, "$method $path")

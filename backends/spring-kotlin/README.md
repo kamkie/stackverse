@@ -1,6 +1,6 @@
 # Backend — Spring Boot (Kotlin)
 
-Spring Boot 4.1 · Kotlin 2.3 · Java 25 · Spring Web MVC · Spring Security (OAuth2
+Spring Boot 4.1 · Kotlin 2.4 · Java 25 · Spring Web MVC · Spring Security (OAuth2
 resource server) · Spring Data JPA · Flyway · PostgreSQL.
 
 Shared behavior (endpoints, env vars, rules) is documented in
@@ -21,11 +21,12 @@ Configuration is environment variables only (see the table in
 seed is read from `../../spec/messages` relative to the working directory — override
 with `SEED_MESSAGES_DIR` when running from anywhere else.
 
-Tests need Docker (Testcontainers starts its own PostgreSQL; no Keycloak needed —
-authentication is injected as pre-built JWTs):
+Kotlin style check, build, and tests (the integration tests need Docker so
+Testcontainers can start PostgreSQL; no Keycloak is needed — authentication is
+injected as pre-built JWTs):
 
 ```sh
-./gradlew test
+./gradlew ktlintCheck build
 ```
 
 Container image (repo root as context — the image ships the message seed):
@@ -59,6 +60,8 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
   services because the contract demands normalization *before* validation (tags are
   trimmed/lowercased first) and error messages localized from the database, which
   annotation-driven validation cannot express cleanly.
+- **Build-enforced Kotlin style** — ktlint checks Kotlin sources and Gradle scripts in
+  the same Gradle build used locally and in CI.
 
 ## Deliberate deviations & notes
 

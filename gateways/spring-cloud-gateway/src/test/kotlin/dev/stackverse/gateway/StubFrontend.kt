@@ -13,6 +13,7 @@ class StubFrontend : AutoCloseable {
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
 
     @Volatile var lastPath: String? = null
+
     @Volatile var lastCookie: String = ""
 
     init {

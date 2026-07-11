@@ -13,7 +13,8 @@ enum class ReportReason(@get:JsonValue val wire: String) {
     SPAM("spam"),
     OFFENSIVE("offensive"),
     BROKEN_LINK("broken-link"),
-    OTHER("other");
+    OTHER("other"),
+    ;
 
     companion object {
         fun fromWire(value: String?): ReportReason? = entries.find { it.wire == value }

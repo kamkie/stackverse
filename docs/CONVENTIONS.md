@@ -68,7 +68,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | Constructor injection, @Service/@Configuration/@Bean components | Constructor injection throughout; @Service, @Configuration @Bean beans | ✅ idiomatic |
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Constructor injection, @Service/@Configuration/@Bean components | Constructor injection throughout; @Service, @Configuration @Bean beans | ✅ idiomatic |
-| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Koin, or Ktor 3 built-in dependencies plugin | Manual AppContext object graph wired by hand in main() | 🔴 undocumented |
+| [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | Koin, or Ktor 3 built-in dependencies plugin | Ktor built-in DI with typed constructor providers and container-managed Hikari lifecycle | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | Built-in MS.Extensions.DI, constructor injection, scoped services | Built-in container; AddScoped services, endpoint-param injection, DbContext + auth via options | ✅ idiomatic |
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | OTP application supervision and runtime config; no DI container | Supervised Repo/Endpoint plus module functions and Application env configuration | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | manual constructor wiring in main/setup func, no DI container | app.New wires stores/APIs via NewX constructors passing pool+logger | ✅ idiomatic |
@@ -216,7 +216,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
-| [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | ktlint or detekt wired into the Gradle build | No ktlint/detekt/spotless; only shared root .editorconfig | 🔴 undocumented |
+| [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | ktlint or detekt wired into the Gradle build | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Checkstyle, Spotless, or Error Prone wired into the Gradle build | No Java formatter/linter yet; only shared root .editorconfig and javac | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .NET 10 recommended SDK analyzers, warnings-as-errors, and dotnet format verification in CI | ✅ idiomatic |
@@ -359,7 +359,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
-| [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | ktlint, detekt, or spotless wired into the Gradle build | None configured; only shared root .editorconfig for whitespace | 🔴 undocumented |
+| [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | ktlint, detekt, or spotless wired into the Gradle build | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [Apache APISIX](../gateways/apisix/README.md) | luacheck and often stylua for Lua plugin code | No linter or formatter configured; CI builds, config-tests, and smoke-tests | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | No ESLint/Prettier/Biome; only .editorconfig and tsc typecheck | 🔴 undocumented |

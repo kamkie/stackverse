@@ -12,7 +12,9 @@ interface TagCountRow {
     val count: Long
 }
 
-interface BookmarkRepository : JpaRepository<Bookmark, UUID>, JpaSpecificationExecutor<Bookmark> {
+interface BookmarkRepository :
+    JpaRepository<Bookmark, UUID>,
+    JpaSpecificationExecutor<Bookmark> {
 
     /**
      * Row lock taken by report resolution before any report locks — the

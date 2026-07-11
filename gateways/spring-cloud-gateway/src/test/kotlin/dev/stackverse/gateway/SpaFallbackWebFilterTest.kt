@@ -52,10 +52,13 @@ class SpaFallbackWebFilterTest {
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.method(method, URI.create(path)).build())
         var seenPath: String? = null
 
-        filter.filter(exchange, WebFilterChain {
-            seenPath = it.request.path.value()
-            it.response.setComplete()
-        }).block()
+        filter.filter(
+            exchange,
+            WebFilterChain {
+                seenPath = it.request.path.value()
+                it.response.setComplete()
+            },
+        ).block()
 
         return checkNotNull(seenPath)
     }

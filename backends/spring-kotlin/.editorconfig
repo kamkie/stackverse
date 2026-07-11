@@ -1,0 +1,6 @@
+[*.{kt,kts}]
+ktlint_code_style = intellij_idea
+max_line_length = off
+ktlint_standard_argument-list-wrapping = disabled
+ktlint_standard_function-expression-body = disabled
+ktlint_standard_function-signature = disabled

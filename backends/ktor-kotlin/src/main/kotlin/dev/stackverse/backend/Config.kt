@@ -1,20 +1,9 @@
 package dev.stackverse.backend
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.zaxxer.hikari.HikariDataSource
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.flywaydb.core.Flyway
-import org.slf4j.Logger
-import org.slf4j.event.Level
-import java.nio.file.Files
-import java.nio.file.Path
 import java.sql.Connection
-import kotlin.io.path.extension
-import kotlin.io.path.listDirectoryEntries
-import kotlin.io.path.nameWithoutExtension
 
 data class Config(
     val port: Int,
@@ -48,61 +37,6 @@ data class Config(
 
         private fun env(name: String, fallback: String): String =
             System.getenv(name)?.takeIf { it.isNotBlank() } ?: fallback
-    }
-}
-
-class AppContext(
-    val config: Config,
-    val mapper: ObjectMapper,
-    val database: Database,
-    val logger: Logger,
-) {
-    val audit = AuditRepository(database, mapper)
-    val bookmarks = BookmarkRepository(database)
-    val messages = MessageRepository(database, audit, mapper, logger)
-    val accounts = AccountRepository(database, audit, logger)
-    val moderation = ModerationRepository(database, bookmarks, audit, logger)
-    val stats = StatsRepository(database)
-    val localizer = MessageLocalizer(messages)
-    val jwtAuthenticator = JwtAuthenticator(config, mapper, logger)
-
-    fun migrate() {
-        val result = Flyway.configure()
-            .dataSource(database.dataSource)
-            .locations("classpath:db/migration")
-            .load()
-            .migrate()
-        result.migrations.forEach {
-            logger.logEvent(
-                Level.INFO,
-                "db_migration_applied",
-                "success",
-                "Database migration applied",
-                "version" to it.version,
-                "description" to it.description,
-            )
-        }
-    }
-
-    fun seedMessages() = runBlocking {
-        val dir = Path.of(config.seedMessagesDir)
-        check(Files.isDirectory(dir)) {
-            "Message seed directory not found: ${dir.toAbsolutePath()}. Set SEED_MESSAGES_DIR to the spec/messages directory."
-        }
-        dir.listDirectoryEntries().filter { it.extension == "json" }.sorted().forEach { file ->
-            val language = file.nameWithoutExtension
-            val entries: Map<String, String> = mapper.readValue(Files.readString(file))
-            val inserted = messages.seed(language, entries)
-            logger.logEvent(
-                Level.INFO,
-                "message_seed_imported",
-                "success",
-                "Message seed imported",
-                "language" to language,
-                "inserted" to inserted,
-                "skipped" to entries.size - inserted,
-            )
-        }
     }
 }
 
