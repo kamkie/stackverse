@@ -12,10 +12,10 @@ namespace StackverseGateway.Tests;
 /// </summary>
 public sealed class GatewayFixture : IAsyncLifetime
 {
-    private readonly RedisContainer _redis = new RedisBuilder("redis:7-alpine")
+    private readonly RedisContainer _redis = new RedisBuilder("redis:8.8.0-alpine")
         .Build();
 
-    private readonly KeycloakContainer _keycloak = new KeycloakBuilder("quay.io/keycloak/keycloak:26.2")
+    private readonly KeycloakContainer _keycloak = new KeycloakBuilder("quay.io/keycloak/keycloak:26.7.0")
         .WithResourceMapping(new FileInfo(FindRealmFile()), "/opt/keycloak/data/import/")
         .WithCommand("--import-realm")
         .Build();
