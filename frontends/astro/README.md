@@ -31,9 +31,9 @@ frontends. There is no mock mode, so development requires a running gateway.
 page metadata through `Astro.props` and exposes `<slot />` for route content. The files in
 `src/pages/` map directly to `/feed`, `/bookmarks`, `/reports`, and every `/admin/*`
 route, like a conventional Astro or Next.js pages directory. Each generated page
-inject their page root through the layout slot and identify the screen for the external
-`src/bootstrap.tsx` bundle, which mounts the
-corresponding Solid content through `src/App.tsx`. Navigation uses ordinary links;
+inject their page root and page-specific external entry through the layout slot. Each
+entry imports only its feature component and mounts it through the shared `PageShell`;
+there is no central page selector or client-side pseudo-router. Navigation uses ordinary links;
 there is no client router. Nginx serves each generated `index.html`, while its root
 fallback remains available for unknown browser routes.
 
