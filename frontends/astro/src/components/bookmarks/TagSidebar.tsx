@@ -1,7 +1,7 @@
 import { createEffect, createSignal, For } from "solid-js";
-import { api } from "../lib/api";
-import { i18n, m } from "../lib/i18n";
-import type { TagCount } from "../lib/types";
+import { api } from "../../lib/api";
+import { i18n, m } from "../../lib/i18n";
+import type { TagCount } from "../../lib/types";
 
 interface Props {
   selected?: string;
@@ -36,7 +36,9 @@ export default function TagSidebar(props: Props) {
               <button
                 type="button"
                 class={`sv-tag${props.selected === item.tag ? " is-active" : ""}`}
-                onClick={() => props.onSelect(props.selected === item.tag ? "" : item.tag)}
+                onClick={() =>
+                  props.onSelect(props.selected === item.tag ? "" : item.tag)
+                }
               >
                 {item.tag}
                 <span class="sv-tag-count">{item.count}</span>

@@ -1,8 +1,14 @@
 ---
-import MyReports from "../components/reports/MyReports";
+import UserReportList from "../components/reports/UserReportList";
 import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="My reports - Stackverse">
-  <MyReports client:load />
+  <section class="sv-content">
+    <header>
+      <h1 class="sv-page-title">My reports</h1>
+      <p>Track and update reports you submitted for public bookmarks.</p>
+    </header>
+    <UserReportList client:load />
+  </section>
 </BaseLayout>

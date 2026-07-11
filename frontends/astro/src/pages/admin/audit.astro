@@ -1,7 +1,18 @@
 ---
-import AdminNavigation from "../../components/AdminNavigation";
+import AdminNavigation from "../../components/admin/AdminNavigation";
 import AuditLog from "../../components/admin/AuditLog";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<BaseLayout title="Audit log - Stackverse"><div class="sv-layout"><AdminNavigation client:load currentPath={Astro.url.pathname} /><section class="sv-content"><AuditLog client:load /></section></div></BaseLayout>
+<BaseLayout title="Audit log - Stackverse">
+  <div class="sv-layout">
+    <AdminNavigation client:load currentPath={Astro.url.pathname} />
+    <section class="sv-content">
+      <header>
+        <h1 class="sv-page-title">Audit log</h1>
+        <p>Search administrative and moderation activity.</p>
+      </header>
+      <AuditLog client:load />
+    </section>
+  </div>
+</BaseLayout>

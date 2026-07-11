@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setMe, setSession } from "../../lib/session";
 import { bookmark, jsonResponse, readyI18n } from "../../test/fixtures";
-import { PublicFeedContent as PublicFeedPage } from "./PublicFeed";
+import { PublicBookmarkFeedContent } from "./PublicBookmarkFeed";
 
 beforeEach(() => {
   readyI18n();
@@ -10,7 +10,7 @@ beforeEach(() => {
   setMe(null);
 });
 
-describe("PublicFeedPage", () => {
+describe("PublicBookmarkFeedContent", () => {
   it("keeps reporting behind authentication and follows opaque cursors", async () => {
     const first = bookmark({ id: "first", title: "First" });
     const second = bookmark({ id: "second", title: "Second" });
@@ -24,7 +24,7 @@ describe("PublicFeedPage", () => {
       );
     });
     vi.stubGlobal("fetch", fetchMock);
-    render(() => <PublicFeedPage toast={vi.fn()} />);
+    render(() => <PublicBookmarkFeedContent toast={vi.fn()} />);
 
     expect(await screen.findByText("First")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "report" })).toBeNull();
@@ -42,17 +42,22 @@ describe("PublicFeedPage", () => {
       "fetch",
       vi.fn().mockResolvedValue(jsonResponse({ items: [bookmark()] })),
     );
-    render(() => <PublicFeedPage toast={vi.fn()} />);
+    render(() => <PublicBookmarkFeedContent toast={vi.fn()} />);
 
-    await fireEvent.click(await screen.findByRole("button", { name: "report" }));
+    await fireEvent.click(
+      await screen.findByRole("button", { name: "report" }),
+    );
 
     expect(screen.getByRole("dialog").dataset.ctx).toBe("bookmark:bookmark-1");
     expect(screen.getByLabelText("reason")).toBeTruthy();
   });
 
   it("renders API failures without replacing them with an empty result", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("feed offline")));
-    render(() => <PublicFeedPage toast={vi.fn()} />);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockRejectedValue(new Error("feed offline")),
+    );
+    render(() => <PublicBookmarkFeedContent toast={vi.fn()} />);
 
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toContain("feed offline"),

@@ -1,8 +1,19 @@
-import { fireEvent, render, screen, waitFor, within } from "@solidjs/testing-library";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setMe } from "../../lib/session";
 import type { UserAccount } from "../../lib/types";
-import { jsonResponse, page, readyI18n, userAccount } from "../../test/fixtures";
+import {
+  jsonResponse,
+  page,
+  readyI18n,
+  userAccount,
+} from "../../test/fixtures";
 import { UsersContent as UsersPage } from "./Users";
 
 beforeEach(() => {
@@ -16,7 +27,11 @@ describe("UsersPage", () => {
     let users: UserAccount[] = [
       userAccount({ username: "admin" }),
       userAccount({ username: "other user" }),
-      userAccount({ username: "blocked", status: "blocked", blockedReason: "abuse" }),
+      userAccount({
+        username: "blocked",
+        status: "blocked",
+        blockedReason: "abuse",
+      }),
     ];
     const mutations: { path: string; body: unknown }[] = [];
     const fetchMock = vi.fn(async (input: URL, init?: RequestInit) => {
@@ -51,7 +66,9 @@ describe("UsersPage", () => {
     await waitFor(() =>
       expect(document.querySelector('[data-ctx="user:admin"]')).not.toBeNull(),
     );
-    const ownRow = document.querySelector<HTMLTableRowElement>('[data-ctx="user:admin"]')!;
+    const ownRow = document.querySelector<HTMLTableRowElement>(
+      '[data-ctx="user:admin"]',
+    )!;
     expect(within(ownRow).queryByRole("button", { name: "block" })).toBeNull();
 
     await fireEvent.click(screen.getByRole("button", { name: "block" }));
@@ -71,12 +88,16 @@ describe("UsersPage", () => {
     });
 
     await waitFor(() =>
-      expect(document.querySelector('[data-ctx="user:blocked"]')).not.toBeNull(),
+      expect(
+        document.querySelector('[data-ctx="user:blocked"]'),
+      ).not.toBeNull(),
     );
     const blockedRow = document.querySelector<HTMLTableRowElement>(
       '[data-ctx="user:blocked"]',
     )!;
-    await fireEvent.click(within(blockedRow).getByRole("button", { name: "unblock" }));
+    await fireEvent.click(
+      within(blockedRow).getByRole("button", { name: "unblock" }),
+    );
     await waitFor(() => expect(mutations).toHaveLength(2));
     expect(mutations[1]).toEqual({
       path: "/api/v1/admin/users/blocked/status",
@@ -87,13 +108,20 @@ describe("UsersPage", () => {
   it("renders a privileged API failure instead of a user table", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        jsonResponse({ title: "Forbidden", detail: "Admin role required" }, { status: 403 }),
-      ),
+      vi
+        .fn()
+        .mockResolvedValue(
+          jsonResponse(
+            { title: "Forbidden", detail: "Admin role required" },
+            { status: 403 },
+          ),
+        ),
     );
     render(() => <UsersPage />);
 
-    expect((await screen.findByRole("alert")).textContent).toContain("Admin role required");
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Admin role required",
+    );
     expect(screen.queryByRole("table")).toBeNull();
   });
 });

@@ -1,8 +1,18 @@
 ---
-import MyBookmarks from "../components/bookmarks/MyBookmarks";
+import BookmarkCollection from "../components/bookmarks/BookmarkCollection";
+import BookmarkTagNavigation from "../components/bookmarks/BookmarkTagNavigation";
 import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="My bookmarks - Stackverse">
-  <MyBookmarks client:load />
+  <div class="sv-layout">
+    <BookmarkTagNavigation client:load />
+    <section class="sv-content">
+      <header>
+        <h1 class="sv-page-title">My bookmarks</h1>
+        <p>Create, search, tag, edit, and remove your saved bookmarks.</p>
+      </header>
+      <BookmarkCollection client:load />
+    </section>
+  </div>
 </BaseLayout>

@@ -1,7 +1,18 @@
 ---
-import AdminNavigation from "../../components/AdminNavigation";
+import AdminNavigation from "../../components/admin/AdminNavigation";
 import Users from "../../components/admin/Users";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<BaseLayout title="Users - Stackverse"><div class="sv-layout"><AdminNavigation client:load currentPath={Astro.url.pathname} /><section class="sv-content"><Users client:load /></section></div></BaseLayout>
+<BaseLayout title="Users - Stackverse">
+  <div class="sv-layout">
+    <AdminNavigation client:load currentPath={Astro.url.pathname} />
+    <section class="sv-content">
+      <header>
+        <h1 class="sv-page-title">Users</h1>
+        <p>Inspect accounts and manage user access.</p>
+      </header>
+      <Users client:load />
+    </section>
+  </div>
+</BaseLayout>

@@ -1,8 +1,14 @@
 ---
-import PublicFeed from "../components/bookmarks/PublicFeed";
+import PublicBookmarkFeed from "../components/bookmarks/PublicBookmarkFeed";
 import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="Public feed - Stackverse">
-  <PublicFeed client:load />
+  <section class="sv-content">
+    <header>
+      <h1 class="sv-page-title">Public feed</h1>
+      <p>Browse public bookmarks shared by the Stackverse community.</p>
+    </header>
+    <PublicBookmarkFeed client:load />
+  </section>
 </BaseLayout>

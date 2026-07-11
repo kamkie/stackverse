@@ -1,10 +1,11 @@
-import { createSignal, For, onCleanup, onMount } from "solid-js";
+import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import Pagination from "../Pagination";
 import { api, queryString } from "../../lib/api";
 import { endOfDayIso, formatDate } from "../../lib/format";
 import { i18n, m } from "../../lib/i18n";
 import type { AuditEntry, Page } from "../../lib/types";
-import ClientPage from "../ClientPage";
+import { useIsland } from "../../lib/island";
+import { isAdmin, me } from "../../lib/session";
 
 const knownActions = [
   "message.created",
@@ -94,7 +95,6 @@ export function AuditLogContent() {
 
   return (
     <>
-      <h1 class="sv-page-title">{m(i18n(), "ui.admin.audit")}</h1>
       <div class="sv-toolbar">
         <input
           class="sv-input"
@@ -143,15 +143,23 @@ export function AuditLogContent() {
             }}
           />
         </label>
-        <button type="button" class="sv-button sv-button--ghost" onClick={clearFilters}>
+        <button
+          type="button"
+          class="sv-button sv-button--ghost"
+          onClick={clearFilters}
+        >
           {m(i18n(), "ui.action.clear-filters")}
         </button>
       </div>
 
       {loading() && !audit() ? (
-        <div class="sv-loading"><span class="sv-spinner" /></div>
+        <div class="sv-loading">
+          <span class="sv-spinner" />
+        </div>
       ) : error() ? (
-        <div class="sv-alert sv-alert--danger" role="alert">{error()?.message}</div>
+        <div class="sv-alert sv-alert--danger" role="alert">
+          {error()?.message}
+        </div>
       ) : audit() ? (
         <>
           <div class="sv-table-wrap">
@@ -168,20 +176,32 @@ export function AuditLogContent() {
                 <For each={audit()!.items}>
                   {(entry) => (
                     <tr>
-                      <td><time dateTime={entry.createdAt}>{formatDate(entry.createdAt, i18n().resolvedLanguage)}</time></td>
+                      <td>
+                        <time dateTime={entry.createdAt}>
+                          {formatDate(entry.createdAt, i18n().resolvedLanguage)}
+                        </time>
+                      </td>
                       <td>{entry.actor}</td>
-                      <td><span class="sv-badge">{entry.action}</span></td>
-                      <td class="sv-cell-mono">{entry.targetType}/{entry.targetId.slice(0, 8)}</td>
+                      <td>
+                        <span class="sv-badge">{entry.action}</span>
+                      </td>
+                      <td class="sv-cell-mono">
+                        {entry.targetType}/{entry.targetId.slice(0, 8)}
+                      </td>
                     </tr>
                   )}
                 </For>
               </tbody>
             </table>
           </div>
-          <Pagination page={page()} totalPages={audit()!.totalPages} onPage={(next) => {
-            setPage(next);
-            void load();
-          }} />
+          <Pagination
+            page={page()}
+            totalPages={audit()!.totalPages}
+            onPage={(next) => {
+              setPage(next);
+              void load();
+            }}
+          />
         </>
       ) : null}
     </>
@@ -189,5 +209,27 @@ export function AuditLogContent() {
 }
 
 export default function AuditLog() {
-  return <ClientPage requiredRole="admin">{() => <AuditLogContent />}</ClientPage>;
+  const island = useIsland();
+
+  return (
+    <Show
+      when={island.ready()}
+      fallback={
+        <div class="sv-loading">
+          <span class="sv-spinner" />
+        </div>
+      }
+    >
+      <Show
+        when={isAdmin(me())}
+        fallback={
+          <div class="sv-alert sv-alert--danger" role="alert">
+            403
+          </div>
+        }
+      >
+        <AuditLogContent />
+      </Show>
+    </Show>
+  );
 }

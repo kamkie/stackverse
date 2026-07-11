@@ -28,7 +28,7 @@ for (const htmlPath of (await files(dist)).filter((path) => path.endsWith(".html
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/gi)];
   for (const match of scripts.reverse()) {
     const src = await emit(match[2], "js");
-    const replacement = `<script${match[1]} src="${src}"></script>`;
+    const replacement = `<script${match[1]} src="${src}" defer></script>`;
     html = html.slice(0, match.index) + replacement + html.slice(match.index + match[0].length);
   }
   const styles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)];

@@ -27,27 +27,28 @@ frontends. There is no mock mode, so development requires a running gateway.
 
 ## Architecture
 
-`src/layouts/BaseLayout.astro` is the shared document template. It accepts page
-metadata through `Astro.props`, renders the interactive `Header` component, and
-exposes `<slot />` for route content. The files in
+`src/layouts/BaseLayout.astro` owns the complete shared document and application
+frame: metadata, theme bootstrap, brand, primary navigation, session controls,
+and the main content slot. Only the stateful navigation and controls are hydrated
+Solid components. The files in
 `src/pages/` map directly to `/feed`, `/bookmarks`, `/reports`, and every `/admin/*`
-route, like a conventional Astro or Next.js pages directory. Each page imports its
-own page-specific Solid component directly and hydrates it with `client:load`; admin
-pages also compose their shared navigation directly. There are no entry modules,
-screen/feature abstraction, central page selector, or client-side pseudo-router.
-Navigation uses ordinary links. Nginx serves each generated `index.html`, while its root
-fallback remains available for unknown browser routes.
+route, like a conventional Astro or Next.js pages directory. Those `.astro` files
+own their headings, descriptions, sidebars, and content sections. Focused Solid
+components provide only the stateful tables, collections, filters, dialogs, and
+header controls. There are no page components, entry modules, screen/feature
+abstractions, central page selector, or client-side pseudo-router. Navigation uses
+ordinary links. Nginx serves each generated `index.html`, while its root fallback
+remains available for unknown browser routes.
 
 Astro's hydration runtime normally emits inline bootstrapping scripts. The production
 build externalizes those generated scripts into hashed `dist/_astro` assets so the
 static output remains compatible with the gateway's strict CSP. The theme bootstrap
 also remains an external script.
 
-The page-level client application is a deliberate comparison point, not an attempt to hide
-the cost: Astro's usual zero-JavaScript static rendering offers little value when every
-visible screen depends on `/auth/session`, runtime messages, and user-specific API
-data. A server-rendered Astro deployment would also violate this repository's
-static-frontend and gateway-owned-session boundaries.
+The static page structure renders without JavaScript. Stateful regions still need
+hydration because their data depends on `/auth/session`, runtime messages, and
+user-specific API calls. A server-rendered Astro deployment would violate this
+repository's static-frontend and gateway-owned-session boundaries.
 
 ## Dev action log
 

@@ -3,10 +3,18 @@ import ConfirmDialog from "../ConfirmDialog";
 import Dialog from "../Dialog";
 import Field from "../Field";
 import Pagination from "../Pagination";
-import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
+import {
+  ApiError,
+  api,
+  fieldErrorFor,
+  jsonBody,
+  queryString,
+} from "../../lib/api";
 import { i18n, m, refreshBundle, SUPPORTED_LANGUAGES } from "../../lib/i18n";
 import type { Message, MessageInput, Page } from "../../lib/types";
-import ClientPage from "../ClientPage";
+import { useIsland } from "../../lib/island";
+import { isAdmin, me } from "../../lib/session";
+import ToastRegion from "../ToastRegion";
 
 interface Props {
   toast: (message: string, tone?: "success" | "danger") => void;
@@ -35,7 +43,9 @@ export function MessagesContent(props: Props) {
     setLoading(true);
     setError(null);
     try {
-      const nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`);
+      const nextMessages = await api<Page<Message>>(
+        `/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`,
+      );
       if (request !== loadRequest) return;
       if (nextMessages.items.length === 0 && page() > 0) {
         const previousPage = Math.max(0, nextMessages.totalPages - 1);
@@ -86,7 +96,10 @@ export function MessagesContent(props: Props) {
     try {
       const current = editing();
       if (current === "new") {
-        await api<Message>("/api/v1/messages", { method: "POST", ...jsonBody(body) });
+        await api<Message>("/api/v1/messages", {
+          method: "POST",
+          ...jsonBody(body),
+        });
         props.toast(m(i18n(), "ui.toast.message-created"));
       } else if (current) {
         await api<Message>(`/api/v1/messages/${current.id}`, {
@@ -114,7 +127,10 @@ export function MessagesContent(props: Props) {
       await refreshBundle();
       await load();
     } catch (caught) {
-      props.toast(caught instanceof Error ? caught.message : String(caught), "danger");
+      props.toast(
+        caught instanceof Error ? caught.message : String(caught),
+        "danger",
+      );
     } finally {
       setDeletePending(false);
       setDeleting(null);
@@ -139,7 +155,6 @@ export function MessagesContent(props: Props) {
 
   return (
     <>
-      <h1 class="sv-page-title">{m(i18n(), "ui.admin.messages")}</h1>
       <div class="sv-toolbar">
         <input
           class="sv-input"
@@ -162,21 +177,37 @@ export function MessagesContent(props: Props) {
             void load();
           }}
         >
-          <option value="">{m(i18n(), "ui.messages.filter.all-languages")}</option>
-          <For each={SUPPORTED_LANGUAGES}>{(code) => <option value={code}>{code}</option>}</For>
+          <option value="">
+            {m(i18n(), "ui.messages.filter.all-languages")}
+          </option>
+          <For each={SUPPORTED_LANGUAGES}>
+            {(code) => <option value={code}>{code}</option>}
+          </For>
         </select>
-        <button type="button" class="sv-button sv-button--ghost" onClick={clearFilters}>
+        <button
+          type="button"
+          class="sv-button sv-button--ghost"
+          onClick={clearFilters}
+        >
           {m(i18n(), "ui.action.clear-filters")}
         </button>
-        <button type="button" class="sv-button sv-button--primary" onClick={openCreate}>
+        <button
+          type="button"
+          class="sv-button sv-button--primary"
+          onClick={openCreate}
+        >
           {m(i18n(), "ui.action.add")}
         </button>
       </div>
 
       {loading() && !messages() ? (
-        <div class="sv-loading"><span class="sv-spinner" /></div>
+        <div class="sv-loading">
+          <span class="sv-spinner" />
+        </div>
       ) : error() ? (
-        <div class="sv-alert sv-alert--danger" role="alert">{error()?.message}</div>
+        <div class="sv-alert sv-alert--danger" role="alert">
+          {error()?.message}
+        </div>
       ) : !messages() || messages()!.items.length === 0 ? (
         <div class="sv-empty">{m(i18n(), "ui.messages.empty")}</div>
       ) : (
@@ -188,7 +219,11 @@ export function MessagesContent(props: Props) {
                   <th scope="col">{m(i18n(), "ui.field.key")}</th>
                   <th scope="col">{m(i18n(), "ui.field.language")}</th>
                   <th scope="col">{m(i18n(), "ui.field.text")}</th>
-                  <th scope="col"><span class="sv-visually-hidden">{m(i18n(), "ui.field.actions")}</span></th>
+                  <th scope="col">
+                    <span class="sv-visually-hidden">
+                      {m(i18n(), "ui.field.actions")}
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -196,13 +231,23 @@ export function MessagesContent(props: Props) {
                   {(message) => (
                     <tr data-ctx={`message:${message.id}`}>
                       <td class="sv-cell-mono">{message.key}</td>
-                      <td><span class="sv-badge">{message.language}</span></td>
+                      <td>
+                        <span class="sv-badge">{message.language}</span>
+                      </td>
                       <td>{message.text}</td>
                       <td class="sv-cell-actions">
-                        <button type="button" class="sv-button sv-button--ghost sv-button--sm" onClick={() => openEdit(message)}>
+                        <button
+                          type="button"
+                          class="sv-button sv-button--ghost sv-button--sm"
+                          onClick={() => openEdit(message)}
+                        >
                           {m(i18n(), "ui.action.edit")}
                         </button>
-                        <button type="button" class="sv-button sv-button--ghost sv-button--sm" onClick={() => setDeleting(message)}>
+                        <button
+                          type="button"
+                          class="sv-button sv-button--ghost sv-button--sm"
+                          onClick={() => setDeleting(message)}
+                        >
                           {m(i18n(), "ui.action.delete")}
                         </button>
                       </td>
@@ -212,10 +257,14 @@ export function MessagesContent(props: Props) {
               </tbody>
             </table>
           </div>
-          <Pagination page={page()} totalPages={messages()!.totalPages} onPage={(next) => {
-            setPage(next);
-            void load();
-          }} />
+          <Pagination
+            page={page()}
+            totalPages={messages()!.totalPages}
+            onPage={(next) => {
+              setPage(next);
+              void load();
+            }}
+          />
         </>
       )}
 
@@ -224,39 +273,101 @@ export function MessagesContent(props: Props) {
           const item = current();
           return (
             <Dialog
-              title={m(i18n(), item === "new" ? "ui.messages.dialog.add" : "ui.messages.dialog.edit")}
+              title={m(
+                i18n(),
+                item === "new"
+                  ? "ui.messages.dialog.add"
+                  : "ui.messages.dialog.edit",
+              )}
               ctx={item !== "new" ? `message:${item.id}` : undefined}
               onClose={() => setEditing(null)}
             >
               <form class="sv-form" onSubmit={submit}>
-              <Field label={m(i18n(), "ui.field.key")} error={fieldErrorFor(formError(), "key")}>
-                <input class="sv-input" value={key()} onInput={(event) => setKey(event.currentTarget.value)} />
-              </Field>
-              <Field label={m(i18n(), "ui.field.language")} error={fieldErrorFor(formError(), "language")}>
-                <select class="sv-select" value={messageLanguage()} onChange={(event) => setMessageLanguage(event.currentTarget.value)}>
-                  <Show when={!SUPPORTED_LANGUAGES.includes(messageLanguage() as "en" | "pl")}>
-                    <option value={messageLanguage()}>{messageLanguage()}</option>
-                  </Show>
-                  <For each={SUPPORTED_LANGUAGES}>{(code) => <option value={code}>{code}</option>}</For>
-                </select>
-              </Field>
-              <Field label={m(i18n(), "ui.field.text")} error={fieldErrorFor(formError(), "text")}>
-                <textarea class="sv-textarea" value={text()} onInput={(event) => setText(event.currentTarget.value)} />
-              </Field>
-              <Field label={m(i18n(), "ui.field.description")} error={fieldErrorFor(formError(), "description")}>
-                <textarea class="sv-textarea" value={description()} onInput={(event) => setDescription(event.currentTarget.value)} />
-              </Field>
-              <Show when={formError() instanceof ApiError && (formError() as ApiError).status === 409}>
-                <div class="sv-alert sv-alert--warning" role="alert">{(formError() as ApiError).message}</div>
-              </Show>
-              <div class="sv-form-actions">
-                <button type="button" class="sv-button" onClick={() => setEditing(null)}>
-                  {m(i18n(), "ui.action.cancel")}
-                </button>
-                <button type="submit" class="sv-button sv-button--primary" disabled={savePending()}>
-                  {m(i18n(), "ui.action.save")}
-                </button>
-              </div>
+                <Field
+                  label={m(i18n(), "ui.field.key")}
+                  error={fieldErrorFor(formError(), "key")}
+                >
+                  <input
+                    class="sv-input"
+                    value={key()}
+                    onInput={(event) => setKey(event.currentTarget.value)}
+                  />
+                </Field>
+                <Field
+                  label={m(i18n(), "ui.field.language")}
+                  error={fieldErrorFor(formError(), "language")}
+                >
+                  <select
+                    class="sv-select"
+                    value={messageLanguage()}
+                    onChange={(event) =>
+                      setMessageLanguage(event.currentTarget.value)
+                    }
+                  >
+                    <Show
+                      when={
+                        !SUPPORTED_LANGUAGES.includes(
+                          messageLanguage() as "en" | "pl",
+                        )
+                      }
+                    >
+                      <option value={messageLanguage()}>
+                        {messageLanguage()}
+                      </option>
+                    </Show>
+                    <For each={SUPPORTED_LANGUAGES}>
+                      {(code) => <option value={code}>{code}</option>}
+                    </For>
+                  </select>
+                </Field>
+                <Field
+                  label={m(i18n(), "ui.field.text")}
+                  error={fieldErrorFor(formError(), "text")}
+                >
+                  <textarea
+                    class="sv-textarea"
+                    value={text()}
+                    onInput={(event) => setText(event.currentTarget.value)}
+                  />
+                </Field>
+                <Field
+                  label={m(i18n(), "ui.field.description")}
+                  error={fieldErrorFor(formError(), "description")}
+                >
+                  <textarea
+                    class="sv-textarea"
+                    value={description()}
+                    onInput={(event) =>
+                      setDescription(event.currentTarget.value)
+                    }
+                  />
+                </Field>
+                <Show
+                  when={
+                    formError() instanceof ApiError &&
+                    (formError() as ApiError).status === 409
+                  }
+                >
+                  <div class="sv-alert sv-alert--warning" role="alert">
+                    {(formError() as ApiError).message}
+                  </div>
+                </Show>
+                <div class="sv-form-actions">
+                  <button
+                    type="button"
+                    class="sv-button"
+                    onClick={() => setEditing(null)}
+                  >
+                    {m(i18n(), "ui.action.cancel")}
+                  </button>
+                  <button
+                    type="submit"
+                    class="sv-button sv-button--primary"
+                    disabled={savePending()}
+                  >
+                    {m(i18n(), "ui.action.save")}
+                  </button>
+                </div>
               </form>
             </Dialog>
           );
@@ -282,5 +393,28 @@ export function MessagesContent(props: Props) {
 }
 
 export default function Messages() {
-  return <ClientPage requiredRole="admin">{(toast) => <MessagesContent toast={toast} />}</ClientPage>;
+  const island = useIsland();
+
+  return (
+    <Show
+      when={island.ready()}
+      fallback={
+        <div class="sv-loading">
+          <span class="sv-spinner" />
+        </div>
+      }
+    >
+      <Show
+        when={isAdmin(me())}
+        fallback={
+          <div class="sv-alert sv-alert--danger" role="alert">
+            403
+          </div>
+        }
+      >
+        <MessagesContent toast={island.toast} />
+      </Show>
+      <ToastRegion toasts={island.toasts()} />
+    </Show>
+  );
 }

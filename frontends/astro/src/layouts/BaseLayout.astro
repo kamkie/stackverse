@@ -1,5 +1,6 @@
 ---
-import Header from "../components/Header";
+import HeaderActions from "../components/header/HeaderActions";
+import PrimaryNavigation from "../components/header/PrimaryNavigation";
 import "../../../../spec/design/tokens.css";
 import "../../../../spec/design/stackverse.css";
 
@@ -12,7 +13,9 @@ const {
   title = "Stackverse",
   description = "A contract-first bookmark manager implemented across many stacks.",
 } = Astro.props;
-const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+const currentPath = Astro.url.pathname === "/"
+  ? "/feed"
+  : Astro.url.pathname.replace(/\/$/, "");
 ---
 
 <!doctype html>
@@ -26,8 +29,14 @@ const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
   </head>
   <body>
     <div class="sv-app">
-      <Header client:load currentPath={currentPath} />
-      <main class="sv-main"><slot /></main>
+      <header class="sv-header">
+        <a href="/feed" class="sv-brand">Stackverse</a>
+        <PrimaryNavigation client:load currentPath={currentPath} />
+        <HeaderActions client:load />
+      </header>
+      <main class="sv-main">
+        <slot />
+      </main>
     </div>
   </body>
 </html>
