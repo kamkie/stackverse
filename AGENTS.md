@@ -74,6 +74,34 @@ implemented in many stacks. Read these before changing anything:
   patch files, ad hoc review output, and similar temporary files there instead of
   at the repository root. The directory is gitignored and must not hold source or
   durable repo knowledge.
+- **Use separate GitHub identities for authorship and approval.** `kamkie` is the
+  repository owner, reviewer, approver, and default `gh` identity;
+  `kamkie-codex-bot` is the machine user that opens Codex-authored pull requests.
+  Branches and commits may still be pushed through the owner's existing Git/SSH
+  credentials because GitHub determines PR authorship from the credential that
+  creates the PR. Before `gh pr create` (and subsequent author-side PR mutations),
+  obtain the bot credential from the GitHub CLI keyring for that command only and
+  verify the effective login:
+
+  ```powershell
+  $env:GH_TOKEN = gh auth token --hostname github.com --user kamkie-codex-bot
+  try {
+      if ((gh api user --jq .login) -ne 'kamkie-codex-bot') {
+          throw 'Expected the kamkie-codex-bot GitHub identity.'
+      }
+      gh pr create --draft # supply the task-specific base, head, title, and body
+  } finally {
+      Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
+  }
+  ```
+
+  Do not globally switch the active `gh` account: concurrent sessions may rely on
+  the owner's identity. Never print, log, paste, or persist the token in repository
+  files or shell profiles. If the bot credential is unavailable, stop before PR
+  creation and request local authentication instead of opening the PR as `kamkie`.
+  Use `kamkie` for repository settings, collaborator/ruleset changes, formal review
+  approval, and merging. A bot-authored PR remains Codex-authored for the Claude
+  cross-review rules below; the bot identity changes attribution, not review policy.
 - **Delegated tasks carry the full delivery flow.** When spawning a background
   task, task chip, Codex session, Claude session, or other agent for Stackverse
   work, include the whole handoff in the prompt: fetch and update `origin/main`
