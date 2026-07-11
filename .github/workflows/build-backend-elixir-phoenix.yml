@@ -52,8 +52,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.18'
-          otp-version: '28'
+          elixir-version: '1.20'
+          otp-version: '29'
       - name: Cache deps and build output
         uses: actions/cache@v6
         with:
