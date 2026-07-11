@@ -35,8 +35,9 @@ class ErrorMappingFlowTest < StackverseIntegrationTest
   test "unexpected failures retain diagnostics without logging exception secrets" do
     records = []
     logger = Rails.logger
+    anonymous_error = Class.new(StandardError)
 
-    with_stubbed_method(Stackverse::Sql, :query, ->(_sql) { raise RuntimeError, "Authorization: Bearer must-not-leak" }) do
+    with_stubbed_method(Stackverse::Sql, :query, ->(_sql) { raise anonymous_error, "Authorization: Bearer must-not-leak" }) do
       with_stubbed_method(logger, :error, ->(*args, **fields) { records << (fields.empty? ? args.fetch(0) : fields) }) do
         get "/api/v1/messages"
       end
@@ -46,8 +47,8 @@ class ErrorMappingFlowTest < StackverseIntegrationTest
     assert_equal "An unexpected error occurred.", problem.fetch("detail")
     record = records.fetch(0)
     assert_equal "Unhandled error", record.fetch(:message)
-    assert_equal "runtime_error", record.fetch(:error_code)
-    assert_equal "RuntimeError", record.fetch(:exception_class)
+    assert_equal "anonymous_error", record.fetch(:error_code)
+    assert_equal "AnonymousError", record.fetch(:exception_class)
     refute_empty record.fetch(:backtrace)
     refute_includes record.inspect, "must-not-leak"
     refute_includes record.inspect, "Authorization"
