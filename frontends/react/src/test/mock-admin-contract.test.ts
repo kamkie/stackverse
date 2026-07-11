@@ -114,19 +114,29 @@ describe("admin mock contract", () => {
     expect((await apiRequest("/api/v1/admin/stats")).status).toBe(403);
 
     setCurrentUser(MOCK_USERS.moderator);
+    const requestedOn = new Date().toISOString().slice(0, 10);
     const initialResponse = await apiRequest("/api/v1/admin/stats");
+    const respondedOn = new Date().toISOString().slice(0, 10);
     expect(initialResponse.status).toBe(200);
     expect(initialResponse.headers.get("Cache-Control")).toBe("no-cache");
     const etag = initialResponse.headers.get("ETag");
     expect(etag).toBeTruthy();
     const stats = await responseJson<AdminStats>(initialResponse);
-    expect(stats.daily).toHaveLength(30);
-    expect(stats.daily.map((day) => day.date)).toEqual(
-      [...stats.daily].map((day) => day.date).sort(),
-    );
-    expect(stats.daily.every((day) => day.bookmarksCreated >= 0 && day.activeUsers >= 0)).toBe(
-      true,
-    );
+    const lastDay = stats.daily[stats.daily.length - 1]?.date;
+    expect([requestedOn, respondedOn]).toContain(lastDay);
+    const expectedDaily = Array.from({ length: 30 }, (_, index) => {
+      const date = new Date(`${lastDay}T00:00:00.000Z`);
+      date.setUTCDate(date.getUTCDate() - (29 - index));
+      const day = date.toISOString().slice(0, 10);
+      return {
+        date: day,
+        bookmarksCreated: db.bookmarks.filter((bookmark) =>
+          bookmark.createdAt.startsWith(day),
+        ).length,
+        activeUsers: db.users.filter((user) => user.lastSeen.startsWith(day)).length,
+      };
+    });
+    expect(stats.daily).toEqual(expectedDaily);
     expect(stats.topTags.length).toBeLessThanOrEqual(10);
     expect(stats.totals.openReports).toBe(
       db.reports.filter((report) => report.status === "open").length,

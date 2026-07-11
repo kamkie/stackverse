@@ -172,12 +172,17 @@ describe("moderation mock contract", () => {
     expect((await apiRequest("/api/v1/admin/reports")).status).toBe(403);
 
     setCurrentUser(MOCK_USERS.moderator);
+    const expectedIds = db.reports
+      .filter((report) => report.status === "open")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((report) => report.id);
+    // The seed is already oldest-first. Reverse persistence order so this
+    // assertion fails if the handler ever drops its required ordering.
+    db.reports.reverse();
     const queue = await responseJson<ReportPage>(
       await apiRequest("/api/v1/admin/reports?status=open"),
     );
-    expect(queue.items.map((report) => report.createdAt)).toEqual(
-      [...queue.items].map((report) => report.createdAt).sort(),
-    );
+    expect(queue.items.map((report) => report.id)).toEqual(expectedIds);
 
     const actionedResponse = await apiRequest(`/api/v1/admin/reports/${target.id}`, {
       method: "PUT",
