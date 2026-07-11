@@ -73,7 +73,7 @@ public static class AuthFlows
         {
             return null;
         }
-        var match = cookies.FirstOrDefault(c => c.StartsWith(cookieName + "="));
+        var match = cookies.FirstOrDefault(c => c.StartsWith(cookieName + "=", StringComparison.Ordinal));
         return match?[(cookieName.Length + 1)..match.IndexOf(';')];
     }
 }
