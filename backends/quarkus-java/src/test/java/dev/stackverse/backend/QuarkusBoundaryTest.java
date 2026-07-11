@@ -151,6 +151,64 @@ class QuarkusBoundaryTest {
     }
 
     @Test
+    void authenticatedResourceFamiliesRejectAnonymousRequestsAtTheFrameworkBoundary() {
+        given().when()
+                .get("/api/v1/reports")
+                .then()
+                .statusCode(401)
+                .contentType("application/problem+json");
+        given().when()
+                .get("/api/v1/tags")
+                .then()
+                .statusCode(401)
+                .contentType("application/problem+json");
+        given().when()
+                .get("/api/v1/me")
+                .then()
+                .statusCode(401)
+                .contentType("application/problem+json");
+        given().when()
+                .get("/api/v1/admin/stats")
+                .then()
+                .statusCode(401)
+                .contentType("application/problem+json");
+    }
+
+    @Test
+    @TestSecurity(user = "reader")
+    void moderatorAndAdminResourceFamiliesRejectAuthenticatedReaders() {
+        given().when().get("/api/v1/admin/reports").then().statusCode(403);
+        given().when().get("/api/v1/admin/stats").then().statusCode(403);
+        given().when().get("/api/v1/admin/users").then().statusCode(403);
+        given().when().get("/api/v1/admin/audit-log").then().statusCode(403);
+    }
+
+    @Test
+    @TestSecurity(user = "moderator", roles = "moderator")
+    void adminOnlyResourceFamiliesRejectModerators() {
+        given().when().get("/api/v1/admin/users").then().statusCode(403);
+        given().contentType("application/json")
+                .body("{\"key\":\"ui.denied\",\"language\":\"en\",\"text\":\"Denied\"}")
+                .when()
+                .post("/api/v1/messages")
+                .then()
+                .statusCode(403);
+    }
+
+    @Test
+    @TestSecurity(user = "alice")
+    void nullReporterBodiesBecomeMalformedProblemsBeforeServiceCode() {
+        given().contentType("application/json")
+                .body("null")
+                .when()
+                .put("/api/v1/reports/{id}", "11111111-2222-3333-4444-555555555555")
+                .then()
+                .statusCode(400)
+                .contentType("application/problem+json")
+                .body("detail", equalTo("Malformed request body."));
+    }
+
+    @Test
     @TestSecurity(user = "reader")
     void adminMessageWritesRejectAuthenticatedCallersWithoutTheAdminRole() {
         given().contentType("application/json")
@@ -320,5 +378,29 @@ class BoundaryBookmarkService extends BookmarkService {
                                 now,
                                 now))
                 .build();
+    }
+}
+
+@Mock
+@ApplicationScoped
+class BoundaryMessageService extends MessageService {
+    BoundaryMessageService() {
+        super(null, null, null, null, null, null);
+    }
+}
+
+@Mock
+@ApplicationScoped
+class BoundaryReportService extends ReportService {
+    BoundaryReportService() {
+        super(null, null, null, null);
+    }
+}
+
+@Mock
+@ApplicationScoped
+class BoundaryAdminService extends AdminService {
+    BoundaryAdminService() {
+        super(null, null, null, null, null, null);
     }
 }
