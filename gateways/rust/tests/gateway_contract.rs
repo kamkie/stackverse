@@ -580,7 +580,10 @@ async fn malformed_session_without_access_token_is_destroyed_and_relays_anonymou
     assert_eq!(response.status(), StatusCode::OK);
     assert!(!harness.store.has_session("malformed").await);
     assert!(clears_cookie(response.headers(), SESSION_COOKIE));
-    assert_eq!(harness.backend.record().await.authorization, "");
+    let record = harness.backend.record().await;
+    assert_eq!(record.method, Method::GET);
+    assert_eq!(record.uri, "/api/v1/bookmarks");
+    assert_eq!(record.authorization, "");
 }
 
 #[tokio::test]

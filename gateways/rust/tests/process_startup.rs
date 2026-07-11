@@ -1,7 +1,9 @@
 mod support;
 
+use std::io::Read;
 use std::net::TcpListener;
 use std::process::{Child, Command, Output, Stdio};
+use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use support::{FakeRedis, RecordingHttpServer};
@@ -284,13 +286,20 @@ fn unused_port() -> u16 {
 
 struct RunningProcess {
     child: Option<Child>,
+    stdout: Option<JoinHandle<Vec<u8>>>,
+    stderr: Option<JoinHandle<Vec<u8>>>,
 }
 
 impl RunningProcess {
     fn spawn(mut command: Command) -> Self {
         command.stdout(Stdio::piped()).stderr(Stdio::piped());
+        let mut child = command.spawn().unwrap();
+        let stdout = drain(child.stdout.take().unwrap());
+        let stderr = drain(child.stderr.take().unwrap());
         Self {
-            child: Some(command.spawn().unwrap()),
+            child: Some(child),
+            stdout: Some(stdout),
+            stderr: Some(stderr),
         }
     }
 
@@ -303,17 +312,38 @@ impl RunningProcess {
         if terminate && child.try_wait().unwrap().is_none() {
             let _ = child.kill();
         }
-        child.wait_with_output().unwrap()
+        let status = child.wait().unwrap();
+        let stdout = self.stdout.take().unwrap().join().unwrap();
+        let stderr = self.stderr.take().unwrap().join().unwrap();
+        Output {
+            status,
+            stdout,
+            stderr,
+        }
     }
 }
 
 impl Drop for RunningProcess {
     fn drop(&mut self) {
-        if let Some(child) = self.child.as_mut() {
+        if let Some(mut child) = self.child.take() {
             let _ = child.kill();
             let _ = child.wait();
         }
+        if let Some(stdout) = self.stdout.take() {
+            let _ = stdout.join();
+        }
+        if let Some(stderr) = self.stderr.take() {
+            let _ = stderr.join();
+        }
     }
+}
+
+fn drain<R: Read + Send + 'static>(mut reader: R) -> JoinHandle<Vec<u8>> {
+    thread::spawn(move || {
+        let mut output = Vec::new();
+        reader.read_to_end(&mut output).unwrap();
+        output
+    })
 }
 
 fn combined_output(output: &Output) -> String {
