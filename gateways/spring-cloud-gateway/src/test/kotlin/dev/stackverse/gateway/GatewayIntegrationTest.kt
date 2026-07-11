@@ -80,6 +80,25 @@ class GatewayIntegrationTest {
     }
 
     @Test
+    fun `anonymous logout is idempotent and remains logged out`() {
+        val client = browserClient()
+
+        repeat(2) {
+            val logout = client.send(
+                HttpRequest.newBuilder(URI.create("$base/auth/logout"))
+                    .POST(HttpRequest.BodyPublishers.noBody())
+                    .build(),
+                HttpResponse.BodyHandlers.ofString(),
+            )
+            assertEquals(204, logout.statusCode())
+        }
+
+        val session = get(client, "$base/auth/session")
+        assertEquals(200, session.statusCode())
+        assertTrue(session.body().contains("\"authenticated\":false"))
+    }
+
+    @Test
     fun `anonymous api requests relay without a bearer token`() {
         // The spec's public surface (public bookmark feeds, message reads) must work
         // logged-out: the gateway relays and the backend decides per endpoint. A
