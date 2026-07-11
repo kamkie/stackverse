@@ -99,9 +99,20 @@ implemented in many stacks. Read these before changing anything:
   the owner's identity. Never print, log, paste, or persist the token in repository
   files or shell profiles. If the bot credential is unavailable, stop before PR
   creation and request local authentication instead of opening the PR as `kamkie`.
-  Use `kamkie` for repository settings, collaborator/ruleset changes, formal review
-  approval, and merging. A bot-authored PR remains Codex-authored for the Claude
+  Use `kamkie` for repository settings, collaborator/ruleset changes, and formal
+  review approval. A bot-authored PR remains Codex-authored for the Claude
   cross-review rules below; the bot identity changes attribution, not review policy.
+- **Owner approval authorizes automatic merge.** When the latest review by
+  `kamkie` is `APPROVED` for the PR's current head commit, the authoring agent may
+  merge without asking again after verifying that the required cross-review is
+  recorded and triaged, all required checks pass, the PR is not draft, mergeability
+  is clean, and no blocking review remains. Re-read the head SHA immediately before
+  merging and pass it to `gh pr merge --match-head-commit`; use the repository's
+  intended merge method and the `kamkie-codex-bot` credential for bot-authored PRs.
+  If checks are still running after owner approval, enable auto-merge with the same
+  expected head SHA instead of bypassing checks. Never treat a stale approval on an
+  earlier commit as merge authorization, and verify the resulting commit on `main`
+  before reporting completion.
 - **Delegated tasks carry the full delivery flow.** When spawning a background
   task, task chip, Codex session, Claude session, or other agent for Stackverse
   work, include the whole handoff in the prompt: fetch and update `origin/main`
