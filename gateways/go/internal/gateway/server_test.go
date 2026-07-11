@@ -394,6 +394,94 @@ func TestLogoutDestroysLocalSessionAndReturns204(t *testing.T) {
 	}
 }
 
+func TestSessionStoreFailureDoesNotExposeSessionOrReachBackend(t *testing.T) {
+	app := newHarness(t, nil)
+	app.setSessionCookie("unavailable")
+	app.store.loadErr = errors.New("redis password=do-not-log")
+
+	sessionResponse := app.get("/auth/session")
+	var sessionBody map[string]any
+	decodeJSON(t, sessionResponse, &sessionBody)
+	if sessionBody["authenticated"] != false {
+		t.Fatalf("session body = %#v", sessionBody)
+	}
+
+	apiResponse := app.get("/api/v1/bookmarks")
+	defer apiResponse.Body.Close()
+	if apiResponse.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("API status = %d", apiResponse.StatusCode)
+	}
+	assertAPIHeaders(t, apiResponse, false)
+	if app.backend.requests != 0 {
+		t.Fatalf("backend requests = %d, want 0", app.backend.requests)
+	}
+}
+
+func TestRefreshPersistenceFailureKeepsOldSessionAndReturns503(t *testing.T) {
+	app := newHarness(t, &idpBehavior{refreshStatus: http.StatusOK})
+	app.putSession("s1", expiredSession())
+	app.setSessionCookie("s1")
+	app.store.saveErr = errors.New("redis unavailable")
+
+	response := app.get("/api/v1/bookmarks")
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if app.backend.requests != 0 {
+		t.Fatalf("backend requests = %d, want 0", app.backend.requests)
+	}
+	if got := app.store.sessions["s1"].AccessToken; got != "old-access" {
+		t.Fatalf("stored access token = %q", got)
+	}
+}
+
+func TestCallbackStateIsSingleUse(t *testing.T) {
+	app := newHarness(t, nil)
+	login := app.get("/auth/login")
+	state := mustParseLocation(t, login).Query().Get("state")
+
+	first := app.get("/auth/callback?code=ok&state=" + url.QueryEscape(state))
+	if findSetCookie(first, sessionCookieName) == nil {
+		t.Fatal("first callback did not create a session")
+	}
+	first.Body.Close()
+
+	request, _ := http.NewRequest(http.MethodGet, app.server.URL+"/auth/callback?code=ok&state="+url.QueryEscape(state), nil)
+	request.AddCookie(&http.Cookie{Name: loginStateCookieName, Value: state})
+	second, err := app.client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer second.Body.Close()
+	if findSetCookie(second, sessionCookieName) != nil {
+		t.Fatal("replayed callback created a session")
+	}
+}
+
+func TestLogoutRemainsLocalFirstWhenStoreOperationsFail(t *testing.T) {
+	app := newHarness(t, nil)
+	app.setSessionCookie("s1")
+	app.store.loadErr = errors.New("redis read failed")
+	app.store.deleteErr = errors.New("redis delete failed")
+
+	request, _ := http.NewRequest(http.MethodPost, app.server.URL+"/auth/logout", nil)
+	response, err := app.client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if cookie := findSetCookie(response, sessionCookieName); cookie == nil || cookie.MaxAge >= 0 {
+		t.Fatalf("session clearing cookie missing: %#v", cookie)
+	}
+	if app.idp.logoutCalls != 0 {
+		t.Fatalf("IdP logout calls = %d", app.idp.logoutCalls)
+	}
+}
+
 type harness struct {
 	t       *testing.T
 	server  *httptest.Server
@@ -547,9 +635,11 @@ type backendRecorder struct {
 	lastAuthorization string
 	lastCookie        string
 	lastCSRFHeader    string
+	requests          int
 }
 
 func (b *backendRecorder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	b.requests++
 	b.lastAuthorization = r.Header.Get("Authorization")
 	b.lastCookie = r.Header.Get("Cookie")
 	b.lastCSRFHeader = r.Header.Get(csrfHeaderName)
@@ -652,9 +742,12 @@ func jwk(key *rsa.PrivateKey) map[string]any {
 }
 
 type memoryStore struct {
-	mu       sync.Mutex
-	sessions map[string]session.Data
-	states   map[string]session.OAuthState
+	mu        sync.Mutex
+	sessions  map[string]session.Data
+	states    map[string]session.OAuthState
+	loadErr   error
+	saveErr   error
+	deleteErr error
 }
 
 func newMemoryStore() *memoryStore {
@@ -664,6 +757,9 @@ func newMemoryStore() *memoryStore {
 func (s *memoryStore) LoadSession(_ context.Context, key string) (session.Data, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.loadErr != nil {
+		return session.Data{}, false, s.loadErr
+	}
 	data, ok := s.sessions[key]
 	return data, ok, nil
 }
@@ -671,6 +767,9 @@ func (s *memoryStore) LoadSession(_ context.Context, key string) (session.Data, 
 func (s *memoryStore) SaveSession(_ context.Context, key string, data session.Data, _ time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.saveErr != nil {
+		return s.saveErr
+	}
 	s.sessions[key] = data
 	return nil
 }
@@ -678,6 +777,9 @@ func (s *memoryStore) SaveSession(_ context.Context, key string, data session.Da
 func (s *memoryStore) DeleteSession(_ context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.deleteErr != nil {
+		return s.deleteErr
+	}
 	delete(s.sessions, key)
 	return nil
 }
