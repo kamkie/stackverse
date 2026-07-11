@@ -1,14 +1,15 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import Dialog from "../../components/Dialog";
-import Field from "../../components/Field";
-import Pagination from "../../components/Pagination";
+import Dialog from "../Dialog";
+import Field from "../Field";
+import Pagination from "../Pagination";
 import { api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { i18n, m } from "../../lib/i18n";
 import { me } from "../../lib/session";
 import type { Page, UserAccount } from "../../lib/types";
+import ClientPage from "../ClientPage";
 
-export default function UsersPage() {
+export function UsersContent() {
   const [q, setQ] = createSignal("");
   const [page, setPage] = createSignal(0);
   const [users, setUsers] = createSignal<Page<UserAccount> | null>(null);
@@ -168,4 +169,8 @@ export default function UsersPage() {
       </Show>
     </>
   );
+}
+
+export default function Users() {
+  return <ClientPage requiredRole="admin">{() => <UsersContent />}</ClientPage>;
 }

@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReportStatus } from "../../lib/types";
 import { bookmark, jsonResponse, page, readyI18n, report } from "../../test/fixtures";
-import ReportsPage from "./ReportsPage";
+import { ReportsContent as ReportsPage } from "./Reports";
 
 beforeEach(() => {
   readyI18n();

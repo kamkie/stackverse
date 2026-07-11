@@ -1,11 +1,11 @@
 # Frontend - Astro
 
 Astro 7 generates nine real file-based pages through a shared `.astro` layout and
-bundles a SolidJS client entry for their interactive Stackverse content. This boundary is deliberate:
+hydrates focused SolidJS components for their interactive Stackverse content. This boundary is deliberate:
 Stackverse is authenticated, runtime-localized, and stateful on every screen, so
 there is no useful static page content to render ahead of the gateway session.
 Astro still owns the document, asset graph, static output, and development server;
-Solid owns the browser state and UI mounted by the external client entry.
+Solid owns the browser state and interactive UI islands.
 
 The implementation uses strict TypeScript and hand-written API types from the
 OpenAPI contract. It imports the shared stylesheets from
@@ -27,15 +27,21 @@ frontends. There is no mock mode, so development requires a running gateway.
 
 ## Architecture
 
-`src/layouts/AppLayout.astro` is the shared CSP-safe document template. It accepts
-page metadata through `Astro.props` and exposes `<slot />` for route content. The files in
+`src/layouts/BaseLayout.astro` is the shared document template. It accepts page
+metadata through `Astro.props`, renders the interactive `Header` component, and
+exposes `<slot />` for route content. The files in
 `src/pages/` map directly to `/feed`, `/bookmarks`, `/reports`, and every `/admin/*`
-route, like a conventional Astro or Next.js pages directory. Each generated page
-inject their page root and page-specific external entry through the layout slot. Each
-entry imports only its feature component and mounts it through the shared `PageShell`;
-there is no central page selector or client-side pseudo-router. Navigation uses ordinary links;
-there is no client router. Nginx serves each generated `index.html`, while its root
+route, like a conventional Astro or Next.js pages directory. Each page imports its
+own page-specific Solid component directly and hydrates it with `client:load`; admin
+pages also compose their shared navigation directly. There are no entry modules,
+screen/feature abstraction, central page selector, or client-side pseudo-router.
+Navigation uses ordinary links. Nginx serves each generated `index.html`, while its root
 fallback remains available for unknown browser routes.
+
+Astro's hydration runtime normally emits inline bootstrapping scripts. The production
+build externalizes those generated scripts into hashed `dist/_astro` assets so the
+static output remains compatible with the gateway's strict CSP. The theme bootstrap
+also remains an external script.
 
 The page-level client application is a deliberate comparison point, not an attempt to hide
 the cost: Astro's usual zero-JavaScript static rendering offers little value when every

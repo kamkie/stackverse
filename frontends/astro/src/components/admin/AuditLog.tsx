@@ -1,9 +1,10 @@
 import { createSignal, For, onCleanup, onMount } from "solid-js";
-import Pagination from "../../components/Pagination";
+import Pagination from "../Pagination";
 import { api, queryString } from "../../lib/api";
 import { endOfDayIso, formatDate } from "../../lib/format";
 import { i18n, m } from "../../lib/i18n";
 import type { AuditEntry, Page } from "../../lib/types";
+import ClientPage from "../ClientPage";
 
 const knownActions = [
   "message.created",
@@ -15,7 +16,7 @@ const knownActions = [
   "user.unblocked",
 ];
 
-export default function AuditLogPage() {
+export function AuditLogContent() {
   const [actor, setActor] = createSignal("");
   const [action, setAction] = createSignal("");
   const [from, setFrom] = createSignal("");
@@ -185,4 +186,8 @@ export default function AuditLogPage() {
       ) : null}
     </>
   );
+}
+
+export default function AuditLog() {
+  return <ClientPage requiredRole="admin">{() => <AuditLogContent />}</ClientPage>;
 }

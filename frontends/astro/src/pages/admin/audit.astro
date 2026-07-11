@@ -1,8 +1,7 @@
 ---
-import AppLayout from "../../layouts/AppLayout.astro";
+import AdminNavigation from "../../components/AdminNavigation";
+import AuditLog from "../../components/admin/AuditLog";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<AppLayout title="Audit log - Stackverse">
-  <div id="app" data-page="admin-audit"></div>
-  <script src="../../entries/admin-audit.tsx"></script>
-</AppLayout>
+<BaseLayout title="Audit log - Stackverse"><div class="sv-layout"><AdminNavigation client:load currentPath={Astro.url.pathname} /><section class="sv-content"><AuditLog client:load /></section></div></BaseLayout>

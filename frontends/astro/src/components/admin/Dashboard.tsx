@@ -2,8 +2,9 @@ import { createMemo, createSignal, For, onMount } from "solid-js";
 import { api } from "../../lib/api";
 import { i18n, m, mc } from "../../lib/i18n";
 import type { AdminStats } from "../../lib/types";
+import ClientPage from "../ClientPage";
 
-export default function DashboardPage() {
+export function DashboardContent() {
   const [stats, setStats] = createSignal<AdminStats | null>(null);
   const [error, setError] = createSignal<Error | null>(null);
 
@@ -91,4 +92,8 @@ export default function DashboardPage() {
       )}
     </>
   );
+}
+
+export default function Dashboard() {
+  return <ClientPage requiredRole="moderator">{() => <DashboardContent />}</ClientPage>;
 }

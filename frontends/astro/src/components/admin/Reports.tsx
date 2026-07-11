@@ -1,13 +1,14 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import BookmarkContext from "../../components/BookmarkContext";
-import Pagination from "../../components/Pagination";
+import BookmarkContext from "../BookmarkContext";
+import Pagination from "../Pagination";
 import { api, jsonBody, queryString } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { i18n, m } from "../../lib/i18n";
 import type { Page, Report, ReportStatus } from "../../lib/types";
 import { REPORT_STATUSES } from "../../lib/types";
+import ClientPage from "../ClientPage";
 
-export default function ReportsPage() {
+export function ReportsContent() {
   const [status, setStatus] = createSignal<ReportStatus>("open");
   const [page, setPage] = createSignal(0);
   const [reports, setReports] = createSignal<Page<Report> | null>(null);
@@ -154,4 +155,8 @@ export default function ReportsPage() {
       )}
     </>
   );
+}
+
+export default function Reports() {
+  return <ClientPage requiredRole="moderator">{() => <ReportsContent />}</ClientPage>;
 }

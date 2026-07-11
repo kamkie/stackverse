@@ -1,17 +1,18 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import ConfirmDialog from "../../components/ConfirmDialog";
-import Dialog from "../../components/Dialog";
-import Field from "../../components/Field";
-import Pagination from "../../components/Pagination";
+import ConfirmDialog from "../ConfirmDialog";
+import Dialog from "../Dialog";
+import Field from "../Field";
+import Pagination from "../Pagination";
 import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
 import { i18n, m, refreshBundle, SUPPORTED_LANGUAGES } from "../../lib/i18n";
 import type { Message, MessageInput, Page } from "../../lib/types";
+import ClientPage from "../ClientPage";
 
 interface Props {
   toast: (message: string, tone?: "success" | "danger") => void;
 }
 
-export default function MessagesPage(props: Props) {
+export function MessagesContent(props: Props) {
   const [q, setQ] = createSignal("");
   const [language, setLanguage] = createSignal("");
   const [page, setPage] = createSignal(0);
@@ -275,4 +276,8 @@ export default function MessagesPage(props: Props) {
       </Show>
     </>
   );
+}
+
+export default function Messages() {
+  return <ClientPage requiredRole="admin">{(toast) => <MessagesContent toast={toast} />}</ClientPage>;
 }

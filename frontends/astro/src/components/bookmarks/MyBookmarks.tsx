@@ -1,18 +1,20 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import { api } from "../lib/api";
-import { loadBookmarkCursor } from "../lib/bookmarkCursor";
-import { i18n, m } from "../lib/i18n";
-import type { Bookmark } from "../lib/types";
-import BookmarkCard from "../components/BookmarkCard";
-import BookmarkFormDialog from "../components/BookmarkFormDialog";
-import ConfirmDialog from "../components/ConfirmDialog";
-import TagSidebar from "../components/TagSidebar";
+import { api } from "../../lib/api";
+import { loadBookmarkCursor } from "../../lib/bookmarkCursor";
+import { i18n, m } from "../../lib/i18n";
+import type { Bookmark } from "../../lib/types";
+import BookmarkCard from "../BookmarkCard";
+import BookmarkFormDialog from "../BookmarkFormDialog";
+import ConfirmDialog from "../ConfirmDialog";
+import TagSidebar from "../TagSidebar";
+import ClientPage from "../ClientPage";
+import { PublicFeedContent } from "./PublicFeed";
 
 interface Props {
   toast: (message: string, tone?: "success" | "danger") => void;
 }
 
-export default function MyBookmarksPage(props: Props) {
+export function MyBookmarksContent(props: Props) {
   const [bookmarks, setBookmarks] = createSignal<Bookmark[]>([]);
   const [nextCursor, setNextCursor] = createSignal<string | undefined>(undefined);
   const [loading, setLoading] = createSignal(true);
@@ -172,4 +174,8 @@ export default function MyBookmarksPage(props: Props) {
       </Show>
     </>
   );
+}
+
+export default function MyBookmarks() {
+  return <ClientPage requiresAuth fallback={(toast) => <PublicFeedContent toast={toast} />}>{(toast) => <MyBookmarksContent toast={toast} />}</ClientPage>;
 }

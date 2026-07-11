@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setMe } from "../../lib/session";
 import type { UserAccount } from "../../lib/types";
 import { jsonResponse, page, readyI18n, userAccount } from "../../test/fixtures";
-import UsersPage from "./UsersPage";
+import { UsersContent as UsersPage } from "./Users";
 
 beforeEach(() => {
   readyI18n();

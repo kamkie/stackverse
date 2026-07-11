@@ -1,8 +1,8 @@
 ---
-import AppLayout from "../layouts/AppLayout.astro";
+import MyReports from "../components/reports/MyReports";
+import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
-<AppLayout title="My reports - Stackverse">
-  <div id="app" data-page="reports"></div>
-  <script src="../entries/reports.tsx"></script>
-</AppLayout>
+<BaseLayout title="My reports - Stackverse">
+  <MyReports client:load />
+</BaseLayout>

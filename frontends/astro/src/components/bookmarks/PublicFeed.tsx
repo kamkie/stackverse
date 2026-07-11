@@ -1,17 +1,18 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import BookmarkCard from "../components/BookmarkCard";
-import ReportDialog from "../components/ReportDialog";
-import { loadBookmarkCursor } from "../lib/bookmarkCursor";
-import { i18n, m } from "../lib/i18n";
-import { isReported } from "../lib/reportedStore";
-import { session } from "../lib/session";
-import type { Bookmark } from "../lib/types";
+import BookmarkCard from "../BookmarkCard";
+import ReportDialog from "../ReportDialog";
+import { loadBookmarkCursor } from "../../lib/bookmarkCursor";
+import { i18n, m } from "../../lib/i18n";
+import { isReported } from "../../lib/reportedStore";
+import { session } from "../../lib/session";
+import type { Bookmark } from "../../lib/types";
+import ClientPage from "../ClientPage";
 
 interface Props {
   toast: (message: string, tone?: "success" | "danger") => void;
 }
 
-export default function PublicFeedPage(props: Props) {
+export function PublicFeedContent(props: Props) {
   const [bookmarks, setBookmarks] = createSignal<Bookmark[]>([]);
   const [nextCursor, setNextCursor] = createSignal<string | undefined>(undefined);
   const [loading, setLoading] = createSignal(true);
@@ -108,4 +109,8 @@ export default function PublicFeedPage(props: Props) {
       </Show>
     </>
   );
+}
+
+export default function PublicFeed() {
+  return <ClientPage>{(toast) => <PublicFeedContent toast={toast} />}</ClientPage>;
 }

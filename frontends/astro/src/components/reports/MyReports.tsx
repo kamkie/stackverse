@@ -1,21 +1,23 @@
 import { createSignal, For, onMount, Show } from "solid-js";
-import BookmarkContext from "../components/BookmarkContext";
-import ConfirmDialog from "../components/ConfirmDialog";
-import Dialog from "../components/Dialog";
-import Field from "../components/Field";
-import Pagination from "../components/Pagination";
-import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../lib/api";
-import { formatDate } from "../lib/format";
-import { i18n, m } from "../lib/i18n";
-import { removeReported } from "../lib/reportedStore";
-import type { Page, Report, ReportInput, ReportReason, ReportStatus } from "../lib/types";
-import { REPORT_REASONS, REPORT_STATUSES } from "../lib/types";
+import BookmarkContext from "../BookmarkContext";
+import ConfirmDialog from "../ConfirmDialog";
+import Dialog from "../Dialog";
+import Field from "../Field";
+import Pagination from "../Pagination";
+import { ApiError, api, fieldErrorFor, jsonBody, queryString } from "../../lib/api";
+import { formatDate } from "../../lib/format";
+import { i18n, m } from "../../lib/i18n";
+import { removeReported } from "../../lib/reportedStore";
+import type { Page, Report, ReportInput, ReportReason, ReportStatus } from "../../lib/types";
+import { REPORT_REASONS, REPORT_STATUSES } from "../../lib/types";
+import ClientPage from "../ClientPage";
+import { PublicFeedContent } from "../bookmarks/PublicFeed";
 
 interface Props {
   toast: (message: string, tone?: "success" | "danger") => void;
 }
 
-export default function MyReportsPage(props: Props) {
+export function MyReportsContent(props: Props) {
   const [status, setStatus] = createSignal<ReportStatus | "">("");
   const [page, setPage] = createSignal(0);
   const [reports, setReports] = createSignal<Page<Report> | null>(null);
@@ -226,4 +228,8 @@ export default function MyReportsPage(props: Props) {
       </Show>
     </>
   );
+}
+
+export default function MyReports() {
+  return <ClientPage requiresAuth fallback={(toast) => <PublicFeedContent toast={toast} />}>{(toast) => <MyReportsContent toast={toast} />}</ClientPage>;
 }

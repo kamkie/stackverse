@@ -1,6 +1,8 @@
 ---
+import Header from "../components/Header";
 import "../../../../spec/design/tokens.css";
 import "../../../../spec/design/stackverse.css";
+
 interface Props {
   title?: string;
   description?: string;
@@ -10,6 +12,7 @@ const {
   title = "Stackverse",
   description = "A contract-first bookmark manager implemented across many stacks.",
 } = Astro.props;
+const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
 ---
 
 <!doctype html>
@@ -22,6 +25,9 @@ const {
     <script is:inline src="/theme.js"></script>
   </head>
   <body>
-    <slot />
+    <div class="sv-app">
+      <Header client:load currentPath={currentPath} />
+      <main class="sv-main"><slot /></main>
+    </div>
   </body>
 </html>

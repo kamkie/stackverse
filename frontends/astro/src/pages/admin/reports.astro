@@ -1,8 +1,7 @@
 ---
-import AppLayout from "../../layouts/AppLayout.astro";
+import AdminNavigation from "../../components/AdminNavigation";
+import Reports from "../../components/admin/Reports";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<AppLayout title="Moderation reports - Stackverse">
-  <div id="app" data-page="admin-reports"></div>
-  <script src="../../entries/admin-reports.tsx"></script>
-</AppLayout>
+<BaseLayout title="Moderation reports - Stackverse"><div class="sv-layout"><AdminNavigation client:load currentPath={Astro.url.pathname} /><section class="sv-content"><Reports client:load /></section></div></BaseLayout>

@@ -1,8 +1,8 @@
 ---
-import AppLayout from "../layouts/AppLayout.astro";
+import PublicFeed from "../components/bookmarks/PublicFeed";
+import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
-<AppLayout title="Public feed - Stackverse">
-  <div id="app" data-page="feed"></div>
-  <script src="../entries/feed.tsx"></script>
-</AppLayout>
+<BaseLayout title="Public feed - Stackverse">
+  <PublicFeed client:load />
+</BaseLayout>

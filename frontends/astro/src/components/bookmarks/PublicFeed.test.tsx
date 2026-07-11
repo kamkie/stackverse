@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@solidjs/testing-library";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { setMe, setSession } from "../lib/session";
-import { bookmark, jsonResponse, readyI18n } from "../test/fixtures";
-import PublicFeedPage from "./PublicFeedPage";
+import { setMe, setSession } from "../../lib/session";
+import { bookmark, jsonResponse, readyI18n } from "../../test/fixtures";
+import { PublicFeedContent as PublicFeedPage } from "./PublicFeed";
 
 beforeEach(() => {
   readyI18n();

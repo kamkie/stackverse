@@ -1,8 +1,7 @@
 ---
-import AppLayout from "../../layouts/AppLayout.astro";
+import AdminNavigation from "../../components/AdminNavigation";
+import Users from "../../components/admin/Users";
+import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
-<AppLayout title="Users - Stackverse">
-  <div id="app" data-page="admin-users"></div>
-  <script src="../../entries/admin-users.tsx"></script>
-</AppLayout>
+<BaseLayout title="Users - Stackverse"><div class="sv-layout"><AdminNavigation client:load currentPath={Astro.url.pathname} /><section class="sv-content"><Users client:load /></section></div></BaseLayout>
