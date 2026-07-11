@@ -119,6 +119,37 @@ describe("api", () => {
       message: "Validation failed",
     });
   });
+
+  it("does not replay a denied mutation unless the gateway rotated the CSRF cookie", async () => {
+    document.cookie = "XSRF-TOKEN=unchanged; path=/";
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({ title: "Forbidden", detail: "CSRF rejected" }, { status: 403 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      api("/api/v1/bookmarks", { method: "DELETE" }),
+    ).rejects.toMatchObject({ status: 403, message: "CSRF rejected" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("maps non-JSON failures without attempting to parse an error body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response("upstream failed", {
+          status: 502,
+          headers: { "Content-Type": "text/plain" },
+        }),
+      ),
+    );
+
+    await expect(api("/api/v1/bookmarks")).rejects.toMatchObject({
+      status: 502,
+      problem: null,
+      message: "HTTP 502",
+    });
+  });
 });
 
 describe("fieldErrorFor", () => {
