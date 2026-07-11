@@ -78,6 +78,11 @@ updates:
     groups:
       maven-minor:
         update-types: [minor, patch]
+    ignore:
+      # Open Liberty currently exposes mpJwt-2.1; keep the API aligned until
+      # the runtime publishes support for MicroProfile JWT 2.2.
+      - dependency-name: org.eclipse.microprofile.jwt:microprofile-jwt-auth-api
+        versions: ["2.2"]
 
   - package-ecosystem: mix
     directory: /backends/elixir-phoenix
