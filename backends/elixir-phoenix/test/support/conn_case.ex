@@ -12,12 +12,26 @@ defmodule StackverseBackendWeb.ConnCase do
     end
   end
 
-  setup_all do
+  setup_all tags do
     start_supervised!(StackverseBackendWeb.Endpoint)
-    :ok
+
+    if tags[:authenticated_api] == true do
+      {key, original_settings} = StackverseBackend.TestAuth.install!()
+      on_exit(fn -> StackverseBackend.TestAuth.uninstall!(original_settings) end)
+      {:ok, signing_key: key}
+    else
+      :ok
+    end
   end
 
-  setup _tags do
+  setup tags do
+    if tags[:database] == true and System.get_env("STACKVERSE_DB_TESTS") == "true" do
+      pid =
+        Ecto.Adapters.SQL.Sandbox.start_owner!(StackverseBackend.Repo, shared: not tags[:async])
+
+      on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+    end
+
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end
