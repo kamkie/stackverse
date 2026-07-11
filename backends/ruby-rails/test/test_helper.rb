@@ -4,6 +4,8 @@ ENV["STACKVERSE_SKIP_STARTUP_TASKS"] = "true"
 require "simplecov"
 require "simplecov-cobertura"
 SimpleCov.start "rails" do
+  root File.expand_path("../../..", __dir__)
+  coverage_dir File.expand_path("../coverage", __dir__)
   formatter SimpleCov::Formatter::CoberturaFormatter
   add_filter "/test/"
 end
