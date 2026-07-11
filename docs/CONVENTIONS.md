@@ -404,7 +404,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | react-router data router with nested route objects | react-router v8 createBrowserRouter, RouteObject[], nested layouts | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | @angular/router, provideRouter, lazy loadComponent/loadChildren | provideRouter with lazy loadComponent and loadChildren routes | ✅ idiomatic |
-| [Astro](../frontends/astro/README.md) | File-based routes under `src/pages`, with shared layouts for common document structure | Nine generated routes use native navigation and `AppLayout.astro`; no client router | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | File-based routes under `src/pages`, with props and slots composing shared layouts | Nine generated routes inject page roots through `AppLayout.astro`'s slot and use native navigation; no client router | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Small History API router, URLPattern, or @lit-labs/router | Hand-rolled History API router in `src/app.ts` | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Qwik City file-based routing for full apps | Hand-rolled History API route store in `src/lib/route.ts` | 🟡 deliberate |
 | [SolidJS](../frontends/solid/README.md) | @solidjs/router with nested route definitions | Hand-rolled History API signal router in `src/lib/route.ts` | 🟡 deliberate |
