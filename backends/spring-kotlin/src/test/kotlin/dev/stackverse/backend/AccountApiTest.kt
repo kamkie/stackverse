@@ -117,5 +117,20 @@ class AccountApiTest : IntegrationTest() {
 
         mockMvc.perform(get("/api/v1/admin/users/{u}", "never-seen-${UUID.randomUUID()}").with(admin()))
             .andExpect(status().isNotFound)
+
+        mockMvc.perform(
+            put("/api/v1/admin/users/{u}/status", username).with(admin())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"status":"blocked","reason":"test"}"""),
+        ).andExpect(status().isOk)
+
+        mockMvc.perform(get("/api/v1/admin/users").param("status", "blocked").param("q", username).with(admin()))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items[0].username").value(username))
+            .andExpect(jsonPath("$.items[0].status").value("blocked"))
+
+        mockMvc.perform(
+            put("/api/v1/admin/users/{u}/status", username).with(admin())
+                .contentType(MediaType.APPLICATION_JSON).content("""{"status":"active"}"""),
+        ).andExpect(status().isOk)
     }
 }

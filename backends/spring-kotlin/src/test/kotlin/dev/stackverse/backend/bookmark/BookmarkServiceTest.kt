@@ -75,6 +75,22 @@ class BookmarkServiceTest {
     }
 
     @Test
+    fun `create distinguishes a missing URL from an invalid URL`() {
+        val problem = assertThrows<ValidationProblem> {
+            service.create(
+                "alice",
+                BookmarkRequest(
+                    url = " ",
+                    title = "Valid title",
+                ),
+            )
+        }
+
+        assertThat(problem.violations).containsExactly(FieldViolation("url", "validation.url.required"))
+        verifyNoInteractions(repository)
+    }
+
+    @Test
     fun `update rejects republishing a moderation-hidden bookmark before mutating it`() {
         val id = UUID.randomUUID()
         val bookmark = bookmark(

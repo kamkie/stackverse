@@ -160,6 +160,21 @@ class BookmarkApiTest : IntegrationTest() {
     }
 
     @Test
+    fun `authenticated visibility filter scopes the caller's own bookmarks`() {
+        createBookmark("alice", """{"url":"https://example.com/private","title":"alice private"}""")
+        createBookmark(
+            "alice",
+            """{"url":"https://example.com/public","title":"alice public","visibility":"public"}""",
+        )
+        createBookmark("bob", """{"url":"https://example.com/bob","title":"bob private"}""")
+
+        mockMvc.perform(get("/api/v1/bookmarks").param("visibility", "private").with(user("alice")))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.items", hasSize<Any>(1)))
+            .andExpect(jsonPath("$.items[0].title").value("alice private"))
+    }
+
+    @Test
     fun `v2 keyset pagination is stable under concurrent inserts`() {
         repeat(5) { createBookmark("alice", """{"url":"https://example.com/$it","title":"item $it"}""") }
 
