@@ -47,6 +47,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.sql.Connection
+import java.sql.DriverManager
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -554,8 +555,8 @@ class PostgresIntegrationTest {
     }
 
     private fun rowCount(sql: String): Long =
-        newDataSource().use { dataSource ->
-            dataSource.connection.use { connection -> connection.queryLong(sql) }
+        DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password).use { connection ->
+            connection.queryLong(sql)
         }
 
     private suspend fun createBookmark(
