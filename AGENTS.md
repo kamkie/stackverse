@@ -144,14 +144,16 @@ implemented in many stacks. Read these before changing anything:
   agent posts a concise PR comment with the reviewer, findings, and triage
   decision:
   - Claude-authored branch → Codex review: `/codex-cr`, or
-    `codex -C <main-repo-root> "review branch <name> ..."` (Codex thread cwd is
-    always the main repo root, never a `.claude/worktrees` path; reference the
-    branch by name).
+    `codex -C <repository-checkout> "review branch <name> ..."`; reference the
+    branch by name instead of passing another agent's worktree path.
   - Codex-authored branch → Claude review: run
     `claude --model fable --permission-mode bypassPermissions -p "/review <PR number>"`
-    from the main repo root. If Fable is quota-blocked, rerun with
+    from the authoring task's assigned repository checkout. If Fable is
+    quota-blocked, rerun with
     `claude --model opus --permission-mode bypassPermissions -p "/review <PR number>"`.
     Do not use Sonnet or Haiku for Stackverse cross-reviews.
+  - Cross-review location must not move or redirect implementation work out of
+    the authoring task's assigned checkout or managed worktree.
   - Commits that implement review findings credit the reviewing agent as
     co-author alongside the authoring agent's own trailer: add
     `Co-Authored-By: Codex <noreply@openai.com>` when fixing Codex findings,
