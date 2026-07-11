@@ -614,9 +614,9 @@ Two more automations live in `.github/`:
   SARIF filenames explicitly, because `java-kotlin` writes `java.sarif` and
   `javascript-typescript` writes `javascript.sarif`.
 - [`dependabot.yml`](../.github/dependabot.yml) — weekly dependency PRs for
-  every ecosystem (Gradle, Go modules, Maven, NuGet, npm, pip, sbt, Cargo,
-  GitHub Actions, Dockerfiles, and the compose infra images), with
-  minor/patch bumps grouped per ecosystem.
+  every ecosystem (Bundler, Cargo, Composer, Gradle, Go modules, Maven, Mix,
+  npm, NuGet, pip, sbt, GitHub Actions, Dockerfiles, and the root plus
+  Tracetest compose images), with minor/patch bumps grouped per ecosystem.
 
 ## Observability
 
