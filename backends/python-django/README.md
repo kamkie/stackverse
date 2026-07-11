@@ -27,14 +27,21 @@ before the server listens — the database must be one this backend owns (when
 switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests (plain unit tests, no containers):
+Tests require a reachable PostgreSQL server. With the compose service running,
+the default `DB_*` values are sufficient; pytest-django creates and tears down
+an isolated test database:
 
 ```sh
 python -m compileall stackverse_api stackverse_django tests
 python -m ruff check .
 python -m ruff format --check .
-python -m pytest
+python -m pytest --cov=stackverse_api --cov-report=xml
 ```
+
+The suite uses DRF `APIClient` and the real Django ORM/migrations for bookmark,
+message, moderation, account, audit, and stats flows. It also retains focused
+units for startup, i18n, authentication/error mapping, and logging. The XML
+coverage report is written to `coverage.xml`.
 
 Conformance (the acceptance gate), with the backend running:
 

@@ -20,11 +20,17 @@ Configuration is environment variables only (see the table in
 seed is read from `../../spec/messages` relative to the working directory - override
 with `SEED_MESSAGES_DIR` when running from anywhere else.
 
-Kotlin style check, build, and unit tests:
+Kotlin style check, build, unit tests, and PostgreSQL integration tests:
 
 ```sh
 ./gradlew ktlintCheck build
 ```
+
+The integration suite uses Testcontainers PostgreSQL plus a loopback JWKS
+issuer to exercise the real Ktor module, Flyway/Hikari/JDBC persistence, signed
+tokens, authorization, and contract workflows. Docker is required; no live
+Keycloak is needed. The test task finalizes JaCoCo and writes XML to
+`build/reports/jacoco/test/jacocoTestReport.xml`.
 
 Container image (repo root as context - the image ships the message seed):
 

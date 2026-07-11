@@ -11,8 +11,8 @@ file covers only what is specific to this stack.
 
 ## Run it locally
 
-Prerequisites: Java 21+, sbt 1.12, and the compose infra (`docker compose up -d`
-at the repo root).
+Prerequisites: Java 21+, sbt 2.0.1, Docker, and the compose infra
+(`docker compose up -d` at the repo root) for running the application.
 
 ```sh
 cd backends/scala-http4s
@@ -30,6 +30,20 @@ Tests:
 ```sh
 sbt scalafmtCheckAll test
 ```
+
+The suite is serialized and starts PostgreSQL through Testcontainers, so Docker
+is required; compose and Keycloak are not. It combines route/service fakes with
+real Flyway/JDBC feature-service integration. Use the CI-equivalent command for
+an scoverage report:
+
+```sh
+sbt "scalafmtCheckAll; clean; coverage; testFull; coverageReport"
+```
+
+`testFull` is intentional under sbt 2: together with the randomized coverage
+macro setting in `build.sbt`, it prevents the disk cache from reusing
+non-instrumented test output. The XML report is normalized from the generated
+`target/**/scoverage-report/scoverage.xml` path by CI.
 
 Conformance, with infra and this backend running:
 
@@ -54,8 +68,8 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
   composes resources and starts Ember.
 - **Cats Effect resource wiring** — startup loads env config, migrates the
   database, imports message seed files, starts Ember, and closes Hikari/OTel
-  resources through `Resource` finalizers. The build pins the stable Cats Effect
-  3.7.0 release rather than a commit-style snapshot.
+  resources through `Resource` finalizers. The exact Cats Effect build is pinned
+  in `build.sbt` alongside the other implementation-local dependencies.
 - **Separated technical boundaries** — environment configuration, boot seeding,
   persistence/row mapping, authentication, i18n, validation, wire codecs,
   logging, and RFC 9457 recovery each have a focused source module.
@@ -77,11 +91,12 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
   and identity is always `preferred_username`.
 - **Circe response builders** — wire JSON is built explicitly so optional fields
   are omitted exactly where the OpenAPI contract omits them.
-- **Route-level tests** — ScalaTest exercises real route-to-service behavior
-  through fake operation interfaces, including the production aggregate route
-  composition: anonymous public fallthrough, unknown-route 404, ETag/language
-  metadata, exactly-once caller propagation, authentication denial, liveness,
-  and sibling-route isolation without infrastructure.
+- **Route and service tests** — ScalaTest exercises route-to-service behavior
+  through fake operation interfaces, including aggregate routing, public
+  fallthrough, metadata, and authentication isolation. A serialized
+  Testcontainers suite applies the production Flyway schema and covers real
+  PostgreSQL row mapping, feature services, transactions, and routed contract
+  boundaries.
 - **Lifecycle logs follow the complete runtime resource** — startup is emitted
   only after database acquisition, migrations, seed import, and Ember bind;
   shutdown follows resource release. Any acquisition failure is logged once as

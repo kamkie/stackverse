@@ -10,9 +10,10 @@ this file covers only what is specific to this stack.
 
 ## Run it locally
 
-Prerequisites: Java 21+ and the compose infra (`docker compose up -d` at the
-repo root). A separately installed Liberty server is not required; Maven
-downloads and configures the runtime.
+Prerequisites: Java 21+, Docker for the full test suite, and the compose infra
+(`docker compose up -d` at the repo root) for running the application. A
+separately installed Liberty server is not required; Maven downloads and
+configures the runtime.
 
 ```sh
 cd backends/open-liberty-java
@@ -37,8 +38,16 @@ Build, unit tests, style check, and packaged-Liberty integration test:
 ./mvnw verify
 ```
 
-`verify` creates a minimized Liberty distribution containing the configured
-Jakarta EE 11 features and application WAR, then Failsafe inspects that archive.
+`verify` runs focused resource/runtime units, a Testcontainers PostgreSQL
+contract suite against the production Flyway schema, Spotless, JaCoCo, and a
+Failsafe inspection of the minimized Liberty distribution. The PostgreSQL test
+class skips when Docker is unavailable, so a green no-Docker run is not full
+integration coverage. Target it with
+`./mvnw -Dtest=OpenLibertyContractIntegrationTest test`; JaCoCo XML is written
+to `target/site/jacoco/jacoco.xml`.
+The minimized distribution contains the configured Jakarta EE 11 features and
+application WAR.
+
 The runtime uses CDI 4.1, Jakarta REST 4.0, Servlet 6.1, Validation 3.1, and
 JSON-B 3.0. MicroProfile JWT remains at 2.1, the level supported by Open
 Liberty; its API dependency must stay aligned with that runtime feature. Use

@@ -101,17 +101,19 @@ yarn dev
 
 ## Test
 
-The unit/integration-style Vitest suite hosts Fastify in process and uses a
-memory session store plus stubbed upstreams to pin the gateway contract:
-OIDC redirects, callback failure behavior, token relay, CSRF/origin checks,
-security headers, logout, and refresh rejection vs IdP outage.
+The no-container Vitest suite hosts Fastify in process with deterministic
+upstreams and session-store doubles. It covers OIDC redirects and real RSA/JWKS
+verification, Redis store serialization/failure boundaries, callback and token
+refresh behavior, proxy/header policy, CSRF/origin checks, logging/OTLP setup,
+security headers, logout, and process lifecycle. Live Redis/Keycloak integration
+remains outside this component suite.
 
 ```sh
 yarn lint
 yarn format:check   # use yarn format to rewrite
 yarn typecheck
 yarn build
-yarn test
+yarn test --coverage   # LCOV under coverage/
 ```
 
 ## Docker

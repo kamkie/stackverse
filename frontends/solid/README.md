@@ -12,7 +12,8 @@ last segment so admins can fill translations through the Messages screen.
 ```sh
 yarn install
 yarn dev              # dev server on :5173, /api and /auth proxied to a gateway on :8000
-yarn test             # vitest unit tests
+yarn test             # Vitest helper and Solid Testing Library component/page tests
+yarn test --coverage  # same suite with LCOV under coverage/
 yarn build            # typecheck + static production bundle in dist/
 ```
 
@@ -29,8 +30,8 @@ In dev the browser console is mirrored to the Vite dev server
 user actions are logged through the same channel at `DEBUG`
 (`src/dev/logUserActions.ts`): clicks, form submits, route changes, and
 same-origin `/api`/`/auth` request outcomes. Lines carry element labels, ids,
-and URLs only, never field values, and this code is absent from production
-bundles.
+and pathnames only (query strings and field values are omitted), and this code
+is absent from production bundles.
 
 ## Logging conformance
 
@@ -67,10 +68,11 @@ browser boundary.
 
 API types are hand-written rather than generated from OpenAPI to match the
 lightweight sibling implementations that keep the wire shapes visible in one
-file. Unit tests focus on reusable helpers and contract edges (CSRF, i18n,
-session, routing); full component behavior is covered by the shared Playwright
-e2e suite. There is no ESLint/Prettier setup yet, so `yarn build`/`yarn test`
-are the enforced local gates.
+file. Vitest covers reusable helpers and contract edges (CSRF, i18n, session,
+routing), while Solid Testing Library exercises representative forms,
+presentation components, and public/admin pages. The shared Playwright e2e
+suite remains the full browser acceptance gate. There is no ESLint/Prettier
+setup yet, so `yarn build`/`yarn test` are the enforced local gates.
 
 ## Production
 

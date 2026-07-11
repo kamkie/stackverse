@@ -23,12 +23,16 @@ with `SEED_MESSAGES_DIR` when running from anywhere else.
 Tests:
 
 ```sh
-./gradlew test
+./gradlew build
 ```
 
 The suite combines focused JUnit tests with `@MicronautTest` HTTP tests that start
 the real router, filters, serialization, validation advice, and exception handlers
-while replacing external database and identity dependencies with test beans.
+while replacing external database and identity dependencies with test beans. A
+separate Testcontainers PostgreSQL suite covers the production Flyway/JDBC
+boundary, contract-sensitive queries, transactions, and persistence error
+mapping, so Docker is required for the full build. JaCoCo XML is written to
+`build/reports/jacoco/test/jacocoTestReport.xml`.
 
 Container image (repo root as context - the image ships the message seed):
 

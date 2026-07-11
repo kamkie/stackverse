@@ -24,8 +24,8 @@ Migrations apply on startup — the database must be one this backend owns
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Local verification (plain unit tests, no containers; `gofmt -l .` should
-print no files):
+Fast local verification (the PostgreSQL cases skip when no test DSN is set;
+`gofmt -l .` should print no files):
 
 ```sh
 go mod verify
@@ -34,6 +34,26 @@ go build ./...
 go vet ./...
 go test ./...
 ```
+
+For the PostgreSQL-backed HTTP, persistence, moderation, and JWKS suite, point
+`STACKVERSE_GO_TEST_DATABASE_URL` at a disposable database. The integration
+test harness applies the implementation's migrations and fails immediately if
+the configured database is unreachable. CI also fails closed when that variable
+is missing:
+
+```sh
+docker compose -f ../../compose.yaml exec postgres \
+  createdb -U stackverse stackverse_go_test
+export STACKVERSE_GO_TEST_DATABASE_URL='postgres://stackverse:stackverse@localhost:5432/stackverse_go_test?sslmode=disable'
+go test -count=1 -coverpkg=./... -coverprofile coverage.out -covermode=atomic ./...
+```
+
+The `createdb` step is needed only once for a disposable compose database; an
+"already exists" error on later runs is harmless.
+
+In PowerShell, set the variable with `$env:STACKVERSE_GO_TEST_DATABASE_URL =
+'postgres://...'` and quote `'-coverpkg=./...'` so PowerShell passes the Go
+package pattern literally.
 
 Conformance (the acceptance gate), with the backend running:
 

@@ -32,10 +32,13 @@ mix compile --warnings-as-errors
 mix test
 ```
 
-CI also starts PostgreSQL and runs the database-tagged `DataCase` regression
-tests. To include those locally, point the standard `DB_*` variables at a test
-database, set `STACKVERSE_DB_TESTS=true`, run
-`MIX_ENV=test mix ecto.migrate`, and then run `MIX_ENV=test mix test`.
+CI also starts PostgreSQL and runs database-tagged authenticated `ConnCase`
+HTTP tests plus `DataCase` context, seed, and persistence regressions. To
+include those locally, point the standard `DB_*` variables at a test database,
+set `STACKVERSE_DB_TESTS=true`, run `MIX_ENV=test mix ecto.migrate`, and then
+run `MIX_ENV=test mix test`. Use `MIX_ENV=test mix coveralls.lcov` for the
+CI-equivalent coverage report at `cover/lcov.info`; the suite also checks
+structured-error logging and secret exclusion.
 
 Conformance (the acceptance gate), with the backend running:
 

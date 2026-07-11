@@ -111,14 +111,24 @@ GATEWAY_IMAGE=stackverse/gateway-apisix:local docker compose --profile app up ga
 
 ## Test
 
-The component check builds the image, validates the APISIX config, and runs Lua
-smoke tests inside the image.
+The component check builds the image, validates the APISIX config, and runs the
+Lua harness inside the image. The deterministic `ngx`/module-state harness
+covers configuration, CSRF and route dispatch, Redis readiness, proxy/header
+policy, and logging/OTLP privacy boundaries; it does not replace a live
+Redis/Keycloak integration test.
 
 ```sh
 docker build -t stackverse/gateway-apisix:local .
 docker run --rm stackverse/gateway-apisix:local apisix test
-docker run --rm stackverse/gateway-apisix:local resty -I /opt/stackverse/lua -I /usr/local/apisix/deps/share/lua/5.1 /opt/stackverse/test/smoke.lua
+mkdir -p coverage
+chmod 777 coverage
+docker run --rm -v "$(pwd)/coverage:/coverage" stackverse/gateway-apisix:local \
+  resty -I /opt/stackverse/lua -I /usr/local/apisix/deps/share/lua/5.1 \
+  /opt/stackverse/test/coverage.lua /opt/stackverse/test/smoke.lua /coverage/lcov.info
 ```
+
+On Windows, use an absolute host path for the bind mount. The report is written
+to `coverage/lcov.info`.
 
 ## Docker
 

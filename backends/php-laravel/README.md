@@ -31,16 +31,24 @@ Tests:
 ```sh
 composer validate --strict --no-check-publish
 composer lint
-php artisan test
+php artisan test     # fast local suite; DB-gated cases skip
 ```
 
-The PostgreSQL-backed Eloquent integration suite is opt-in so the default
-unit/HTTP suite does not require infrastructure. It covers model/resource
-shapes and PostgreSQL arrays, microsecond ordering through cursor pagination
-and audit filters, and authentication account upserts under a row lock including
-blocked-user rejection. Against a migrated PostgreSQL test database, set
-`STACKVERSE_DB_TESTS=true` and run
-`php artisan test --filter EloquentBoundariesTest`.
+The full PostgreSQL suite is opt-in locally. Point the standard `DB_*`
+variables at a disposable test database, enable a coverage driver such as
+Xdebug, then run the same path CI uses:
+
+```sh
+export STACKVERSE_DB_TESTS=true
+php artisan migrate --force
+composer test
+```
+
+CI provisions PostgreSQL and runs that full suite for every supported PHP
+version. It covers HTTP/middleware/resource behavior plus real arrays, cursor
+and audit ordering, message/i18n persistence, moderation transactions, account
+locking, and seed idempotency. `composer test` writes `coverage.xml` and
+`TestResults/junit.xml`.
 
 Conformance, with the backend running:
 

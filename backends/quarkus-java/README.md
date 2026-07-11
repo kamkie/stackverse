@@ -31,7 +31,11 @@ Tests and style checks:
 ./mvnw verify
 ```
 
-`verify` includes the Spotless/google-java-format gate. To reformat locally:
+`verify` includes the Spotless/google-java-format gate and starts PostgreSQL
+18 through Testcontainers for the real Flyway/JDBC service suites. Docker must
+be available; no separately managed test database is required. The same run
+keeps Quarkus/RestAssured HTTP boundary tests and writes JaCoCo XML to
+`target/site/jacoco/jacoco.xml`. To reformat locally:
 
 ```sh
 ./mvnw spotless:apply
@@ -69,7 +73,9 @@ standard Quarkus layout.
   endpoint policy. Focused Quarkus exception mappers retain Stackverse's RFC
   9457 problem documents for authentication and authorization failures.
 - **Quarkus-native tests** — `@QuarkusTest` and RestAssured exercise the live
-  HTTP/security boundary; focused JUnit tests cover normalization, validation,
+  HTTP/security boundary; Testcontainers PostgreSQL suites run the production
+  Flyway schema through bookmark, message, moderation, account, audit, and
+  stats services; focused JUnit tests cover normalization, validation,
   localization, serialization, and contract helpers.
 - **JWT validation by configuration** — SmallRye JWT validates issuer, audience,
   signature, and expiry from `OIDC_ISSUER_URI` / `OIDC_JWKS_URI`; the code derives

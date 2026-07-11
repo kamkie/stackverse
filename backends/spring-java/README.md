@@ -27,6 +27,12 @@ Tests:
 ./gradlew build
 ```
 
+The JUnit suite combines focused service tests with `@WebMvcTest`/MockMvc
+controller and security slices. It exercises authorization, blocked-account
+handling, validation/problem mapping, bookmark and moderation rules, and
+message caching without starting PostgreSQL; `build` also generates the JaCoCo
+XML report under `build/reports/jacoco/test/`.
+
 Container image (repo root as context, because the image ships the message seed):
 
 ```sh
@@ -68,8 +74,9 @@ docker build -t stackverse/backend-spring-java:local -f backends/spring-java/Doc
   Actuator endpoints, matching the contract paths directly.
 - The audit `detail` column is `jsonb` mapped as a JSON string; the API renders it
   back as an object.
-- Local tests are focused unit tests for Java-specific helpers; the black-box backend
-  conformance suite is the contract gate for full API behavior.
+- Local tests cover Java-specific helpers, service behavior, and MVC/security
+  boundaries with test doubles. The black-box backend conformance suite remains
+  the live PostgreSQL contract gate for full API behavior.
 - No Java formatter/linter is wired into Gradle yet; the shared `.editorconfig` plus
   `javac` are the current static gate.
 - Observability uses the OpenTelemetry Java agent baked into the container image.

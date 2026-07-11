@@ -87,16 +87,21 @@ cargo run
 
 ## Test
 
-The Rust tests use in-process Axum requests plus local stub backend and IdP
-servers to cover login, callback, token relay, CSRF/origin checks, security
-headers, logout, and refresh rejection vs IdP outage. No Docker services are
-required.
+The Rust suite combines in-process Axum contract requests, local backend/IdP
+servers, a local RESP fixture that exercises the real Redis client, and
+spawned-binary startup/OTLP/log-redaction tests. It covers login, callback,
+session persistence, token relay and refresh, CSRF/origin checks, security
+headers, proxy fidelity, post-bind lifecycle logging, and secret-safe effective
+configuration. No Docker services are required.
 
 ```sh
 cargo fmt --check
 cargo check --locked
 cargo test --locked
+cargo llvm-cov --locked --lcov --output-path coverage/lcov.info
 ```
+
+The coverage command requires `cargo-llvm-cov`.
 
 ## Docker
 

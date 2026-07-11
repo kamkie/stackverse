@@ -10,8 +10,8 @@ covers only what is specific to this stack.
 
 ## Run it locally
 
-Prerequisites: Java 21, sbt 1.12, and the compose infra (`docker compose up -d` at the
-repo root).
+Prerequisites: Java 21, sbt 1.12, Docker, and the compose infra
+(`docker compose up -d` at the repo root) for running the application.
 
 ```sh
 cd backends/play-scala
@@ -29,6 +29,15 @@ Tests:
 
 ```sh
 sbt scalafmtCheckAll test
+```
+
+Tests start PostgreSQL 18 through Testcontainers, apply the production Flyway
+migration, and drive the real Guice application, controllers, JDBC transactions,
+and HTTP routing. Docker is therefore required for `sbt test`; compose and a
+live Keycloak are not. The CI-equivalent coverage command is:
+
+```sh
+sbt scalafmtCheckAll clean coverage test coverageReport
 ```
 
 The Scalafmt config uses `project.git = true`; a brand-new untracked Scala file
@@ -88,10 +97,11 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
   and identity is always `preferred_username`. Nimbus's default unknown-key
   refetch limiter remains explicitly enabled: it reserves the normal rotation
   refresh while bounding attacker-driven JWKS traffic.
-- **ScalaTestPlusPlay application testing** — Guice application tests compile the
-  router documentation without executing DB-backed actions, reject a residual
-  all-feature service, and exercise auth, dispatcher, and RFC 9457 boundaries
-  without a database; focused tests cover total codecs and SQL/wire helpers.
+- **ScalaTestPlusPlay application testing** — focused units cover total codecs,
+  auth, dispatcher, and RFC 9457 boundaries, while a PostgreSQL-backed suite
+  exercises the production Flyway schema, Guice wiring, routed controllers,
+  JDBC repositories, and contract-sensitive transactions. A deterministic
+  loopback issuer covers the signed-JWT path without a live Keycloak.
 - **Warnings and formatting as gates** — compilation uses `-Werror`, and scalafmt is
   checked locally and in the component workflow.
 

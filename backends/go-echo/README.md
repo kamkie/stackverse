@@ -30,8 +30,8 @@ Migrations apply on startup — the database must be one this backend owns
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Local verification (plain unit tests, no containers; `gofmt -l .` should
-print no files):
+Fast local verification (the PostgreSQL contract test skips without its DSN;
+`gofmt -l .` should print no files):
 
 ```sh
 go mod verify
@@ -40,6 +40,24 @@ go build ./...
 go vet ./...
 go test ./...
 ```
+
+To run the real PostgreSQL router/auth/persistence suite locally:
+
+```sh
+docker compose -f ../../compose.yaml exec postgres \
+  createdb -U stackverse stackverse_go_echo_test
+export STACKVERSE_TEST_DATABASE_URL='postgres://stackverse:stackverse@localhost:5432/stackverse_go_echo_test?sslmode=disable'
+go test -count=1 -run '^TestPostgresBackedContractBoundaries$' \
+  -coverprofile TestResults/coverage-integration.out -covermode=atomic \
+  -coverpkg=github.com/kamkie/stackverse/backends/go-echo/... ./internal/app
+```
+
+The `createdb` step is needed only once for a disposable compose database; an
+"already exists" error on later runs is harmless.
+
+CI provisions PostgreSQL, records ordinary and integration coverage separately,
+then merges the atomic profiles by taking the maximum hit count for each block
+before upload. This avoids double-counting while retaining cross-package hits.
 
 Conformance (the acceptance gate), with the backend running:
 
