@@ -26,6 +26,20 @@ jobs:
     name: Backend · Go (Echo)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: stackverse_go_echo_test
+          POSTGRES_USER: stackverse
+          POSTGRES_PASSWORD: stackverse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackverse -d stackverse_go_echo_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backends/go-echo
@@ -49,16 +63,45 @@ jobs:
       - name: Vet
         run: go vet ./...
       - name: Test
+        env:
+          STACKVERSE_TEST_DATABASE_URL: postgres://stackverse:stackverse@localhost:5432/stackverse_go_echo_test?sslmode=disable
         run: |
           mkdir -p TestResults
           go run gotest.tools/gotestsum@v1.13.0 --junitfile TestResults/junit.xml \
-            -- -coverprofile coverage.out -covermode=atomic ./...
+            -- -count=1 -coverprofile TestResults/coverage-unit.out -covermode=atomic ./...
+      - name: Integration coverage
+        env:
+          STACKVERSE_TEST_DATABASE_URL: postgres://stackverse:stackverse@localhost:5432/stackverse_go_echo_test?sslmode=disable
+        run: >-
+          go test -count=1 -run '^TestPostgresBackedContractBoundaries$'
+          -coverprofile TestResults/coverage-integration.out
+          -covermode=atomic
+          -coverpkg=github.com/kamkie/stackverse/backends/go-echo/...
+          ./internal/app
+      - name: Merge coverage profiles
+        run: |
+          awk '
+            /^mode:/ { next }
+            {
+              key = $1 " " $2
+              if (!(key in seen)) {
+                seen[key] = 1
+                order[++count] = key
+              }
+              if (!(key in hits) || $3 > hits[key]) hits[key] = $3
+            }
+            END {
+              print "mode: atomic"
+              for (i = 1; i <= count; i++) print order[i], hits[order[i]]
+            }
+          ' TestResults/coverage-unit.out TestResults/coverage-integration.out > coverage.out
       - name: Normalize coverage paths
         run: node ../../tools/normalize-coverage-paths.mjs coverage.out backends/go-echo/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
+          disable_search: true
           files: backends/go-echo/coverage.out
           flags: backend-go-echo
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -67,6 +110,7 @@ jobs:
         uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
+          disable_search: true
           report_type: test_results
           files: backends/go-echo/TestResults/junit.xml
           flags: backend-go-echo
