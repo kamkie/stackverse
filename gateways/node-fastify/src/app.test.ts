@@ -7,7 +7,7 @@ import { buildApp } from "./app.js";
 import { loadConfig, type GatewayConfig } from "./config.js";
 import type { OidcClient } from "./oidc.js";
 import { CONTENT_SECURITY_POLICY, STRICT_TRANSPORT_SECURITY } from "./security.js";
-import { MemorySessionStore, type GatewaySession } from "./session-store.js";
+import { MemorySessionStore, type GatewaySession, type SessionStore } from "./session-store.js";
 
 interface FetchCall {
   url: string;
@@ -619,7 +619,7 @@ describe("node-fastify gateway", () => {
     }
   });
 
-  it("rate limits static SPA traffic", async () => {
+  it("rate limits static SPA traffic", { timeout: 30_000 }, async () => {
     const root = await mkdtemp(path.join(tmpdir(), "stackverse-node-fastify-spa-"));
     await mkdir(path.join(root, "assets"));
     await writeFile(path.join(root, "index.html"), "<main>fallback shell</main>");
@@ -640,6 +640,141 @@ describe("node-fastify gateway", () => {
       );
     } finally {
       await rm(root, { force: true, recursive: true });
+    }
+  });
+
+  it("rejects an unknown OIDC callback state without contacting the token endpoint", async () => {
+    await withApp(async (app, _store, calls) => {
+      const response = await app.inject({ method: "GET", url: "/auth/callback?code=auth-code&state=unknown-state" });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe("/");
+      expect(response.headers["set-cookie"]?.toString()).not.toContain("stackverse_session=");
+      expect(calls.some((call) => call.url.endsWith("/protocol/openid-connect/token"))).toBe(false);
+    });
+  });
+
+  it("redirects callback protocol failures home without leaving a session behind", async () => {
+    const store = new MemorySessionStore();
+    const exchangeCode = vi
+      .fn()
+      .mockResolvedValueOnce({ accessToken: "access-without-id-token", expiresIn: 120 })
+      .mockRejectedValueOnce("non-error token failure");
+    const oidcClient = {
+      authorizationUrl: vi.fn(async (state: string) => `http://idp.test/auth?state=${state}`),
+      exchangeCode,
+      verifyIdToken: vi.fn(),
+      logout: vi.fn(async () => undefined),
+    } as unknown as OidcClient;
+    const app = await buildApp({ config: testConfig(), sessionStore: store, oidcClient });
+
+    try {
+      for (const expectedCall of [1, 2]) {
+        const login = await app.inject({ method: "GET", url: "/auth/login" });
+        const state = new URL(login.headers.location as string).searchParams.get("state");
+        const callback = await app.inject({ method: "GET", url: `/auth/callback?code=auth-code&state=${state}` });
+
+        expect(callback.statusCode).toBe(302);
+        expect(callback.headers.location).toBe("/");
+        expect(callback.headers["set-cookie"]?.toString()).not.toContain("stackverse_session=");
+        expect(exchangeCode).toHaveBeenCalledTimes(expectedCall);
+      }
+      expect(oidcClient.verifyIdToken).not.toHaveBeenCalled();
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("clears a stale browser session cookie even when no server-side session exists", async () => {
+    await withApp(async (app, _store, calls) => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/auth/logout",
+        headers: { cookie: "stackverse_session=missing-session" },
+      });
+
+      expect(response.statusCode).toBe(204);
+      expect(response.headers["set-cookie"]?.toString()).toContain("stackverse_session=;");
+      expect(calls.some((call) => call.url.endsWith("/protocol/openid-connect/logout"))).toBe(false);
+    });
+  });
+
+  it("expires a session that cannot refresh and relays the request anonymously", async () => {
+    await withApp(async (app, store, calls) => {
+      const unrefreshable = freshSession({ expiresAt: Date.now() - 60_000 });
+      delete unrefreshable.refreshToken;
+      await store.saveSession("session-id", unrefreshable, 3_600);
+
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/bookmarks",
+        headers: { cookie: "stackverse_session=session-id" },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(await store.getSession("session-id")).toBeNull();
+      const backend = calls.findLast((call) => hasOrigin(call.url, BACKEND_ORIGIN));
+      expect(header(backend?.init?.headers as Headers, "authorization")).toBeNull();
+    });
+  });
+
+  it("returns a generic problem document when the session dependency fails", async () => {
+    const failingStore: SessionStore = {
+      createSession: vi.fn(async () => "unused"),
+      getSession: vi.fn(async () => {
+        throw new Error("redis unavailable");
+      }),
+      saveSession: vi.fn(async () => undefined),
+      destroySession: vi.fn(async () => undefined),
+      setLoginState: vi.fn(async () => undefined),
+      consumeLoginState: vi.fn(async () => null),
+    };
+    const app = await buildApp({ config: testConfig(), sessionStore: failingStore });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/auth/session",
+        headers: { cookie: "stackverse_session=session-id" },
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.headers["content-type"]).toContain("application/problem+json");
+      expect(response.json()).toEqual({
+        type: "about:blank",
+        title: "Internal Server Error",
+        status: 500,
+        detail: "The gateway failed to handle the request.",
+      });
+      expect(response.body).not.toContain("redis unavailable");
+    } finally {
+      await app.close();
+    }
+  });
+
+  it("maps unexpected refresh failures to a generic 500 instead of proxying", async () => {
+    const store = new MemorySessionStore();
+    await store.saveSession("session-id", freshSession({ expiresAt: Date.now() - 60_000 }), 3_600);
+    const oidcClient = {
+      refresh: vi.fn(async () => {
+        throw new Error("unexpected refresh failure");
+      }),
+      logout: vi.fn(async () => undefined),
+    } as unknown as OidcClient;
+    const app = await buildApp({ config: testConfig(), sessionStore: store, oidcClient });
+
+    try {
+      const response = await app.inject({
+        method: "GET",
+        url: "/api/v1/bookmarks",
+        headers: { cookie: "stackverse_session=session-id" },
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.json()).toMatchObject({ status: 500, title: "Internal Server Error" });
+      expect(await store.getSession("session-id")).not.toBeNull();
+    } finally {
+      await app.close();
     }
   });
 });
