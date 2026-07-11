@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from stackverse_api import views
 from stackverse_api.audit import record_audit
 from stackverse_api.models import AuditEntry, Message
 from stackverse_api.time import now_utc
@@ -132,9 +133,17 @@ def test_admin_user_directory_blocking_and_unblocking_enforce_roles_validation_a
 
 
 def test_stats_zero_fill_aggregates_etag_and_audit_filters_use_real_postgresql_queries(
-    api_client, client_for, account_factory, bookmark_factory, report_factory
+    api_client, client_for, account_factory, bookmark_factory, report_factory, monkeypatch
 ) -> None:
     now = now_utc()
+
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            assert tz is UTC
+            return now
+
+    monkeypatch.setattr(views, "datetime", FixedDateTime)
     account_factory("alice", last_seen=now - timedelta(days=1))
     account_factory("bob", last_seen=now)
     first = bookmark_factory(
@@ -159,7 +168,7 @@ def test_stats_zero_fill_aggregates_etag_and_audit_filters_use_real_postgresql_q
         "openReports": 1,
     }
     assert len(payload["daily"]) == 30
-    assert payload["daily"][-1]["date"] == datetime.now(UTC).date().isoformat()
+    assert payload["daily"][-1]["date"] == now.date().isoformat()
     assert payload["topTags"] == [{"tag": "python", "count": 2}, {"tag": "django", "count": 1}]
     assert moderator.get("/api/v1/admin/stats", HTTP_IF_NONE_MATCH=stats["ETag"]).status_code == 304
 
