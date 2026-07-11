@@ -21,7 +21,7 @@ public static class ModerationEndpoints
             Paging.RequireValidPaging(page, size);
             var (items, total) = await service.ListMyReportsAsync(
                 user.Identity!.Name!, Wire.ParseQuery<ReportStatus>(status, "status"), page, size);
-            return PageResponse<ReportResponse>.Of(items.Select(ReportResponse.Of).ToList(), page, size, total);
+            return PageResponse.Create(items.Select(ReportResponse.Of).ToList(), page, size, total);
         });
 
         app.MapPut("/api/v1/reports/{id:guid}", async (
@@ -40,7 +40,7 @@ public static class ModerationEndpoints
             Paging.RequireValidPaging(page, size);
             var wanted = Wire.ParseQuery<ReportStatus>(status, "status") ?? ReportStatus.Open;
             var (items, total) = await service.ListReportsAsync(wanted, page, size);
-            return PageResponse<ReportResponse>.Of(items.Select(ReportResponse.Of).ToList(), page, size, total);
+            return PageResponse.Create(items.Select(ReportResponse.Of).ToList(), page, size, total);
         }).RequireAuthorization("moderator");
 
         app.MapPut("/api/v1/admin/reports/{id:guid}", async (

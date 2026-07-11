@@ -1,0 +1,8 @@
+# Underscore-separated xUnit test names are intentional executable specifications.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
+
+# EF Core owns these generated migration artifacts, including their UTF-8 BOM.
+[src/StackverseBackend/Data/Migrations/*.cs]
+generated_code = true
+charset = utf-8-bom

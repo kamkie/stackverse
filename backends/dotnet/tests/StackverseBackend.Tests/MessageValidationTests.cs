@@ -21,7 +21,7 @@ public class MessageValidationTests
     [InlineData("")]
     public void RejectsMalformedKeys(string key)
     {
-        var problem = Assert.Throws<ValidationProblem>(
+        var problem = Assert.Throws<ValidationProblemException>(
             () => MessageService.Validate(new MessageRequest(Key: key, Language: "en", Text: "x")));
         Assert.Contains(problem.Violations, v => v.MessageKey == "validation.message.key.invalid");
     }
@@ -32,7 +32,7 @@ public class MessageValidationTests
     [InlineData("e")]
     public void RejectsNonIsoLanguages(string language)
     {
-        var problem = Assert.Throws<ValidationProblem>(
+        var problem = Assert.Throws<ValidationProblemException>(
             () => MessageService.Validate(new MessageRequest(Key: "a.b", Language: language, Text: "x")));
         Assert.Contains(problem.Violations, v => v.MessageKey == "validation.message.language.invalid");
     }
@@ -40,11 +40,11 @@ public class MessageValidationTests
     [Fact]
     public void RejectsEmptyAndOverlongText()
     {
-        var empty = Assert.Throws<ValidationProblem>(
+        var empty = Assert.Throws<ValidationProblemException>(
             () => MessageService.Validate(new MessageRequest(Key: "a.b", Language: "en", Text: "")));
         Assert.Contains(empty.Violations, v => v.MessageKey == "validation.message.text.required");
 
-        var overlong = Assert.Throws<ValidationProblem>(
+        var overlong = Assert.Throws<ValidationProblemException>(
             () => MessageService.Validate(new MessageRequest(Key: "a.b", Language: "en", Text: new string('x', 2001))));
         Assert.Contains(overlong.Violations, v => v.MessageKey == "validation.message.text.too-long");
     }

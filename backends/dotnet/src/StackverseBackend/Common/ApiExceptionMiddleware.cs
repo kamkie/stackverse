@@ -10,7 +10,7 @@ namespace StackverseBackend.Common;
 /// never logs above INFO (docs/LOGGING.md §3); unexpected failures log at ERROR
 /// with the stack trace before the 500 problem goes out.
 /// </summary>
-public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
+public sealed partial class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExceptionMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context, MessageLocalizer localizer)
     {
@@ -23,7 +23,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
             Reset(context);
             switch (exception)
             {
-                case ValidationProblem validation:
+                case ValidationProblemException validation:
                     // expected client behavior — a security signal, never above INFO (docs/LOGGING.md §3);
                     // field names and message keys are server-defined, so nothing client-controlled is logged
                     logger.Event(LogLevel.Information, "input_validation_failed", "failure",
@@ -47,7 +47,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
                         "Request validation failed.", errors);
                     break;
 
-                case ApiProblem problem:
+                case ApiProblemException problem:
                     var detail = problem.DetailKey is { } key
                         ? await localizer.LocalizeAsync(key, context.Request)
                         : problem.Detail;
@@ -65,7 +65,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
                     // real call duration — by the EF interceptors (Data/DependencyLogging.cs)
                     if (FindDbException(exception) is null)
                     {
-                        logger.LogError(exception, "Unhandled exception while processing the request");
+                        LogUnhandledException(logger, exception);
                     }
                     await Problems.Write(context, StatusCodes.Status500InternalServerError,
                         "Internal Server Error", "An unexpected error occurred.");
@@ -96,4 +96,7 @@ public sealed class ApiExceptionMiddleware(RequestDelegate next, ILogger<ApiExce
         }
         return null;
     }
+
+    [LoggerMessage(EventId = 1, Level = LogLevel.Error, Message = "Unhandled exception while processing the request")]
+    private static partial void LogUnhandledException(ILogger logger, Exception exception);
 }

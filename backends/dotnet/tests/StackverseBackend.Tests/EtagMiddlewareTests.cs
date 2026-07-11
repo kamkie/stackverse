@@ -121,5 +121,5 @@ public class EtagMiddlewareTests
     }
 
     private static string ExpectedEtag(string body) =>
-        $"\"{Convert.ToHexStringLower(MD5.HashData(Encoding.UTF8.GetBytes(body)))}\"";
+        $"\"{Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(body)))}\"";
 }

@@ -1,8 +1,10 @@
 namespace StackverseBackend.Common;
 
-public sealed record PageResponse<T>(IReadOnlyList<T> Items, int Page, int Size, long TotalItems, int TotalPages)
+public sealed record PageResponse<T>(IReadOnlyList<T> Items, int Page, int Size, long TotalItems, int TotalPages);
+
+public static class PageResponse
 {
-    public static PageResponse<T> Of(IReadOnlyList<T> items, int page, int size, long totalItems) =>
+    public static PageResponse<T> Create<T>(IReadOnlyList<T> items, int page, int size, long totalItems) =>
         new(items, page, size, totalItems, (int)((totalItems + size - 1) / size));
 }
 

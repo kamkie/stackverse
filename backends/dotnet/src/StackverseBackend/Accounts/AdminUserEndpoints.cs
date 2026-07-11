@@ -53,7 +53,7 @@ public static class AdminUserEndpoints
                     BookmarkCount = db.Bookmarks.LongCount(b => b.Owner == u.Username),
                 })
                 .ToListAsync();
-            return PageResponse<UserAccountResponse>.Of(
+            return PageResponse.Create(
                 items.Select(row => UserAccountResponse.Of(row.Account, row.BookmarkCount)).ToList(),
                 page, size, total);
         });

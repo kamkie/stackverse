@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace StackverseBackend;
 
 /// <summary>
@@ -30,9 +32,9 @@ public sealed record BackendOptions
 
     public static BackendOptions Load(IConfiguration config, string contentRootPath) => new()
     {
-        Port = int.Parse(config["PORT"] ?? "8080"),
+        Port = int.Parse(config["PORT"] ?? "8080", CultureInfo.InvariantCulture),
         DbHost = config["DB_HOST"] ?? "localhost",
-        DbPort = int.Parse(config["DB_PORT"] ?? "5432"),
+        DbPort = int.Parse(config["DB_PORT"] ?? "5432", CultureInfo.InvariantCulture),
         DbName = config["DB_NAME"] ?? "stackverse",
         DbUser = config["DB_USER"] ?? "stackverse",
         DbPassword = config["DB_PASSWORD"] ?? "stackverse",

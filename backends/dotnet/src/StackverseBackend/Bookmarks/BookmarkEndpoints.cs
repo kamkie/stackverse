@@ -30,7 +30,7 @@ public static class BookmarkEndpoints
                 q,
                 Wire.ParseQuery<Visibility>(visibility, "visibility"));
             var (items, total) = await service.ListOffsetAsync(Caller(user), query, page, size);
-            return PageResponse<BookmarkResponse>.Of(items.Select(BookmarkResponse.Of).ToList(), page, size, total);
+            return PageResponse.Create(items.Select(BookmarkResponse.Of).ToList(), page, size, total);
         }).AllowAnonymous();
 
         v1.MapPost("", async (BookmarkService service, ClaimsPrincipal user, BookmarkRequest request) =>
