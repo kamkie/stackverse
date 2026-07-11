@@ -3,6 +3,7 @@ package dev.stackverse.backend.bookmark;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -20,6 +21,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -69,11 +72,11 @@ class BookmarkServiceTest {
         assertThat(problem.getViolations())
             .extracting(FieldViolation::field, FieldViolation::messageKey)
             .contains(
-                org.assertj.core.groups.Tuple.tuple("url", "validation.url.invalid"),
-                org.assertj.core.groups.Tuple.tuple("title", "validation.title.required"),
-                org.assertj.core.groups.Tuple.tuple("notes", "validation.notes.too-long"),
-                org.assertj.core.groups.Tuple.tuple("tags", "validation.tags.too-many"),
-                org.assertj.core.groups.Tuple.tuple("tags", "validation.tag.invalid")
+                tuple("url", "validation.url.invalid"),
+                tuple("title", "validation.title.required"),
+                tuple("notes", "validation.notes.too-long"),
+                tuple("tags", "validation.tags.too-many"),
+                tuple("tags", "validation.tag.invalid")
             );
         verifyNoInteractions(repository);
     }
@@ -107,6 +110,7 @@ class BookmarkServiceTest {
     void updateUsesLockedOwnedRowAndMutatesEditableFields() {
         Bookmark bookmark = bookmark("alice", Visibility.PRIVATE, BookmarkStatus.ACTIVE);
         when(repository.findForUpdateById(bookmark.getId())).thenReturn(bookmark);
+        Instant earliestExpectedUpdate = Instant.now().minusSeconds(1);
 
         Bookmark updated = service.update(
             "alice",
@@ -121,7 +125,7 @@ class BookmarkServiceTest {
         assertThat(updated.getTags()).containsExactly("java");
         assertThat(updated.getVisibility()).isEqualTo(Visibility.PUBLIC);
         assertThat(updated.getStatus()).isEqualTo(BookmarkStatus.ACTIVE);
-        assertThat(updated.getUpdatedAt()).isAfter(Instant.EPOCH);
+        assertThat(updated.getUpdatedAt()).isBetween(earliestExpectedUpdate, Instant.now().plusSeconds(1));
         verify(repository).findForUpdateById(bookmark.getId());
     }
 
@@ -185,14 +189,14 @@ class BookmarkServiceTest {
     @Test
     void listOffsetBuildsNewestFirstPageRequest() {
         Bookmark bookmark = bookmark("alice", Visibility.PRIVATE, BookmarkStatus.ACTIVE);
-        when(repository.findAll(org.mockito.ArgumentMatchers.<Specification<Bookmark>>any(), any(Pageable.class)))
+        when(repository.findAll(ArgumentMatchers.<Specification<Bookmark>>any(), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(bookmark)));
 
         var page = service.listOffset("alice", new BookmarkListQuery(List.of(), null, null), 2, 15);
 
         assertThat(page.getContent()).containsExactly(bookmark);
-        var pageable = org.mockito.ArgumentCaptor.forClass(Pageable.class);
-        verify(repository).findAll(org.mockito.ArgumentMatchers.<Specification<Bookmark>>any(), pageable.capture());
+        var pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findAll(ArgumentMatchers.<Specification<Bookmark>>any(), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isEqualTo(2);
         assertThat(pageable.getValue().getPageSize()).isEqualTo(15);
         assertThat(pageable.getValue().getSort().getOrderFor("createdAt").isDescending()).isTrue();
@@ -210,7 +214,7 @@ class BookmarkServiceTest {
         );
         assertThat(problem.getViolations())
             .extracting(FieldViolation::field, FieldViolation::messageKey)
-            .containsExactly(org.assertj.core.groups.Tuple.tuple("tag", "validation.tag.invalid"));
+            .containsExactly(tuple("tag", "validation.tag.invalid"));
     }
 
     private static BookmarkRequest validRequest(Visibility visibility) {

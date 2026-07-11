@@ -3,8 +3,10 @@ package dev.stackverse.backend.moderation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
@@ -112,8 +114,8 @@ class ModerationServiceTest {
         assertThat(problem.getViolations())
             .extracting(FieldViolation::field, FieldViolation::messageKey)
             .containsExactly(
-                org.assertj.core.groups.Tuple.tuple("reason", "validation.report.reason.invalid"),
-                org.assertj.core.groups.Tuple.tuple("comment", "validation.report.comment.too-long")
+                tuple("reason", "validation.report.reason.invalid"),
+                tuple("comment", "validation.report.comment.too-long")
             );
         verify(reportRepository, never()).saveAndFlush(any());
     }
@@ -166,7 +168,7 @@ class ModerationServiceTest {
             eq("report.resolved"),
             eq("report"),
             eq(report.getId().toString()),
-            org.mockito.ArgumentMatchers.argThat(detail ->
+            argThat(detail ->
                 detail.get("bookmarkId").equals(report.getBookmarkId().toString())
                     && detail.get("resolution").equals("dismissed")
                     && detail.get("autoResolved").equals(false)
@@ -186,6 +188,7 @@ class ModerationServiceTest {
         when(bookmarkRepository.findById(target.getBookmarkId())).thenReturn(Optional.of(bookmark));
         when(reportRepository.findForUpdateByBookmarkIdAndStatusOrderByIdAsc(target.getBookmarkId(), ReportStatus.OPEN))
             .thenReturn(List.of(target, sibling));
+        Instant earliestExpectedUpdate = Instant.now().minusSeconds(1);
 
         service.resolve("moderator", target.getId(), new ReportResolutionRequest("actioned", "confirmed"));
 
@@ -198,7 +201,7 @@ class ModerationServiceTest {
         assertThat(sibling.getResolvedBy()).isEqualTo("moderator");
         assertThat(sibling.getResolutionNote()).isEqualTo("confirmed");
         assertThat(bookmark.getStatus()).isEqualTo(BookmarkStatus.HIDDEN);
-        assertThat(bookmark.getUpdatedAt()).isAfter(Instant.EPOCH);
+        assertThat(bookmark.getUpdatedAt()).isBetween(earliestExpectedUpdate, Instant.now().plusSeconds(1));
         verify(auditService, times(2)).record(
             eq("moderator"), eq("report.resolved"), eq("report"), any(), anyMap()
         );
@@ -265,6 +268,7 @@ class ModerationServiceTest {
     void setBookmarkStatusMutatesLockedRowAndRecordsTransition() {
         Bookmark bookmark = bookmark(Visibility.PUBLIC, BookmarkStatus.ACTIVE);
         when(bookmarkRepository.findForUpdateById(bookmark.getId())).thenReturn(bookmark);
+        Instant earliestExpectedUpdate = Instant.now().minusSeconds(1);
 
         Bookmark hidden = service.setBookmarkStatus(
             "moderator",
@@ -273,13 +277,13 @@ class ModerationServiceTest {
         );
 
         assertThat(hidden.getStatus()).isEqualTo(BookmarkStatus.HIDDEN);
-        assertThat(hidden.getUpdatedAt()).isAfter(Instant.EPOCH);
+        assertThat(hidden.getUpdatedAt()).isBetween(earliestExpectedUpdate, Instant.now().plusSeconds(1));
         verify(auditService).record(
             eq("moderator"),
             eq("bookmark.status-changed"),
             eq("bookmark"),
             eq(bookmark.getId().toString()),
-            org.mockito.ArgumentMatchers.argThat(detail ->
+            argThat(detail ->
                 detail.get("from").equals("active")
                     && detail.get("to").equals("hidden")
                     && detail.get("note").equals("policy")

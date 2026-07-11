@@ -1,6 +1,7 @@
 package dev.stackverse.backend.message;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -117,7 +118,7 @@ class MessageSecurityWebMvcTest {
         when(jwtDecoder.decode("blocked-token")).thenReturn(jwt("blocked-token", "blocked-admin", List.of("admin")));
         when(accountService.recordSeen("blocked-admin"))
             .thenReturn(account("blocked-admin", UserAccountStatus.BLOCKED));
-        when(localizer.localize(org.mockito.ArgumentMatchers.eq("error.account.blocked"), any()))
+        when(localizer.localize(eq("error.account.blocked"), any()))
             .thenReturn("This account is blocked.");
 
         mockMvc.perform(post("/api/v1/messages")

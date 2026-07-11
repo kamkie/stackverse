@@ -15,6 +15,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -27,25 +29,31 @@ class MessageControllerTest {
     private final MessageService service = mock(MessageService.class);
     private final LanguageResolver languageResolver = mock(LanguageResolver.class);
     private final MessageController controller = new MessageController(repository, service, languageResolver);
+    private Locale originalLocale;
+
+    @BeforeEach
+    void captureDefaultLocale() {
+        originalLocale = Locale.getDefault();
+    }
+
+    @AfterEach
+    void restoreDefaultLocale() {
+        Locale.setDefault(originalLocale);
+    }
 
     @Test
     void listEscapesCaseFoldedSearchAndReturnsNoCachePage() {
         Message message = message("ui.action.save", "en", "Save");
-        when(repository.search(eq("ui.action.save"), eq("%a\\%\\_\\\\b%"), eq("en"), any(Pageable.class)))
+        when(repository.search(eq("ui.action.save"), eq("%i\\%\\_\\\\b%"), eq("en"), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(message), PageRequest.of(1, 10), 11));
-        Locale previous = Locale.getDefault();
-        try {
-            Locale.setDefault(Locale.forLanguageTag("tr"));
+        Locale.setDefault(Locale.forLanguageTag("tr"));
 
-            var response = controller.list("ui.action.save", "A%_\\B", "en", 1, 10);
+        var response = controller.list("ui.action.save", "I%_\\B", "en", 1, 10);
 
-            assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-cache");
-            assertThat(response.getBody().items()).extracting(MessageResponse::text).containsExactly("Save");
-            assertThat(response.getBody().page()).isEqualTo(1);
-            assertThat(response.getBody().totalItems()).isEqualTo(11);
-        } finally {
-            Locale.setDefault(previous);
-        }
+        assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-cache");
+        assertThat(response.getBody().items()).extracting(MessageResponse::text).containsExactly("Save");
+        assertThat(response.getBody().page()).isEqualTo(1);
+        assertThat(response.getBody().totalItems()).isEqualTo(11);
     }
 
     @Test
@@ -76,24 +84,42 @@ class MessageControllerTest {
     }
 
     @Test
-    void adminMutationsUseAuthenticatedActorAndResourceLocations() {
+    void createUsesAuthenticatedActorAndResourceLocation() {
         Authentication authentication = mock(Authentication.class);
         when(authentication.getName()).thenReturn("admin");
         MessageRequest request = new MessageRequest("ui.action.save", "en", "Save", null);
         Message created = message("ui.action.save", "en", "Save");
-        Message updated = message("ui.action.save", "en", "Save now");
         when(service.create("admin", request)).thenReturn(created);
-        when(service.update("admin", created.getId(), request)).thenReturn(updated);
 
         var createResponse = controller.create(request, authentication);
-        MessageResponse updateResponse = controller.update(created.getId(), request, authentication);
-        controller.delete(created.getId(), authentication);
 
         assertThat(createResponse.getStatusCode().value()).isEqualTo(201);
         assertThat(createResponse.getHeaders().getLocation().getPath())
             .isEqualTo("/api/v1/messages/" + created.getId());
+    }
+
+    @Test
+    void updateUsesAuthenticatedActor() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("admin");
+        MessageRequest request = new MessageRequest("ui.action.save", "en", "Save", null);
+        Message updated = message("ui.action.save", "en", "Save now");
+        when(service.update("admin", updated.getId(), request)).thenReturn(updated);
+
+        MessageResponse updateResponse = controller.update(updated.getId(), request, authentication);
+
         assertThat(updateResponse.text()).isEqualTo("Save now");
-        verify(service).delete("admin", created.getId());
+    }
+
+    @Test
+    void deleteUsesAuthenticatedActor() {
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("admin");
+        UUID id = UUID.randomUUID();
+
+        controller.delete(id, authentication);
+
+        verify(service).delete("admin", id);
     }
 
     private static Message message(String key, String language, String text) {
