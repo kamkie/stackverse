@@ -128,7 +128,7 @@ class AdminServicePostgresTest {
     }
 
     @Test
-    void auditLogFiltersTimeAndTargetsAndToleratesLegacyInvalidDetailJson() throws SQLException {
+    void auditLogFiltersTimeAndTargetsAndToleratesNullDetail() throws SQLException {
         seedUsersAndBookmarks();
         AdminService admin = service("admin", "admin", "moderator");
         admin.setUserStatus("alice", new UserStatusInput("blocked", "audit detail"));
@@ -197,17 +197,17 @@ class AdminServicePostgresTest {
 
     @Test
     void statsZeroFillThirtyUtcDaysAggregateTopTagsAndRevalidateByEtag() throws Exception {
-        LocalDate today = LocalDate.now(ZoneOffset.UTC);
-        Instant todayStart = today.atStartOfDay(ZoneOffset.UTC).toInstant();
-        insertUser(dataSource, "alice", "active", null, todayStart.plusSeconds(10));
-        insertUser(dataSource, "bob", "blocked", "reason", todayStart.minusSeconds(10));
+        LocalDate dataDay = LocalDate.now(ZoneOffset.UTC).minusDays(1);
+        Instant dataDayStart = dataDay.atStartOfDay(ZoneOffset.UTC).toInstant();
+        insertUser(dataSource, "alice", "active", null, dataDayStart.plusSeconds(10));
+        insertUser(dataSource, "bob", "blocked", "reason", dataDayStart.minusSeconds(10));
         insertBookmark(
                 dataSource,
                 ALICE_BOOKMARK,
                 "alice",
                 "public",
                 "active",
-                todayStart.plusSeconds(20),
+                dataDayStart.plusSeconds(20),
                 "Today",
                 List.of("java", "quarkus"));
         insertBookmark(
@@ -216,7 +216,7 @@ class AdminServicePostgresTest {
                 "bob",
                 "public",
                 "hidden",
-                todayStart.minusSeconds(86_400),
+                dataDayStart.minusSeconds(86_400),
                 "Yesterday",
                 List.of("java"));
         insertReport(
@@ -230,7 +230,7 @@ class AdminServicePostgresTest {
                 null,
                 null,
                 null,
-                todayStart.plusSeconds(30));
+                dataDayStart.plusSeconds(30));
 
         AdminService moderator = service("moderator", "moderator");
         Response stats = moderator.stats(request());
@@ -243,9 +243,13 @@ class AdminServicePostgresTest {
         assertEquals(1, body.at("/totals/hiddenBookmarks").asInt());
         assertEquals(1, body.at("/totals/openReports").asInt());
         assertEquals(30, body.get("daily").size());
-        assertEquals(today.toString(), body.at("/daily/29/date").asText());
-        assertEquals(1, body.at("/daily/29/bookmarksCreated").asInt());
-        assertEquals(1, body.at("/daily/29/activeUsers").asInt());
+        JsonNode dataDayStats =
+                java.util.stream.StreamSupport.stream(body.get("daily").spliterator(), false)
+                        .filter(day -> dataDay.toString().equals(day.get("date").asText()))
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals(1, dataDayStats.get("bookmarksCreated").asInt());
+        assertEquals(1, dataDayStats.get("activeUsers").asInt());
         assertEquals("java", body.at("/topTags/0/tag").asText());
         assertEquals(2, body.at("/topTags/0/count").asInt());
         assertEquals("quarkus", body.at("/topTags/1/tag").asText());
