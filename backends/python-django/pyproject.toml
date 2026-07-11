@@ -21,6 +21,7 @@ dependencies = [
 test = [
   "pytest>=9.1.1,<10",
   "pytest-cov>=7.1.0,<8",
+  "pytest-django>=4.12.0,<5",
   "ruff>=0.15.21,<1",
 ]
 
@@ -35,6 +36,7 @@ build-backend = "hatchling.build"
 packages = ["stackverse_api", "stackverse_django"]
 
 [tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "stackverse_django.settings"
 testpaths = ["tests"]
 
 [tool.ruff]

@@ -26,6 +26,26 @@ jobs:
     name: Backend · Python Django + DRF
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: stackverse
+          POSTGRES_USER: stackverse
+          POSTGRES_PASSWORD: stackverse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackverse -d stackverse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: stackverse
+      DB_USER: stackverse
+      DB_PASSWORD: stackverse
     defaults:
       run:
         working-directory: backends/python-django
