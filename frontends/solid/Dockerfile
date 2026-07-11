@@ -7,7 +7,7 @@
 # internal to compose; the gateway proxies browser traffic to it.
 
 FROM node:26.5.0-alpine AS build
-RUN npm install -g corepack && corepack enable
+RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /build/frontends/solid
 COPY frontends/solid/package.json frontends/solid/yarn.lock frontends/solid/.yarnrc.yml ./
 RUN yarn install --immutable
