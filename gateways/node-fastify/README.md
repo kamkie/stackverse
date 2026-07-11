@@ -56,6 +56,9 @@ Route contract, cookie rules, and the login sequence live in
 - **Logging** uses Pino: JSON console output by default, `pino-pretty` for
   `LOG_FORMAT=text`, and structured `event`/`outcome` fields for the contract
   events. Tokens, cookies, and client secrets are never logged.
+- **Tooling** uses a flat ESLint configuration for JavaScript and TypeScript,
+  Prettier for deterministic formatting, and strict `tsc` checks. All three
+  run locally and in the component workflow.
 
 ## Logging conformance
 
@@ -104,6 +107,9 @@ OIDC redirects, callback failure behavior, token relay, CSRF/origin checks,
 security headers, logout, and refresh rejection vs IdP outage.
 
 ```sh
+yarn lint
+yarn format:check   # use yarn format to rewrite
+yarn typecheck
 yarn build
 yarn test
 ```

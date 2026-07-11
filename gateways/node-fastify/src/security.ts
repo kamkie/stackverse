@@ -5,8 +5,7 @@ export const XSRF_COOKIE = "XSRF-TOKEN";
 export const XSRF_HEADER = "x-xsrf-token";
 export const SESSION_COOKIE = "stackverse_session";
 
-export const CONTENT_SECURITY_POLICY =
-  "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'";
+export const CONTENT_SECURITY_POLICY = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'";
 export const STRICT_TRANSPORT_SECURITY = "max-age=31536000; includeSubDomains";
 
 const STATE_CHANGING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
@@ -100,7 +99,8 @@ function canonicalOrigin(url: URL): string {
   if (host.includes(":") && !host.startsWith("[")) {
     host = `[${host}]`;
   }
-  const defaultPort = (scheme === "http" && (url.port === "" || url.port === "80"))
-    || (scheme === "https" && (url.port === "" || url.port === "443"));
+  const defaultPort =
+    (scheme === "http" && (url.port === "" || url.port === "80")) ||
+    (scheme === "https" && (url.port === "" || url.port === "443"));
   return `${scheme}://${host}${defaultPort ? "" : `:${url.port}`}`;
 }

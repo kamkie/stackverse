@@ -92,11 +92,17 @@ export class OidcClient {
     try {
       metadata = await this.metadata();
     } catch (error) {
-      logEvent("error", "dependency_call_failed", "failure", "Keycloak discovery failed during token refresh; the session is kept", {
-        dependency: "keycloak",
-        duration_ms: Date.now() - started,
-        error_code: error instanceof Error ? error.name : "oidc_discovery_failed",
-      });
+      logEvent(
+        "error",
+        "dependency_call_failed",
+        "failure",
+        "Keycloak discovery failed during token refresh; the session is kept",
+        {
+          dependency: "keycloak",
+          duration_ms: Date.now() - started,
+          error_code: error instanceof Error ? error.name : "oidc_discovery_failed",
+        },
+      );
       throw error instanceof IdpUnavailableError
         ? error
         : new IdpUnavailableError("The IdP could not be discovered to refresh the access token", { cause: error });
@@ -115,39 +121,63 @@ export class OidcClient {
         }),
       });
     } catch (error) {
-      logEvent("error", "dependency_call_failed", "failure", "Keycloak was unreachable during token refresh; the session is kept", {
-        dependency: "keycloak",
-        duration_ms: Date.now() - started,
-        error_code: error instanceof Error ? error.name : "fetch_failed",
-      });
+      logEvent(
+        "error",
+        "dependency_call_failed",
+        "failure",
+        "Keycloak was unreachable during token refresh; the session is kept",
+        {
+          dependency: "keycloak",
+          duration_ms: Date.now() - started,
+          error_code: error instanceof Error ? error.name : "fetch_failed",
+        },
+      );
       throw new IdpUnavailableError("The IdP could not be reached to refresh the access token", { cause: error });
     }
 
     if (!response.ok) {
       if (response.status === 400 || response.status === 401) {
-        logEvent("warn", "token_refresh_failed", "failure", "Token refresh rejected by the IdP; treating the session as expired", {
-          error_code: "idp_rejected",
-          idp_status: response.status,
-        });
+        logEvent(
+          "warn",
+          "token_refresh_failed",
+          "failure",
+          "Token refresh rejected by the IdP; treating the session as expired",
+          {
+            error_code: "idp_rejected",
+            idp_status: response.status,
+          },
+        );
         return null;
       }
 
-      logEvent("error", "dependency_call_failed", "failure", "Keycloak failed during token refresh; the session is kept", {
-        dependency: "keycloak",
-        duration_ms: Date.now() - started,
-        error_code: `idp_status_${response.status}`,
-      });
+      logEvent(
+        "error",
+        "dependency_call_failed",
+        "failure",
+        "Keycloak failed during token refresh; the session is kept",
+        {
+          dependency: "keycloak",
+          duration_ms: Date.now() - started,
+          error_code: `idp_status_${response.status}`,
+        },
+      );
       throw new IdpUnavailableError(`The IdP answered ${response.status} to the token refresh`);
     }
 
     try {
       return parseTokenSet(await response.json());
     } catch (error) {
-      logEvent("error", "dependency_call_failed", "failure", "Keycloak returned an invalid token refresh response; the session is kept", {
-        dependency: "keycloak",
-        duration_ms: Date.now() - started,
-        error_code: error instanceof Error ? error.name : "invalid_token_response",
-      });
+      logEvent(
+        "error",
+        "dependency_call_failed",
+        "failure",
+        "Keycloak returned an invalid token refresh response; the session is kept",
+        {
+          dependency: "keycloak",
+          duration_ms: Date.now() - started,
+          error_code: error instanceof Error ? error.name : "invalid_token_response",
+        },
+      );
       throw new IdpUnavailableError("The IdP returned an invalid token refresh response", { cause: error });
     }
   }
@@ -165,10 +195,16 @@ export class OidcClient {
         }),
       });
       if (!response.ok) {
-        logEvent("warn", "idp_logout_failed", "failure", "IdP logout returned a failure; local session destroyed anyway", {
-          error_code: "idp_rejected",
-          idp_status: response.status,
-        });
+        logEvent(
+          "warn",
+          "idp_logout_failed",
+          "failure",
+          "IdP logout returned a failure; local session destroyed anyway",
+          {
+            error_code: "idp_rejected",
+            idp_status: response.status,
+          },
+        );
       }
     } catch {
       logEvent("warn", "idp_logout_failed", "failure", "IdP logout failed; local session destroyed anyway", {
@@ -197,13 +233,19 @@ export class OidcClient {
     if (!response.ok) {
       throw new IdpUnavailableError(`OIDC discovery returned ${response.status}`);
     }
-    const document = await response.json() as Record<string, unknown>;
+    const document = (await response.json()) as Record<string, unknown>;
     return {
-      authorizationEndpoint: endpoint(document, "authorization_endpoint", "/protocol/openid-connect/auth", browserBase, [
+      authorizationEndpoint: endpoint(
+        document,
+        "authorization_endpoint",
+        "/protocol/openid-connect/auth",
+        browserBase,
+        [browserBase, serverBase],
+      ),
+      tokenEndpoint: endpoint(document, "token_endpoint", "/protocol/openid-connect/token", serverBase, [
         browserBase,
         serverBase,
       ]),
-      tokenEndpoint: endpoint(document, "token_endpoint", "/protocol/openid-connect/token", serverBase, [browserBase, serverBase]),
       jwksUri: endpoint(document, "jwks_uri", "/protocol/openid-connect/certs", serverBase, [browserBase, serverBase]),
       endSessionEndpoint: endpoint(document, "end_session_endpoint", "/protocol/openid-connect/logout", serverBase, [
         browserBase,
@@ -251,9 +293,8 @@ function parseTokenSet(value: unknown): TokenSet {
   }
   const tokenSet: TokenSet = {
     accessToken: record["access_token"],
-    expiresIn: typeof record["expires_in"] === "number" && Number.isFinite(record["expires_in"])
-      ? record["expires_in"]
-      : 300,
+    expiresIn:
+      typeof record["expires_in"] === "number" && Number.isFinite(record["expires_in"]) ? record["expires_in"] : 300,
   };
   if (typeof record["refresh_token"] === "string" && record["refresh_token"].length > 0) {
     tokenSet.refreshToken = record["refresh_token"];
