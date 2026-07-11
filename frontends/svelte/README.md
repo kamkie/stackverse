@@ -15,9 +15,10 @@ yarn dev              # dev server on :5173, /api and /auth proxied to a gateway
 yarn lint             # ESLint with TypeScript and Svelte rules
 yarn format:check     # verify Svelte-aware Prettier formatting
 yarn test             # Vitest helper and Svelte component tests
+yarn test:coverage    # instrument all runtime src files and emit LCOV
 yarn typecheck        # svelte-check diagnostics
 yarn build            # typecheck + static production bundle in dist/
-yarn check            # lint + format + tests + typecheck + production build
+yarn check            # lint + format + typecheck + build + all-source coverage
 ```
 
 Yarn Berry with Plug'n'Play — there is no `node_modules`; resolution goes
