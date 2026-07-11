@@ -46,12 +46,16 @@ jobs:
           restore-keys: sbt-${{ runner.os }}-backend-scala-http4s-
       - name: Test with coverage
         run: sbt "scalafmtCheckAll; clean; coverage; testFull; coverageReport"
-      - name: Normalize coverage report path
+      - name: Normalize report paths
         run: |
           report="$(find target -path '*/scoverage-report/scoverage.xml' -print -quit)"
           test -n "$report"
           mkdir -p target/scoverage-report
           cp "$report" target/scoverage-report/scoverage.xml
+          test_report_dir="$(find target -type d -path '*/test-reports' ! -path 'target/test-reports' -print -quit)"
+          test -n "$test_report_dir"
+          mkdir -p target/test-reports
+          cp "$test_report_dir"/TEST-*.xml target/test-reports/
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v7
         continue-on-error: true
