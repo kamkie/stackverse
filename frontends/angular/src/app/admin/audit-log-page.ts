@@ -109,7 +109,9 @@ function endOfDayIso(day: string): string {
                   <td>
                     <span class="sv-badge">{{ entry.action }}</span>
                   </td>
-                  <td class="sv-cell-mono">{{ entry.targetType }}/{{ entry.targetId.slice(0, 8) }}</td>
+                  <td class="sv-cell-mono">
+                    {{ entry.targetType }}/{{ entry.targetId.slice(0, 8) }}
+                  </td>
                 </tr>
               }
             </tbody>

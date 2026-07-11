@@ -75,7 +75,9 @@ const CHART = { width: 620, height: 160, left: 24, bottom: 18, top: 6 };
         <a routerLink="/admin/reports" class="sv-stat sv-stat--link">
           <span class="sv-stat-value">{{ data.totals.openReports }}</span>
           <!-- single line: the label is matched with an anchored regex in e2e -->
-          <span class="sv-stat-label">{{ tCount('ui.admin.stats.open-reports', data.totals.openReports) }}</span>
+          <span class="sv-stat-label">{{
+            tCount('ui.admin.stats.open-reports', data.totals.openReports)
+          }}</span>
         </a>
       </div>
       <div class="sv-card">

@@ -21,10 +21,7 @@ function bookmark(id: string): Bookmark {
 }
 
 function createStore(api: BookmarksApi, filters: ReturnType<typeof signal<BookmarkFilters>>) {
-  return runInInjectionContext(
-    TestBed.inject(Injector),
-    () => new BookmarkListStore(api, filters),
-  );
+  return runInInjectionContext(TestBed.inject(Injector), () => new BookmarkListStore(api, filters));
 }
 
 describe('BookmarkListStore', () => {

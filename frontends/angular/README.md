@@ -14,6 +14,8 @@ without a deploy.
 ```sh
 yarn install
 yarn dev              # dev server on :5173, /api and /auth proxied to a gateway on :8000
+yarn lint             # angular-eslint: TypeScript, inline/external templates, accessibility
+yarn format:check     # Prettier verification (use yarn format to rewrite)
 yarn test             # vitest via `ng test` (add --coverage for lcov)
 yarn build            # type-checked static production bundle in dist/browser
 ```
@@ -22,6 +24,11 @@ Yarn Berry with the `node-modules` linker. Angular's Vite/esbuild builder
 currently loses Yarn PnP virtual package paths, so this implementation keeps
 Yarn 4 but installs a generated, gitignored `node_modules` tree. Package
 archives still live in the Yarn global cache.
+
+The Angular CLI `lint` target uses angular-eslint's flat configuration,
+including inline-template processing and the recommended template
+accessibility rules. Prettier owns formatting through the checked-in
+`.prettierrc`; both checks run in the component workflow before build/tests.
 
 **No mock mode.** Unlike `frontends/react` (MSW), this app has no in-browser
 API mocks: `yarn dev` expects a running gateway on :8000 (see the dev-stack

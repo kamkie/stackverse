@@ -22,9 +22,7 @@ import type { BookmarkListStore } from './list-store';
     } @else {
       <ul class="sv-card-list">
         @for (bookmark of store().items(); track bookmark.id) {
-          <ng-container
-            *ngTemplateOutlet="itemTemplate(); context: { $implicit: bookmark }"
-          />
+          <ng-container *ngTemplateOutlet="itemTemplate(); context: { $implicit: bookmark }" />
         }
       </ul>
       @if (store().hasMore()) {

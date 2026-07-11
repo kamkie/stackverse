@@ -20,7 +20,11 @@ export const REPORT_REASONS: ReportReason[] = ['spam', 'offensive', 'broken-link
       (closed)="closed.emit()"
     >
       <form class="sv-form" (ngSubmit)="submit()">
-        <sv-field [label]="t('ui.field.reason')" forId="report-reason" [error]="fieldError('reason')">
+        <sv-field
+          [label]="t('ui.field.reason')"
+          forId="report-reason"
+          [error]="fieldError('reason')"
+        >
           <select id="report-reason" class="sv-select" name="reason" [(ngModel)]="reason">
             @for (option of reasons; track option) {
               <option [value]="option">{{ t('ui.report.reason.' + option) }}</option>

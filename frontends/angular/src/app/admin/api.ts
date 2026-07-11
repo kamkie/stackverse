@@ -70,9 +70,7 @@ export class AdminApi {
   }
 
   listMessages(query: MessagesQuery): Promise<Page<Message>> {
-    return call(
-      this.http.get<Page<Message>>('/api/v1/messages', { params: params({ ...query }) }),
-    );
+    return call(this.http.get<Page<Message>>('/api/v1/messages', { params: params({ ...query }) }));
   }
 
   createMessage(body: MessageInput): Promise<Message> {

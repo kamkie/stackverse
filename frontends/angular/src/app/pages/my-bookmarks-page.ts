@@ -148,9 +148,7 @@ export class MyBookmarksPage {
   protected readonly deleting = signal<Bookmark | null>(null);
   protected readonly deletePending = signal(false);
 
-  protected readonly filtered = computed(
-    () => this.q() !== '' || this.activeTags().length > 0,
-  );
+  protected readonly filtered = computed(() => this.q() !== '' || this.activeTags().length > 0);
 
   protected toggleTag(tag: string): void {
     this.activeTags.update((tags) =>

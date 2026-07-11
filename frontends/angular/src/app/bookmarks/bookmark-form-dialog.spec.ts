@@ -61,7 +61,9 @@ describe('BookmarkFormDialog', () => {
 
   it('emits saved and closed after a successful create', async () => {
     submit();
-    controller.expectOne('/api/v1/bookmarks').flush({ id: '1' }, { status: 201, statusText: 'Created' });
+    controller
+      .expectOne('/api/v1/bookmarks')
+      .flush({ id: '1' }, { status: 201, statusText: 'Created' });
     await flushAsync();
     expect(saved).toBe(1);
     expect(closed).toBe(1);

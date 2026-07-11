@@ -44,9 +44,7 @@ describe('AuditLogPage', () => {
   });
 
   async function setDate(name: string, value: string): Promise<void> {
-    const input = fixture.nativeElement.querySelector(
-      `input[name="${name}"]`,
-    ) as HTMLInputElement;
+    const input = fixture.nativeElement.querySelector(`input[name="${name}"]`) as HTMLInputElement;
     input.value = value;
     input.dispatchEvent(new Event('input'));
     fixture.detectChanges();

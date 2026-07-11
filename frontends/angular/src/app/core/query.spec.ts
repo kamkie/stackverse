@@ -30,7 +30,7 @@ describe('Query', () => {
     const params = signal(0);
     let resolveSecond: ((value: string) => void) | undefined;
     let call = 0;
-    const query = create(params, (p: number) => {
+    const query = create(params, () => {
       call += 1;
       if (call === 1) return Promise.resolve('first');
       return new Promise<string>((resolve) => (resolveSecond = resolve));

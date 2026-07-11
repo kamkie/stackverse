@@ -81,11 +81,9 @@ describe('I18n', () => {
         );
       }
       return new Promise<Response>((_resolve, reject) => {
-        signal.addEventListener(
-          'abort',
-          () => reject(new DOMException('Aborted', 'AbortError')),
-          { once: true },
-        );
+        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), {
+          once: true,
+        });
       });
     }) as typeof fetch;
 
@@ -109,11 +107,9 @@ describe('I18n', () => {
       const signal = init?.signal;
       if (!(signal instanceof AbortSignal)) throw new Error('Expected an AbortSignal');
       return new Promise<Response>((_resolve, reject) => {
-        signal.addEventListener(
-          'abort',
-          () => reject(new DOMException('Aborted', 'AbortError')),
-          { once: true },
-        );
+        signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), {
+          once: true,
+        });
       });
     }) as typeof fetch;
 

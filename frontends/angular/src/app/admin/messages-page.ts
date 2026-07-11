@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, OnInit, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { fieldErrorFor, isConflict, messageOf } from '../api/problem';
-import type { FieldError, Message, MessageInput, Page } from '../api/types';
+import type { FieldError, Message, MessageInput } from '../api/types';
 import { debounced } from '../core/debounce';
 import { Query } from '../core/query';
 import { ToastStore } from '../core/toast';
@@ -31,7 +31,6 @@ import { AdminApi, type MessagesQuery } from './api';
             name="key"
             [(ngModel)]="key"
             [attr.aria-invalid]="fieldError('key') ? true : null"
-            [attr.autofocus]="message() ? null : ''"
           />
         </sv-field>
         <sv-field
