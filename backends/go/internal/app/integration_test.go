@@ -34,6 +34,10 @@ var integrationPool *pgxpool.Pool
 func TestMain(m *testing.M) {
 	dsn := os.Getenv(integrationDatabaseEnv)
 	if dsn == "" {
+		if os.Getenv("CI") == "true" {
+			_, _ = fmt.Fprintf(os.Stderr, "%s is required in CI\n", integrationDatabaseEnv)
+			os.Exit(1)
+		}
 		os.Exit(m.Run())
 	}
 
@@ -147,18 +151,22 @@ type apiResponse struct {
 
 func (h *integrationHarness) do(t *testing.T, method, path, token string, body any) apiResponse {
 	t.Helper()
-	var raw []byte
-	if body != nil {
-		var err error
-		raw, err = json.Marshal(body)
-		if err != nil {
-			t.Fatalf("marshal request body: %v", err)
-		}
-	}
-	return h.doRaw(t, h.handler, method, path, token, raw)
+	return h.doOn(t, h.handler, method, path, token, body)
 }
 
 func (h *integrationHarness) doOn(t *testing.T, handler http.Handler, method, path, token string, body any) apiResponse {
+	t.Helper()
+	return h.doRaw(t, handler, method, path, token, marshalRequestBody(t, body))
+}
+
+func (h *integrationHarness) doWithHeader(t *testing.T, method, path, token string, body any, name, value string) apiResponse {
+	t.Helper()
+	header := http.Header{}
+	header.Set(name, value)
+	return h.doRaw(t, h.handler, method, path, token, marshalRequestBody(t, body), header)
+}
+
+func marshalRequestBody(t *testing.T, body any) []byte {
 	t.Helper()
 	var raw []byte
 	if body != nil {
@@ -168,10 +176,10 @@ func (h *integrationHarness) doOn(t *testing.T, handler http.Handler, method, pa
 			t.Fatalf("marshal request body: %v", err)
 		}
 	}
-	return h.doRaw(t, handler, method, path, token, raw)
+	return raw
 }
 
-func (h *integrationHarness) doRaw(t *testing.T, handler http.Handler, method, path, token string, body []byte) apiResponse {
+func (h *integrationHarness) doRaw(t *testing.T, handler http.Handler, method, path, token string, body []byte, headers ...http.Header) apiResponse {
 	t.Helper()
 	request := httptest.NewRequest(method, path, bytes.NewReader(body))
 	if body != nil {
@@ -179,6 +187,11 @@ func (h *integrationHarness) doRaw(t *testing.T, handler http.Handler, method, p
 	}
 	if token != "" {
 		request.Header.Set("Authorization", "Bearer "+token)
+	}
+	for _, header := range headers {
+		for name, values := range header {
+			request.Header[name] = append([]string(nil), values...)
+		}
 	}
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)

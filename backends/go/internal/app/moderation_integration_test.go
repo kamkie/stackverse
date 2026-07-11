@@ -41,7 +41,7 @@ func TestIntegrationModerationLifecycleAndPrivacy(t *testing.T) {
 
 	mine := h.do(t, http.MethodGet, "/api/v1/reports?status=open", bob, nil)
 	requireStatus(t, mine, http.StatusOK)
-	if page := decodeResponse[pageDocument[reportDocument]](t, mine); page.TotalItems != 1 || page.Items[0].ID != bobReport.ID {
+	if page := decodeResponse[pageDocument[reportDocument]](t, mine); page.TotalItems != 1 || len(page.Items) != 1 || page.Items[0].ID != bobReport.ID {
 		t.Fatalf("reporter list = %+v", page)
 	}
 
@@ -51,7 +51,7 @@ func TestIntegrationModerationLifecycleAndPrivacy(t *testing.T) {
 	updated := h.do(t, http.MethodPut, "/api/v1/reports/"+bobReport.ID, bob,
 		map[string]any{"reason": "broken-link", "comment": bobComment})
 	requireStatus(t, updated, http.StatusOK)
-	if got := decodeResponse[reportDocument](t, updated); got.Reason != "broken-link" {
+	if got := decodeResponse[reportDocument](t, updated); got.Reason != "broken-link" || got.Comment == nil || *got.Comment != bobComment {
 		t.Fatalf("updated report = %+v", got)
 	}
 
@@ -85,7 +85,7 @@ func TestIntegrationModerationLifecycleAndPrivacy(t *testing.T) {
 	charlieMine := h.do(t, http.MethodGet, "/api/v1/reports?status=actioned", charlie, nil)
 	requireStatus(t, charlieMine, http.StatusOK)
 	charliePage := decodeResponse[pageDocument[reportDocument]](t, charlieMine)
-	if charliePage.TotalItems != 1 || charliePage.Items[0].ID != charlieReport.ID || charliePage.Items[0].Status != "actioned" {
+	if charliePage.TotalItems != 1 || len(charliePage.Items) != 1 || charliePage.Items[0].ID != charlieReport.ID || charliePage.Items[0].Status != "actioned" {
 		t.Fatalf("auto-resolved sibling = %+v", charliePage)
 	}
 

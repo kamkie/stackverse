@@ -1,13 +1,10 @@
 package app
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +24,7 @@ func TestIntegrationMessagesAccountsStatsAndAudit(t *testing.T) {
 	if initialETag == "" || initialBundle.Header.Get("Cache-Control") != "no-cache" || initialBundle.Header.Get("Content-Language") != "pl" {
 		t.Fatalf("bundle caching/language headers = %v", initialBundle.Header)
 	}
-	request304 := httptestRequestWithHeader(t, h, http.MethodGet, "/api/v1/messages/bundle?lang=pl", "", nil,
+	request304 := h.doWithHeader(t, http.MethodGet, "/api/v1/messages/bundle?lang=pl", "", nil,
 		"If-None-Match", initialETag)
 	requireStatus(t, request304, http.StatusNotModified)
 	if len(request304.Body) != 0 {
@@ -160,7 +157,7 @@ func TestIntegrationMessagesAccountsStatsAndAudit(t *testing.T) {
 	if statsETag == "" || stats.Header.Get("Cache-Control") != "no-cache" {
 		t.Fatalf("stats cache headers = %v", stats.Header)
 	}
-	stats304 := httptestRequestWithHeader(t, h, http.MethodGet, "/api/v1/admin/stats", moderator, nil,
+	stats304 := h.doWithHeader(t, http.MethodGet, "/api/v1/admin/stats", moderator, nil,
 		"If-None-Match", statsETag)
 	requireStatus(t, stats304, http.StatusNotModified)
 
@@ -215,32 +212,6 @@ func TestIntegrationMessagesAccountsStatsAndAudit(t *testing.T) {
 			t.Fatalf("missing admin/security event %q", event)
 		}
 	}
-}
-
-func httptestRequestWithHeader(t *testing.T, h *integrationHarness, method, path, token string, body any, name, value string) apiResponse {
-	t.Helper()
-	var raw []byte
-	if body != nil {
-		var err error
-		raw, err = json.Marshal(body)
-		if err != nil {
-			t.Fatalf("marshal request body: %v", err)
-		}
-	}
-	request := httptest.NewRequest(method, path, bytes.NewReader(raw))
-	if token != "" {
-		request.Header.Set("Authorization", "Bearer "+token)
-	}
-	request.Header.Set(name, value)
-	recorder := httptest.NewRecorder()
-	h.handler.ServeHTTP(recorder, request)
-	result := recorder.Result()
-	defer result.Body.Close()
-	responseBody, err := io.ReadAll(result.Body)
-	if err != nil {
-		t.Fatalf("read response body: %v", err)
-	}
-	return apiResponse{Status: result.StatusCode, Header: result.Header.Clone(), Body: responseBody}
 }
 
 type accountDocument struct {

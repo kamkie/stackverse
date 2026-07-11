@@ -79,7 +79,8 @@ func TestIntegrationBookmarkContractAndAuthorization(t *testing.T) {
 
 	publicRead := h.do(t, http.MethodGet, "/api/v1/bookmarks/"+publicOne.ID, "", nil)
 	requireStatus(t, publicRead, http.StatusOK)
-	if got := decodeResponse[bookmarkDocument](t, publicRead); got.Owner != "alice" || got.Visibility != "public" {
+	if got := decodeResponse[bookmarkDocument](t, publicRead); got.Owner != "alice" || got.Visibility != "public" ||
+		got.Notes == nil || *got.Notes != "Notes for Public One" {
 		t.Fatalf("anonymous public bookmark = %+v", got)
 	}
 
