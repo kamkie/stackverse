@@ -118,7 +118,10 @@ docker build -t stackverse/gateway-openresty:local .
 docker run --rm stackverse/gateway-openresty:local luacheck /opt/stackverse/lua --config /opt/stackverse/.luacheckrc
 docker run --rm stackverse/gateway-openresty:local openresty -t -c /usr/local/openresty/nginx/conf/nginx.conf
 docker run --rm stackverse/gateway-openresty:local busted /opt/stackverse/test/native_proxy_spec.lua
-docker run --rm stackverse/gateway-openresty:local resty -I /opt/stackverse/lua /opt/stackverse/test/smoke.lua
+mkdir -p coverage
+docker run --rm -v "$(pwd)/coverage:/coverage" stackverse/gateway-openresty:local \
+  resty -I /opt/stackverse/lua /opt/stackverse/test/coverage.lua \
+  /opt/stackverse/test/smoke.lua /coverage/lcov.info
 ```
 
 The focused Busted suite verifies that gateway policy stays in the access
@@ -127,7 +130,10 @@ buffering is disabled, upstream TLS is verified, and browser credentials are
 stripped. The live container check verifies request-body forwarding, selective
 request/response headers, the bare `/api` route, trace propagation, and frontend
 upgrade handling. The broader smoke harness keeps the contract decision matrix
-fast and deterministic with mocked Redis, OIDC, and nginx request state.
+fast and deterministic with mocked Redis, OIDC, and nginx request state. It
+also covers URL/session configuration, Redis readiness classification, and
+OTLP log shaping, trace correlation, sanitization, and secret exclusion. On
+Windows, use an absolute host path for the coverage bind mount.
 
 ## Docker
 
