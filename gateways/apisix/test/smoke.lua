@@ -1061,6 +1061,271 @@ local function test_apisix_plugin_dispatch()
   end)
 end
 
+local function test_security_edge_boundaries()
+  with_modules({}, { "stackverse.security" }, function()
+    local security = require("stackverse.security")
+
+    set_ngx({
+      req = { get_method = function() return "PUT" end },
+      var = { http_cookie = "other=1; XSRF-TOKEN=abc; tail=2", uri = "/api" },
+    })
+    assert_equal(security.valid_csrf({ ["X-XSRF-TOKEN"] = { "abc", "ignored" } }), true)
+    assert_equal(security.valid_csrf({ ["X-XSRF-TOKEN"] = "abcd" }), false)
+
+    set_ngx({ req = { get_method = function() return "DELETE" end }, var = { uri = "/api" } })
+    assert_equal(security.same_origin_state_change({ Origin = "not-an-origin" }), false)
+    assert_equal(security.same_origin_state_change({ Origin = "http://localhost:8000/path" }), false)
+    assert_equal(security.same_origin_state_change({ Origin = "HTTP://localhost:8000" }), false)
+
+    set_ngx({ var = { http_cookie = "XSRF-TOKEN=already-present", uri = "/" } })
+    security.issue_csrf_cookie()
+    assert_equal(ngx.header["Set-Cookie"], nil)
+
+    set_ngx({ header = { ["Set-Cookie"] = { "first=1" } }, var = { uri = "/" } })
+    security.issue_csrf_cookie()
+    assert_equal(#ngx.header["Set-Cookie"], 2)
+  end)
+end
+
+local function test_readiness_failure_boundaries()
+  local behavior = {}
+  local client = {}
+  function client:set_timeout() end
+  function client:connect() return true end
+  function client:auth() return behavior.auth_ok, "auth failed" end
+  function client:select() return behavior.select_ok, "select failed" end
+  function client:ping() return behavior.pong end
+  function client:set_keepalive() return true end
+
+  with_modules({
+    ["resty.redis"] = { new = function() return client end },
+    ["stackverse.config"] = {
+      load = function()
+        return { redis = { host = "redis", port = 6379, username = "user", password = "pass", database = 2 } }
+      end,
+    },
+  }, { "stackverse.readyz" }, function()
+    local readyz = require("stackverse.readyz")
+    behavior.auth_ok = false
+    local _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(assert(cjson.decode(body())).detail, "Redis authentication failed.")
+
+    behavior.auth_ok = true
+    behavior.select_ok = false
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(assert(cjson.decode(body())).detail, "Redis database selection failed.")
+
+    behavior.select_ok = true
+    behavior.pong = "NOPE"
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(assert(cjson.decode(body())).detail, "Redis ping failed.")
+  end)
+end
+
+local function test_proxy_body_and_response_boundaries()
+  local response
+  local captured
+  local fake_http = {
+    new = function()
+      return {
+        set_timeout = function(_, value) captured = { timeout = value } end,
+        request_uri = function(_, url, options)
+          captured.url = url
+          captured.options = options
+          return response
+        end,
+      }
+    end,
+  }
+  local body_path = "/tmp/stackverse-apisix-request-body"
+  write_file(body_path, "file-backed-body")
+
+  with_modules({ ["resty.http"] = fake_http }, { "stackverse.proxy" }, function()
+    local proxy = require("stackverse.proxy")
+    response = { status = 204, headers = { ["Transfer-Encoding"] = "chunked", ETag = '"kept"' }, body = "must-not-print" }
+    local _, body = set_ngx({
+      req = {
+        get_body_data = function() return nil end,
+        get_body_file = function() return body_path end,
+        get_headers = function() return { Host = "browser", TE = "trailers", ["X-Request-ID"] = "request-1" } end,
+        get_method = function() return "PATCH" end,
+        read_body = function() end,
+      },
+      var = { request_uri = "/api/v1/reports/1", uri = "/api/v1/reports/1" },
+    })
+    assert_equal(proxy.request("http://backend:8080", "backend", nil, true, { otel_disabled = "true" }), 204)
+    assert_equal(captured.timeout, 30000)
+    assert_equal(captured.options.body, "file-backed-body")
+    assert_equal(captured.options.headers.Host, nil)
+    assert_equal(captured.options.headers.TE, nil)
+    assert_equal(captured.options.headers["X-Request-ID"], "request-1")
+    assert_equal(ngx.header["Transfer-Encoding"], nil)
+    assert_equal(ngx.header.ETag, '"kept"')
+    assert_equal(body(), "")
+
+    response = { status = 304, headers = { ETag = '"cached"' }, body = "must-not-print" }
+    _, body = set_ngx({ req = { get_headers = function() return {} end, get_method = function() return "GET" end }, var = { request_uri = "/api/v1/messages", uri = "/api/v1/messages" } })
+    assert_equal(proxy.request("http://backend:8080", "backend", nil, true, { otel_disabled = "true" }), 304)
+    assert_equal(body(), "")
+
+    response = nil
+    _, body = set_ngx({ req = { get_headers = function() return {} end, get_method = function() return "GET" end }, var = { request_uri = "/", uri = "/" } })
+    assert_equal(proxy.request("http://frontend:5173", "frontend", nil, false, { otel_disabled = "true" }), 502)
+    assert_equal(ngx.header["Content-Type"], "text/plain; charset=utf-8")
+    assert_equal(body(), "The upstream service is unavailable.")
+  end)
+end
+
+local function test_plugin_complete_route_dispatch()
+  local calls = {}
+  local function record(name)
+    return function() calls[#calls + 1] = name; return name end
+  end
+  with_modules({
+    ["apisix.core"] = { schema = { check = function() return true end } },
+    ["resty.session"] = { init = function() end },
+    ["stackverse.api"] = { handle = record("api") },
+    ["stackverse.auth"] = { login = record("login"), callback = record("callback"), session = record("session"), logout = record("logout") },
+    ["stackverse.config"] = { load = function() return { session = {} } end },
+    ["stackverse.logging"] = { configure = function() end, event = function() end },
+    ["stackverse.readyz"] = { check = record("readyz") },
+    ["stackverse.security"] = { apply_headers = function() end, issue_csrf_cookie = function() end },
+    ["stackverse.spa"] = { handle = record("spa") },
+  }, { "apisix.core", "resty.session", "stackverse.api", "stackverse.auth", "stackverse.config", "stackverse.logging", "stackverse.readyz", "stackverse.security", "stackverse.spa" }, function()
+    local plugin = dofile("/usr/local/apisix/apisix/plugins/stackverse-gateway.lua")
+    for _, case in ipairs({
+      { "/auth/login", "login" }, { "/auth/callback", "callback" }, { "/auth/logout", "logout" },
+      { "/api", "api" }, { "/api/v1/admin/stats", "api" }, { "/not-api", "spa" },
+    }) do
+      set_ngx({ var = { uri = case[1] } })
+      assert_equal(plugin.access(), case[2])
+    end
+  end)
+end
+
+local function test_config_parsing_boundaries()
+  local function load_with(values)
+    local loaded
+    with_modules({
+      ["stackverse.env"] = {
+        get = function(name, default)
+          local value = values[name]
+          if value == nil then return default end
+          return value
+        end,
+      },
+    }, { "stackverse.config", "stackverse.env" }, function()
+      loaded = require("stackverse.config").load()
+    end)
+    return loaded
+  end
+
+  local cfg = load_with({
+    BACKEND_URL = "https://Backend.Example:8443/root/",
+    PUBLIC_URL = "https://Example.Test/",
+    FRONTEND_URL = "http://frontend:5173/",
+    OIDC_ISSUER_URI = "https://idp.example/realms/stackverse/",
+    OIDC_INTERNAL_ISSUER_URI = "http://keycloak:8080/realms/stackverse/",
+    REDIS_URL = "rediss://user:p%40ss@[2001:db8::1]:6380/4",
+  })
+  assert_equal(cfg.backend_url, "https://Backend.Example:8443/root")
+  assert_equal(cfg.public_origin, "https://example.test")
+  assert_equal(cfg.frontend_url, "http://frontend:5173")
+  assert_equal(cfg.cookies_secure, true)
+  assert_equal(cfg.redis.host, "2001:db8::1")
+  assert_equal(cfg.redis.port, 6380)
+  assert_equal(cfg.redis.database, 4)
+  assert_equal(cfg.redis.ssl, true)
+  assert_equal(cfg.redis.username, "user")
+  assert_equal(cfg.redis.password, "p@ss")
+  assert_match(cfg.oidc.discovery.token_endpoint, "^http://keycloak:8080/")
+  assert_match(cfg.oidc.discovery.authorization_endpoint, "^https://idp%.example/")
+
+  cfg = load_with({ REDIS_URL = "cache.internal:6381" })
+  assert_equal(cfg.redis.host, "cache.internal")
+  assert_equal(cfg.redis.port, 6381)
+  assert_equal(cfg.redis.database, 0)
+  assert_equal(cfg.redis.ssl, false)
+
+  for _, case in ipairs({
+    { BACKEND_URL = "ftp://backend" },
+    { BACKEND_URL = "http://user@backend" },
+    { BACKEND_URL = "http://backend/path?query=1" },
+    { BACKEND_URL = "http://[broken" },
+  }) do
+    local ok = pcall(function() load_with(case) end)
+    assert_equal(ok, false)
+  end
+end
+
+local function test_logging_privacy_and_otlp_boundaries()
+  local timer_callback
+  local timer_entry
+  local exported
+  local fake_http = {
+    new = function()
+      return {
+        set_timeout = function(_, timeout) assert_equal(timeout, 1000) end,
+        request_uri = function(_, url, options)
+          exported = { url = url, options = options }
+          return { status = 200 }
+        end,
+      }
+    end,
+  }
+
+  with_modules({ ["resty.http"] = fake_http }, { "stackverse.logging" }, function()
+    set_ngx({
+      ctx = { stackverse_trace_id = "trace-id", stackverse_span_id = "span-id" },
+    })
+    ngx.timer.at = function(_, callback, entry)
+      timer_callback = callback
+      timer_entry = entry
+      return true
+    end
+    local logging = require("stackverse.logging")
+    logging.configure({
+      log_level = "nonsense",
+      log_format = "json",
+      otel_disabled = "false",
+      otel_exporter_otlp_endpoint = "http://collector:4317/",
+      otel_service_name = "apisix-test",
+    })
+    logging.event("warning", "security_event", "denied", "token\r\nvalue\000hidden", {
+      actor = "demo\nadmin",
+      count = 2,
+      ratio = 1.5,
+      enabled = true,
+    })
+    assert_truthy(timer_callback)
+    assert_equal(timer_entry.message, "token\\nvaluehidden")
+    assert_equal(timer_entry.actor, "demo\\nadmin")
+    assert_equal(timer_entry.trace_id, "trace-id")
+    assert_equal(timer_entry.span_id, "span-id")
+    timer_callback(false, timer_entry)
+    assert_equal(exported.url, "http://collector:4318/v1/logs")
+    assert_equal(exported.options.method, "POST")
+    assert_equal(exported.options.headers["Content-Type"], "application/json")
+    assert_equal(exported.options.body:find("refresh_token", 1, true), nil)
+    assert_match(exported.options.body, "apisix%-test")
+
+    timer_callback = nil
+    logging.configure({
+      log_level = "error",
+      log_format = "json",
+      otel_disabled = "false",
+      otel_exporter_otlp_logs_endpoint = "http://logs.example/custom",
+    })
+    logging.event("info", "ignored", "success", "must not be exported")
+    assert_equal(timer_callback, nil)
+    logging.event("error", "dependency_call_failed", "failure", nil, nil)
+    assert_truthy(timer_callback)
+  end)
+end
+
 test_config_defaults()
 test_problem_write()
 test_security_contract_checks()
@@ -1072,6 +1337,12 @@ test_spa_static_and_proxy_modes()
 test_api_session_and_csrf_decisions()
 test_auth_session_logout_and_callback_paths()
 test_apisix_plugin_dispatch()
+test_security_edge_boundaries()
+test_readiness_failure_boundaries()
+test_proxy_body_and_response_boundaries()
+test_plugin_complete_route_dispatch()
+test_config_parsing_boundaries()
+test_logging_privacy_and_otlp_boundaries()
 
 _G.ngx = real_ngx
 print("apisix smoke tests passed")
