@@ -5,7 +5,7 @@
 FROM node:26-alpine AS build
 WORKDIR /app
 # node:26 no longer bundles Corepack, so install it before enabling the Yarn shim
-RUN npm install -g corepack@latest && corepack enable
+RUN npm install -g corepack@0.35.0 && corepack enable
 # manifest + lockfile first so the dependency layer caches across source changes
 COPY backends/node-ts/package.json backends/node-ts/yarn.lock backends/node-ts/.yarnrc.yml ./
 RUN yarn install --immutable

@@ -56,7 +56,7 @@ jacoco {
 }
 
 codenarc {
-    toolVersion = "3.6.0-groovy-4.0"
+    toolVersion = "3.7.0-groovy-4.0"
     configFile = file("config/codenarc/rules.groovy")
 }
 

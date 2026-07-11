@@ -78,19 +78,20 @@ defmodule StackverseBackend.Application do
 
     Logger.configure(level: logger_level(level))
 
-    if format == "json" do
-      :ok =
-        Logger.configure_backend(:console,
+    formatter =
+      if format == "json" do
+        Logger.Formatter.new(
           format: {StackverseBackend.JsonLogFormatter, :format},
           metadata: :all
         )
-    else
-      :ok =
-        Logger.configure_backend(:console,
+      else
+        Logger.Formatter.new(
           format: "$time [$level] $message $metadata\n",
           metadata: :all
         )
-    end
+      end
+
+    :ok = :logger.update_handler_config(:default, :formatter, formatter)
   end
 
   defp logger_level("debug"), do: :debug

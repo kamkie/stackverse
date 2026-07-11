@@ -1,6 +1,6 @@
 FROM eclipse-temurin:25-jdk AS build
 
-ARG SBT_VERSION=1.12.13
+ARG SBT_VERSION=2.0.1
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \

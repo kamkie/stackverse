@@ -7,7 +7,7 @@
 
 FROM node:26.5.0-alpine AS build
 # node 25+ no longer bundles corepack — install it before enabling the yarn shim
-RUN npm install -g corepack && corepack enable
+RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /build/frontends/lit
 # manifest + lockfile first so the dependency layer caches across source changes
 COPY frontends/lit/package.json frontends/lit/yarn.lock frontends/lit/.yarnrc.yml ./

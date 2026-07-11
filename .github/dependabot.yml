@@ -103,22 +103,15 @@ updates:
       - /frontends/vue
       - /gateways/node-fastify
       - /testing/axe-a11y
+      - /testing/bruno-api
       - /testing/cypress-e2e
       - /testing/postman-api
+      - /testing/selenium-e2e
     schedule:
       interval: weekly
     groups:
       npm-minor:
         update-types: [minor, patch]
-    ignore:
-      # Yarn 4 currently quarantines Vitest 4.1.10 packages in Dependabot's
-      # npm job. Ignore only that patch so a future non-quarantined release
-      # can land.
-      - dependency-name: "@vitest/coverage-v8"
-        versions: ["4.1.10"]
-      - dependency-name: "vitest"
-        versions: ["4.1.10"]
-
   - package-ecosystem: nuget
     directories:
       - /backends/dotnet
@@ -142,6 +135,7 @@ updates:
   - package-ecosystem: pip
     directories:
       - /backends/python-django
+      - /backends/python-fastapi
       - /gateways/python
       - /testing/robot-acceptance
       - /testing/schemathesis-api
@@ -167,6 +161,7 @@ updates:
       - /backends/php-laravel
       - /backends/play-scala
       - /backends/python-django
+      - /backends/python-fastapi
       - /backends/quarkus-java
       - /backends/ruby-rails
       - /backends/rust-axum
@@ -194,6 +189,8 @@ updates:
 
   # infra images in compose.yaml (postgres, redis, keycloak, otel-lgtm)
   - package-ecosystem: docker-compose
-    directory: /
+    directories:
+      - /
+      - /testing/tracetest-otel
     schedule:
       interval: weekly

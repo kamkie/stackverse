@@ -8,7 +8,7 @@
 
 FROM node:26.5.0-alpine AS build
 # node 25+ no longer bundles corepack - install it before enabling the yarn shim
-RUN npm install -g corepack && corepack enable
+RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /build/frontends/vue
 # manifest + lockfile first so the dependency layer caches across source changes
 COPY frontends/vue/package.json frontends/vue/yarn.lock frontends/vue/.yarnrc.yml ./

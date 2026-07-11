@@ -9,7 +9,7 @@ this stack.
 
 ## Run it locally
 
-Prerequisites: Elixir 1.18, Erlang/OTP 28, and the compose infra
+Prerequisites: Elixir 1.20, Erlang/OTP 29, and the compose infra
 (`docker compose up -d` at the repo root).
 
 ```sh

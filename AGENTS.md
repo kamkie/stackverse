@@ -32,6 +32,10 @@ implemented in many stacks. Read these before changing anything:
 
 - Work inside one implementation directory at a time; each has its own build and
   toolchain. Run builds/tests from that directory, not the repo root.
+- Yarn projects use Plug'n'Play and currently stay on TypeScript 6 (Qwik stays
+  on its documented TypeScript 5 line): TypeScript 7's native compiler cannot
+  resolve the PnP dependency graph. A TypeScript 7 upgrade is blocked until a
+  module's actual typecheck succeeds under PnP, not merely until Yarn can install it.
 - **Shared files stay O(1) in the number of implementations** — that is what lets
   parallel variant PRs merge without conflicting. Per-implementation content lives
   in that implementation's directory or its own file: its build/test CI in

@@ -1341,12 +1341,12 @@ __metadata:
   linkType: hard
 
 "string-width@npm:^8.2.0":
-  version: 8.2.1
-  resolution: "string-width@npm:8.2.1"
+  version: 8.2.2
+  resolution: "string-width@npm:8.2.2"
   dependencies:
     get-east-asian-width: "npm:^1.5.0"
     strip-ansi: "npm:^7.1.2"
-  checksum: 10c0/d467b4eaf4c40a01bb438a2620e77badd2456ffd5131c9973abe4f3acf7c802d5b21f3b6a00a5e33a7fc28ca8f9c103226e01bac61e9f259659c6f46d78e353a
+  checksum: 10c0/895624534e4e2f229e880bbc30aa77bdeb758e1a0edce203e0a17b8b4f08b8d3c1156516efc50a35e3efd0052d938a73797692111250ac9f52ee384710a01714
   languageName: node
   linkType: hard
 
@@ -1394,11 +1394,11 @@ __metadata:
   linkType: hard
 
 "systeminformation@npm:^5.31.1":
-  version: 5.31.12
-  resolution: "systeminformation@npm:5.31.12"
+  version: 5.31.15
+  resolution: "systeminformation@npm:5.31.15"
   bin:
     systeminformation: lib/cli.js
-  checksum: 10c0/f13900a7f6765b9473d1137a62e6d80f78a55a0106454d299c90e6f3677528848ad831981033366746bb96102f282befc6c18a5c8980b6770491f09addcee8de
+  checksum: 10c0/ee6480354914cf79c36b91986975b71e464e0190ed7c76e416e00415023294ae25152e080663767ad261936293351d9d38249b7cd0456ee9489878f3f08a4862
   conditions: (os=darwin | os=linux | os=win32 | os=freebsd | os=openbsd | os=netbsd | os=sunos | os=android)
   languageName: node
   linkType: hard
