@@ -1,0 +1,3 @@
+# Underscore-separated xUnit test names are intentional executable specifications.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none

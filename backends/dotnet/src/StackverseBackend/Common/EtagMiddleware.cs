@@ -30,7 +30,7 @@ public sealed class EtagMiddleware(RequestDelegate next)
 
             if (context.Response.StatusCode == StatusCodes.Status200OK)
             {
-                var etag = $"\"{Convert.ToHexStringLower(MD5.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)))}\"";
+                var etag = $"\"{Convert.ToHexStringLower(SHA256.HashData(buffer.GetBuffer().AsSpan(0, (int)buffer.Length)))}\"";
                 context.Response.Headers.ETag = etag;
                 if (Matches(context.Request.Headers.IfNoneMatch, etag))
                 {

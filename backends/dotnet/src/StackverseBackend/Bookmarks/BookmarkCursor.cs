@@ -31,7 +31,7 @@ public sealed record BookmarkCursor(DateTime CreatedAt, Guid Id)
             var createdAt = DateTime.Parse(parts[0], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
             return new BookmarkCursor(createdAt.ToUniversalTime(), Guid.Parse(parts[1]));
         }
-        catch (Exception exception) when (exception is not ApiProblem)
+        catch (Exception exception) when (exception is not ApiProblemException)
         {
             throw new BadRequestProblem("The cursor is malformed or unresolvable.");
         }

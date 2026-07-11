@@ -46,7 +46,7 @@ public static class MessageEndpoints
             var items = await filtered.OrderBy(m => m.Key).ThenBy(m => m.Language)
                 .Skip(Paging.SkipOf(page, size)).Take(size).ToListAsync();
             response.Headers.CacheControl = "no-cache";
-            return PageResponse<MessageResponse>.Of(items.Select(MessageResponse.Of).ToList(), page, size, total);
+            return PageResponse.Create(items.Select(MessageResponse.Of).ToList(), page, size, total);
         }).AllowAnonymous();
 
         group.MapGet("/bundle", async (

@@ -88,6 +88,11 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   exact browser-hardening headers to SPA/auth responses, only
   `X-Content-Type-Options: nosniff` (and HTTPS-only HSTS) to `/api/**`, and never
   rewrites backend `Cache-Control`, `ETag`, or `304` behavior.
+- **Enforced Roslyn and formatting baseline.** `Directory.Build.props` enables
+  .NET 10's recommended SDK analyzers, build-time code-style checks, and
+  warnings-as-errors solution-wide; CI separately runs
+  `dotnet format --verify-no-changes`. The local `.editorconfig` preserves the
+  deliberately sentence-like, underscore-separated xUnit test names.
 
 ## Logging conformance
 
@@ -134,6 +139,7 @@ via Testcontainers, host the gateway with `WebApplicationFactory`, and drive the
 authorization code flow plus token relay against a stub backend. Docker required.
 
 ```sh
+dotnet format StackverseGateway.slnx --verify-no-changes
 dotnet test
 ```
 

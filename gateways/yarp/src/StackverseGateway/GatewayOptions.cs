@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace StackverseGateway;
@@ -22,7 +23,7 @@ public sealed record GatewayOptions
 
     public static GatewayOptions Load(IConfiguration config) => new()
     {
-        Port = int.Parse(config["PORT"] ?? "8000"),
+        Port = int.Parse(config["PORT"] ?? "8000", CultureInfo.InvariantCulture),
         BackendUrl = new Uri(config["BACKEND_URL"] ?? "http://localhost:8080"),
         FrontendUrl = config["FRONTEND_URL"] is { } frontend && !string.IsNullOrWhiteSpace(frontend)
             ? new Uri(frontend)
@@ -58,18 +59,18 @@ public sealed record GatewayOptions
             {
                 if (parts[0].Length > 0)
                 {
-                    config.Append($",user={Uri.UnescapeDataString(parts[0])}");
+                    config.Append(",user=").Append(Uri.UnescapeDataString(parts[0]));
                 }
-                config.Append($",password={Uri.UnescapeDataString(parts[1])}");
+                config.Append(",password=").Append(Uri.UnescapeDataString(parts[1]));
             }
             else
             {
-                config.Append($",password={Uri.UnescapeDataString(parts[0])}");
+                config.Append(",password=").Append(Uri.UnescapeDataString(parts[0]));
             }
         }
         if (uri.AbsolutePath.TrimStart('/') is { Length: > 0 } database)
         {
-            config.Append($",defaultDatabase={database}");
+            config.Append(",defaultDatabase=").Append(database);
         }
         return config.ToString();
     }

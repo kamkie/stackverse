@@ -6,7 +6,7 @@ namespace StackverseBackend.Common;
 /// Application exceptions that map 1:1 onto RFC 9457 problem documents.
 /// Thrown from services, translated in <see cref="ApiExceptionMiddleware"/>.
 /// </summary>
-public abstract class ApiProblem(int status, string title, string? detailKey = null, string? detail = null)
+public abstract class ApiProblemException(int status, string title, string? detailKey = null, string? detail = null)
     : Exception(detail ?? title)
 {
     public int Status => status;
@@ -18,22 +18,22 @@ public abstract class ApiProblem(int status, string title, string? detailKey = n
 }
 
 /// <summary>Resource missing — or deliberately masked (rule 1: existence is not disclosed).</summary>
-public sealed class NotFoundProblem() : ApiProblem(StatusCodes.Status404NotFound, "Not Found");
+public sealed class NotFoundProblem() : ApiProblemException(StatusCodes.Status404NotFound, "Not Found");
 
 public sealed class ConflictProblem(string detail, string? detailKey = null)
-    : ApiProblem(StatusCodes.Status409Conflict, "Conflict", detailKey, detail);
+    : ApiProblemException(StatusCodes.Status409Conflict, "Conflict", detailKey, detail);
 
 /// <summary>Anonymous caller on an endpoint that needs authentication (e.g. non-public listing).</summary>
-public sealed class UnauthorizedProblem() : ApiProblem(StatusCodes.Status401Unauthorized, "Unauthorized");
+public sealed class UnauthorizedProblem() : ApiProblemException(StatusCodes.Status401Unauthorized, "Unauthorized");
 
 public sealed class BadRequestProblem(string detail)
-    : ApiProblem(StatusCodes.Status400BadRequest, "Bad Request", detail: detail);
+    : ApiProblemException(StatusCodes.Status400BadRequest, "Bad Request", detail: detail);
 
 /// <summary>One field-level validation failure; `message` gets localized when the problem is rendered.</summary>
 public sealed record FieldViolation(string Field, string MessageKey);
 
 /// <summary>Validation failure carrying field-level errors (SPEC rules 5 + 11).</summary>
-public sealed class ValidationProblem(IReadOnlyList<FieldViolation> violations) : Exception("Validation failed")
+public sealed class ValidationProblemException(IReadOnlyList<FieldViolation> violations) : Exception("Validation failed")
 {
     public IReadOnlyList<FieldViolation> Violations => violations;
 }
@@ -57,7 +57,7 @@ public sealed class Validator
     {
         if (_violations.Count > 0)
         {
-            throw new ValidationProblem(_violations);
+            throw new ValidationProblemException(_violations);
         }
     }
 }

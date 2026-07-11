@@ -25,8 +25,15 @@ migrations apply on startup — the database must be one this backend owns
 Tests (unit tests plus WebApplicationFactory integration tests; no containers):
 
 ```sh
+dotnet format StackverseBackend.slnx --verify-no-changes
 dotnet test
 ```
+
+`Directory.Build.props` enables the .NET 10 recommended SDK analyzers, build-time
+code-style checks, and warnings-as-errors for both projects. CI additionally runs
+the solution-wide `dotnet format` verification shown above. The local
+`.editorconfig` keeps only two generated/test idioms out of that gate: EF Core
+migration artifacts and underscore-separated xUnit test names.
 
 NuGet resolves through committed `packages.lock.json` files. After changing
 `PackageReference` versions or local tools, run `dotnet restore --force-evaluate`
@@ -72,6 +79,9 @@ docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
   routing, auth policies, services, and EF-tracked state machine behavior are
   exercised in process while the canonical live-DB conformance suite remains
   the PostgreSQL acceptance gate.
+- **Enforced Roslyn and formatting baseline** — .NET 10's recommended analyzers,
+  build-time code-style checks, and warnings-as-errors apply solution-wide;
+  `dotnet format --verify-no-changes` is a separate CI gate.
 - **Body-hash ETags in middleware** — `EtagMiddleware` buffers message/stats
   responses and derives the ETag from the bytes, the same stateless
   revalidation scheme as the reference backend's `ShallowEtagHeaderFilter`.

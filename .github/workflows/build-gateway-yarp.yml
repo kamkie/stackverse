@@ -35,6 +35,8 @@ jobs:
           dotnet-version: 10.0.301
       - name: Restore locked packages
         run: dotnet restore --locked-mode
+      - name: Verify formatting
+        run: dotnet format --verify-no-changes --no-restore
       # integration tests bring up Keycloak and Redis via Testcontainers
       - name: Build and test
         run: dotnet test --no-restore --collect:"XPlat Code Coverage" --logger junit --results-directory TestResults

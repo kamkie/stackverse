@@ -219,7 +219,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Spring Boot (Kotlin)](../backends/spring-kotlin/README.md) | ktlint or detekt wired into the Gradle build | No ktlint/detekt/spotless; only shared root .editorconfig | 🔴 undocumented |
 | [Spring Boot (Java)](../backends/spring-java/README.md) | Checkstyle, Spotless, or Error Prone wired into the Gradle build | No Java formatter/linter yet; only shared root .editorconfig and javac | 🟡 deliberate |
 | [Ktor (Kotlin)](../backends/ktor-kotlin/README.md) | ktlint or detekt (often via spotless) wired into Gradle | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
-| [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .editorconfig only (whitespace); no dotnet format or analyzer gate in CI | 🔴 undocumented |
+| [ASP.NET Core](../backends/dotnet/README.md) | dotnet format / Roslyn analyzers, often enforced in CI | .NET 10 recommended SDK analyzers, warnings-as-errors, and dotnet format verification in CI | ✅ idiomatic |
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | mix format; Credo/Dialyzer optional for larger apps | mix format --check-formatted plus compile --warnings-as-errors in CI | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
@@ -366,7 +366,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | luacheck is configured and enforced in the component workflow | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | ruff for lint and format checks, often with pytest in CI | ruff check + ruff format --check + pytest coverage in CI | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
-| [YARP](../gateways/yarp/README.md) | Roslyn analyzers + dotnet format, often warnings-as-errors in CI | Minimal shared .editorconfig only; no analyzers, format check, or warnings-as-errors | 🔴 undocumented |
+| [YARP](../gateways/yarp/README.md) | Roslyn analyzers + dotnet format, often warnings-as-errors in CI | .NET 10 recommended SDK analyzers, warnings-as-errors, and dotnet format verification in CI | ✅ idiomatic |
 
 ## Frontends
 

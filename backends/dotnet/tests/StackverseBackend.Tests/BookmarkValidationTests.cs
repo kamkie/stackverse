@@ -22,7 +22,7 @@ public class BookmarkValidationTests
     [Fact]
     public void MissingUrlAndTitleAreReportedTogether()
     {
-        var problem = Assert.Throws<ValidationProblem>(() => BookmarkService.Validate(new BookmarkRequest()));
+        var problem = Assert.Throws<ValidationProblemException>(() => BookmarkService.Validate(new BookmarkRequest()));
         Assert.Equal(
             ["validation.url.required", "validation.title.required"],
             problem.Violations.Select(v => v.MessageKey));
@@ -34,7 +34,7 @@ public class BookmarkValidationTests
     [InlineData("https://")]
     public void RejectsNonHttpUrls(string url)
     {
-        var problem = Assert.Throws<ValidationProblem>(
+        var problem = Assert.Throws<ValidationProblemException>(
             () => BookmarkService.Validate(new BookmarkRequest(Url: url, Title: "t")));
         Assert.Contains(problem.Violations, v => v.MessageKey == "validation.url.invalid");
     }
@@ -42,7 +42,7 @@ public class BookmarkValidationTests
     [Fact]
     public void RejectsOverlongFieldsAndBadTags()
     {
-        var problem = Assert.Throws<ValidationProblem>(() => BookmarkService.Validate(new BookmarkRequest(
+        var problem = Assert.Throws<ValidationProblemException>(() => BookmarkService.Validate(new BookmarkRequest(
             Url: "https://example.com",
             Title: new string('x', 201),
             Notes: new string('x', 4001),
@@ -55,7 +55,7 @@ public class BookmarkValidationTests
     [Fact]
     public void RejectsMoreThanTenTags()
     {
-        var problem = Assert.Throws<ValidationProblem>(() => BookmarkService.Validate(new BookmarkRequest(
+        var problem = Assert.Throws<ValidationProblemException>(() => BookmarkService.Validate(new BookmarkRequest(
             Url: "https://example.com",
             Title: "t",
             Tags: Enumerable.Range(0, 11).Select(i => $"tag-{i}").ToList())));
@@ -77,7 +77,7 @@ public class BookmarkValidationTests
     {
         Assert.Equal(["kotlin", "web"], BookmarkService.ValidateQueryTags([" Kotlin ", "web"]));
 
-        var problem = Assert.Throws<ValidationProblem>(() => BookmarkService.ValidateQueryTags(["valid", "no spaces!"]));
+        var problem = Assert.Throws<ValidationProblemException>(() => BookmarkService.ValidateQueryTags(["valid", "no spaces!"]));
         var violation = Assert.Single(problem.Violations);
         Assert.Equal("tag", violation.Field);
         Assert.Equal("validation.tag.invalid", violation.MessageKey);
