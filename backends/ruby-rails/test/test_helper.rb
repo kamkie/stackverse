@@ -2,7 +2,9 @@ ENV["RAILS_ENV"] ||= "test"
 ENV["STACKVERSE_SKIP_STARTUP_TASKS"] = "true"
 
 require "simplecov"
+require "simplecov-cobertura"
 SimpleCov.start "rails" do
+  formatter SimpleCov::Formatter::CoberturaFormatter
   add_filter "/test/"
 end
 

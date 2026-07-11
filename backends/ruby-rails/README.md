@@ -30,6 +30,9 @@ bundle exec rails zeitwerk:check
 bundle exec rails test
 ```
 
+The test run writes Cobertura coverage to `coverage/coverage.xml`; the component
+workflow uploads that report to Codecov under the `backend-ruby-rails` flag.
+
 Conformance (the acceptance gate), with the backend running:
 
 ```sh

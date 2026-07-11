@@ -46,6 +46,7 @@ jobs:
         uses: codecov/codecov-action@v7
         continue-on-error: true
         with:
-          files: backends/ruby-rails/coverage/.resultset.json
+          files: backends/ruby-rails/coverage/coverage.xml
           flags: backend-ruby-rails
+          root_dir: backends/ruby-rails
           token: ${{ secrets.CODECOV_TOKEN }}
