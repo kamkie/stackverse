@@ -44,7 +44,7 @@ fun findRealmFile(): Path {
  * the issuer the IdP announces and the URL the gateway dials must differ.
  */
 fun keycloakContainer(fixedHostPort: Int? = null, hostname: String? = null): GenericContainer<*> =
-    GenericContainer("quay.io/keycloak/keycloak:26.6").apply {
+    GenericContainer("quay.io/keycloak/keycloak:26.7.0").apply {
         withCopyFileToContainer(
             MountableFile.forHostPath(findRealmFile()),
             "/opt/keycloak/data/import/stackverse-realm.json",
@@ -68,7 +68,7 @@ fun keycloakContainer(fixedHostPort: Int? = null, hostname: String? = null): Gen
 fun freePort(): Int = ServerSocket(0).use { it.localPort }
 
 fun redisContainer(): GenericContainer<*> =
-    GenericContainer("redis:8-alpine").withExposedPorts(6379)
+    GenericContainer("redis:8.8.0-alpine").withExposedPorts(6379)
 
 /** A browser-like HTTP client: keeps cookies, never follows redirects on its own. */
 fun browserClient(cookies: CookieManager = CookieManager(null, CookiePolicy.ACCEPT_ALL)): HttpClient =
