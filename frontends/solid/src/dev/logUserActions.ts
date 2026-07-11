@@ -59,7 +59,7 @@ function contextOf(element: Element): string {
 }
 
 function here(): string {
-  return location.pathname + location.search;
+  return location.pathname;
 }
 
 function logClicks() {
@@ -136,7 +136,7 @@ function logApiCalls() {
     const method = (
       init?.method ?? (input instanceof Request ? input.method : "GET")
     ).toUpperCase();
-    const target = url.pathname + url.search;
+    const target = url.pathname;
     const started = performance.now();
     const elapsed = () => Math.round(performance.now() - started);
     try {
