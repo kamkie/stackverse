@@ -466,7 +466,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
-| [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | angular-eslint flat config covers TypeScript, inline/external templates, and template accessibility; Prettier and both checks run in CI | ✅ idiomatic |
+| [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | angular-eslint flat config covers TypeScript, inline/external templates, and template accessibility; Prettier keeps the CLI-native single-quote style; both checks run in CI | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | ESLint flat config with Lit/Web Components/TypeScript rules plus Prettier | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |

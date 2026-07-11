@@ -29,6 +29,9 @@ The Angular CLI `lint` target uses angular-eslint's flat configuration,
 including inline-template processing and the recommended template
 accessibility rules. Prettier owns formatting through the checked-in
 `.prettierrc`; both checks run in the component workflow before build/tests.
+The single-quote setting follows this Angular CLI project's existing
+`.editorconfig`; formatting is intentionally local style under
+`docs/INVARIANTS.md` §3, so the Vue sibling keeps its established double quotes.
 
 **No mock mode.** Unlike `frontends/react` (MSW), this app has no in-browser
 API mocks: `yarn dev` expects a running gateway on :8000 (see the dev-stack
