@@ -225,7 +225,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Go (Echo)](../backends/go-echo/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | CodeNarc 3.6 Groovy-4 rules for duplicate/empty constructs, insecure randomness, and unnecessary semicolons in Gradle check | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
-| [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | tsc --noEmit (strict) only; no ESLint/Prettier/Biome config anywhere | 🔴 undocumented |
+| [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | ESLint flat config with JavaScript/TypeScript recommended rules plus Prettier; lint and format checks run in CI beside strict tsc | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | ESLint + Prettier scripts alongside Nest CLI build/dev flow | ✅ idiomatic |
 | [Open Liberty](../backends/open-liberty-java/README.md) | Spotless/Checkstyle or google-java-format via Maven plugin | Spotless with google-java-format (AOSP style) enforced by Maven verify | ✅ idiomatic |
 | [PHP Laravel](../backends/php-laravel/README.md) | Laravel Pint for code style | Pint check wired through `composer lint` and CI | ✅ idiomatic |
@@ -362,7 +362,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Spring Cloud Gateway](../gateways/spring-cloud-gateway/README.md) | ktlint, detekt, or spotless wired into the Gradle build | ktlintCheck wired into the Gradle build and implementation workflow | ✅ idiomatic |
 | [Apache APISIX](../gateways/apisix/README.md) | luacheck and often stylua for Lua plugin code | No linter or formatter configured; CI builds, config-tests, and smoke-tests | 🟡 deliberate |
 | [Go (chi)](../gateways/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
-| [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | No ESLint/Prettier/Biome; only .editorconfig and tsc typecheck | 🔴 undocumented |
+| [Fastify](../gateways/node-fastify/README.md) | ESLint plus Prettier (or Biome) enforced via a lint script | ESLint flat config for JavaScript/TypeScript plus Prettier, enforced in the component workflow beside strict tsc | ✅ idiomatic |
 | [OpenResty (Lua)](../gateways/openresty/README.md) | luacheck (and often stylua) | luacheck is configured and enforced in the component workflow | ✅ idiomatic |
 | [Python Starlette](../gateways/python/README.md) | ruff for lint and format checks, often with pytest in CI | ruff check + ruff format --check + pytest coverage in CI | ✅ idiomatic |
 | [Rust Axum](../gateways/rust/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check, cargo test | ✅ idiomatic |
@@ -459,17 +459,17 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [SolidJS](../frontends/solid/README.md) | Vitest + @solidjs/testing-library for component tests | Vitest + jsdom helper tests; UI coverage left to shared e2e | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | Vitest + @testing-library/svelte / vitest-browser-svelte for component tests | Vitest + jsdom helper tests and Testing Library component interactions | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | Vitest + jsdom, colocated *.test.ts | Vitest + jsdom, colocated *.test.ts, junit + v8 coverage | ✅ idiomatic |
-| [Vue 3](../frontends/vue/README.md) | Vitest + jsdom with @vue/test-utils for mounting | Vitest + jsdom, manual createApp mount helper, no @vue/test-utils | 🔴 undocumented |
+| [Vue 3](../frontends/vue/README.md) | Vitest + jsdom with @vue/test-utils for mounting | Vitest + jsdom + @vue/test-utils mount SFCs and assert rendered DOM and emitted events | ✅ idiomatic |
 
 ### Formatter / linter
 
 | Stack | Idiomatic convention | This variant | Status |
 |---|---|---|---|
 | [React](../frontends/react/README.md) | ESLint (+ Prettier) for lint and formatting | ESLint flat config for TypeScript, React Hooks, and React Refresh; no Prettier | ✅ idiomatic |
-| [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | Orphan .prettierrc (no prettier dep/script); no ESLint/angular-eslint | 🔴 undocumented |
+| [Angular](../frontends/angular/README.md) | angular-eslint + Prettier | angular-eslint flat config covers TypeScript, inline/external templates, and template accessibility; Prettier and both checks run in CI | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | ESLint + Prettier/Biome, often with Lit rules | ESLint flat config with Lit/Web Components/TypeScript rules plus Prettier | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | eslint-plugin-qwik plus Prettier/Biome | ESLint flat config with Qwik and TypeScript rules, Prettier, and strict `tsc` against installed declarations | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | ESLint + Prettier/Biome with Solid JSX support | No ESLint/Prettier; strict `tsc` through `yarn build` only | 🟡 deliberate |
 | [Svelte 5](../frontends/svelte/README.md) | eslint-plugin-svelte + Prettier (prettier-plugin-svelte); svelte-check enforced by build/CI | ESLint flat config, Svelte-aware Prettier, and svelte-check enforced by build/CI | ✅ idiomatic |
 | [Vanilla TS](../frontends/vanilla-ts/README.md) | ESLint + Prettier configured with a lint/format script | ESLint flat config with TypeScript rules plus Prettier, enforced by the local/CI check pipeline | ✅ idiomatic |
-| [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | No linter/formatter; vue-tsc type-check is the only static gate | 🔴 undocumented |
+| [Vue 3](../frontends/vue/README.md) | ESLint (eslint-plugin-vue) + Prettier | ESLint flat config with eslint-plugin-vue recommended + TypeScript rules and Prettier, enforced in CI | ✅ idiomatic |
