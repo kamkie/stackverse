@@ -26,10 +26,32 @@ jobs:
     name: Backend · PHP Laravel · PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18.4-alpine
+        env:
+          POSTGRES_DB: stackverse_test
+          POSTGRES_USER: stackverse
+          POSTGRES_PASSWORD: stackverse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U stackverse -d stackverse_test"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 10
     strategy:
       fail-fast: false
       matrix:
         php-version: ["8.3", "8.4", "8.5"]
+    env:
+      STACKVERSE_DB_TESTS: 'true'
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_NAME: stackverse_test
+      DB_USER: stackverse
+      DB_PASSWORD: stackverse
     defaults:
       run:
         working-directory: backends/php-laravel
@@ -53,6 +75,8 @@ jobs:
         run: composer install --no-interaction --prefer-dist
       - name: Lint
         run: composer lint
+      - name: Migrate test database
+        run: php artisan migrate --force
       - name: Test with coverage
         run: composer test
       - name: Upload coverage to Codecov
