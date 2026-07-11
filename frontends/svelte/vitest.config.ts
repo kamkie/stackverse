@@ -10,11 +10,16 @@ export default defineConfig({
     coverage: {
       reporter: ["text", "lcov"],
       reportsDirectory: "coverage",
+      include: ["src/**/*.{ts,svelte}"],
       exclude: [
         ".pnp.cjs",
         ".yarn/**",
         "dist/**",
         "coverage/**",
+        "src/**/*.test.ts",
+        "src/lib/types.ts",
+        "src/test/**",
+        "src/vite-env.d.ts",
         "test-results/**",
         "vite.config.ts",
         "vitest.config.ts",
