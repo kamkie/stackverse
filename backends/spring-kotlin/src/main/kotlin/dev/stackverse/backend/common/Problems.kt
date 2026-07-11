@@ -17,8 +17,7 @@ sealed class ApiProblem(
 /** Resource missing — or deliberately masked (rule 1: existence is not disclosed). */
 class NotFoundProblem : ApiProblem(HttpStatus.NOT_FOUND, "Not Found")
 
-class ConflictProblem(detail: String, detailKey: String? = null) :
-    ApiProblem(HttpStatus.CONFLICT, "Conflict", detailKey = detailKey, detail = detail)
+class ConflictProblem(detail: String, detailKey: String? = null) : ApiProblem(HttpStatus.CONFLICT, "Conflict", detailKey = detailKey, detail = detail)
 
 /** Anonymous caller on an endpoint that needs authentication (e.g. non-public listing). */
 class UnauthorizedProblem : ApiProblem(HttpStatus.UNAUTHORIZED, "Unauthorized")

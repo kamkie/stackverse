@@ -1,13 +1,14 @@
 package dev.stackverse.backend.message
 
+import dev.stackverse.backend.common.NotFoundProblem
 import dev.stackverse.backend.common.PageResponse
 import dev.stackverse.backend.common.requireMaxLength
 import dev.stackverse.backend.common.requireValidPaging
+import org.springframework.data.domain.Pageable
 import org.springframework.http.CacheControl
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.data.domain.Pageable
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -22,7 +23,6 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.util.UriComponentsBuilder
-import dev.stackverse.backend.common.NotFoundProblem
 import java.util.UUID
 
 /**
