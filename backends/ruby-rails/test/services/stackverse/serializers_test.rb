@@ -27,4 +27,18 @@ class StackverseSerializersTest < ActiveSupport::TestCase
     assert_equal [], Stackverse::Serializers.pg_text_array("{}")
     assert_equal %w[ruby rails], Stackverse::Serializers.pg_text_array(%w[ruby rails])
   end
+
+  test "parses raw postgres json audit details into contract objects" do
+    serialized = Stackverse::Serializers.audit(
+      "id" => "00000000-0000-0000-0000-000000000001",
+      "actor" => "admin",
+      "action" => "user.blocked",
+      "target_type" => "user",
+      "target_id" => "target",
+      "detail" => '{"reason":"policy"}',
+      "created_at" => Time.utc(2026, 7, 11, 10)
+    )
+
+    assert_equal({ "reason" => "policy" }, serialized.fetch(:detail))
+  end
 end
