@@ -24,14 +24,22 @@ Migrations apply on startup — the database must be one this backend owns
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests:
+Tests include PostgreSQL-backed `sqlx::test` cases. Each case creates an
+isolated migrated database and drops it afterward, so start the compose
+PostgreSQL service and point SQLx at its admin database first:
 
 ```sh
+docker compose -f ../../compose.yaml up -d postgres
+export DATABASE_URL=postgres://stackverse:stackverse@localhost:5432/stackverse
 cargo fmt --check
 cargo check --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --locked
+cargo llvm-cov --locked --ignore-filename-regex '(tests\.rs|test_support\.rs)$' --summary-only
 ```
+
+In PowerShell, set the same value with
+`$env:DATABASE_URL = 'postgres://stackverse:stackverse@localhost:5432/stackverse'`.
 
 Conformance (the acceptance gate), with the backend running:
 

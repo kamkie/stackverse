@@ -2294,6 +2294,7 @@ dependencies = [
  "sqlx-postgres",
  "sqlx-sqlite",
  "syn",
+ "thiserror",
  "tokio",
  "url",
 ]
@@ -2417,6 +2418,7 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokio",
+ "tower",
  "tower-http 0.7.0",
  "tracing",
  "tracing-opentelemetry",

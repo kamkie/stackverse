@@ -1,206 +1,141 @@
-use base64::Engine;
-use chrono::{TimeZone, Utc};
-use serde_json::json;
-use uuid::Uuid;
+use axum::extract::Extension;
+use axum::http::{HeaderMap, Method, StatusCode, Uri, header};
+use axum::response::IntoResponse;
+use tower::ServiceExt;
 
-use super::admin::parse_time_param;
-use super::bookmarks::{
-    Bookmark, BookmarkRequest, BookmarkResponse, Cursor, bookmark_visible_to, encode_cursor,
-    validate_bookmark,
-};
-use super::messages::{MessageRequest, validate_message};
-use super::reports::{ReportRequest, validate_report};
+use super::common::{db_result, require_identity, require_role, validation_result};
+use crate::error::FieldViolation;
+use crate::test_support::{MIGRATOR, identity, json_body, request, state};
 
-fn bookmark(owner: &str, visibility: &str, status: &str, tags: Vec<&str>) -> Bookmark {
-    Bookmark {
-        id: Uuid::parse_str("00000000-0000-4000-8000-000000000010").unwrap(),
-        owner: owner.to_string(),
-        url: "https://example.com".to_string(),
-        title: "Example".to_string(),
-        notes: None,
-        tags: tags.into_iter().map(ToString::to_string).collect(),
-        visibility: visibility.to_string(),
-        status: status.to_string(),
-        created_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 0, 0).unwrap(),
-        updated_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 0, 0).unwrap(),
-    }
-}
+#[sqlx::test(migrator = "MIGRATOR")]
+async fn aggregate_router_covers_health_readiness_fallback_and_authentication(pool: sqlx::PgPool) {
+    let app = crate::app(state(pool));
 
-#[test]
-fn validate_bookmark_normalizes_tags_and_defaults_visibility() {
-    let bookmark = validate_bookmark(BookmarkRequest {
-        url: Some("https://example.com/path".to_string()),
-        title: Some(" Example ".to_string()),
-        notes: None,
-        tags: vec![
-            " Rust ".to_string(),
-            "rust".to_string(),
-            "web-dev".to_string(),
-        ],
-        visibility: None,
-    })
-    .unwrap();
+    let health = app
+        .clone()
+        .oneshot(request(Method::GET, "/healthz"))
+        .await
+        .unwrap();
+    assert_eq!(health.status(), StatusCode::OK);
 
-    assert_eq!(bookmark.url, "https://example.com/path");
-    assert_eq!(bookmark.title, "Example");
+    let readiness = app
+        .clone()
+        .oneshot(request(Method::GET, "/readyz"))
+        .await
+        .unwrap();
+    assert_eq!(readiness.status(), StatusCode::OK);
+
+    let missing = app
+        .clone()
+        .oneshot(request(Method::GET, "/missing"))
+        .await
+        .unwrap();
+    assert_eq!(missing.status(), StatusCode::NOT_FOUND);
     assert_eq!(
-        bookmark.tags,
-        vec!["rust".to_string(), "web-dev".to_string()]
+        missing.headers()[header::CONTENT_TYPE],
+        "application/problem+json"
     );
-    assert_eq!(bookmark.visibility, "private");
-}
 
-#[test]
-fn validate_bookmark_collects_field_errors() {
-    let errors = match validate_bookmark(BookmarkRequest {
-        url: Some("ftp://example.com".to_string()),
-        title: Some("".to_string()),
-        notes: Some("n".repeat(4001)),
-        tags: vec!["Bad Tag".to_string()],
-        visibility: Some("shared".to_string()),
-    }) {
-        Ok(_) => panic!("invalid bookmark should be rejected"),
-        Err(errors) => errors,
-    };
+    let unauthenticated = app
+        .clone()
+        .oneshot(request(Method::GET, "/api/v1/me"))
+        .await
+        .unwrap();
+    assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
 
-    let keys = errors
-        .into_iter()
-        .map(|field| field.message_key)
-        .collect::<Vec<_>>();
-    assert!(keys.contains(&"validation.url.invalid"));
-    assert!(keys.contains(&"validation.title.required"));
-    assert!(keys.contains(&"validation.notes.too-long"));
-    assert!(keys.contains(&"validation.tag.invalid"));
-    assert!(keys.contains(&"validation.visibility.invalid"));
-}
-
-#[test]
-fn bookmark_response_sorts_tags_and_omits_absent_notes() {
-    let value = serde_json::to_value(BookmarkResponse::from(bookmark(
-        "alice",
-        "public",
-        "active",
-        vec!["zeta", "alpha"],
-    )))
-    .unwrap();
-
-    assert_eq!(value["tags"], json!(["alpha", "zeta"]));
-    assert!(value.get("notes").is_none());
-}
-
-#[test]
-fn bookmark_visibility_masks_private_and_hidden_bookmarks_from_non_owners() {
-    let private = bookmark("alice", "private", "active", vec![]);
-    assert!(bookmark_visible_to(&private, "alice"));
-    assert!(!bookmark_visible_to(&private, "bob"));
-
-    let public = bookmark("alice", "public", "active", vec![]);
-    assert!(bookmark_visible_to(&public, "bob"));
-
-    let hidden = bookmark("alice", "public", "hidden", vec![]);
-    assert!(bookmark_visible_to(&hidden, "alice"));
-    assert!(!bookmark_visible_to(&hidden, "bob"));
-}
-
-#[test]
-fn cursor_round_trips_created_at_and_id() {
-    let cursor = Cursor {
-        created_at: Utc.with_ymd_and_hms(2026, 7, 5, 12, 30, 0).unwrap(),
-        id: Uuid::parse_str("00000000-0000-4000-8000-000000000001").unwrap(),
-    };
-
-    let raw = encode_cursor(Cursor {
-        created_at: cursor.created_at,
-        id: cursor.id,
-    });
-    let decoded = super::bookmarks::decode_cursor(&raw).unwrap();
-
-    assert_eq!(decoded.created_at, cursor.created_at);
-    assert_eq!(decoded.id, cursor.id);
-    assert!(super::bookmarks::decode_cursor("not-base64").is_none());
-}
-
-#[test]
-fn decode_cursor_rejects_wrong_shape_and_invalid_uuid() {
-    let missing_separator =
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("2026-07-05T12:30:00Z");
-    assert!(super::bookmarks::decode_cursor(&missing_separator).is_none());
-
-    let invalid_uuid =
-        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("2026-07-05T12:30:00Z|not-a-uuid");
-    assert!(super::bookmarks::decode_cursor(&invalid_uuid).is_none());
-}
-
-#[test]
-fn parse_time_param_accepts_rfc3339_and_rejects_invalid_values() {
-    let mut params = std::collections::HashMap::new();
-    params.insert("from".to_string(), vec!["2026-07-05T10:15:00Z".to_string()]);
-    params.insert("to".to_string(), vec!["not-a-time".to_string()]);
-
-    assert!(parse_time_param(&params, "from").unwrap().is_some());
+    let mut invalid_token = request(Method::GET, "/api/v1/me");
+    invalid_token
+        .headers_mut()
+        .insert(header::AUTHORIZATION, "Bearer not-a-jwt".parse().unwrap());
+    let invalid_token = app.oneshot(invalid_token).await.unwrap();
+    assert_eq!(invalid_token.status(), StatusCode::UNAUTHORIZED);
     assert_eq!(
-        parse_time_param(&params, "to").unwrap_err(),
-        "to must be an RFC 3339 timestamp"
+        json_body(invalid_token).await["detail"],
+        "Missing or invalid bearer token."
     );
-    assert_eq!(parse_time_param(&params, "missing").unwrap(), None);
 }
 
-#[test]
-fn validate_message_trims_key_and_language() {
-    let message = validate_message(MessageRequest {
-        key: Some(" ui.nav.title ".to_string()),
-        language: Some(" en ".to_string()),
-        text: Some("Welcome".to_string()),
-        description: Some("Navigation title".to_string()),
-    })
-    .unwrap();
+#[sqlx::test(migrator = "MIGRATOR")]
+async fn identity_route_and_common_boundaries_map_success_and_failures(pool: sqlx::PgPool) {
+    let state = state(pool);
+    let uri: Uri = "/api/v1/me".parse().unwrap();
+    let headers = HeaderMap::new();
+    let admin = identity("admin", &["admin", "moderator"]);
 
-    assert_eq!(message.key, "ui.nav.title");
-    assert_eq!(message.language, "en");
-    assert_eq!(message.text, "Welcome");
-    assert_eq!(message.description.as_deref(), Some("Navigation title"));
-}
+    let required = require_identity(&state, &headers, &uri, Some(Extension(admin.clone())))
+        .await
+        .unwrap();
+    assert_eq!(required.username, "admin");
+    assert!(
+        require_identity(&state, &headers, &uri, None)
+            .await
+            .is_err()
+    );
+    assert!(
+        require_role(
+            &state,
+            &headers,
+            &uri,
+            Some(Extension(admin.clone())),
+            "moderator"
+        )
+        .await
+        .is_ok()
+    );
+    assert!(
+        require_role(
+            &state,
+            &headers,
+            &uri,
+            Some(Extension(identity("alice", &[]))),
+            "admin"
+        )
+        .await
+        .is_err()
+    );
 
-#[test]
-fn validate_message_collects_contract_field_errors() {
-    let errors = match validate_message(MessageRequest {
-        key: Some("Bad Key".to_string()),
-        language: Some("eng".to_string()),
-        text: Some(String::new()),
-        description: Some("x".repeat(1001)),
-    }) {
-        Ok(_) => panic!("invalid message should be rejected"),
-        Err(errors) => errors,
-    };
+    let identity_app = super::identity::routes()
+        .with_state(state.clone())
+        .layer(Extension(admin));
+    let me = identity_app
+        .oneshot(request(Method::GET, "/api/v1/me"))
+        .await
+        .unwrap();
+    assert_eq!(me.status(), StatusCode::OK);
+    let me = json_body(me).await;
+    assert_eq!(me["username"], "admin");
+    assert_eq!(me["name"], "admin Example");
+    assert_eq!(me["roles"], serde_json::json!(["admin", "moderator"]));
 
-    let keys = errors
-        .into_iter()
-        .map(|field| field.message_key)
-        .collect::<Vec<_>>();
-    assert!(keys.contains(&"validation.message.key.invalid"));
-    assert!(keys.contains(&"validation.message.language.invalid"));
-    assert!(keys.contains(&"validation.message.text.required"));
-    assert!(keys.contains(&"validation.message.description.too-long"));
-}
+    let ok = validation_result(&state, &headers, &uri, Ok::<_, Vec<FieldViolation>>(42))
+        .await
+        .unwrap();
+    assert_eq!(ok, 42);
+    let invalid = validation_result::<()>(
+        &state,
+        &headers,
+        &uri,
+        Err(vec![FieldViolation {
+            field: "title",
+            message_key: "validation.title.required",
+        }]),
+    )
+    .await
+    .unwrap_err()
+    .into_response();
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
 
-#[test]
-fn validate_report_requires_known_reason_and_limits_comment() {
-    let input = validate_report(&ReportRequest {
-        reason: Some("spam".to_string()),
-        comment: Some("looks automated".to_string()),
-    })
-    .unwrap();
-    assert_eq!(input, "spam");
-
-    let errors = validate_report(&ReportRequest {
-        reason: Some("unknown".to_string()),
-        comment: Some("x".repeat(1001)),
-    })
-    .unwrap_err();
-    let keys = errors
-        .into_iter()
-        .map(|field| field.message_key)
-        .collect::<Vec<_>>();
-    assert!(keys.contains(&"validation.report.reason.invalid"));
-    assert!(keys.contains(&"validation.report.comment.too-long"));
+    let not_found = db_result::<()>(&state, &headers, &uri, Err(sqlx::Error::RowNotFound))
+        .unwrap_err()
+        .into_response();
+    assert_eq!(not_found.status(), StatusCode::NOT_FOUND);
+    let internal = db_result::<()>(
+        &state,
+        &headers,
+        &uri,
+        Err(sqlx::Error::Protocol("test database failure".to_string())),
+    )
+    .unwrap_err()
+    .into_response();
+    assert_eq!(internal.status(), StatusCode::INTERNAL_SERVER_ERROR);
 }

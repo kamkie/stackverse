@@ -486,3 +486,7 @@ async fn count_per_day(
     }
     Ok(counts)
 }
+
+#[cfg(test)]
+#[path = "admin_tests.rs"]
+mod tests;

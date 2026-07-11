@@ -520,3 +520,7 @@ async fn message_conflict(pool: &PgPool, key: &str, language: &str, excluding: U
     .await
     .unwrap_or(false)
 }
+
+#[cfg(test)]
+#[path = "messages_tests.rs"]
+mod tests;

@@ -4,6 +4,8 @@ mod db;
 mod error;
 mod handlers;
 mod logging;
+#[cfg(test)]
+mod test_support;
 
 use std::net::SocketAddr;
 use std::sync::Arc;

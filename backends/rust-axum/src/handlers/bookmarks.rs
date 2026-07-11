@@ -636,3 +636,7 @@ async fn list_tags(
     )?;
     Ok(error::json(StatusCode::OK, &TagsResponse { tags: rows }))
 }
+
+#[cfg(test)]
+#[path = "bookmarks_tests.rs"]
+mod tests;

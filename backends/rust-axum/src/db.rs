@@ -143,3 +143,7 @@ pub fn pg_unique_violation(err: &sqlx::Error) -> bool {
         .and_then(|db| db.code())
         .is_some_and(|code| code == "23505")
 }
+
+#[cfg(test)]
+#[path = "db_tests.rs"]
+mod tests;

@@ -807,3 +807,7 @@ async fn set_bookmark_status(
         &BookmarkResponse::from(bookmark),
     ))
 }
+
+#[cfg(test)]
+#[path = "reports_tests.rs"]
+mod tests;
