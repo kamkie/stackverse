@@ -11,7 +11,7 @@ COPY backends/go-echo/ ./
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /backend ./cmd/backend
 
 # distroless static: no shell, no libc, non-root `nonroot` user built in
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian13:nonroot
 WORKDIR /app
 COPY --from=build /backend /app/backend
 # the message seed is part of the contract (SPEC rule 12) and ships inside the image
