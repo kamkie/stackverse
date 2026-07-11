@@ -1,13 +1,17 @@
 # CodeQL static analysis over every language in the repo. Kotlin and Go both
 # need a real compile — build-mode none analyzes Java but skips Kotlin sources,
 # and Go has no buildless mode at all — so those matrix legs build manually;
-# the rest scan buildless.
+# the rest scan buildless. Markdown/CODEOWNERS-only pull requests do not contain
+# analyzable source, so they skip this expensive matrix entirely.
 name: CodeQL
 
 on:
   push:
     branches: [main]
   pull_request:
+    paths-ignore:
+      - "**/*.md"
+      - ".github/CODEOWNERS"
   schedule:
     - cron: "17 4 * * 1" # weekly, catches newly published queries
 
