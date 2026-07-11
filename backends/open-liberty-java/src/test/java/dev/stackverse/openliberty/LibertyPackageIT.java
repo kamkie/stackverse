@@ -34,7 +34,14 @@ class LibertyPackageIT {
                             archive.getInputStream(serverXml).readAllBytes(),
                             StandardCharsets.UTF_8);
             for (String feature :
-                    new String[] {"beanValidation-3.0", "cdi-4.0", "jsonb-3.0", "mpJwt-2.1"}) {
+                    new String[] {
+                        "cdi-4.1",
+                        "jsonb-3.0",
+                        "mpJwt-2.1",
+                        "restfulWS-4.0",
+                        "servlet-6.1",
+                        "validation-3.1"
+                    }) {
                 assertTrue(configuration.contains("<feature>" + feature + "</feature>"), feature);
             }
             assertTrue(

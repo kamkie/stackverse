@@ -1,7 +1,7 @@
 # Backend · Open Liberty Java (Maven)
 
-The Stackverse backend on **Open Liberty** with Java 21 bytecode and Maven:
-CDI-managed Jakarta REST endpoints over explicit JDBC/Flyway persistence,
+The Stackverse backend on **Open Liberty** with Java 21 bytecode, Jakarta EE 11,
+and Maven: CDI-managed Jakarta REST endpoints over explicit JDBC/Flyway persistence,
 MicroProfile JWT authentication against Keycloak, typed record DTOs with Bean
 Validation, and the Liberty Maven plugin managing the local server runtime.
 Shared behavior, endpoints, and environment variables are documented once in
@@ -38,7 +38,10 @@ Build, unit tests, style check, and packaged-Liberty integration test:
 ```
 
 `verify` creates a minimized Liberty distribution containing the configured
-features and application WAR, then Failsafe inspects that archive. Use
+Jakarta EE 11 features and application WAR, then Failsafe inspects that archive.
+The runtime uses CDI 4.1, Jakarta REST 4.0, Servlet 6.1, Validation 3.1, and
+JSON-B 3.0. MicroProfile JWT remains at 2.1, the level supported by Open
+Liberty; its API dependency must stay aligned with that runtime feature. Use
 `./mvnw spotless:apply` after intentional Java formatting changes.
 
 Conformance (the acceptance gate), with the backend running:
@@ -59,6 +62,10 @@ docker build -t stackverse/backend-open-liberty-java:local -f backends/open-libe
 - **Liberty as a build-managed runtime** — `liberty:dev` / `liberty:run`
   download Open Liberty and run the WAR from Maven, so local development does
   not depend on an external app-server installation.
+- **Jakarta EE 11 runtime alignment** — the compile API, Liberty feature
+  versions, and CDI 4.1 deployment descriptor advance together; the Docker
+  `features.sh` step installs exactly those features from `server.xml` into the
+  kernel-slim image.
 - **Jakarta REST over explicit SQL** — the runtime supplies the servlet/JAX-RS
   boundary; Stackverse behavior stays in one self-contained implementation
   using an injected application-scoped JDBC boundary, HikariCP, and
