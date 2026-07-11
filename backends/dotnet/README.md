@@ -26,8 +26,15 @@ Tests (unit tests plus WebApplicationFactory integration tests; no containers):
 
 ```sh
 dotnet format StackverseBackend.slnx --verify-no-changes
-dotnet test
+dotnet test --collect:"XPlat Code Coverage"
 ```
+
+The in-process suite covers account authorization, bookmark/message/moderation
+flows, audit and problem mapping, persistence-failure translation, and
+structured logging. It deliberately does not prove Npgsql-specific SQL,
+migrations/readiness, real uniqueness races, live JWKS, process lifecycle, or
+OTLP bootstrap; the live PostgreSQL conformance suite remains the acceptance
+gate for those API behaviors.
 
 `Directory.Build.props` enables the .NET 10 recommended SDK analyzers, build-time
 code-style checks, and warnings-as-errors for both projects. CI additionally runs
