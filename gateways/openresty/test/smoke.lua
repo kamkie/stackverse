@@ -198,6 +198,66 @@ local function test_config_defaults()
   assert_equal(config.join_url("http://backend:8080/", "/api/v1/me?x=1"), "http://backend:8080/api/v1/me?x=1")
 end
 
+local function test_config_validation_and_boundaries()
+  local values = {
+    BACKEND_URL = "https://[2001:db8::1]:8443/base/",
+    FRONTEND_URL = "http://frontend:5173/ui/",
+    PUBLIC_URL = "https://Example.TEST/",
+    OIDC_ISSUER_URI = "https://identity.example/realms/stackverse/",
+    OIDC_INTERNAL_ISSUER_URI = "http://keycloak:8080/realms/stackverse/",
+    OIDC_CLIENT_ID = "custom-client",
+    OIDC_CLIENT_SECRET = "custom-secret",
+    REDIS_URL = "rediss://user%20name:p%40ss@[2001:db8::2]:6380/4",
+  }
+  local function load_config(overrides)
+    overrides = overrides or values
+    local env_stub = {
+      get = function(name, default)
+        local value = overrides[name]
+        if value == nil or value == "" then
+          return default
+        end
+        return value
+      end,
+    }
+    local loaded
+    with_modules({ ["stackverse.env"] = env_stub }, { "stackverse.config" }, function()
+      loaded = require("stackverse.config").load()
+    end)
+    return loaded
+  end
+
+  local cfg = load_config()
+  assert_equal(cfg.backend_url, "https://[2001:db8::1]:8443/base")
+  assert_equal(cfg.backend_host, "[2001:db8::1]:8443")
+  assert_equal(cfg.frontend_url, "http://frontend:5173/ui")
+  assert_equal(cfg.frontend_host, "frontend:5173")
+  assert_equal(cfg.public_origin, "https://example.test")
+  assert_equal(cfg.cookies_secure, true)
+  assert_equal(cfg.oidc.discovery.issuer, "https://identity.example/realms/stackverse")
+  assert_equal(cfg.oidc.discovery.token_endpoint, "http://keycloak:8080/realms/stackverse/protocol/openid-connect/token")
+  assert_equal(cfg.redis.host, "2001:db8::2")
+  assert_equal(cfg.redis.port, 6380)
+  assert_equal(cfg.redis.database, 4)
+  assert_equal(cfg.redis.ssl, true)
+  assert_equal(cfg.redis.username, "user name")
+  assert_equal(cfg.redis.password, "p@ss")
+  assert_equal(cfg.session.redis, cfg.redis)
+  assert_equal(cfg.session.secret, "custom-secret")
+
+  local invalid = {
+    { BACKEND_URL = "backend:8080", message = "absolute http%(s%) URL" },
+    { BACKEND_URL = "http://user:pass@backend", message = "must not contain credentials" },
+    { BACKEND_URL = "http://backend/path?query=1", message = "must not include a query string" },
+    { BACKEND_URL = "http://[broken", message = "invalid IPv6 host" },
+  }
+  for _, case in ipairs(invalid) do
+    local ok, err = pcall(load_config, case)
+    assert_equal(ok, false)
+    assert_match(err, case.message)
+  end
+end
+
 local function test_problem_write()
   local _, body = set_ngx()
   local problem = require("stackverse.problem")
@@ -321,6 +381,65 @@ local function test_logging_and_telemetry()
   })
 end
 
+local function test_logging_privacy_and_export_boundary()
+  local exported
+  local timer_callback
+  local fake_http = {
+    new = function()
+      return {
+        set_timeout = function(_, timeout) assert_equal(timeout, 1000) end,
+        request_uri = function(_, endpoint, options)
+          exported = { endpoint = endpoint, options = options }
+          return { status = 200 }
+        end,
+      }
+    end,
+  }
+  with_modules({ ["resty.http"] = fake_http }, { "stackverse.logging" }, function()
+    local logging = require("stackverse.logging")
+    set_ngx({
+      ctx = { stackverse_trace_id = "trace-id", stackverse_span_id = "span-id" },
+    })
+    ngx.timer.at = function(_, callback, entry)
+      timer_callback = function() callback(false, entry) end
+      return true
+    end
+    logging.configure({
+      log_level = "unexpected",
+      log_format = "json",
+      otel_disabled = "false",
+      otel_exporter_otlp_logs_endpoint = "http://collector:4318/custom/logs",
+      otel_service_name = "openresty-test",
+    })
+    logging.event("info", "session_store_unavailable", "failure", "line1\nline2\000", {
+      dependency = "redis\r\nprimary",
+      attempts = 2,
+      retryable = false,
+    })
+    assert_truthy(timer_callback, "OTLP export should be scheduled")
+    timer_callback()
+    assert_equal(exported.endpoint, "http://collector:4318/custom/logs")
+    assert_equal(exported.options.method, "POST")
+    assert_equal(exported.options.headers["Content-Type"], "application/json")
+    local payload = assert(cjson.decode(exported.options.body))
+    local record = payload.resourceLogs[1].scopeLogs[1].logRecords[1]
+    assert_equal(payload.resourceLogs[1].resource.attributes[1].value.stringValue, "openresty-test")
+    assert_equal(record.body.stringValue, "line1\\nline2")
+    assert_equal(record.severityText, "INFO")
+    local attributes = {}
+    for _, attribute in ipairs(record.attributes) do
+      attributes[attribute.key] = attribute.value
+    end
+    assert_equal(attributes.dependency.stringValue, "redis\\nprimary")
+    assert_equal(attributes.attempts.intValue, "2")
+    assert_equal(attributes.retryable.boolValue, false)
+    assert_equal(attributes.trace_id.stringValue, "trace-id")
+    assert_equal(attributes.span_id.stringValue, "span-id")
+    assert_equal(exported.options.body:find("access_token", 1, true), nil)
+    assert_equal(exported.options.body:find("cookie", 1, true), nil)
+  end)
+end
+
 local function test_readyz_module()
   local behavior = {
     config = {
@@ -401,6 +520,36 @@ local function test_readyz_module()
     assert_equal(readyz.check(), 503)
     assert_equal(ngx.header["Content-Type"], "application/problem+json")
     assert_equal(assert(cjson.decode(body())).detail, "Redis is unavailable.")
+
+    behavior.connect_ok = true
+    behavior.auth_ok = false
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(assert(cjson.decode(body())).detail, "Redis authentication failed.")
+
+    behavior.auth_ok = true
+    behavior.select_ok = false
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(assert(cjson.decode(body())).detail, "Redis database selection failed.")
+
+    behavior.select_ok = true
+    behavior.pong = "NOPE"
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 503)
+    assert_equal(assert(cjson.decode(body())).detail, "Redis ping failed.")
+
+    behavior.pong = nil
+    behavior.config.redis = {
+      host = "redis",
+      port = 6379,
+      database = 0,
+      password = "password-only",
+    }
+    _, body = set_ngx()
+    assert_equal(readyz.check(), 200)
+    assert_equal(behavior.auth_username, "password-only")
+    assert_equal(behavior.auth_password, nil)
   end)
 end
 
@@ -902,9 +1051,11 @@ local function test_auth_session_logout_and_callback_paths()
 end
 
 test_config_defaults()
+test_config_validation_and_boundaries()
 test_problem_write()
 test_security_contract_checks()
 test_logging_and_telemetry()
+test_logging_privacy_and_export_boundary()
 test_readyz_module()
 test_token_refresh_paths()
 test_upstream_failure_handlers()
