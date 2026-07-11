@@ -4,7 +4,7 @@
 
 FROM node:26-alpine AS build
 WORKDIR /app
-RUN npm install -g corepack@latest && corepack enable
+RUN npm install -g corepack@0.35.0 && corepack enable
 COPY package.json yarn.lock .yarnrc.yml ./
 RUN yarn install --immutable
 COPY tsconfig.json ./
