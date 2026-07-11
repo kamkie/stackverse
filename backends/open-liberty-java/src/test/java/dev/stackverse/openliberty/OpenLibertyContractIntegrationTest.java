@@ -8,10 +8,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -31,6 +33,9 @@ import jakarta.ws.rs.core.MultivaluedMap;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.SecurityContext;
 import jakarta.ws.rs.core.UriInfo;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Principal;
@@ -40,12 +45,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.flywaydb.core.Flyway;
@@ -57,6 +65,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 
@@ -65,8 +74,8 @@ class OpenLibertyContractIntegrationTest {
     private static final PostgreSQLContainer POSTGRES =
             new PostgreSQLContainer("postgres:18-alpine")
                     .withDatabaseName("stackverse_open_liberty_test")
-                    .withUsername("stackverse")
-                    .withPassword("stackverse");
+                    .withUsername("coverage_test_user")
+                    .withPassword("coverage-test-secret");
 
     private static jakarta.validation.Validator validator;
 
@@ -156,6 +165,7 @@ class OpenLibertyContractIntegrationTest {
         messages = new MessageCatalog();
         messages.runtime = runtime;
         log = new RecordingLog();
+        log.config = new JsonLogConfig();
     }
 
     @Test
@@ -288,8 +298,8 @@ class OpenLibertyContractIntegrationTest {
         assertEquals(204, reports.withdraw(firstReportId.toString()).getStatus());
         assertEquals(0L, scalarLong("select count(*) from reports where id = ?", firstReportId));
 
-        assertTrue(log.eventsNamed("report_created") >= 2);
-        assertTrue(log.eventsNamed("bookmark_status_changed") >= 1);
+        assertEquals(2, log.eventsNamed("report_created"));
+        assertEquals(1, log.eventsNamed("bookmark_status_changed"));
     }
 
     @Test
@@ -511,17 +521,21 @@ class OpenLibertyContractIntegrationTest {
         assertEquals("target", audit.path("items").get(0).path("targetId").asText());
         query.clear();
 
-        Response stats = resource.stats();
-        JsonNode statsBody = body(stats);
-        assertEquals(3, statsBody.path("totals").path("users").asInt());
-        assertEquals(2, statsBody.path("totals").path("bookmarks").asInt());
-        assertEquals(1, statsBody.path("totals").path("hiddenBookmarks").asInt());
-        assertEquals(1, statsBody.path("totals").path("openReports").asInt());
-        assertEquals(30, statsBody.path("daily").size());
-        assertEquals("java", statsBody.path("topTags").get(0).path("tag").asText());
+        LocalDate fixedToday = LocalDate.of(2026, 1, 15);
+        try (MockedStatic<LocalDate> dates = mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
+            dates.when(() -> LocalDate.now(ZoneOffset.UTC)).thenReturn(fixedToday);
+            Response stats = resource.stats();
+            JsonNode statsBody = body(stats);
+            assertEquals(3, statsBody.path("totals").path("users").asInt());
+            assertEquals(2, statsBody.path("totals").path("bookmarks").asInt());
+            assertEquals(1, statsBody.path("totals").path("hiddenBookmarks").asInt());
+            assertEquals(1, statsBody.path("totals").path("openReports").asInt());
+            assertEquals(30, statsBody.path("daily").size());
+            assertEquals("java", statsBody.path("topTags").get(0).path("tag").asText());
 
-        requestHeaders.put("If-None-Match", stats.getHeaderString("ETag"));
-        assertEquals(304, resource.stats().getStatus());
+            requestHeaders.put("If-None-Match", stats.getHeaderString("ETag"));
+            assertEquals(304, resource.stats().getStatus());
+        }
         assertEquals(
                 1L, scalarLong("select count(*) from audit_entries where action = 'user.blocked'"));
         assertEquals(
@@ -566,12 +580,21 @@ class OpenLibertyContractIntegrationTest {
 
         inboundHeaders.put("Authorization", "Bearer highly-sensitive-token");
         clearInvocations(context);
-        authentication.filter(context);
+        log.forwardToSink = true;
+        String emitted;
+        try {
+            emitted = captureOutput(() -> authentication.filter(context));
+        } finally {
+            log.forwardToSink = false;
+        }
         ArgumentCaptor<Response> aborted = ArgumentCaptor.forClass(Response.class);
         verify(context).abortWith(aborted.capture());
         assertEquals(401, aborted.getValue().getStatus());
         assertEquals("@1782864000", aborted.getValue().getHeaderString("Deprecation"));
         assertEquals(1, log.eventsNamed("jwt_validation_failed"));
+        assertTrue(emitted.contains("\"event\":\"jwt_validation_failed\""));
+        assertTrue(emitted.contains("\"error_code\":\"invalid_token\""));
+        assertFalse(emitted.contains("highly-sensitive-token"));
 
         Principal principal = () -> "alice";
         when(security.getUserPrincipal()).thenReturn(principal);
@@ -597,7 +620,6 @@ class OpenLibertyContractIntegrationTest {
         assertEquals(403, blocked.getStatus());
         assertTrue(body(blocked).path("detail").asText().contains("blocked"));
         assertEquals(1, log.eventsNamed("blocked_user_rejected"));
-        assertFalse(log.events.toString().contains("highly-sensitive-token"));
 
         CallerAuthorizationFilter callerFilter = new CallerAuthorizationFilter();
         callerFilter.request = request;
@@ -736,8 +758,10 @@ class OpenLibertyContractIntegrationTest {
             assertEquals(2, firstLog.eventsNamed("message_seed_imported"));
             assertEquals(1, firstLog.eventsNamed("application_start"));
             Map<String, ?> startupFields = firstLog.last("application_start").fields();
-            assertFalse(startupFields.containsKey("db_password"));
-            assertFalse(startupFields.containsKey("db_user"));
+            assertEquals(Set.of("port", "db_host", "oidc_issuer_uri"), startupFields.keySet());
+            String startupPayload = JsonSupport.jsonString(startupFields);
+            assertFalse(startupPayload.contains(POSTGRES.getUsername()));
+            assertFalse(startupPayload.contains(POSTGRES.getPassword()));
             assertEquals(POSTGRES.getHost(), startupFields.get("db_host"));
         } finally {
             first.stop();
@@ -801,6 +825,18 @@ class OpenLibertyContractIntegrationTest {
         List<String> values = new ArrayList<>();
         array.forEach(value -> values.add(value.path("id").asText()));
         return values;
+    }
+
+    private static String captureOutput(Runnable action) {
+        PrintStream original = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try {
+            System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
+            action.run();
+        } finally {
+            System.setOut(original);
+        }
+        return output.toString(StandardCharsets.UTF_8);
     }
 
     private void insertUser(String username) throws SQLException {
@@ -918,12 +954,16 @@ class OpenLibertyContractIntegrationTest {
 
     private static final class RecordingLog extends EventLogger {
         private final List<RecordedEvent> events = new ArrayList<>();
+        private boolean forwardToSink;
 
         @Override
         void event(
                 String level, String event, String outcome, String message, Map<String, ?> fields) {
             events.add(
                     new RecordedEvent(level, event, outcome, message, new LinkedHashMap<>(fields)));
+            if (forwardToSink) {
+                super.event(level, event, outcome, message, fields);
+            }
         }
 
         int eventsNamed(String name) {
@@ -935,6 +975,18 @@ class OpenLibertyContractIntegrationTest {
                     .filter(event -> event.event().equals(name))
                     .reduce((first, second) -> second)
                     .orElseThrow();
+        }
+    }
+
+    private static final class JsonLogConfig extends AppConfig {
+        @Override
+        String logLevel() {
+            return "debug";
+        }
+
+        @Override
+        String logFormat() {
+            return "json";
         }
     }
 
