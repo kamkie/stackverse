@@ -38,13 +38,18 @@ jobs:
           lightweight='[{"language":"actions","sarif-language":"actions","build-mode":"none"}]'
 
           include="$full"
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ] \
-             && ! git diff --name-only "$BASE_SHA...$HEAD_SHA" \
-                  | grep -Evq '\.md$|^\.github/CODEOWNERS$'; then
-            echo "documentation-only pull request: running Actions CodeQL only"
-            include="$lightweight"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            changed_files=$(mktemp)
+            if ! git diff --name-only "$BASE_SHA...$HEAD_SHA" > "$changed_files"; then
+              echo "::warning::could not classify changed files; running the full CodeQL matrix"
+            elif ! grep -Evq '\.md$|^\.github/CODEOWNERS$' "$changed_files"; then
+              echo "documentation-only pull request: running Actions CodeQL only"
+              include="$lightweight"
+            else
+              echo "code-relevant pull request: running the full CodeQL matrix"
+            fi
           else
-            echo "code-relevant event: running the full CodeQL matrix"
+            echo "non-PR event: running the full CodeQL matrix"
           fi
           echo "include=$include" >> "$GITHUB_OUTPUT"
 
