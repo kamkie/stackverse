@@ -41,7 +41,7 @@ class ReportsController < ApplicationController
     caller = require_caller!
     page, size = query_params.page_and_size
     status = Stackverse::InputValidation.validate_report_status(query_params.single("status"))
-    conditions = ["reporter = #{Stackverse::Sql.quote(caller.username)}"]
+    conditions = [ "reporter = #{Stackverse::Sql.quote(caller.username)}" ]
     conditions << "status = #{Stackverse::Sql.quote(status)}" if status
     where_sql = conditions.join(" and ")
     rows = Stackverse::Sql.query(<<~SQL.squish)

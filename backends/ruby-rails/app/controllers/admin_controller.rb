@@ -95,7 +95,7 @@ class AdminController < ApplicationController
     status = query_params.single("status")
     Stackverse::Errors.bad_request("unknown status: #{status}") if status && !%w[active blocked].include?(status)
 
-    conditions = ["true"]
+    conditions = [ "true" ]
     conditions << "u.username ilike #{Stackverse::Sql.quote(Stackverse::Sql.like_pattern(q))} escape E'\\\\'" if q.present?
     conditions << "u.status = #{Stackverse::Sql.quote(status)}" if status
     where_sql = conditions.join(" and ")
@@ -160,7 +160,7 @@ class AdminController < ApplicationController
       "targetType" => "target_type",
       "targetId" => "target_id"
     }
-    conditions = ["true"]
+    conditions = [ "true" ]
     filters.each do |param_name, column|
       value = query_params.single(param_name)
       conditions << "#{column} = #{Stackverse::Sql.quote(value)}" if value
@@ -329,10 +329,10 @@ class AdminController < ApplicationController
 
   def count_per_day(table, column, start_date)
     allowed = {
-      ["bookmarks", "created_at"] => true,
-      ["user_accounts", "last_seen"] => true
+      [ "bookmarks", "created_at" ] => true,
+      [ "user_accounts", "last_seen" ] => true
     }
-    raise ArgumentError, "unsupported daily series" unless allowed[[table, column]]
+    raise ArgumentError, "unsupported daily series" unless allowed[[ table, column ]]
 
     start_time = start_date.to_time.utc
     rows = Stackverse::Sql.query(<<~SQL.squish)

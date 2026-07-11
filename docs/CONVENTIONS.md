@@ -235,7 +235,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Scala http4s](../backends/scala-http4s/README.md) | scalafmt (and often scalafix) config checked in | scalafmt config checked by CI; deprecation/feature warnings compile with `-Werror` | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | Spotless/Checkstyle or IDE-standard formatting enforced in build | Spotless/google-java-format (AOSP style) runs in Maven `verify` | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | rustfmt and cargo check/test; Clippy commonly added for larger crates | cargo fmt --check, cargo check/test, and all-target/all-feature Clippy with warnings denied | ✅ idiomatic |
-| [Ruby on Rails API](../backends/ruby-rails/README.md) | RuboCop plus rails-omakase or StandardRB in CI | No RuboCop/Standard configured; CI runs Zeitwerk and Minitest only | 🔴 undocumented |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | RuboCop plus rails-omakase or StandardRB in CI | `rubocop-rails-omakase` is enforced locally and in CI alongside Zeitwerk and Minitest | ✅ idiomatic |
 
 ### API & domain-type modeling
 

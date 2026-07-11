@@ -21,7 +21,7 @@ module Stackverse
     end
 
     def localize(key, language)
-      languages = [language, DEFAULT_LANGUAGE].uniq
+      languages = [ language, DEFAULT_LANGUAGE ].uniq
       row = Sql.one(<<~SQL.squish)
         select text from messages
         where key = #{Sql.quote(key)} and language = any(#{Sql.array(languages)})
@@ -32,7 +32,7 @@ module Stackverse
     end
 
     def bundle(language)
-      languages = [language, DEFAULT_LANGUAGE].uniq
+      languages = [ language, DEFAULT_LANGUAGE ].uniq
       rows = Sql.query(<<~SQL.squish)
         select key, language, text from messages
         where language = any(#{Sql.array(languages)})
@@ -55,7 +55,7 @@ module Stackverse
           match = parameter.match(/\A\s*q=([0-9.]+)\s*\z/)
           match ? match[1].to_f : nil
         end.first || 1.0
-        [tag, quality.nan? ? 0.0 : quality]
+        [ tag, quality.nan? ? 0.0 : quality ]
       end.sort_by { |_tag, quality| -quality }.map(&:first)
     end
   end
