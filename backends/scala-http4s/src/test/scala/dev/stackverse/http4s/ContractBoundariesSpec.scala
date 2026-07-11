@@ -39,7 +39,7 @@ class ContractBoundariesSpec extends AnyFunSuite {
           "url" -> Json.fromString("ftp://example.test/not-http"),
           "title" -> Json.fromString("   "),
           "notes" -> Json.fromString("n" * 4001),
-          "tags" -> Json.arr((0 until 11).map(index => Json.fromString(s"bad_tag_$index"))* )
+          "tags" -> Json.arr((0 until 11).map(index => Json.fromString(s"bad_tag_$index"))*)
         )
       )
     }

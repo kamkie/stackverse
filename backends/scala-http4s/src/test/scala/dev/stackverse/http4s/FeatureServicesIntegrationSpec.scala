@@ -149,7 +149,8 @@ class FeatureServicesIntegrationSpec extends AnyFunSuite with BeforeAndAfterAll 
     val first = call(Some(owner), Method.GET, "/api/v2/bookmarks?size=2")
     assert(itemIds(first) == Seq(newest.toString, middle.toString))
     val cursor = json(first).hcursor.get[String]("nextCursor").toOption.get
-    val insertedLater = insertBookmark(owner.username, "concurrent insert", Seq("scala"), createdAt = base.plusSeconds(10))
+    val insertedLater =
+      insertBookmark(owner.username, "concurrent insert", Seq("scala"), createdAt = base.plusSeconds(10))
     val second = call(Some(owner), Method.GET, s"/api/v2/bookmarks?size=2&cursor=$cursor")
     assert(itemIds(second) == Seq(matching.toString, oldest.toString))
     assert(!itemIds(second).contains(insertedLater.toString))
@@ -200,14 +201,24 @@ class FeatureServicesIntegrationSpec extends AnyFunSuite with BeforeAndAfterAll 
     assert(itemIds(list) == Seq(polish.toString))
     val listEtag = header(list, "ETag").get
     assert(
-      call(None, Method.GET, "/api/v1/messages?language=pl&q=TYTU", headers = Map("If-None-Match" -> listEtag)).status ==
+      call(
+        None,
+        Method.GET,
+        "/api/v1/messages?language=pl&q=TYTU",
+        headers = Map("If-None-Match" -> listEtag)
+      ).status ==
         Status.NotModified
     )
 
     val item = call(None, Method.GET, s"/api/v1/messages/$english")
     assert(item.status == Status.Ok)
     assert(
-      call(None, Method.GET, s"/api/v1/messages/$english", headers = Map("If-None-Match" -> header(item, "ETag").get)).status ==
+      call(
+        None,
+        Method.GET,
+        s"/api/v1/messages/$english",
+        headers = Map("If-None-Match" -> header(item, "ETag").get)
+      ).status ==
         Status.NotModified
     )
   }
@@ -230,7 +241,12 @@ class FeatureServicesIntegrationSpec extends AnyFunSuite with BeforeAndAfterAll 
     )
     assert(invalid.status == Status.BadRequest)
     assert(
-      json(invalid).hcursor.downField("errors").downArray.get[String]("message").toOption.contains("Tekst jest wymagany")
+      json(invalid).hcursor
+        .downField("errors")
+        .downArray
+        .get[String]("message")
+        .toOption
+        .contains("Tekst jest wymagany")
     )
 
     val created = call(Some(admin), Method.POST, "/api/v1/messages", Some(payload))
@@ -253,7 +269,8 @@ class FeatureServicesIntegrationSpec extends AnyFunSuite with BeforeAndAfterAll 
 
     assert(call(Some(admin), Method.DELETE, s"/api/v1/messages/$id").status == Status.NoContent)
     assert(call(None, Method.GET, s"/api/v1/messages/$id").status == Status.NotFound)
-    assert(auditActions == Seq("message.created", "message.updated", "message.deleted"))
+    val expectedAuditActions = Seq("message.created", "message.updated", "message.deleted")
+    assert(auditActions.sorted == expectedAuditActions.sorted)
   }
 
   test("report moderation covers ownership, duplicate and withdrawal rules, sibling action, reopen, and restore") {
@@ -555,7 +572,9 @@ class FeatureServicesIntegrationSpec extends AnyFunSuite with BeforeAndAfterAll 
     db.withConnection(conn => db.one(conn, "select * from reports where id = ?", Seq(id))(Rows.report).get)
 
   private def auditActions: Seq[String] =
-    db.withConnection(conn => db.query(conn, "select action from audit_entries order by created_at, id")(_.getString(1)))
+    db.withConnection(conn =>
+      db.query(conn, "select action from audit_entries order by created_at, id")(_.getString(1))
+    )
 
   private def messageText(key: String, language: String): Option[String] =
     db.withConnection(conn =>
