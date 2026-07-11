@@ -446,7 +446,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 |---|---|---|---|
 | [React](../frontends/react/README.md) | Feature folders plus shared components dir | Feature folders (bookmarks, auth, i18n, pages) + components/ | ✅ idiomatic |
 | [Angular](../frontends/angular/README.md) | Angular CLI src/app feature folders, suffix-less filenames (v20 style) | src/app feature folders; suffix-less filenames (bookmark-list.ts) | ✅ idiomatic |
-| [Astro](../frontends/astro/README.md) | `src/pages` for routes, `src/layouts` for shared documents, and `src/components` for islands/components | File-based pages plus `AppLayout.astro`, with Solid `components`, `screens`, and `lib` modules | ✅ idiomatic |
+| [Astro](../frontends/astro/README.md) | `src/pages` for routes, `src/layouts` for shared documents, and focused client entries/components where interactivity is required | Slotted file-based pages plus `AppLayout.astro`; page-specific entries mount feature components through a shared shell | ✅ idiomatic |
 | [Lit (Web Components)](../frontends/lit/README.md) | Vite SPA `src/` with elements/components, view/controller modules, and an app entry | Composition-only main.ts plus focused state, navigation, view, bookmark, admin, dialog, and app-controller modules | ✅ idiomatic |
 | [Qwik](../frontends/qwik/README.md) | Vite/Qwik SPA `src/` with app entry, components, routes/pages, and lib | Vite CSR layout: src/{components,pages,lib,dev}, App.tsx, root.tsx, main.tsx | ✅ idiomatic |
 | [SolidJS](../frontends/solid/README.md) | Vite SPA `src/` with components, pages, lib, and app entry | Vite SPA layout: src/{components,pages,lib,dev}, App.tsx, main.tsx | ✅ idiomatic |
