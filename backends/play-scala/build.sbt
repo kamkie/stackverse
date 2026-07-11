@@ -20,7 +20,8 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk" % "1.64.0",
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.64.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.64.0",
-      "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test
+      "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
+      "org.testcontainers" % "postgresql" % "1.21.4" % Test
     ),
     Test / fork := true,
     scalafmtOnCompile := false
