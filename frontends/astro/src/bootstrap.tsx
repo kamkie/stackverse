@@ -1,5 +1,5 @@
 import { render } from "solid-js/web";
-import App from "./App";
+import App, { type PageId } from "./App";
 
 async function bootstrap() {
   if (import.meta.env.DEV) {
@@ -13,7 +13,9 @@ async function bootstrap() {
 
   const target = document.getElementById("app");
   if (!target) throw new Error("#app not found");
-  render(() => <App />, target);
+  const page = target.dataset.page as PageId | undefined;
+  if (!page) throw new Error("#app[data-page] not found");
+  render(() => <App page={page} />, target);
 }
 
 void bootstrap();

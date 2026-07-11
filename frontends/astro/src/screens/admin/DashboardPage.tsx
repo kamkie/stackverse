@@ -1,6 +1,5 @@
 import { createMemo, createSignal, For, onMount } from "solid-js";
 import { api } from "../../lib/api";
-import { goto } from "../../lib/route";
 import { i18n, m, mc } from "../../lib/i18n";
 import type { AdminStats } from "../../lib/types";
 
@@ -53,10 +52,6 @@ export default function DashboardPage() {
             <a
               class="sv-stat sv-stat--link"
               href="/admin/reports"
-              onClick={(event) => {
-                event.preventDefault();
-                goto("/admin/reports");
-              }}
             >
               <span class="sv-stat-value">{stats()!.totals.openReports}</span>
               <span class="sv-stat-label">

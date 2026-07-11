@@ -1,7 +1,7 @@
 # Frontend - Astro
 
-Astro 7 generates the static application document and bundles a SolidJS client
-entry for the interactive Stackverse application. This boundary is deliberate:
+Astro 7 generates nine real file-based pages through a shared `.astro` layout and
+bundles a SolidJS client entry for their interactive Stackverse content. This boundary is deliberate:
 Stackverse is authenticated, runtime-localized, and stateful on every screen, so
 there is no useful static page content to render ahead of the gateway session.
 Astro still owns the document, asset graph, static output, and development server;
@@ -27,15 +27,16 @@ frontends. There is no mock mode, so development requires a running gateway.
 
 ## Architecture
 
-`src/pages/index.astro` is the static Astro route and CSP-safe document shell. It
-loads the persisted-theme helper and the external `src/bootstrap.tsx` bundle,
-which mounts `src/App.tsx`. The client application uses Solid signals, focused components and
-screen modules, and a small History API router. Nginx falls back all browser routes
-to Astro's generated `index.html`, so direct navigation and refresh work through
-the gateway.
+`src/layouts/AppLayout.astro` is the shared CSP-safe document shell. The files in
+`src/pages/` map directly to `/feed`, `/bookmarks`, `/reports`, and every `/admin/*`
+route, like a conventional Astro or Next.js pages directory. Each generated page
+identifies its screen to the external `src/bootstrap.tsx` bundle, which mounts the
+corresponding Solid content through `src/App.tsx`. Navigation uses ordinary links;
+there is no client router. Nginx serves each generated `index.html`, while its root
+fallback remains available for unknown browser routes.
 
-The full client application is a deliberate comparison point, not an attempt to hide the
-cost: Astro's usual zero-JavaScript static rendering offers little value when every
+The page-level client application is a deliberate comparison point, not an attempt to hide
+the cost: Astro's usual zero-JavaScript static rendering offers little value when every
 visible screen depends on `/auth/session`, runtime messages, and user-specific API
 data. A server-rendered Astro deployment would also violate this repository's
 static-frontend and gateway-owned-session boundaries.

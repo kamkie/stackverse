@@ -1,7 +1,6 @@
 import { createSignal, onCleanup, onMount, For, Show } from "solid-js";
 import ToastRegion, { type Toast } from "./components/ToastRegion";
 import { i18n, loadBundle, m, setLanguage, SUPPORTED_LANGUAGES } from "./lib/i18n";
-import { goto, installRouteListener, route } from "./lib/route";
 import {
   LOGIN_URL,
   isAdmin,
@@ -23,6 +22,20 @@ import MessagesPage from "./screens/admin/MessagesPage";
 import ReportsPage from "./screens/admin/ReportsPage";
 import UsersPage from "./screens/admin/UsersPage";
 
+export type PageId =
+  | "feed"
+  | "bookmarks"
+  | "reports"
+  | "admin-dashboard"
+  | "admin-reports"
+  | "admin-users"
+  | "admin-audit"
+  | "admin-messages";
+
+interface Props {
+  page: PageId;
+}
+
 function currentSession(): Session {
   return session() ?? { authenticated: false };
 }
@@ -32,34 +45,19 @@ function currentUsername(): string {
   return current.authenticated ? current.username : "";
 }
 
-export default function App() {
+export default function App(props: Props) {
   const [theme, setTheme] = createSignal<ThemeOption>(readStoredTheme());
   const [toasts, setToasts] = createSignal<Toast[]>([]);
   let toastId = 0;
-  let uninstallRouteListener: (() => void) | undefined;
 
   function onUnauthorized() {
     expireSession();
-    goto("/feed");
+    location.assign("/feed");
   }
 
-  function navClass(path: string, exact = true): string {
-    const currentRoute = route();
-    const active = exact
-      ? currentRoute === path
-      : currentRoute === path || currentRoute.startsWith(`${path}/`);
+  function navClass(page: PageId, section?: "admin"): string {
+    const active = section === "admin" ? props.page.startsWith("admin-") : props.page === page;
     return `sv-nav-link${active ? " is-active" : ""}`;
-  }
-
-  function navigate(path: string): void {
-    goto(path);
-  }
-
-  function navigateClick(path: string) {
-    return (event: MouseEvent) => {
-      event.preventDefault();
-      navigate(path);
-    };
   }
 
   function changeTheme(next: ThemeOption) {
@@ -77,7 +75,7 @@ export default function App() {
 
   async function doLogout() {
     await logout();
-    goto("/feed");
+    location.assign("/feed");
   }
 
   function adminContent() {
@@ -89,35 +87,35 @@ export default function App() {
         <aside class="sv-sidebar">
           <h2 class="sv-sidebar-title">{m(i18n(), "ui.nav.admin")}</h2>
           <nav class="sv-nav sv-nav--vertical" aria-label="Admin">
-            <a href="/admin" class={navClass("/admin")} onClick={navigateClick("/admin")}>
+            <a href="/admin" class={navClass("admin-dashboard")}>
               {m(i18n(), "ui.admin.dashboard")}
             </a>
-            <a href="/admin/reports" class={navClass("/admin/reports")} onClick={navigateClick("/admin/reports")}>
+            <a href="/admin/reports" class={navClass("admin-reports")}>
               {m(i18n(), "ui.admin.reports")}
             </a>
             <Show when={isAdmin(me())}>
-              <a href="/admin/users" class={navClass("/admin/users")} onClick={navigateClick("/admin/users")}>
+              <a href="/admin/users" class={navClass("admin-users")}>
                 {m(i18n(), "ui.admin.users")}
               </a>
-              <a href="/admin/audit" class={navClass("/admin/audit")} onClick={navigateClick("/admin/audit")}>
+              <a href="/admin/audit" class={navClass("admin-audit")}>
                 {m(i18n(), "ui.admin.audit")}
               </a>
-              <a href="/admin/messages" class={navClass("/admin/messages")} onClick={navigateClick("/admin/messages")}>
+              <a href="/admin/messages" class={navClass("admin-messages")}>
                 {m(i18n(), "ui.admin.messages")}
               </a>
             </Show>
           </nav>
         </aside>
         <section class="sv-content">
-          {route() === "/admin/reports" ? (
+          {props.page === "admin-reports" ? (
             <ReportsPage />
-          ) : route() === "/admin/users" && isAdmin(me()) ? (
+          ) : props.page === "admin-users" && isAdmin(me()) ? (
             <UsersPage />
-          ) : route() === "/admin/audit" && isAdmin(me()) ? (
+          ) : props.page === "admin-audit" && isAdmin(me()) ? (
             <AuditLogPage />
-          ) : route() === "/admin/messages" && isAdmin(me()) ? (
+          ) : props.page === "admin-messages" && isAdmin(me()) ? (
             <MessagesPage toast={showToast} />
-          ) : route() === "/admin" || route() === "/admin/" ? (
+          ) : props.page === "admin-dashboard" ? (
             <DashboardPage />
           ) : (
             <div class="sv-alert sv-alert--danger" role="alert">403</div>
@@ -128,33 +126,31 @@ export default function App() {
   }
 
   function routeContent() {
-    if (route() === "/bookmarks") {
+    if (props.page === "bookmarks") {
       return currentSession().authenticated ? (
         <MyBookmarksPage toast={showToast} />
       ) : (
         <PublicFeedPage toast={showToast} />
       );
     }
-    if (route() === "/reports") {
+    if (props.page === "reports") {
       return currentSession().authenticated ? (
         <MyReportsPage toast={showToast} />
       ) : (
         <PublicFeedPage toast={showToast} />
       );
     }
-    if (route().startsWith("/admin")) return adminContent();
+    if (props.page.startsWith("admin-")) return adminContent();
     return <PublicFeedPage toast={showToast} />;
   }
 
   onMount(() => {
-    uninstallRouteListener = installRouteListener();
     window.addEventListener("stackverse:unauthorized", onUnauthorized);
     void loadBundle();
     void refreshSession();
   });
 
   onCleanup(() => {
-    uninstallRouteListener?.();
     window.removeEventListener("stackverse:unauthorized", onUnauthorized);
   });
 
@@ -165,23 +161,23 @@ export default function App() {
     >
       <div class="sv-app">
         <header class="sv-header">
-          <a href="/" class="sv-brand" onClick={navigateClick("/feed")}>
+          <a href="/feed" class="sv-brand">
             {m(i18n(), "ui.app.title")}
           </a>
           <nav class="sv-nav">
             <Show when={currentSession().authenticated}>
-              <a href="/bookmarks" class={navClass("/bookmarks")} onClick={navigateClick("/bookmarks")}>
+              <a href="/bookmarks" class={navClass("bookmarks")}>
                 {m(i18n(), "ui.nav.my-bookmarks")}
               </a>
-              <a href="/reports" class={navClass("/reports")} onClick={navigateClick("/reports")}>
+              <a href="/reports" class={navClass("reports")}>
                 {m(i18n(), "ui.nav.my-reports")}
               </a>
             </Show>
-            <a href="/feed" class={navClass("/feed")} onClick={navigateClick("/feed")}>
+            <a href="/feed" class={navClass("feed")}>
               {m(i18n(), "ui.nav.public-feed")}
             </a>
             <Show when={isModerator(me())}>
-              <a href="/admin" class={navClass("/admin", false)} onClick={navigateClick("/admin")}>
+              <a href="/admin" class={navClass("admin-dashboard", "admin")}>
                 {m(i18n(), "ui.nav.admin")}
               </a>
             </Show>
