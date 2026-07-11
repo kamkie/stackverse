@@ -2,10 +2,10 @@ FROM openresty/openresty:1.31.1.1-2-bookworm-fat
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gettext-base ca-certificates lua-busted lua-check \
-    && opm get zmartzone/lua-resty-openidc \
-    && opm get bungle/lua-resty-session \
-    && opm get ledgetech/lua-resty-http \
-    && opm get ledgetech/lua-resty-redis-connector \
+    && opm get zmartzone/lua-resty-openidc=1.7.5 \
+    && opm get bungle/lua-resty-session=4.1.5 \
+    && opm get ledgetech/lua-resty-http=0.17.1 \
+    && opm get ledgetech/lua-resty-redis-connector=0.10 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/stackverse
