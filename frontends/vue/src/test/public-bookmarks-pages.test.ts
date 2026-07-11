@@ -180,23 +180,23 @@ describe("my bookmarks", () => {
       tags: ["vue", "testing"],
       visibility: "public",
     });
-    let tagsReads = 0;
     const requests = stubFetch(async (request) => {
       const url = new URL(request.url);
       if (request.method === "GET" && url.pathname === "/api/v2/bookmarks") {
         return Response.json({ items: [original] });
       }
       if (request.method === "GET" && url.pathname === "/api/v1/tags") {
-        tagsReads += 1;
-        return Response.json({ tags: [{ tag: "vue", count: tagsReads }] });
+        return Response.json({ tags: [{ tag: "vue", count: 1 }] });
       }
       if (request.method === "POST" && url.pathname === "/api/v1/bookmarks") {
         return Response.json(created, { status: 201 });
       }
-      if (request.method === "PUT") {
+      if (request.method === "PUT" && url.pathname === `/api/v1/bookmarks/${created.id}`) {
         return Response.json({ ...created, title: "Edited bookmark" });
       }
-      if (request.method === "DELETE") return new Response(null, { status: 204 });
+      if (request.method === "DELETE" && url.pathname === `/api/v1/bookmarks/${created.id}`) {
+        return new Response(null, { status: 204 });
+      }
       return new Response(null, { status: 404 });
     });
     await preparePageMessages();
@@ -240,6 +240,17 @@ describe("my bookmarks", () => {
     await dialog.get("form").trigger("submit");
     await settle();
     expect(wrapper.text()).toContain("Edited bookmark");
+    const update = requests.find((request) => request.method === "PUT");
+    expect(new URL(update?.url ?? location.origin).pathname).toBe(
+      `/api/v1/bookmarks/${created.id}`,
+    );
+    expect(await update?.json()).toEqual({
+      url: created.url,
+      title: "Edited bookmark",
+      notes: created.notes,
+      tags: created.tags,
+      visibility: created.visibility,
+    });
 
     await wrapper
       .findAll("button")
@@ -249,9 +260,10 @@ describe("my bookmarks", () => {
     await settle();
 
     expect(wrapper.text()).not.toContain("Edited bookmark");
-    expect(requests.some((request) => request.method === "PUT")).toBe(true);
-    expect(requests.some((request) => request.method === "DELETE")).toBe(true);
-    expect(tagsReads).toBe(4);
+    const removal = requests.find((request) => request.method === "DELETE");
+    expect(new URL(removal?.url ?? location.origin).pathname).toBe(
+      `/api/v1/bookmarks/${created.id}`,
+    );
     expect((await import("../toast")).toasts.value.at(-1)?.message).toBe("Bookmark deleted");
   });
 

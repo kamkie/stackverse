@@ -56,6 +56,7 @@ async function prepareMessages(): Promise<void> {
     "ui.admin.users": "Users",
     "ui.nav.admin": "Admin",
     "ui.reports.bookmark-unavailable": "Bookmark unavailable",
+    "ui.reports.empty": "No reports to review",
     "ui.toast.report-updated": "Report updated",
     "ui.toast.report-withdrawn": "Report withdrawn",
   });
@@ -89,7 +90,7 @@ describe("my reports", () => {
       if (request.method === "GET" && url.pathname.endsWith(resolved.bookmarkId)) {
         return problem(404, "Bookmark hidden");
       }
-      if (request.method === "PUT") {
+      if (request.method === "PUT" && url.pathname === `/api/v1/reports/${open.id}`) {
         return Response.json({
           ...open,
           reason: "other",
@@ -150,7 +151,7 @@ describe("my reports", () => {
       if (request.method === "GET" && url.pathname.includes("/bookmarks/")) {
         return Response.json(bookmark(open.bookmarkId, "Reported bookmark"));
       }
-      if (request.method === "PUT") {
+      if (request.method === "PUT" && url.pathname === `/api/v1/reports/${open.id}`) {
         return problem(400, "Invalid report", [
           {
             field: "comment",
@@ -203,7 +204,7 @@ describe("moderation reports", () => {
       if (request.method === "GET" && url.pathname.includes("/bookmarks/")) {
         return Response.json(bookmark(current.bookmarkId, "Moderated bookmark"));
       }
-      if (request.method === "PUT") {
+      if (request.method === "PUT" && url.pathname === `/api/v1/admin/reports/${current.id}`) {
         const body = (await request.json()) as { resolution: ReportStatus };
         const next: Report = { ...current, status: body.resolution };
         if (body.resolution === "open") {
@@ -230,7 +231,8 @@ describe("moderation reports", () => {
       .find((button) => button.text() === "Dismiss")
       ?.trigger("click");
     await settle();
-    expect(wrapper.text()).toContain("empty");
+    expect(wrapper.get(".sv-empty").text()).toBe("No reports to review");
+    expect(wrapper.text()).not.toContain("Moderated bookmark");
 
     await wrapper.get("select").setValue("dismissed");
     await settle();
@@ -243,9 +245,12 @@ describe("moderation reports", () => {
       ?.trigger("click");
     await settle();
 
-    const resolutions = await Promise.all(
-      requests.filter((request) => request.method === "PUT").map((request) => request.json()),
-    );
+    const resolutionRequests = requests.filter((request) => request.method === "PUT");
+    expect(resolutionRequests.map((request) => new URL(request.url).pathname)).toEqual([
+      `/api/v1/admin/reports/${current.id}`,
+      `/api/v1/admin/reports/${current.id}`,
+    ]);
+    const resolutions = await Promise.all(resolutionRequests.map((request) => request.json()));
     expect(resolutions).toEqual([{ resolution: "dismissed" }, { resolution: "open" }]);
   });
 
