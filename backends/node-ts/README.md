@@ -29,14 +29,20 @@ message seed resolves to the repo's `spec/messages` automatically. Migrations
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests (plain unit tests, no containers):
+Tests (Vitest units plus Fastify injection, no containers):
 
 ```sh
 yarn lint           # ESLint flat config: JavaScript + TypeScript recommended rules
 yarn format:check   # Prettier verification (use yarn format to rewrite)
 yarn typecheck      # tsc --noEmit
-yarn test           # Vitest
+yarn test --coverage   # Vitest + LCOV under coverage/
 ```
+
+The suite drives the real Fastify request boundary for authentication,
+messages, moderation, ETags, and RFC 9457 errors while replacing PostgreSQL,
+OIDC discovery, and other dependencies with deterministic fakes. It is not a
+live-database integration suite; shared conformance remains that acceptance
+boundary.
 
 Conformance (the acceptance gate), with the backend running:
 
