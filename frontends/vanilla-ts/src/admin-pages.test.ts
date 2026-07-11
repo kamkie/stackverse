@@ -41,7 +41,7 @@ describe("admin page contract rendering", () => {
 
     state.session = { authenticated: false };
     const anonymous = await adminPageHtml("/admin");
-    expect(anonymous.html).toContain('/auth/login');
+    expect(anonymous.html).toContain("/auth/login");
 
     state.session = { authenticated: true, username: "demo" };
     state.me = { username: "demo", roles: [] };
@@ -53,31 +53,30 @@ describe("admin page contract rendering", () => {
   it("renders moderator dashboard aggregates without exposing admin-only navigation", async () => {
     state.session = { authenticated: true, username: "moderator" };
     state.me = { username: "moderator", roles: ["moderator"] };
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        jsonResponse({
-          totals: {
-            users: 7,
-            bookmarks: 12,
-            publicBookmarks: 5,
-            hiddenBookmarks: 2,
-            openReports: 3,
-          },
-          daily: [
-            { date: "2026-07-10", bookmarksCreated: 2, activeUsers: 4 },
-            { date: "2026-07-11", bookmarksCreated: 0, activeUsers: 1 },
-          ],
-          topTags: [{ tag: "typescript", count: 6 }],
-        }),
-      );
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      jsonResponse({
+        totals: {
+          users: 7,
+          bookmarks: 12,
+          publicBookmarks: 5,
+          hiddenBookmarks: 2,
+          openReports: 3,
+        },
+        daily: [
+          { date: "2026-07-10", bookmarksCreated: 2, activeUsers: 4 },
+          { date: "2026-07-11", bookmarksCreated: 0, activeUsers: 1 },
+        ],
+        topTags: [{ tag: "typescript", count: 6 }],
+      }),
+    );
 
     const page = await adminPageHtml("/admin");
     const host = document.createElement("div");
     host.innerHTML = page.html;
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/v1/admin/stats",
+    const [statsInput, statsInit] = fetchMock.mock.calls[0] ?? [];
+    expect(new URL(String(statsInput)).pathname).toBe("/api/v1/admin/stats");
+    expect(statsInit).toEqual(
       expect.objectContaining({ credentials: "include" }),
     );
     expect(host.querySelectorAll(".sv-stat-value")).toHaveLength(5);
@@ -178,14 +177,20 @@ describe("admin page contract rendering", () => {
     const actionedRow = host.querySelector(
       '[data-ctx="report:report-actioned"]',
     );
-    expect(actionedRow?.querySelector('[data-resolution="dismissed"]')).not.toBeNull();
-    expect(actionedRow?.querySelector('[data-resolution="open"]')).not.toBeNull();
+    expect(
+      Array.from(
+        actionedRow?.querySelectorAll<HTMLElement>("[data-resolution]") ?? [],
+      ).map((button) => button.dataset.resolution),
+    ).toEqual(["dismissed", "open"]);
 
     const dismissedRow = host.querySelector(
       '[data-ctx="report:report-dismissed"]',
     );
-    expect(dismissedRow?.querySelector('[data-resolution="actioned"]')).not.toBeNull();
-    expect(dismissedRow?.querySelector('[data-resolution="open"]')).not.toBeNull();
+    expect(
+      Array.from(
+        dismissedRow?.querySelectorAll<HTMLElement>("[data-resolution]") ?? [],
+      ).map((button) => button.dataset.resolution),
+    ).toEqual(["actioned", "open"]);
   });
 
   it("applies admin list filters and publishes only action-target records", async () => {
@@ -296,14 +301,28 @@ describe("admin page contract rendering", () => {
     );
     expect(auditRequest?.searchParams.get("actor")).toBe("moderator");
     expect(auditRequest?.searchParams.get("action")).toBe("report.resolved");
-    expect(auditRequest?.searchParams.get("from")).toBe(
-      new Date("2026-07-01T00:00:00").toISOString(),
-    );
-    expect(auditRequest?.searchParams.get("to")).toBe(
-      new Date("2026-07-11T23:59:59.999")
-        .toISOString()
-        .replace(".999Z", ".999999Z"),
-    );
+    const from = new Date(auditRequest?.searchParams.get("from") ?? "");
+    expect([
+      from.getFullYear(),
+      from.getMonth() + 1,
+      from.getDate(),
+      from.getHours(),
+      from.getMinutes(),
+      from.getSeconds(),
+      from.getMilliseconds(),
+    ]).toEqual([2026, 7, 1, 0, 0, 0, 0]);
+    const toParam = auditRequest?.searchParams.get("to") ?? "";
+    expect(toParam).toMatch(/\.999999Z$/);
+    const to = new Date(toParam);
+    expect([
+      to.getFullYear(),
+      to.getMonth() + 1,
+      to.getDate(),
+      to.getHours(),
+      to.getMinutes(),
+      to.getSeconds(),
+      to.getMilliseconds(),
+    ]).toEqual([2026, 7, 11, 23, 59, 59, 999]);
     expect(auditRequest?.searchParams.get("page")).toBe("3");
     expect(auditPage.html).toContain("report-1&lt;script&gt;");
 
