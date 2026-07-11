@@ -1,5 +1,6 @@
 package dev.stackverse.backend
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -8,6 +9,7 @@ import io.ktor.server.request.receive
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondBytes
 import io.ktor.server.response.respondText
+import org.slf4j.Logger
 import org.slf4j.event.Level
 import java.security.MessageDigest
 import java.time.Instant
@@ -15,13 +17,13 @@ import java.util.Base64
 import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
 
-suspend fun ApplicationCall.respondProblem(context: AppContext, problem: Problem, status: HttpStatusCode) {
+suspend fun ApplicationCall.respondProblem(mapper: ObjectMapper, problem: Problem, status: HttpStatusCode) {
     response.status(status)
-    respondText(context.mapper.writeValueAsString(problem), PROBLEM_JSON, status)
+    respondText(mapper.writeValueAsString(problem), PROBLEM_JSON, status)
 }
 
-suspend fun ApplicationCall.respondJsonWithEtag(context: AppContext, body: Any, cacheControl: Boolean) {
-    val bytes = context.mapper.writeValueAsBytes(body)
+suspend fun ApplicationCall.respondJsonWithEtag(mapper: ObjectMapper, body: Any, cacheControl: Boolean) {
+    val bytes = mapper.writeValueAsBytes(body)
     val etag = "\"" + Base64.getUrlEncoder().withoutPadding()
         .encodeToString(MessageDigest.getInstance("SHA-256").digest(bytes)) + "\""
     if (cacheControl) response.headers.append(HttpHeaders.CacheControl, "no-cache")
@@ -43,10 +45,10 @@ fun ApplicationCall.identity(): Identity? =
 fun ApplicationCall.requireIdentity(): Identity =
     identity() ?: throw ApiProblem(HttpStatusCode.Unauthorized, "Unauthorized", detail = "Authentication is required.")
 
-fun ApplicationCall.requireRole(role: String, context: AppContext): Identity {
+fun ApplicationCall.requireRole(role: String, logger: Logger): Identity {
     val identity = requireIdentity()
     if (role !in identity.roles) {
-        context.logger.logEvent(
+        logger.logEvent(
             Level.INFO,
             "authz_denied",
             "denied",

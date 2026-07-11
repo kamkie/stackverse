@@ -1,6 +1,6 @@
 # Backend - Ktor (Kotlin)
 
-Ktor 3.5 · Kotlin 2.3 · Java 25 · Netty · JDBC/HikariCP · Flyway · PostgreSQL.
+Ktor 3.5 · Kotlin 2.4 · Java 25 · Netty · JDBC/HikariCP · Flyway · PostgreSQL.
 
 Shared behavior (endpoints, env vars, rules) is documented in
 [backends/README.md](../README.md) and [docs/SPEC.md](../../docs/SPEC.md) - this file
@@ -37,6 +37,9 @@ docker build -t stackverse/backend-ktor-kotlin:local -f backends/ktor-kotlin/Doc
 - **Ktor as a thin HTTP boundary** - routing, status pages, JSON negotiation, and
   auth/account handling live in application plugins and routes; contract decisions stay
   in explicit service/repository functions.
+- **Ktor-native dependency injection** - `ktor-server-di` constructor providers wire
+  repositories and services by type; the container also closes the Hikari data source
+  with the application lifecycle.
 - **Coroutine-friendly blocking persistence** - JDBC/HikariCP calls run on
   `Dispatchers.IO`, keeping the implementation easy to read while avoiding event-loop
   blocking.
