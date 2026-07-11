@@ -2,6 +2,8 @@ import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 
 ThisBuild / scalaVersion := "3.8.4"
 
+lazy val coverageRunId = settingKey[String]("Unique id that keeps scoverage instrumentation out of sbt 2 disk cache")
+
 lazy val root = (project in file("."))
   .enablePlugins(JavaAppPackaging)
   .settings(
@@ -26,8 +28,15 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk" % "1.64.0",
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.64.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.64.0",
-      "org.scalatest" %% "scalatest" % "3.2.20" % Test
+      "org.scalatest" %% "scalatest" % "3.2.20" % Test,
+      "org.testcontainers" % "testcontainers-postgresql" % "2.0.5" % Test
     ),
+    coverageRunId := java.util.UUID.randomUUID().toString,
+    Compile / scalacOptions ++= {
+      if (coverageEnabled.value) Seq(s"-Xmacro-settings:stackverse-scoverage-run=${coverageRunId.value}")
+      else Seq.empty
+    },
     Test / fork := true,
+    Test / parallelExecution := false,
     scalafmtOnCompile := false
   )
