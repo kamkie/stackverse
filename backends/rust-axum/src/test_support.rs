@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
+use axum::Router;
 use axum::body::{Body, to_bytes};
+use axum::extract::Extension;
 use axum::http::{Method, Request, Response, header};
 use serde_json::Value;
 use sqlx::PgPool;
@@ -45,6 +47,14 @@ pub(crate) fn identity(username: &str, roles: &[&str]) -> Identity {
         email: Some(format!("{username}@example.com")),
         roles: roles.iter().map(|role| (*role).to_string()).collect(),
     }
+}
+
+pub(crate) fn app(router: Router<AppState>, pool: PgPool, caller: Identity) -> Router {
+    router.with_state(state(pool)).layer(Extension(caller))
+}
+
+pub(crate) fn anonymous_app(router: Router<AppState>, pool: PgPool) -> Router {
+    router.with_state(state(pool))
 }
 
 pub(crate) fn request(method: Method, uri: &str) -> Request<Body> {
