@@ -48,7 +48,10 @@ function otelLogStream(): { write: (line: string) => void } {
 }
 
 const streams: StreamEntry[] = [
-  { level: config.logLevel as Level, stream: config.logFormat === "text" ? pretty({ destination: 1 }) : process.stdout },
+  {
+    level: config.logLevel as Level,
+    stream: config.logFormat === "text" ? pretty({ destination: 1 }) : process.stdout,
+  },
 ];
 if (config.otelEnabled) {
   streams.push({ level: config.logLevel as Level, stream: otelLogStream() });

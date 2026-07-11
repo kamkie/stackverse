@@ -15,10 +15,12 @@ describe("bookmark cursor", () => {
     expect(encoded).toMatch(/^[A-Za-z0-9_-]+$/);
   });
 
-  it.each(["definitely-not-a-cursor", "", "aGVsbG8", Buffer.from("2026-01-01T00:00:00Z|not-a-uuid").toString("base64url")])(
-    "rejects malformed cursor %j with a 400 problem",
-    (value) => {
-      expect(() => decodeCursor(value)).toThrow(BadRequestProblem);
-    },
-  );
+  it.each([
+    "definitely-not-a-cursor",
+    "",
+    "aGVsbG8",
+    Buffer.from("2026-01-01T00:00:00Z|not-a-uuid").toString("base64url"),
+  ])("rejects malformed cursor %j with a 400 problem", (value) => {
+    expect(() => decodeCursor(value)).toThrow(BadRequestProblem);
+  });
 });

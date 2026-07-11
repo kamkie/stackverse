@@ -99,9 +99,7 @@ export function buildApp(): FastifyInstance {
       return sendValidationProblem(request, reply, error);
     }
     if (error instanceof ApiProblem) {
-      const detail = error.detailKey
-        ? await localize(error.detailKey, await requestLanguage(request))
-        : error.detail;
+      const detail = error.detailKey ? await localize(error.detailKey, await requestLanguage(request)) : error.detail;
       return sendProblem(reply, error.status, error.title, detail);
     }
     // Fastify infrastructure errors (malformed JSON, oversized body, ...) are

@@ -14,9 +14,7 @@ export async function seedMessages(): Promise<void> {
   const dir = config.seedMessagesDir;
   const files = (await readdir(dir).catch(() => null))?.filter((file) => file.endsWith(".json")).sort();
   if (!files) {
-    throw new Error(
-      `Message seed directory not found: ${dir} — set SEED_MESSAGES_DIR to the spec/messages directory`,
-    );
+    throw new Error(`Message seed directory not found: ${dir} — set SEED_MESSAGES_DIR to the spec/messages directory`);
   }
   for (const file of files) {
     const language = path.basename(file, ".json");

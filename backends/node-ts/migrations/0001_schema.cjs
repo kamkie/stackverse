@@ -10,7 +10,7 @@
 
 /** @param {import("node-pg-migrate").MigrationBuilder} pgm */
 exports.up = (pgm) => {
-  pgm.sql(`
+    pgm.sql(`
     create table user_accounts (
         username       varchar(255)  primary key,
         first_seen     timestamptz   not null,
@@ -83,7 +83,7 @@ exports.up = (pgm) => {
 
 /** @param {import("node-pg-migrate").MigrationBuilder} pgm */
 exports.down = (pgm) => {
-  pgm.sql(`
+    pgm.sql(`
     drop table messages;
     drop table audit_entries;
     drop table reports;

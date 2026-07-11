@@ -32,7 +32,10 @@ message seed resolves to the repo's `spec/messages` automatically. Migrations
 Tests (plain unit tests, no containers):
 
 ```sh
-yarn test           # vitest; yarn typecheck for tsc --noEmit
+yarn lint           # ESLint flat config: JavaScript + TypeScript recommended rules
+yarn format:check   # Prettier verification (use yarn format to rewrite)
+yarn typecheck      # tsc --noEmit
+yarn test           # Vitest
 ```
 
 Conformance (the acceptance gate), with the backend running:
@@ -69,9 +72,10 @@ docker build -t stackverse/backend-node-ts:local -f backends/node-ts/Dockerfile 
   response, the same stateless revalidation scheme as the reference backend's
   `ShallowEtagHeaderFilter`; bundle and stats bodies are deterministically
   ordered so identical reads produce identical tags.
-- **Yarn Berry PnP, ESM, tsc** — zero `node_modules`, matching the repo's
-  other Node projects; the Docker runtime stage runs plain `node` with the
-  PnP require hook + ESM loader, no Yarn in the image.
+- **Yarn Berry PnP, ESM, tsc, ESLint, and Prettier** — zero `node_modules`,
+  matching the repo's other Node projects; strict type-checking, linting, and
+  formatting are separate local and CI gates. The Docker runtime stage runs
+  plain `node` with the PnP require hook + ESM loader, no Yarn in the image.
 - **Observability** (docs/RUNNING.md) — the OpenTelemetry NodeSDK, wired in
   code (`src/otel.ts`: HTTP + pg instrumentation, OTLP/gRPC for
   traces/metrics/logs) and active only when `OTEL_SDK_DISABLED=false`. Console

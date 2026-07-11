@@ -123,10 +123,7 @@ async function hideBookmark(client: PoolClient, actor: string, bookmarkId: strin
   const bookmark = result.rows[0] as BookmarkRow | undefined;
   if (!bookmark) throw new NotFoundProblem();
   if (bookmark.status === "hidden") return;
-  await client.query("update bookmarks set status = 'hidden', updated_at = $2 where id = $1", [
-    bookmarkId,
-    new Date(),
-  ]);
+  await client.query("update bookmarks set status = 'hidden', updated_at = $2 where id = $1", [bookmarkId, new Date()]);
   await recordAudit(client, actor, "bookmark.status-changed", "bookmark", bookmarkId, {
     from: "active",
     to: "hidden",
@@ -219,10 +216,11 @@ export function registerModerationRoutes(app: FastifyInstance): void {
       const report = await ownReport(client, caller.username, id);
       const input = validateReportInput(request.body);
       requireOpen(report);
-      const updated = await client.query(
-        "update reports set reason = $2, comment = $3 where id = $1 returning *",
-        [id, input.reason, input.comment],
-      );
+      const updated = await client.query("update reports set reason = $2, comment = $3 where id = $1 returning *", [
+        id,
+        input.reason,
+        input.comment,
+      ]);
       logEvent("info", "report_updated", "success", "Report updated by its reporter", {
         actor: caller.username,
         resource_type: "report",
@@ -380,11 +378,7 @@ export function registerModerationRoutes(app: FastifyInstance): void {
     >;
     const validator = new Validator();
     const status = body["status"];
-    validator.check(
-      status === "active" || status === "hidden",
-      "status",
-      "validation.bookmark-status.invalid",
-    );
+    validator.check(status === "active" || status === "hidden", "status", "validation.bookmark-status.invalid");
     const note = typeof body["note"] === "string" ? body["note"] : null;
     validator.check((note?.length ?? 0) <= 1000, "note", "validation.bookmark-status.note.too-long");
     validator.throwIfInvalid();

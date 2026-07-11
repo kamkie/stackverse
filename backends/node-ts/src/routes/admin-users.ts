@@ -73,10 +73,7 @@ export function registerAdminUserRoutes(app: FastifyInstance): void {
        order by u.last_seen desc, u.username asc limit ${size} offset ${page * size}`,
       params,
     );
-    const total = await pool.query(
-      `select count(*)::int as count from user_accounts u where ${where}`,
-      params,
-    );
+    const total = await pool.query(`select count(*)::int as count from user_accounts u where ${where}`, params);
     const totalItems = (total.rows[0] as { count: number }).count;
     return {
       items: (items.rows as UserAccountRow[]).map(toUserAccountResponse),
