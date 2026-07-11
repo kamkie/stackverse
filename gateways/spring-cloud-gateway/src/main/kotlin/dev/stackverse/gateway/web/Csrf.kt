@@ -154,7 +154,8 @@ class CsrfWebFilter(
 
     private fun canonicalOrigin(uri: URI): String {
         val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: error("PUBLIC_URL must include a scheme")
-        val host = uri.host?.lowercase(Locale.ROOT) ?: error("PUBLIC_URL must include a host")
+        val host = uri.host?.lowercase(Locale.ROOT)?.removeSurrounding("[", "]")
+            ?: error("PUBLIC_URL must include a host")
         val port = uri.port
         val authorityHost = if (host.contains(':')) "[$host]" else host
         val portPart = if (port >= 0 && !(scheme == "http" && port == 80) && !(scheme == "https" && port == 443)) {

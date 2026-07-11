@@ -34,6 +34,21 @@ class SecurityHeadersWebFilterTest {
         assertNull(headers.getFirst("Referrer-Policy"))
     }
 
+    @Test
+    fun `api matching is segment aware at the exact route boundary`() {
+        val apiHeaders = headersFor("/api", "http://localhost:8000")
+        assertEquals("nosniff", apiHeaders.getFirst("X-Content-Type-Options"))
+        assertNull(apiHeaders.getFirst("Content-Security-Policy"))
+        assertNull(apiHeaders.getFirst("Referrer-Policy"))
+
+        val spaHeaders = headersFor("/apiary", "http://localhost:8000")
+        assertEquals(
+            "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
+            spaHeaders.getFirst("Content-Security-Policy"),
+        )
+        assertEquals("same-origin", spaHeaders.getFirst("Referrer-Policy"))
+    }
+
     private fun headersFor(path: String, publicUrl: String): org.springframework.http.HttpHeaders {
         val filter = SecurityHeadersWebFilter(gateway(publicUrl))
         val exchange = MockServerWebExchange.from(MockServerHttpRequest.get(path).build())

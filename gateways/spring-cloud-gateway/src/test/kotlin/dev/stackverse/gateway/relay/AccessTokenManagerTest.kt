@@ -1,5 +1,6 @@
 package dev.stackverse.gateway.relay
 
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -26,8 +27,104 @@ import org.springframework.security.oauth2.core.user.OAuth2User
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
 import java.time.Instant
+import java.util.concurrent.TimeoutException
 
 class AccessTokenManagerTest {
+
+    @Test
+    fun `authenticated session without a stored client is destroyed and degraded`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/bookmarks").build())
+        val session = exchange.session.block()!!
+        val manager = AccessTokenManager(
+            StaticAuthorizedClientRepository(null),
+            FailingAuthorizedClientManager(AssertionError("refresh must not run")),
+        )
+
+        val token = manager.accessToken(authentication(), exchange).blockOptional()
+
+        assertTrue(token.isEmpty)
+        assertTrue(session.isExpired)
+    }
+
+    @Test
+    fun `expired access token without a refresh token destroys the session`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/bookmarks").build())
+        val session = exchange.session.block()!!
+        val manager = AccessTokenManager(
+            StaticAuthorizedClientRepository(expiredClient(withRefreshToken = false)),
+            FailingAuthorizedClientManager(AssertionError("refresh must not run")),
+        )
+
+        val token = manager.accessToken(authentication(), exchange).blockOptional()
+
+        assertTrue(token.isEmpty)
+        assertTrue(session.isExpired)
+    }
+
+    @Test
+    fun `empty refresh result destroys the session instead of relaying an expired token`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/bookmarks").build())
+        val session = exchange.session.block()!!
+        val manager = AccessTokenManager(
+            StaticAuthorizedClientRepository(expiredClient()),
+            ReturningAuthorizedClientManager(null),
+        )
+
+        val token = manager.accessToken(authentication(), exchange).blockOptional()
+
+        assertTrue(token.isEmpty)
+        assertTrue(session.isExpired)
+    }
+
+    @Test
+    fun `successful refresh returns the new access token and keeps the session`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/bookmarks").build())
+        val session = exchange.session.block()!!
+        val manager = AccessTokenManager(
+            StaticAuthorizedClientRepository(expiredClient()),
+            ReturningAuthorizedClientManager(freshClient("refreshed-access-token")),
+        )
+
+        val token = manager.accessToken(authentication(), exchange).block()
+
+        assertEquals("refreshed-access-token", token)
+        assertFalse(session.isExpired)
+    }
+
+    @Test
+    fun `wrapped http rejection without an oauth error destroys the session`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/bookmarks").build())
+        val session = exchange.session.block()!!
+        val failure = RuntimeException(
+            "refresh failed",
+            TokenEndpointResponseStatusException(400, RuntimeException("unparseable body")),
+        )
+        val manager = AccessTokenManager(
+            StaticAuthorizedClientRepository(expiredClient()),
+            FailingAuthorizedClientManager(failure),
+        )
+
+        val token = manager.accessToken(authentication(), exchange).blockOptional()
+
+        assertTrue(token.isEmpty)
+        assertTrue(session.isExpired)
+    }
+
+    @Test
+    fun `refresh timeout keeps the session and surfaces idp unavailability`() {
+        val exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/v1/bookmarks").build())
+        val session = exchange.session.block()!!
+        val manager = AccessTokenManager(
+            StaticAuthorizedClientRepository(expiredClient()),
+            FailingAuthorizedClientManager(TimeoutException("token endpoint timed out")),
+        )
+
+        assertThrows(IdpUnavailableException::class.java) {
+            manager.accessToken(authentication(), exchange).block()
+        }
+
+        assertFalse(session.isExpired)
+    }
 
     @Test
     fun `token endpoint 400 with unparsable oauth body destroys session and degrades`() {
@@ -89,7 +186,7 @@ class AccessTokenManagerTest {
         return OAuth2AuthenticationToken(principal, authorities, "keycloak")
     }
 
-    private fun expiredClient(): OAuth2AuthorizedClient {
+    private fun expiredClient(withRefreshToken: Boolean = true): OAuth2AuthorizedClient {
         val now = Instant.now()
         return OAuth2AuthorizedClient(
             clientRegistration(),
@@ -100,7 +197,22 @@ class AccessTokenManagerTest {
                 now.minusSeconds(600),
                 now.minusSeconds(300),
             ),
-            OAuth2RefreshToken("refresh-token", now.minusSeconds(600)),
+            if (withRefreshToken) OAuth2RefreshToken("refresh-token", now.minusSeconds(600)) else null,
+        )
+    }
+
+    private fun freshClient(tokenValue: String): OAuth2AuthorizedClient {
+        val now = Instant.now()
+        return OAuth2AuthorizedClient(
+            clientRegistration(),
+            "demo",
+            OAuth2AccessToken(
+                OAuth2AccessToken.TokenType.BEARER,
+                tokenValue,
+                now.minusSeconds(30),
+                now.plusSeconds(600),
+            ),
+            OAuth2RefreshToken("rotated-refresh-token", now),
         )
     }
 
@@ -116,14 +228,14 @@ class AccessTokenManagerTest {
             .build()
 
     private class StaticAuthorizedClientRepository(
-        private val client: OAuth2AuthorizedClient,
+        private val client: OAuth2AuthorizedClient?,
     ) : ServerOAuth2AuthorizedClientRepository {
         @Suppress("UNCHECKED_CAST")
         override fun <T : OAuth2AuthorizedClient> loadAuthorizedClient(
             clientRegistrationId: String,
             principal: Authentication,
             exchange: ServerWebExchange,
-        ): Mono<T> = Mono.just(client as T)
+        ): Mono<T> = client?.let { Mono.just(it as T) } ?: Mono.empty()
 
         override fun saveAuthorizedClient(
             authorizedClient: OAuth2AuthorizedClient,
@@ -143,5 +255,12 @@ class AccessTokenManagerTest {
     ) : ReactiveOAuth2AuthorizedClientManager {
         override fun authorize(authorizeRequest: OAuth2AuthorizeRequest): Mono<OAuth2AuthorizedClient> =
             Mono.error(failure)
+    }
+
+    private class ReturningAuthorizedClientManager(
+        private val client: OAuth2AuthorizedClient?,
+    ) : ReactiveOAuth2AuthorizedClientManager {
+        override fun authorize(authorizeRequest: OAuth2AuthorizeRequest): Mono<OAuth2AuthorizedClient> =
+            client?.let { Mono.just(it) } ?: Mono.empty()
     }
 }
