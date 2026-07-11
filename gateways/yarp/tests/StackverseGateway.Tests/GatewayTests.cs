@@ -1,8 +1,12 @@
+using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace StackverseGateway.Tests;
 
@@ -196,6 +200,143 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
     }
 
     [Fact]
+    public async Task Backend_unauthorized_problem_is_passed_through_without_an_oidc_redirect()
+    {
+        using var client = CreateClient();
+        const string body = """
+            {"type":"about:blank","title":"Unauthorized","status":401,"detail":"A bearer token is required."}
+            """;
+        fixture.Backend.RespondOnce(HttpStatusCode.Unauthorized, "application/problem+json", body);
+
+        var response = await client.GetAsync("/api/v1/me");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(body, await response.Content.ReadAsStringAsync());
+        Assert.Equal("", fixture.Backend.LastAuthorization);
+    }
+
+    [Fact]
+    public async Task Backend_validation_problem_and_request_body_cross_the_proxy_unchanged()
+    {
+        using var client = CreateClient();
+        var xsrf = await IssueCsrfTokenAsync(client);
+        const string problem = """
+            {"type":"about:blank","title":"Validation failed","status":400,"errors":[{"field":"url","messageKey":"validation.url","message":"Invalid URL"}]}
+            """;
+        const string requestBody = "{\"url\":\"not-a-url\",\"title\":\"Example\"}";
+        fixture.Backend.RespondOnce(HttpStatusCode.BadRequest, "application/problem+json", problem);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/bookmarks?source=browser")
+        {
+            Content = new StringContent(requestBody, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add(Csrf.HeaderName, xsrf);
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(problem, await response.Content.ReadAsStringAsync());
+        Assert.Equal("POST", fixture.Backend.LastMethod);
+        Assert.Equal("/api/v1/bookmarks", fixture.Backend.LastPath);
+        Assert.Equal("?source=browser", fixture.Backend.LastQuery);
+        Assert.Equal(requestBody, fixture.Backend.LastBody);
+        Assert.Equal("", fixture.Backend.LastAuthorization);
+        Assert.Equal("", fixture.Backend.LastCookie);
+        Assert.Equal("", fixture.Backend.LastCsrfHeader);
+    }
+
+    [Fact]
+    public async Task Authenticated_moderation_request_relay_and_backend_denial_stay_at_their_boundaries()
+    {
+        using var client = CreateClient();
+        var xsrf = await AuthFlows.LogInAsync(client, "demo", "demo");
+        try
+        {
+            const string problem = """
+                {"type":"about:blank","title":"Forbidden","status":403,"detail":"The moderator role is required."}
+                """;
+            const string requestBody = "{\"resolution\":\"actioned\",\"note\":\"duplicate reports\"}";
+            fixture.Backend.RespondOnce(HttpStatusCode.Forbidden, "application/problem+json", problem);
+            using var request = new HttpRequestMessage(
+                HttpMethod.Put,
+                "/api/v1/admin/reports/00000000-0000-0000-0000-000000000001")
+            {
+                Content = new StringContent(requestBody, Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Add(Csrf.HeaderName, xsrf);
+            request.Headers.TryAddWithoutValidation("Authorization", "Bearer forged-by-the-client");
+
+            var response = await client.SendAsync(request);
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+            Assert.Equal(problem, await response.Content.ReadAsStringAsync());
+            Assert.Equal("PUT", fixture.Backend.LastMethod);
+            Assert.Equal(
+                "/api/v1/admin/reports/00000000-0000-0000-0000-000000000001",
+                fixture.Backend.LastPath);
+            Assert.Equal(requestBody, fixture.Backend.LastBody);
+            Assert.StartsWith("Bearer ", fixture.Backend.LastAuthorization);
+            Assert.DoesNotContain("forged-by-the-client", fixture.Backend.LastAuthorization, StringComparison.Ordinal);
+            Assert.Equal("", fixture.Backend.LastCookie);
+            Assert.Equal("", fixture.Backend.LastCsrfHeader);
+        }
+        finally
+        {
+            using var logoutResponse = await client.PostAsync("/auth/logout", null);
+        }
+    }
+
+    [Fact]
+    public async Task Backend_versioning_and_localization_headers_are_preserved()
+    {
+        using var client = CreateClient();
+        const string body = "{\"items\":[],\"page\":0,\"size\":20,\"totalItems\":0,\"totalPages\":0}";
+        fixture.Backend.RespondOnce(
+            HttpStatusCode.OK,
+            "application/json",
+            body,
+            new Dictionary<string, string>
+            {
+                ["Content-Language"] = "pl",
+                ["Deprecation"] = "@1782864000",
+                ["Sunset"] = "Thu, 01 Jul 2027 00:00:00 GMT",
+                ["Link"] = "</api/v2/bookmarks>; rel=\"successor-version\"",
+            });
+
+        var response = await client.GetAsync("/api/v1/bookmarks");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(body, await response.Content.ReadAsStringAsync());
+        Assert.Equal("pl", Assert.Single(response.Content.Headers.ContentLanguage));
+        AssertHeader(response, "Deprecation", "@1782864000");
+        AssertHeader(response, "Sunset", "Thu, 01 Jul 2027 00:00:00 GMT");
+        AssertHeader(response, "Link", "</api/v2/bookmarks>; rel=\"successor-version\"");
+    }
+
+    [Fact]
+    public async Task Static_spa_fallback_serves_root_and_deep_links_without_replacing_the_api_proxy()
+    {
+        using var factory = fixture.Factory.WithWebHostBuilder(builder =>
+            builder.UseSetting("FRONTEND_URL", ""));
+        using var client = factory.CreateClient(
+            new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+
+        var root = await client.GetAsync("/");
+        var deepLink = await client.GetAsync("/admin/reports");
+        var api = await client.GetAsync("/api/v2/bookmarks?visibility=public");
+
+        Assert.Equal(HttpStatusCode.OK, root.StatusCode);
+        Assert.Contains("Stackverse", await root.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, deepLink.StatusCode);
+        Assert.Contains("Stackverse", await deepLink.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, api.StatusCode);
+        Assert.Equal("/api/v2/bookmarks", fixture.Backend.LastPath);
+    }
+
+    [Fact]
     public async Task Hsts_is_emitted_only_when_public_url_is_https()
     {
         using var httpClient = CreateClient();
@@ -302,6 +443,33 @@ public sealed class GatewayTests(GatewayFixture fixture) : IClassFixture<Gateway
         var apiAfterLogout = await client.GetAsync("/api/v1/bookmarks");
         Assert.Equal(HttpStatusCode.OK, apiAfterLogout.StatusCode);
         Assert.Equal("", fixture.Backend.LastAuthorization);
+    }
+
+    [Fact]
+    public async Task Idp_rejection_during_refresh_destroys_the_session_and_relays_anonymously()
+    {
+        using var client = CreateClient();
+        await AuthFlows.LogInAsync(client, "demo", "demo");
+
+        var services = fixture.Factory.Services;
+        var server = services.GetRequiredService<IConnectionMultiplexer>().GetServers().Single();
+        var sessionKey = server.Keys(pattern: "stackverse:session:*").Single().ToString();
+        var store = services.GetRequiredService<RedisTicketStore>();
+        var ticket = (await store.RetrieveAsync(sessionKey))!;
+        ticket.Properties.UpdateTokenValue(
+            "expires_at",
+            DateTimeOffset.UtcNow.AddMinutes(-5).ToString("o", CultureInfo.InvariantCulture));
+        ticket.Properties.UpdateTokenValue("refresh_token", "invalid-refresh-token");
+        await store.RenewAsync(sessionKey, ticket);
+
+        var response = await client.GetAsync("/api/v1/bookmarks");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("", fixture.Backend.LastAuthorization);
+        Assert.NotNull(AuthFlows.ExtractSetCookie(response, "stackverse_session"));
+        Assert.Null(await store.RetrieveAsync(sessionKey));
+        var session = await GetJsonAsync(client, "/auth/session");
+        Assert.False(session.GetProperty("authenticated").GetBoolean());
     }
 
     private static async Task<JsonElement> GetJsonAsync(HttpClient client, string path)

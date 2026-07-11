@@ -13,6 +13,15 @@ public sealed class EdgeSecurityTests
         Assert.Equal(expected, EdgeSecurity.CanonicalPublicOrigin(new Uri(publicUrl)));
     }
 
+    [Fact]
+    public void Canonical_public_origin_requires_an_absolute_url()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => EdgeSecurity.CanonicalPublicOrigin(new Uri("file:///tmp/stackverse")));
+
+        Assert.Equal("PUBLIC_URL must include a scheme and host.", exception.Message);
+    }
+
     [Theory]
     [InlineData("GET", "/api/v1/bookmarks")]
     [InlineData("HEAD", "/api/v1/bookmarks")]
