@@ -9,6 +9,7 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { flushAsync, stubBundleFetch, type BundleFetchStub } from '../../testing/bundle-fetch';
+import type { AuditEntry } from '../api/types';
 import { AuditLogPage } from './audit-log-page';
 
 const EMPTY_PAGE = { items: [], page: 0, size: 20, totalItems: 0, totalPages: 0 };
@@ -78,5 +79,56 @@ describe('AuditLogPage', () => {
     );
     toRequest.flush(EMPTY_PAGE);
     await flushAsync();
+  });
+
+  it('renders immutable audit entries with a localized timestamp and shortened target id', async () => {
+    const entry: AuditEntry = {
+      id: 'audit-1',
+      actor: 'moderator',
+      action: 'report.resolved',
+      targetType: 'report',
+      targetId: '12345678-abcd-efgh',
+      detail: { resolution: 'dismissed' },
+      createdAt: '2026-07-02T10:30:00Z',
+    };
+    const component = fixture.componentInstance as unknown as {
+      audit: { reload(): void };
+    };
+    component.audit.reload();
+    controller.expectOne(isAuditRequest).flush({
+      items: [entry],
+      page: 0,
+      size: 20,
+      totalItems: 1,
+      totalPages: 1,
+    });
+    await flushAsync();
+    fixture.detectChanges();
+
+    const row = fixture.nativeElement.querySelector('tbody tr') as HTMLTableRowElement;
+    expect(row.textContent).toContain('moderator');
+    expect(row.textContent).toContain('report.resolved');
+    expect(row.textContent).toContain('report/12345678');
+    expect(row.querySelector('time')?.getAttribute('datetime')).toBe('2026-07-02T10:30:00Z');
+  });
+
+  it('renders an operational failure instead of a stale table', async () => {
+    const component = fixture.componentInstance as unknown as {
+      audit: { reload(): void };
+    };
+    component.audit.reload();
+    controller
+      .expectOne(isAuditRequest)
+      .flush(
+        { title: 'Unavailable', detail: 'Audit service unavailable.' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+    await flushAsync();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[role="alert"]')?.textContent?.trim()).toBe(
+      'Audit service unavailable.',
+    );
+    expect(fixture.nativeElement.querySelector('table')).toBeNull();
   });
 });
