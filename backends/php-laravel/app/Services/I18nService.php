@@ -10,8 +10,6 @@ class I18nService
 {
     public const DEFAULT_LANGUAGE = 'en';
 
-    private static ?array $supportedLanguages = null;
-
     public function requestLanguage(Request $request): string
     {
         return $this->resolveLanguage(
@@ -130,11 +128,7 @@ class I18nService
 
     private function supportedLanguages(): array
     {
-        if (self::$supportedLanguages !== null) {
-            return self::$supportedLanguages;
-        }
-
-        return self::$supportedLanguages = array_fill_keys(
+        return array_fill_keys(
             Message::query()->distinct()->orderBy('language')->pluck('language')->all(),
             true,
         );

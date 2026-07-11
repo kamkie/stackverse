@@ -69,6 +69,20 @@ class Wire
      */
     public static function multiParam(Request $request, string $name): array
     {
+        $repeated = [];
+        foreach (explode('&', (string) $request->server->get('QUERY_STRING', '')) as $parameter) {
+            if ($parameter === '') {
+                continue;
+            }
+            [$rawName, $rawValue] = array_pad(explode('=', $parameter, 2), 2, '');
+            if (urldecode($rawName) === $name) {
+                $repeated[] = urldecode($rawValue);
+            }
+        }
+        if (count($repeated) > 1) {
+            return $repeated;
+        }
+
         $value = $request->query($name);
         if ($value === null) {
             return [];
