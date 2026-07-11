@@ -8,6 +8,8 @@ import org.junit.jupiter.api.assertThrows
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
+import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoInteractions
 import org.mockito.Mockito.`when`
 import org.springframework.dao.DataIntegrityViolationException
@@ -62,6 +64,28 @@ class MessageServiceTest {
         }
 
         assertThat(problem.detail).contains("race.message", "en", "already exists")
+        verifyNoInteractions(auditService)
+    }
+
+    @Test
+    fun `update rejects an existing key and language pair before mutating the message`() {
+        val message = message(key = "current.message", language = "en", text = "current")
+        val duplicate = message(key = "race.message", language = "en", text = "other")
+        `when`(repository.findById(message.id)).thenReturn(Optional.of(message))
+        `when`(repository.findByKeyAndLanguage("race.message", "en")).thenReturn(duplicate)
+
+        val problem = assertThrows<ConflictProblem> {
+            service.update(
+                "admin",
+                message.id,
+                MessageRequest(key = "race.message", language = "en", text = "updated"),
+            )
+        }
+
+        assertThat(problem.detail).contains("race.message", "en", "already exists")
+        assertThat(message.key).isEqualTo("current.message")
+        assertThat(message.text).isEqualTo("current")
+        verify(repository, never()).flush()
         verifyNoInteractions(auditService)
     }
 
