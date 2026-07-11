@@ -27,10 +27,12 @@ frontends. There is no mock mode, so development requires a running gateway.
 
 ## Architecture
 
-`src/layouts/AppLayout.astro` is the shared CSP-safe document shell. The files in
+`src/layouts/AppLayout.astro` is the shared CSP-safe document template. It accepts
+page metadata through `Astro.props` and exposes `<slot />` for route content. The files in
 `src/pages/` map directly to `/feed`, `/bookmarks`, `/reports`, and every `/admin/*`
 route, like a conventional Astro or Next.js pages directory. Each generated page
-identifies its screen to the external `src/bootstrap.tsx` bundle, which mounts the
+inject their page root through the layout slot and identify the screen for the external
+`src/bootstrap.tsx` bundle, which mounts the
 corresponding Solid content through `src/App.tsx`. Navigation uses ordinary links;
 there is no client router. Nginx serves each generated `index.html`, while its root
 fallback remains available for unknown browser routes.

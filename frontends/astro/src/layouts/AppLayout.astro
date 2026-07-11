@@ -1,13 +1,15 @@
 ---
 import "../../../../spec/design/tokens.css";
 import "../../../../spec/design/stackverse.css";
-import type { PageId } from "../App";
-
 interface Props {
-  page: PageId;
+  title?: string;
+  description?: string;
 }
 
-const { page } = Astro.props;
+const {
+  title = "Stackverse",
+  description = "A contract-first bookmark manager implemented across many stacks.",
+} = Astro.props;
 ---
 
 <!doctype html>
@@ -15,11 +17,12 @@ const { page } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Stackverse</title>
+    <title>{title}</title>
+    <meta name="description" content={description} />
     <script is:inline src="/theme.js"></script>
   </head>
   <body>
-    <div id="app" data-page={page}></div>
+    <slot />
     <script src="../bootstrap.tsx"></script>
   </body>
 </html>
