@@ -10,6 +10,15 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("./db.js", () => ({ pool: { query: mocks.query } }));
+vi.mock("./config.js", () => ({
+  config: {
+    oidc: {
+      issuerUri: "https://issuer.example.test",
+      audience: "stackverse",
+      jwksUri: "https://issuer.example.test/jwks",
+    },
+  },
+}));
 vi.mock("./logging.js", () => ({ logEvent: mocks.logEvent }));
 vi.mock("./i18n.js", () => ({ localize: mocks.localize, resolveLanguage: mocks.resolveLanguage }));
 vi.mock("jose", async (importOriginal) => ({
