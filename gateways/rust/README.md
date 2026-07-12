@@ -33,7 +33,7 @@ cookie rules, and the login sequence live in
 - **CSRF and same-origin boundary.** State-changing `/api/**` requests require the
   readable `XSRF-TOKEN` cookie to match `X-XSRF-TOKEN`, and browser
   `Origin`/`Sec-Fetch-Site` signals must match the exact `PUBLIC_URL` origin.
-- **Selective security headers.** SPA and `/auth/**` responses receive the full
+- **Selective security headers.** Frontend and `/auth/**` responses receive the full
   browser hardening header set. Proxied `/api/**` responses receive only
   `X-Content-Type-Options: nosniff` plus HTTPS-only HSTS, preserving backend
   `Cache-Control`, `ETag`, `Content-Language`, `304`, and bodies.
