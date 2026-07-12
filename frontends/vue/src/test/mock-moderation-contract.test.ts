@@ -33,14 +33,11 @@ describe("moderation mock contract", () => {
     const auditCount = db.audit.length;
     setCurrentUser(MOCK_USERS.moderator);
 
-    const response = await fetch(
-      new URL(`/api/v1/admin/reports/${target.id}`, location.origin),
-      {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ resolution: "open" }),
-      },
-    );
+    const response = await fetch(new URL(`/api/v1/admin/reports/${target.id}`, location.origin), {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ resolution: "open" }),
+    });
 
     expect(response.status).toBe(409);
     expect((await response.json()) as Problem).toMatchObject({
