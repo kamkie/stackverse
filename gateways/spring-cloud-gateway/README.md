@@ -14,7 +14,7 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 | `POST /auth/logout` | controller: server-to-server RP-initiated logout at Keycloak, session invalidated, `204` |
 | `GET /auth/session` | controller reading the session principal (`preferred_username`) |
 | `/api/**` | gateway route to `BACKEND_URL` with a token-relay filter backed by Spring Security's authorized-client manager |
-| `/**` | gateway route to the `FRONTEND_URL` SPA upstream when set; otherwise static resources + an `index.html` fallback filter |
+| `/**` | gateway route to the `FRONTEND_URL` frontend upstream when set; otherwise static resources + an `index.html` fallback filter |
 
 ## Design notes
 
@@ -74,7 +74,7 @@ Java 25. Route contract, cookie rules, and the login sequence live in
 - **Selective security headers.** Spring Security's default header writers are
   disabled because their `Cache-Control: no-store` stamp would break the backend's
   ETag caching exhibit on proxied responses. `SecurityHeadersWebFilter` applies the
-  gateway contract's exact browser-hardening headers to SPA/auth responses, only
+  gateway contract's exact browser-hardening headers to frontend/auth responses, only
   `X-Content-Type-Options: nosniff` (and HTTPS-only HSTS) to `/api/**`, and never
   rewrites backend `Cache-Control`, `ETag`, or `304` behavior.
 - **Observability** (docs/RUNNING.md) — the OpenTelemetry Java agent baked
