@@ -191,7 +191,8 @@ export interface paths {
          *     side effects as usual), and `open` re-opens the report, clearing the
          *     resolution fields (any `note` sent with `open` is ignored). Moving away
          *     from `actioned` never restores the bookmark; use the bookmark status
-         *     endpoint for that.
+         *     endpoint for that. Re-opening conflicts (`409`) when the reporter already
+         *     has another open report on the same bookmark.
          */
         put: operations["resolveReport"];
         post?: never;
@@ -1112,6 +1113,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     setBookmarkStatus: {
