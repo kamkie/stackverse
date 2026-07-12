@@ -1,0 +1,69 @@
+# Build and unit tests for one implementation. Each implementation has its own
+# build workflow file so parallel variant PRs never edit a shared workflow -
+# adding a variant means adding a sibling file, nothing else.
+# The contract suites (conformance/e2e) and the ci-ok merge gate live in ci.yml.
+name: build-frontend-astro
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - '.github/workflows/build-frontend-astro.yml'
+      - 'frontends/astro/**'
+      - 'spec/openapi.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-astro:
+    name: Frontend · Astro
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontends/astro
+    steps:
+      - uses: actions/checkout@v7
+      - run: corepack enable
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/cache@v6
+        with:
+          path: ~/.yarn/berry/cache
+          key: yarn-${{ runner.os }}-frontend-astro-${{ hashFiles('frontends/astro/yarn.lock') }}
+          restore-keys: yarn-${{ runner.os }}-frontend-astro-
+      - name: Install dependencies
+        run: yarn install --immutable
+      - name: Typecheck and build
+        run: yarn build
+      - name: Unit tests
+        run: yarn test --coverage
+      - name: Normalize coverage paths
+        run: node ../../tools/normalize-coverage-paths.mjs coverage/lcov.info frontends/astro/
+      # Dependabot PRs do not receive the repository Codecov token unless it is
+      # also configured as a Dependabot secret; keep app verification authoritative.
+      - name: Upload coverage to Codecov
+        if: ${{ github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          files: frontends/astro/coverage/lcov.info
+          flags: frontend-astro
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && github.actor != 'dependabot[bot]' }}
+        uses: codecov/codecov-action@v7
+        continue-on-error: true
+        with:
+          report_type: test_results
+          files: frontends/astro/test-results/junit.xml
+          flags: frontend-astro
+          token: ${{ secrets.CODECOV_TOKEN }}

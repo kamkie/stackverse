@@ -1,0 +1,18 @@
+node_modules/
+dist/
+coverage/
+*.local
+*.log
+test-results/
+tsconfig.tsbuildinfo
+.astro/
+
+# Yarn Berry: lockfile and .yarnrc.yml are committed; generated linker and
+# cache artifacts are ignored.
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions

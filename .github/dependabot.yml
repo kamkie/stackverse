@@ -99,6 +99,7 @@ updates:
       - /conformance
       - /e2e
       - /frontends/angular
+      - /frontends/astro
       - /frontends/lit
       - /frontends/qwik
       - /frontends/react
@@ -174,6 +175,7 @@ updates:
       - /backends/spring-java
       - /backends/spring-kotlin
       - /frontends/angular
+      - /frontends/astro
       - /frontends/lit
       - /frontends/qwik
       - /frontends/react

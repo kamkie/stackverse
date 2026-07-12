@@ -1,0 +1,21 @@
+---
+import AdminNavigation from "../../components/admin/AdminNavigation";
+import Messages from "../../components/admin/Messages";
+import LocalizedText from "../../components/LocalizedText";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Messages - Stackverse">
+  <div class="sv-layout">
+    <AdminNavigation client:load currentPath={Astro.url.pathname} />
+    <section class="sv-content">
+      <header>
+        <h1 class="sv-page-title">
+          <LocalizedText client:load message="ui.admin.messages" fallback="Messages" />
+        </h1>
+        <p>Manage the runtime-localized interface message catalogue.</p>
+      </header>
+      <Messages client:load />
+    </section>
+  </div>
+</BaseLayout>

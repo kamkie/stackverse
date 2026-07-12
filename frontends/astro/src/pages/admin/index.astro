@@ -1,0 +1,21 @@
+---
+import AdminNavigation from "../../components/admin/AdminNavigation";
+import Dashboard from "../../components/admin/Dashboard";
+import LocalizedText from "../../components/LocalizedText";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Dashboard - Stackverse">
+  <div class="sv-layout">
+    <AdminNavigation client:load currentPath={Astro.url.pathname} />
+    <section class="sv-content">
+      <header>
+        <h1 class="sv-page-title">
+          <LocalizedText client:load message="ui.admin.dashboard" fallback="Dashboard" />
+        </h1>
+        <p>Review current Stackverse activity and moderation totals.</p>
+      </header>
+      <Dashboard client:load />
+    </section>
+  </div>
+</BaseLayout>
