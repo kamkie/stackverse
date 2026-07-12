@@ -219,6 +219,25 @@ describe("moderation mock contract", () => {
     expect(reopened.resolutionNote).toBeUndefined();
     expect(bookmark.status).toBe("hidden");
     expect(db.audit[0]).toMatchObject({ action: "report.reopened", targetId: target.id });
+
+    target.status = "dismissed";
+    db.reports.push({
+      ...target,
+      id: "00000000-0000-4000-8000-999999999999",
+      status: "open",
+    });
+    const auditCount = db.audit.length;
+    const conflictingReopen = await apiRequest(`/api/v1/admin/reports/${target.id}`, {
+      method: "PUT",
+      body: { resolution: "open" },
+    });
+    expect(conflictingReopen.status).toBe(409);
+    expect(await responseJson<Problem>(conflictingReopen)).toMatchObject({
+      status: 409,
+      title: "Conflict",
+    });
+    expect(target.status).toBe("dismissed");
+    expect(db.audit).toHaveLength(auditCount);
   });
 
   it("enforces moderator role boundaries on explicit hide and restore operations", async () => {
