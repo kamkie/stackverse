@@ -46,8 +46,9 @@ Stateless applications; the session lives at the edge.
 
 ```mermaid
 flowchart LR
-    B[Browser<br/>session cookie only] -->|HTTPS| G[Gateway / BFF<br/>YARP · Spring Cloud Gateway · Go · Node.js Fastify · ...]
-    G -->|token relay: Bearer JWT| A[Backend API<br/>stateless]
+    B[Browser UI<br/>client-routed SPA or Astro islands<br/>session cookie only] <-->|same-origin HTTPS| G[Gateway / BFF<br/>interchangeable implementation]
+    G <-->|pages and static assets| F[Frontend upstream<br/>static server or dev server]
+    G -->|/api/** with Bearer JWT| A[Backend API<br/>stateless]
     G <-->|OIDC code flow| K[Keycloak]
     G <-->|session store| R[(Redis)]
     A --> P[(PostgreSQL)]
