@@ -37,7 +37,7 @@ The Stackverse BFF in Go 1.26 using `net/http`, chi, go-redis, `oauth2`, and
   `Origin`/`Sec-Fetch-Site` signals must match the exact `PUBLIC_URL` origin.
   Rejections return `403 application/problem+json` and log
   `csrf_validation_failed`.
-- **Security headers.** SPA and `/auth/**` responses receive the full browser
+- **Security headers.** Frontend and `/auth/**` responses receive the full browser
   hardening header set. Proxied `/api/**` responses receive only
   `X-Content-Type-Options: nosniff` plus HTTPS-only HSTS, leaving backend cache,
   ETag, `304`, and body semantics untouched.
