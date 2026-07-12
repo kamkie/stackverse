@@ -157,8 +157,9 @@ representation, not a different feature. All other operations exist in v1 only.
     any target status — `dismissed` ↔ `actioned` changes the disposition (resolving
     as `actioned` applies its side effects as usual), and `open` re-opens the
     report, clearing the resolution fields (any `note` sent with `open` is
-    ignored). Moving away from `actioned` never restores the bookmark — hide and
-    restore stay explicit moderator actions (rule 15). Every call writes an audit
+    ignored). Re-opening when the reporter already has another `open` report on
+    the same bookmark → `409`. Moving away from `actioned` never restores the
+    bookmark — hide and restore stay explicit moderator actions (rule 15). Every call writes an audit
     entry (`report.resolved`, or `report.reopened` for `open`).
 15. **Hidden bookmarks.** Excluded from the public feed and from non-owner reads
     (`404`). The owner still sees them in their own list (with `status: hidden`),

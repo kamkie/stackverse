@@ -469,7 +469,8 @@ paths:
         side effects as usual), and `open` re-opens the report, clearing the
         resolution fields (any `note` sent with `open` is ignored). Moving away
         from `actioned` never restores the bookmark; use the bookmark status
-        endpoint for that.
+        endpoint for that. Re-opening conflicts (`409`) when the reporter already
+        has another open report on the same bookmark.
       parameters:
         - name: id
           in: path
@@ -498,6 +499,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /api/v1/admin/bookmarks/{id}/status:
     put:

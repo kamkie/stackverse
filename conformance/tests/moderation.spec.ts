@@ -351,6 +351,43 @@ test("a decision can be revised or re-opened (rule 14)", async ({ demo, mentor, 
   });
 });
 
+test("re-opening conflicts when the reporter already has another open report", async ({
+  demo,
+  mentor,
+  moderator,
+}) => {
+  const bookmark = await createBookmark(demo, {
+    url: "https://example.com/reopen-conflict",
+    title: `reopen conflict ${uid()}`,
+    visibility: "public",
+  });
+  const first = (await (await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "spam" },
+  })).json()) as Report;
+  await moderator.put(`/api/v1/admin/reports/${first.id}`, {
+    data: { resolution: "dismissed" },
+  });
+  const second = (await (await mentor.post(`/api/v1/bookmarks/${bookmark.id}/reports`, {
+    data: { reason: "other" },
+  })).json()) as Report;
+
+  await expectProblem(
+    await moderator.put(`/api/v1/admin/reports/${first.id}`, {
+      data: { resolution: "open" },
+    }),
+    409,
+  );
+
+  const dismissed = ((await (await moderator.get(
+    "/api/v1/admin/reports?status=dismissed&size=100",
+  )).json()) as { items: Report[] }).items;
+  const open = ((await (await moderator.get(
+    "/api/v1/admin/reports?status=open&size=100",
+  )).json()) as { items: Report[] }).items;
+  expect(dismissed.find((report) => report.id === first.id)?.status).toBe("dismissed");
+  expect(open.find((report) => report.id === second.id)?.status).toBe("open");
+});
+
 test("hiding and restoring via the status endpoint is moderator-only and validated", async ({ demo, moderator }) => {
   const bookmark = await createBookmark(demo, {
     url: "https://example.com/direct-hide",
