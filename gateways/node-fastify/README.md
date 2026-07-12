@@ -45,7 +45,7 @@ Route contract, cookie rules, and the login sequence live in
   readable `XSRF-TOKEN` cookie plus `X-XSRF-TOKEN` header on `POST`/`PUT`/
   `PATCH`/`DELETE` `/api/**` calls, with `Origin` and `Sec-Fetch-Site` enforced
   against `PUBLIC_URL`.
-- **Selective security headers.** SPA and `/auth/**` responses get the full
+- **Selective security headers.** Frontend and `/auth/**` responses get the full
   browser-hardening set from `docs/ARCHITECTURE.md`; proxied `/api/**` responses
   get only `X-Content-Type-Options: nosniff` plus HTTPS-only HSTS, preserving
   backend `Cache-Control`, `ETag`, `Content-Language`, `304`, and bodies.

@@ -46,8 +46,9 @@ Stateless applications; the session lives at the edge.
 
 ```mermaid
 flowchart LR
-    B[Browser<br/>session cookie only] -->|HTTPS| G[Gateway / BFF<br/>YARP · Spring Cloud Gateway · Go · Node.js Fastify · ...]
-    G -->|token relay: Bearer JWT| A[Backend API<br/>stateless]
+    B[Browser UI<br/>client-routed SPA or Astro islands<br/>session cookie only] <-->|same-origin HTTP or HTTPS| G[Gateway / BFF<br/>interchangeable implementation]
+    G <-->|pages and static assets| F[Frontend upstream<br/>static server or dev server]
+    G -->|API proxy; optional Bearer JWT| A[Backend API<br/>stateless]
     G <-->|OIDC code flow| K[Keycloak]
     G <-->|session store| R[(Redis)]
     A --> P[(PostgreSQL)]
@@ -58,9 +59,10 @@ flowchart LR
   (cookie ↔ Redis), and relays the access token to the backend on each proxied request.
 - The **backend** is fully stateless: it validates the bearer JWT against the IdP and
   serves the API. Any instance can serve any request.
-- The **frontend** is a SPA served through the gateway. It knows nothing about tokens —
-  it makes same-origin `/api/*` calls (the browser attaches the session cookie) and asks
-  `/auth/session` who is logged in.
+- The **frontend** is a browser application served through the gateway. It may be a
+  client-routed SPA or a static multi-page build with hydrated islands; either way it
+  knows nothing about tokens. It makes same-origin `/api/*` calls (the browser attaches
+  the session cookie) and asks `/auth/session` who is logged in.
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
@@ -152,7 +154,9 @@ provide a richer resolved graph than static manifest parsing (see
 | Frontend | Vue | `frontends/vue` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vue)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 
 Line counts per variant — split into source / tests / config / docs, with a
-language breakdown and Dockerfile size — live in
+language breakdown and Dockerfile size — are sorted by ascending source LOC
+within each component, using implementation path as the deterministic
+tie-breaker. The generated tables live in
 [docs/CODE-STATS.md](docs/CODE-STATS.md). Files come from `git ls-files`, counts
 from [`tokei`](https://github.com/XAMPPRocky/tokei); the single generator is
 [`tools/code-stats.mjs`](tools/code-stats.mjs). Regenerate with

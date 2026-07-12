@@ -50,6 +50,17 @@ const LAYERS = [
   { component: 'Gateway', layer: 'gateways', flag: 'gateway' },
   { component: 'Frontend', layer: 'frontends', flag: 'frontend' },
 ];
+const LAYER_ORDER = new Map(LAYERS.map((layer, index) => [layer.layer, index]));
+
+function compareText(a, b) {
+  return a === b ? 0 : a < b ? -1 : 1;
+}
+
+export function compareImplementationRows(a, b) {
+  return (LAYER_ORDER.get(a.layer) - LAYER_ORDER.get(b.layer))
+    || (a.srcLoc - b.srcLoc)
+    || compareText(`${a.layer}/${a.variant}`, `${b.layer}/${b.variant}`);
+}
 
 // ---------------------------------------------------------------------------
 // arg parsing
@@ -273,7 +284,8 @@ function collect(selectedLayers) {
     }
   }
 
-  // Derived metrics + attach component label; order by layer then variant.
+  // Derived metrics + attach component label; preserve layer groups, then sort
+  // implementations by source LOC with a stable path tie-breaker.
   const records = [...variants.values()].map((rec) => {
     const srcLoc = rec.app.code;
     const testLoc = rec.tests.code;
@@ -291,8 +303,7 @@ function collect(selectedLayers) {
       mainLanguages: Object.entries(rec.languages).sort((a, b) => b[1] - a[1]).slice(0, 3).map((e) => e[0]),
     };
   });
-  const order = Object.fromEntries(LAYERS.map((l, i) => [l.layer, i]));
-  records.sort((a, b) => (order[a.layer] - order[b.layer]) || a.variant.localeCompare(b.variant));
+  records.sort(compareImplementationRows);
   return records;
 }
 
@@ -383,7 +394,9 @@ function renderMarkdown(records) {
   out.push('lines (`code + comments`) — Markdown has no `code` lines. **Test/Src** is');
   out.push('test-code / src-code. **Dockerfile** is Dockerfile `code` lines. Raw LOC is a');
   out.push('shape/verbosity signal, not a measure of effort or quality; Rust `#[cfg(test)]`');
-  out.push('tests cannot be split by path, so they count as Src for `rust-axum`. Regenerate');
+  out.push('tests cannot be split by path, so they count as Src for `rust-axum`. Rows are');
+  out.push('sorted by ascending **Src LOC** within each component, using implementation path');
+  out.push('as the deterministic tie-breaker. Regenerate');
   out.push('with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor).');
   const groups = groupByComponent(records);
   for (const [component, rows] of groups) {
@@ -437,4 +450,6 @@ function main() {
   }
 }
 
-main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

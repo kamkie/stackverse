@@ -166,9 +166,10 @@ BUILD=1 ./scripts/run-stack.sh spring-kotlin yarp angular
 
 The frontend image is a long-running static server on the compose network. It
 is not published to the host; the gateway remains the only browser entry point
-and proxies the SPA from `FRONTEND_URL=http://frontend:8080`. Direct navigation
-to client-side routes through `http://localhost:8000` still returns the SPA
-shell, while built assets are served normally by the frontend server.
+and proxies the frontend from `FRONTEND_URL=http://frontend:8080`. Direct
+navigation through `http://localhost:8000` returns the correct frontend document:
+client-routed SPA variants fall back to their shell, while Astro resolves each
+generated route document. Built assets are served normally by the frontend server.
 
 ## End-to-end tests
 

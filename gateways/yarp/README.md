@@ -14,7 +14,7 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
 | `POST /auth/logout` | endpoint: server-to-server RP-initiated logout at Keycloak, cookie sign-out, `204` |
 | `GET /auth/session` | endpoint reading the cookie principal (`preferred_username`) |
 | `/api/**` | YARP route to `BACKEND_URL` with a Bearer-token request transform |
-| `/**` | YARP route to the `FRONTEND_URL` SPA upstream when set; otherwise static files + `index.html` fallback |
+| `/**` | YARP route to the `FRONTEND_URL` frontend upstream when set; otherwise static files + `index.html` fallback |
 
 ## Design notes
 
@@ -85,7 +85,7 @@ as the reverse proxy. Route contract, cookie rules, and the login sequence live 
   at INFO — the failure *type* only, since the message can echo client-controlled
   query text — then short-circuit the handler and redirect to `/` logged out.
 - **Selective security headers.** `EdgeSecurity` applies the gateway contract's
-  exact browser-hardening headers to SPA/auth responses, only
+  exact browser-hardening headers to frontend/auth responses, only
   `X-Content-Type-Options: nosniff` (and HTTPS-only HSTS) to `/api/**`, and never
   rewrites backend `Cache-Control`, `ETag`, or `304` behavior.
 - **Enforced Roslyn and formatting baseline.** `Directory.Build.props` enables

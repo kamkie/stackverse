@@ -210,7 +210,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Scala http4s](../backends/scala-http4s/README.md) | MUnit/Cats Effect testing or ScalaTest with http4s route tests | ScalaTest route/service fakes plus serialized Testcontainers PostgreSQL feature-service and routing coverage | ✅ idiomatic |
 | [Quarkus](../backends/quarkus-java/README.md) | @QuarkusTest integration tests with RestAssured against live endpoints | @QuarkusTest/RestAssured boundaries, focused JUnit units, and Testcontainers PostgreSQL service/contract suites | ✅ idiomatic |
 | [Rust (Axum)](../backends/rust-axum/README.md) | cargo test unit/integration tests, often with tower::ServiceExt for handlers | Focused units plus Tower/Axum requests and isolated migrated `sqlx::test` PostgreSQL databases | ✅ idiomatic |
-| [Ruby on Rails API](../backends/ruby-rails/README.md) | Minitest/Rails test, request tests, fixtures or factories | Minitest unit tests for helpers; HTTP contract covered by shared conformance suite | 🟡 deliberate |
+| [Ruby on Rails API](../backends/ruby-rails/README.md) | Minitest/Rails test, request tests, fixtures or factories | Minitest units plus Rails request/integration tests against PostgreSQL across HTTP, persistence, auth/JWKS, logging, and startup boundaries | ✅ idiomatic |
 
 ### Formatter / linter
 

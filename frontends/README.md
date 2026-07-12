@@ -1,8 +1,11 @@
 # Frontends
 
-One directory per implementation (`react`, `angular`, `vue`, ...). The frontend is a SPA that
-consumes [spec/openapi.yaml](../spec/openapi.yaml) *through the gateway* and holds
-**no authentication state** — not even a token. The session cookie is invisible to it.
+One directory per implementation (`react`, `angular`, `astro`, `vue`, ...). Each
+frontend is a browser application that consumes
+[spec/openapi.yaml](../spec/openapi.yaml) *through the gateway* and holds **no
+authentication state** — not even a token. Most variants are client-routed SPAs;
+Astro is a static multi-page build with hydrated islands. The session cookie is
+invisible to all of them.
 
 ## Shared design
 
@@ -147,5 +150,7 @@ its own demo-data path.
 - Ship a `Dockerfile`; the image plugs into `compose.yaml` via `FRONTEND_IMAGE`.
   It builds with the **repo root** as context (the build bundles `spec/design`),
   and the final image is a long-running static-file server on internal port
-  `8080` with an HTTP healthcheck and SPA fallback to `index.html`.
+  `8080` with an HTTP healthcheck. Direct navigation to every required route must
+  resolve: client-routed SPAs fall back to `index.html`, while multi-page static
+  builds serve the generated document for that route.
 - Per-implementation README covers stack-specific tooling only.
