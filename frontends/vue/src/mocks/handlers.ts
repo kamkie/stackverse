@@ -479,6 +479,22 @@ const resolveReport = http.put(
     // Decisions are revisable (SPEC rule 14): `open` re-opens the report and
     // clears the resolution fields; any other target sets the disposition.
     if (input.resolution === "open") {
+      const conflicting = db.reports.some(
+        (candidate) =>
+          candidate.id !== report.id &&
+          candidate.bookmarkId === report.bookmarkId &&
+          candidate.reporter === report.reporter &&
+          candidate.status === "open",
+      );
+      if (conflicting) {
+        return response(409).json(
+          problem(
+            409,
+            "Conflict",
+            "The reporter already has another open report on this bookmark.",
+          ),
+        );
+      }
       report.status = "open";
       delete report.resolvedBy;
       delete report.resolvedAt;
