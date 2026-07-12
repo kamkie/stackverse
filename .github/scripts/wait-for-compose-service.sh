@@ -39,7 +39,11 @@ if wait_until_ready; then exit 0; fi
 
 echo "Service $service did not become ready; collecting diagnostics and recreating it once." >&2
 dump_diagnostics
-"$docker_bin" compose up -d --force-recreate --no-deps "$service"
+if ! "$docker_bin" compose up -d --force-recreate --no-deps "$service"; then
+  echo "Service $service could not be recreated; collecting final diagnostics." >&2
+  dump_diagnostics
+  exit 1
+fi
 
 if wait_until_ready; then
   echo "Service $service became ready after one recreation."
