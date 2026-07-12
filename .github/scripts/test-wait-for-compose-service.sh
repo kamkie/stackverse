@@ -14,9 +14,11 @@ count=$((count + 1))
 echo "$count" >"$STATE_DIR/curl-count"
 case "$MODE" in
   success) exit 0 ;;
+  in-loop-success) [ "$count" -gt 1 ] ;;
   retry-success) [ "$count" -gt 2 ] ;;
   retry-failure) exit 1 ;;
   recreate-failure) exit 1 ;;
+  no-container) exit 1 ;;
   *) exit 2 ;;
 esac
 EOF
@@ -24,13 +26,16 @@ EOF
 cat >"$tmp/docker" <<'EOF'
 #!/usr/bin/env sh
 echo "$*" >>"$STATE_DIR/docker-calls"
-if [ "$1 $2 $3" = "compose ps -aq" ]; then echo backend-container; fi
+if [ "$1 $2 $3" = "compose ps -aq" ] && [ "$MODE" != "no-container" ]; then
+  echo backend-container
+fi
 if [ "$MODE" = "recreate-failure" ] && [ "$1 $2" = "compose up" ]; then exit 1; fi
 exit 0
 EOF
 
 cat >"$tmp/sleep" <<'EOF'
 #!/usr/bin/env sh
+echo "$*" >>"$STATE_DIR/sleep-calls"
 exit 0
 EOF
 
@@ -56,6 +61,11 @@ run_case() {
 
 run_case success 0
 [ ! -e "$tmp/success/docker-calls" ]
+[ ! -e "$tmp/success/sleep-calls" ]
+
+run_case in-loop-success 0
+[ ! -e "$tmp/in-loop-success/docker-calls" ]
+[ "$(wc -l <"$tmp/in-loop-success/sleep-calls")" -eq 1 ]
 
 run_case retry-success 0
 grep -q 'compose up -d --force-recreate --no-deps backend' "$tmp/retry-success/docker-calls"
@@ -68,5 +78,12 @@ grep -q 'compose up -d --force-recreate --no-deps backend' "$tmp/retry-failure/d
 run_case recreate-failure 1
 grep -q 'could not be recreated' "$tmp/recreate-failure/output"
 [ "$(grep -c 'compose logs --no-color backend' "$tmp/recreate-failure/docker-calls")" -eq 2 ]
+
+run_case no-container 1
+[ "$(grep -c 'No container id found for service backend' "$tmp/no-container/output")" -eq 2 ]
+if grep -q '^inspect ' "$tmp/no-container/docker-calls"; then
+  echo "no-container: inspect must not run without a container id" >&2
+  exit 1
+fi
 
 echo "wait-for-compose-service tests passed"

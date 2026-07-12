@@ -199,7 +199,7 @@ import; infra created before the client existed needs a one-time
 `docker compose up -d --force-recreate keycloak` (dev Keycloak keeps no
 volume, so recreating re-imports the realm).
 
-CI waits for each composed backend through
+The main CI conformance matrix waits for each composed backend through
 `.github/scripts/wait-for-compose-service.sh`. A readiness timeout captures
 Compose state, container runtime state (including exit/OOM information), and
 service logs, then recreates only the backend once and performs one final
