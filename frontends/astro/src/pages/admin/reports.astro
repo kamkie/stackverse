@@ -1,6 +1,7 @@
 ---
 import AdminNavigation from "../../components/admin/AdminNavigation";
 import Reports from "../../components/admin/Reports";
+import LocalizedText from "../../components/LocalizedText";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
@@ -9,7 +10,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     <AdminNavigation client:load currentPath={Astro.url.pathname} />
     <section class="sv-content">
       <header>
-        <h1 class="sv-page-title">Moderation reports</h1>
+        <h1 class="sv-page-title">
+          <LocalizedText client:load message="ui.admin.reports" fallback="Moderation reports" />
+        </h1>
         <p>Review, dismiss, action, and reopen submitted reports.</p>
       </header>
       <Reports client:load />

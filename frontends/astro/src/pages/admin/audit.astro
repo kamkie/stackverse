@@ -1,6 +1,7 @@
 ---
 import AdminNavigation from "../../components/admin/AdminNavigation";
 import AuditLog from "../../components/admin/AuditLog";
+import LocalizedText from "../../components/LocalizedText";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
@@ -9,7 +10,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     <AdminNavigation client:load currentPath={Astro.url.pathname} />
     <section class="sv-content">
       <header>
-        <h1 class="sv-page-title">Audit log</h1>
+        <h1 class="sv-page-title">
+          <LocalizedText client:load message="ui.admin.audit" fallback="Audit log" />
+        </h1>
         <p>Search administrative and moderation activity.</p>
       </header>
       <AuditLog client:load />
