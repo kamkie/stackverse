@@ -153,7 +153,9 @@ provide a richer resolved graph than static manifest parsing (see
 | Frontend | Vue | `frontends/vue` | ✅ done | [![coverage](https://codecov.io/gh/kamkie/stackverse/graph/badge.svg?flag=frontend-vue)](https://app.codecov.io/gh/kamkie/stackverse/flags) |
 
 Line counts per variant — split into source / tests / config / docs, with a
-language breakdown and Dockerfile size — live in
+language breakdown and Dockerfile size — are sorted by ascending source LOC
+within each component, using implementation path as the deterministic
+tie-breaker. The generated tables live in
 [docs/CODE-STATS.md](docs/CODE-STATS.md). Files come from `git ls-files`, counts
 from [`tokei`](https://github.com/XAMPPRocky/tokei); the single generator is
 [`tools/code-stats.mjs`](tools/code-stats.mjs). Regenerate with
