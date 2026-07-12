@@ -37,6 +37,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      - name: Test conformance startup helper
+        run: .github/scripts/test-wait-for-compose-service.sh
       - id: list
         name: List affected implementation directories
         env:
@@ -305,13 +307,7 @@ jobs:
         working-directory: conformance
         run: yarn install --immutable
       - name: Wait for the backend to be ready
-        run: |
-          for _ in $(seq 1 60); do
-            if curl -fsS http://localhost:8080/readyz >/dev/null 2>&1; then exit 0; fi
-            sleep 2
-          done
-          echo "backend never became ready" >&2
-          exit 1
+        run: .github/scripts/wait-for-compose-service.sh backend http://localhost:8080/readyz 60 2
       - name: Run conformance suite
         working-directory: conformance
         run: yarn playwright test
