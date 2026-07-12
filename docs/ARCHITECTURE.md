@@ -12,7 +12,7 @@ see [INVARIANTS.md](INVARIANTS.md).
 
 | Component | Role | State |
 |---|---|---|
-| Frontend (SPA) | UI; makes same-origin `/api/*` calls that carry the session cookie | none — not even a token |
+| Frontend (browser UI) | Makes same-origin `/api/*` calls that carry the session cookie; may be a client-routed SPA or a static multi-page build | none — not even a token |
 | Gateway (BFF) | OIDC client, session owner, reverse proxy, token relay | session data in Redis |
 | Backend (API) | business logic, JWT validation, persistence | none — DB only |
 | Keycloak | identity provider (OIDC) | users, clients |
@@ -59,14 +59,14 @@ Every gateway implementation exposes the same surface on port **8000**:
 | `GET /auth/login` | start OIDC authorization code flow (with PKCE) |
 | `GET /auth/callback` | code exchange, create session, redirect to `/`. A failed callback (user cancelled at the IdP, stale or invalid state) creates no session and *also* redirects to `/` — the user is mid top-level navigation, so never a 5xx or an error page |
 | `POST /auth/logout` | destroy session, RP-initiated logout at the IdP, `204` |
-| `GET /auth/session` | `200 {"authenticated":true,"username":...}` or `200 {"authenticated":false}` — for the SPA |
+| `GET /auth/session` | `200 {"authenticated":true,"username":...}` or `200 {"authenticated":false}` — for the frontend |
 | `/api/**` | proxy to backend — token relay when a session exists, anonymous relay without a token otherwise (the spec's public surface works logged-out); which endpoints require auth is the backend's decision |
-| `/**` | serve / proxy the frontend SPA |
+| `/**` | serve / proxy the frontend web application and its static assets |
 
 Rules:
 
 - Cookie: `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev, name `stackverse_session`.
-- Token refresh is the gateway's job — transparent to both SPA and backend. Its two
+- Token refresh is the gateway's job — transparent to both frontend and backend. Its two
   failure modes are distinct and must not be conflated: when the IdP **rejects** the
   refresh (an authoritative verdict on the grant — a `400`/`401` from the token
   endpoint, i.e. token expired or revoked), the session is dead — destroy it and
@@ -101,18 +101,18 @@ Rules:
   | Header | Value | Scope |
   |---|---|---|
   | `X-Content-Type-Options` | `nosniff` | all gateway responses, including proxied `/api/**` |
-  | `Referrer-Policy` | `same-origin` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
-  | `Content-Security-Policy` | `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
-  | `X-Frame-Options` | `DENY` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
-  | `Cross-Origin-Opener-Policy` | `same-origin` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
-  | `Cross-Origin-Resource-Policy` | `same-origin` | SPA/frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Referrer-Policy` | `same-origin` | frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Content-Security-Policy` | `default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'` | frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `X-Frame-Options` | `DENY` | frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Cross-Origin-Opener-Policy` | `same-origin` | frontend and `/auth/**` responses; not proxied `/api/**` |
+  | `Cross-Origin-Resource-Policy` | `same-origin` | frontend and `/auth/**` responses; not proxied `/api/**` |
   | `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | all gateway responses only when `PUBLIC_URL` is `https` (the same condition that makes cookies `Secure`) |
 
   Proxied API responses keep backend API semantics: no gateway rewrite of
   `Cache-Control`, `ETag`, `Content-Language`, status `304`, or response bodies.
 - The gateway adds nothing to the API semantics: no rewriting of bodies, no auth
   decisions — it attaches a token when it has one and the backend authorizes per
-  endpoint. A `401` the SPA sees on `/api/*` is the backend's problem document
+  endpoint. A `401` the frontend sees on `/api/*` is the backend's problem document
   passed through untouched, never a gateway redirect. Browser cookies are
   gateway-only state and are stripped before proxying.
 - The gateway is version-agnostic: `/api/**` covers `/api/v1/**`, `/api/v2/**`,

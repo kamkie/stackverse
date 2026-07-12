@@ -19,59 +19,62 @@ ignores, or vendored caches; hidden dotfiles and dot-directories such as
 lines (`code + comments`) — Markdown has no `code` lines. **Test/Src** is
 test-code / src-code. **Dockerfile** is Dockerfile `code` lines. Raw LOC is a
 shape/verbosity signal, not a measure of effort or quality; Rust `#[cfg(test)]`
-tests cannot be split by path, so they count as Src for `rust-axum`. Regenerate
+tests cannot be split by path, so they count as Src for `rust-axum`. Rows are
+sorted by ascending **Src LOC** within each component, using implementation path
+as the deterministic tie-breaker. Regenerate
 with `./scripts/code-stats.sh --write docs/CODE-STATS.md` (or the `.ps1` flavor).
 
 ## Backend
 
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
-| dotnet | 3344 | 2526 | 0.76 | 46 | 23 | 92 | 117 | 21 | C#, JSON |
+| ruby-rails | 1822 | 1280 | 0.70 | 51 | 19 | 29 | 85 | 29 | Ruby, YAML, Rakefile |
+| node-ts | 1826 | 641 | 0.35 | 20 | 8 | 138 | 108 | 23 | TypeScript |
+| ktor-kotlin | 1944 | 994 | 0.51 | 18 | 5 | 247 | 75 | 20 | Kotlin, SQL |
+| python-django | 1964 | 946 | 0.48 | 27 | 12 | 65 | 96 | 21 | Python |
+| spring-kotlin | 2218 | 1957 | 0.88 | 44 | 20 | 252 | 91 | 19 | Kotlin, SQL, YAML |
+| node-nestjs | 2238 | 2228 | 1.00 | 41 | 15 | 149 | 132 | 23 | TypeScript |
+| play-scala | 2238 | 1397 | 0.62 | 24 | 6 | 25 | 123 | 25 | Scala, SQL, XML |
+| grails | 2299 | 1858 | 0.81 | 50 | 21 | 187 | 84 | 20 | Groovy, SQL, YAML |
+| scala-http4s | 2302 | 1326 | 0.58 | 29 | 4 | 27 | 125 | 27 | Scala, SQL |
+| python-fastapi | 2406 | 1678 | 0.70 | 25 | 17 | 62 | 92 | 21 | Python, SQL |
+| micronaut-java | 2706 | 1139 | 0.42 | 29 | 11 | 260 | 93 | 19 | Java, SQL, YAML |
 | elixir-phoenix | 2806 | 1184 | 0.42 | 58 | 17 | 25 | 96 | 25 | Elixir |
+| spring-java | 2910 | 1181 | 0.41 | 77 | 12 | 240 | 87 | 19 | Java, SQL, YAML |
+| php-laravel | 3002 | 1453 | 0.48 | 68 | 18 | 36 | 107 | 36 | PHP, JSON, XML |
+| open-liberty-java | 3080 | 1626 | 0.53 | 34 | 8 | 608 | 129 | 18 | Java, SQL, XML |
+| dotnet | 3344 | 2526 | 0.76 | 46 | 23 | 92 | 117 | 21 | C#, JSON |
 | go | 3500 | 2293 | 0.66 | 28 | 20 | 14 | 126 | 14 | Go, SQL |
 | go-echo | 3539 | 2408 | 0.68 | 29 | 18 | 14 | 136 | 14 | Go, SQL |
-| grails | 2299 | 1858 | 0.81 | 50 | 21 | 187 | 84 | 20 | Groovy, SQL, YAML |
-| ktor-kotlin | 1944 | 994 | 0.51 | 18 | 5 | 247 | 75 | 20 | Kotlin, SQL |
-| micronaut-java | 2706 | 1139 | 0.42 | 29 | 11 | 260 | 93 | 19 | Java, SQL, YAML |
-| node-nestjs | 2238 | 2228 | 1.00 | 41 | 15 | 149 | 132 | 23 | TypeScript |
-| node-ts | 1826 | 641 | 0.35 | 20 | 8 | 138 | 108 | 23 | TypeScript |
-| open-liberty-java | 3080 | 1626 | 0.53 | 34 | 8 | 608 | 129 | 18 | Java, SQL, XML |
-| php-laravel | 3002 | 1453 | 0.48 | 68 | 18 | 36 | 107 | 36 | PHP, JSON, XML |
-| play-scala | 2238 | 1397 | 0.62 | 24 | 6 | 25 | 123 | 25 | Scala, SQL, XML |
-| python-django | 1964 | 946 | 0.48 | 27 | 12 | 65 | 96 | 21 | Python |
-| python-fastapi | 2406 | 1678 | 0.70 | 25 | 17 | 62 | 92 | 21 | Python, SQL |
 | quarkus-java | 3792 | 2665 | 0.70 | 38 | 12 | 559 | 99 | 20 | Java, SQL |
-| ruby-rails | 1813 | 128 | 0.07 | 51 | 7 | 29 | 80 | 29 | Ruby, YAML, Rakefile |
 | rust-axum | 5255 | 0 | 0.00 | 22 | 0 | 46 | 99 | 14 | Rust, SQL |
-| scala-http4s | 2302 | 1326 | 0.58 | 29 | 4 | 27 | 125 | 27 | Scala, SQL |
-| spring-java | 2910 | 1181 | 0.41 | 77 | 12 | 240 | 87 | 19 | Java, SQL, YAML |
-| spring-kotlin | 2218 | 1957 | 0.88 | 44 | 20 | 252 | 91 | 19 | Kotlin, SQL, YAML |
-| **subtotal** | 55182 | 29628 | | 758 | 254 | 3075 | 2095 | 428 | |
+| **subtotal** | 55191 | 30780 | | 758 | 266 | 3075 | 2100 | 428 | |
 
 ## Gateway
 
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
-| apisix | 1357 | 1320 | 0.97 | 16 | 2 | 14 | 118 | 14 | Lua, YAML, HTML |
-| go | 1288 | 1289 | 1.00 | 12 | 6 | 12 | 89 | 12 | Go, HTML |
-| node-fastify | 1140 | 1625 | 1.43 | 12 | 11 | 137 | 107 | 21 | TypeScript, HTML, JavaScript |
-| openresty | 1185 | 1101 | 0.93 | 13 | 3 | 28 | 125 | 21 | Lua, HTML |
-| python | 1059 | 1469 | 1.39 | 12 | 6 | 59 | 98 | 17 | Python, HTML |
-| rust | 1912 | 1740 | 0.91 | 10 | 4 | 48 | 93 | 11 | Rust, HTML |
 | spring-cloud-gateway | 960 | 1723 | 1.79 | 18 | 17 | 245 | 143 | 18 | Kotlin, HTML, YAML |
 | yarp | 1037 | 2282 | 2.20 | 13 | 16 | 77 | 137 | 14 | C#, JSON, HTML |
+| python | 1059 | 1469 | 1.39 | 12 | 6 | 59 | 98 | 17 | Python, HTML |
+| node-fastify | 1140 | 1625 | 1.43 | 12 | 11 | 137 | 107 | 21 | TypeScript, HTML, JavaScript |
+| openresty | 1185 | 1101 | 0.93 | 13 | 3 | 28 | 125 | 21 | Lua, HTML |
+| go | 1288 | 1289 | 1.00 | 12 | 6 | 12 | 89 | 12 | Go, HTML |
+| apisix | 1357 | 1320 | 0.97 | 16 | 2 | 14 | 118 | 14 | Lua, YAML, HTML |
+| rust | 1912 | 1740 | 0.91 | 10 | 4 | 48 | 93 | 11 | Rust, HTML |
 | **subtotal** | 9938 | 12549 | | 106 | 65 | 620 | 910 | 128 | |
 
 ## Frontend
 
 | Variant | Src LOC | Test LOC | Test/Src | Src Files | Test Files | Cfg LOC | Docs | Dockerfile | Main Languages |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|---|
-| angular | 3483 | 2698 | 0.77 | 46 | 27 | 289 | 93 | 13 | TypeScript, HTML, JavaScript |
+| svelte | 2124 | 1945 | 0.92 | 34 | 15 | 235 | 73 | 13 | TypeScript, Svelte, HTML |
 | lit | 2489 | 1438 | 0.58 | 17 | 9 | 209 | 90 | 13 | TypeScript, HTML, JavaScript |
+| solid | 2704 | 1198 | 0.44 | 33 | 15 | 160 | 73 | 13 | TSX, TypeScript, HTML |
+| vanilla-ts | 2848 | 2851 | 1.00 | 16 | 10 | 199 | 94 | 13 | TypeScript, HTML, JavaScript |
+| astro | 3464 | 1291 | 0.37 | 39 | 16 | 172 | 76 | 13 | TSX, TypeScript, JavaScript |
+| vue | 3468 | 1157 | 0.33 | 36 | 10 | 243 | 87 | 13 | TypeScript, Vue, JavaScript |
+| angular | 3483 | 2698 | 0.77 | 46 | 27 | 289 | 93 | 13 | TypeScript, HTML, JavaScript |
 | qwik | 3660 | 965 | 0.26 | 35 | 13 | 210 | 87 | 13 | TSX, TypeScript, HTML |
 | react | 5636 | 2075 | 0.37 | 47 | 30 | 251 | 93 | 13 | TypeScript, TSX, JavaScript |
-| solid | 2704 | 1198 | 0.44 | 33 | 15 | 160 | 73 | 13 | TSX, TypeScript, HTML |
-| svelte | 2124 | 1945 | 0.92 | 34 | 15 | 235 | 73 | 13 | TypeScript, Svelte, HTML |
-| vanilla-ts | 2848 | 2851 | 1.00 | 16 | 10 | 199 | 94 | 13 | TypeScript, HTML, JavaScript |
-| vue | 3468 | 1157 | 0.33 | 36 | 10 | 243 | 87 | 13 | TypeScript, Vue, JavaScript |
-| **subtotal** | 26412 | 14327 | | 264 | 129 | 1796 | 690 | 104 | |
+| **subtotal** | 29876 | 15618 | | 303 | 145 | 1968 | 766 | 117 | |

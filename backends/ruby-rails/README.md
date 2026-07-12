@@ -27,9 +27,14 @@ Lint and tests:
 ```sh
 bundle exec rubocop
 bundle exec rails zeitwerk:check
+RAILS_ENV=test bundle exec rails db:prepare
 bundle exec rails test
 ```
 
+The Minitest suite combines focused units with Rails request/integration tests
+against PostgreSQL. It truncates the application tables between integration
+tests, so leave `DB_NAME` unset to use the disposable `stackverse_test` default
+or point it at another dedicated test database — never at development data.
 The test run writes Cobertura coverage to `coverage/coverage.xml`; the component
 workflow uploads that report to Codecov under the `backend-ruby-rails` flag.
 

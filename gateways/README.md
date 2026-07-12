@@ -23,10 +23,10 @@ to. The full route contract and login flow live in
   headers, and affirmative `Origin` / `Sec-Fetch-Site` validation for
   state-changing `/api/**` requests against the `PUBLIC_URL` origin.
 - **Browser hardening headers** — the shared header set from
-  [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) on SPA/auth responses, plus
+  [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) on frontend/auth responses, plus
   global `X-Content-Type-Options: nosniff` and HTTPS-only HSTS without rewriting
   proxied API cache or ETag headers.
-- **Frontend delivery** — proxy the SPA upstream on `/**`; standalone gateway
+- **Frontend delivery** — proxy the frontend upstream on `/**`; standalone gateway
   runs may optionally serve a local static build as a fallback.
 
 The gateway makes no business decisions. If a request has a valid session it is
@@ -109,7 +109,7 @@ logging / OpenTelemetry contract.
   process. OpenResty is the clearer infrastructure-as-gateway baseline; APISIX
   packages the same `lua-resty-openidc` foundation behind a product gateway
   route/plugin surface. Both still need custom Lua for Stackverse's exact
-  `/auth/*` routes, anonymous token relay, refresh failure split, SPA delivery,
+  `/auth/*` routes, anonymous token relay, refresh failure split, frontend delivery,
   and problem-response shape.
 
 ## Configuration (environment variables)
@@ -118,7 +118,7 @@ logging / OpenTelemetry contract.
 |---|---|---|
 | `PORT` | `8000` | HTTP listen port |
 | `BACKEND_URL` | `http://localhost:8080` | upstream API |
-| `FRONTEND_URL` | *(unset)* | SPA upstream to proxy: the frontend static server in container mode, or a dev server in dev mode; if unset, serve the gateway's static-file fallback |
+| `FRONTEND_URL` | *(unset)* | frontend upstream to proxy: the static server in container mode, or a dev server in dev mode; if unset, serve the gateway's static-file fallback |
 | `SPA_ROOT` | *(unset)* | optional directory of a SPA production build to serve only when `FRONTEND_URL` is unset; if also unset, serve an implementation-bundled placeholder page |
 | `REDIS_URL` | `redis://localhost:6379` | session store |
 | `OIDC_ISSUER_URI` | `http://localhost:8180/realms/stackverse` | IdP realm |

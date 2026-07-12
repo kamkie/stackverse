@@ -58,9 +58,10 @@ flowchart LR
   (cookie ↔ Redis), and relays the access token to the backend on each proxied request.
 - The **backend** is fully stateless: it validates the bearer JWT against the IdP and
   serves the API. Any instance can serve any request.
-- The **frontend** is a SPA served through the gateway. It knows nothing about tokens —
-  it makes same-origin `/api/*` calls (the browser attaches the session cookie) and asks
-  `/auth/session` who is logged in.
+- The **frontend** is a browser application served through the gateway. It may be a
+  client-routed SPA or a static multi-page build with hydrated islands; either way it
+  knows nothing about tokens. It makes same-origin `/api/*` calls (the browser attaches
+  the session cookie) and asks `/auth/session` who is logged in.
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 

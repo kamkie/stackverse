@@ -48,8 +48,9 @@ a defect.
   `/auth/login`, `/auth/callback` (a failed callback creates no session and still
   redirects to `/` — never a 5xx/error page), `/auth/logout` → `204`, `/auth/session`,
   `/api/**` (token-relay reverse proxy; anonymous relay when logged-out), and `/**`
-  (the SPA). The session cookie (`stackverse_session`, `HttpOnly`, `SameSite=Lax`,
-  `Secure` outside local dev), the token-refresh semantics (IdP **rejects** → destroy
+  (the frontend web application). The session cookie (`stackverse_session`,
+  `HttpOnly`, `SameSite=Lax`, `Secure` outside local dev), the token-refresh
+  semantics (IdP **rejects** → destroy
   session, degrade to anonymous; IdP **unavailable** → keep session, fail with `503`),
   the CSRF double-submit check (`XSRF-TOKEN` cookie / `X-XSRF-TOKEN` header, mismatch →
   `403 problem+json`), the same-origin enforcement (no CORS; `Origin`/`Sec-Fetch-Site`
@@ -58,7 +59,7 @@ a defect.
   [docs/ARCHITECTURE.md § The gateway contract](ARCHITECTURE.md#the-gateway-contract).
 - **The gateway adds nothing to API semantics** — no body rewriting, no auth decisions,
   no rewrite of `Cache-Control`/`ETag`/`Content-Language`/`304` on proxied `/api/**`. A
-  `401` the SPA sees is the backend's problem document passed through untouched.
+  `401` the frontend sees is the backend's problem document passed through untouched.
 - **The backend is stateless and authorizes per endpoint** — it validates the JWT
   (issuer, audience, expiry, and signature via JWKS — see
   [backends/README.md](../backends/README.md)) and owns which endpoints require which
