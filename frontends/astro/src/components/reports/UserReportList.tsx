@@ -13,6 +13,7 @@ import {
 } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { i18n, m } from "../../lib/i18n";
+import { previousPageForEmpty } from "../../lib/page";
 import { removeReported } from "../../lib/reportedStore";
 import type {
   Page,
@@ -56,13 +57,11 @@ export function UserReportListContent(props: Props) {
         `/api/v1/reports${queryString({ status: status(), page: page() })}`,
       );
       if (request !== loadRequest) return;
-      if (nextReports.items.length === 0 && page() > 0) {
-        const previousPage = Math.max(0, nextReports.totalPages - 1);
-        if (previousPage < page()) {
-          setPage(previousPage);
-          await load();
-          return;
-        }
+      const previousPage = previousPageForEmpty(nextReports, page());
+      if (previousPage !== null) {
+        setPage(previousPage);
+        await load();
+        return;
       }
       setReports(nextReports);
     } catch (caught) {

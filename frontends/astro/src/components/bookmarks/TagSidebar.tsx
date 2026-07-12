@@ -1,11 +1,11 @@
-import { createEffect, createSignal, For } from "solid-js";
+import { createSignal, For, onCleanup, onMount } from "solid-js";
 import { api } from "../../lib/api";
+import { BOOKMARK_TAGS_CHANGED } from "../../lib/events";
 import { i18n, m } from "../../lib/i18n";
 import type { TagCount } from "../../lib/types";
 
 interface Props {
   selected?: string;
-  reloadKey?: number;
   onSelect: (tag: string) => void;
 }
 
@@ -21,8 +21,9 @@ export default function TagSidebar(props: Props) {
     }
   }
 
-  createEffect(() => {
-    props.reloadKey;
+  onMount(() => {
+    window.addEventListener(BOOKMARK_TAGS_CHANGED, reload);
+    onCleanup(() => window.removeEventListener(BOOKMARK_TAGS_CHANGED, reload));
     void reload();
   });
 

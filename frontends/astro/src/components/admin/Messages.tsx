@@ -11,6 +11,7 @@ import {
   queryString,
 } from "../../lib/api";
 import { i18n, m, refreshBundle, SUPPORTED_LANGUAGES } from "../../lib/i18n";
+import { previousPageForEmpty } from "../../lib/page";
 import type { Message, MessageInput, Page } from "../../lib/types";
 import { useIsland } from "../../lib/island";
 import { isAdmin, me } from "../../lib/session";
@@ -47,13 +48,11 @@ export function MessagesContent(props: Props) {
         `/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`,
       );
       if (request !== loadRequest) return;
-      if (nextMessages.items.length === 0 && page() > 0) {
-        const previousPage = Math.max(0, nextMessages.totalPages - 1);
-        if (previousPage < page()) {
-          setPage(previousPage);
-          await load();
-          return;
-        }
+      const previousPage = previousPageForEmpty(nextMessages, page());
+      if (previousPage !== null) {
+        setPage(previousPage);
+        await load();
+        return;
       }
       setMessages(nextMessages);
     } catch (caught) {

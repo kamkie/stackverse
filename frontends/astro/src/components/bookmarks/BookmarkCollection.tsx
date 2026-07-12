@@ -1,6 +1,7 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { api } from "../../lib/api";
 import { loadBookmarkCursor } from "../../lib/bookmarkCursor";
+import { BOOKMARK_TAG_SELECTED, BOOKMARK_TAGS_CHANGED } from "../../lib/events";
 import { i18n, m } from "../../lib/i18n";
 import type { Bookmark } from "../../lib/types";
 import BookmarkCard from "../BookmarkCard";
@@ -9,10 +10,6 @@ import ConfirmDialog from "../ConfirmDialog";
 import { useIsland } from "../../lib/island";
 import { session } from "../../lib/session";
 import ToastRegion from "../ToastRegion";
-import {
-  BOOKMARK_TAG_SELECTED,
-  BOOKMARK_TAGS_CHANGED,
-} from "./BookmarkTagNavigation";
 
 interface Props {
   toast: (message: string, tone?: "success" | "danger") => void;

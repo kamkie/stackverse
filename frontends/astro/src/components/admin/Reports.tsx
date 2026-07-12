@@ -4,6 +4,7 @@ import Pagination from "../Pagination";
 import { api, jsonBody, queryString } from "../../lib/api";
 import { formatDate } from "../../lib/format";
 import { i18n, m } from "../../lib/i18n";
+import { previousPageForEmpty } from "../../lib/page";
 import type { Page, Report, ReportStatus } from "../../lib/types";
 import { REPORT_STATUSES } from "../../lib/types";
 import { useIsland } from "../../lib/island";
@@ -27,13 +28,11 @@ export function ReportsContent() {
         `/api/v1/admin/reports${queryString({ status: status(), page: page() })}`,
       );
       if (request !== loadRequest) return;
-      if (nextReports.items.length === 0 && page() > 0) {
-        const previousPage = Math.max(0, nextReports.totalPages - 1);
-        if (previousPage < page()) {
-          setPage(previousPage);
-          await load();
-          return;
-        }
+      const previousPage = previousPageForEmpty(nextReports, page());
+      if (previousPage !== null) {
+        setPage(previousPage);
+        await load();
+        return;
       }
       setReports(nextReports);
     } catch (caught) {

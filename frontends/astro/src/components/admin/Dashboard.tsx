@@ -142,6 +142,24 @@ export function DashboardContent() {
               </span>
             </div>
           </div>
+
+          <Show when={stats()!.topTags.length > 0}>
+            <div class="sv-card">
+              <h2 class="sv-sidebar-title">{m(i18n(), "ui.nav.tags")}</h2>
+              <ul class="sv-tag-list">
+                <For each={stats()!.topTags}>
+                  {(item) => (
+                    <li>
+                      <span class="sv-tag">
+                        {item.tag}
+                        <span class="sv-tag-count">{item.count}</span>
+                      </span>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </div>
+          </Show>
         </>
       )}
     </>

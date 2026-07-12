@@ -1,18 +1,21 @@
 const STORAGE_KEY = "stackverse.reported";
 const fallbackIds = new Set<string>();
+let hydrated = false;
 
 function readIds(): Set<string> {
+  if (hydrated) return fallbackIds;
+  hydrated = true;
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
-    return new Set(stored ? (JSON.parse(stored) as string[]) : []);
+    for (const id of stored ? (JSON.parse(stored) as string[]) : [])
+      fallbackIds.add(id);
   } catch {
-    return new Set(fallbackIds);
+    // The in-memory fallback keeps private/disabled storage modes functional.
   }
+  return fallbackIds;
 }
 
 function writeIds(ids: Set<string>): void {
-  fallbackIds.clear();
-  ids.forEach((id) => fallbackIds.add(id));
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify([...ids]));
   } catch {

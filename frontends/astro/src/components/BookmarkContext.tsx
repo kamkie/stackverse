@@ -3,13 +3,26 @@ import { api } from "../lib/api";
 import { i18n, m } from "../lib/i18n";
 import type { Bookmark } from "../lib/types";
 
+const bookmarkRequests = new Map<string, Promise<Bookmark>>();
+
+function loadBookmark(id: string): Promise<Bookmark> {
+  const existing = bookmarkRequests.get(id);
+  if (existing) return existing;
+  const request = api<Bookmark>(`/api/v1/bookmarks/${id}`).catch((error) => {
+    bookmarkRequests.delete(id);
+    throw error;
+  });
+  bookmarkRequests.set(id, request);
+  return request;
+}
+
 export default function BookmarkContext(props: { bookmarkId: string }) {
   const [bookmark, setBookmark] = createSignal<Bookmark | null>(null);
   const [failed, setFailed] = createSignal(false);
 
   onMount(() => {
     let cancelled = false;
-    api<Bookmark>(`/api/v1/bookmarks/${props.bookmarkId}`)
+    loadBookmark(props.bookmarkId)
       .then((loaded) => {
         if (!cancelled) setBookmark(loaded);
       })
@@ -39,7 +52,12 @@ export default function BookmarkContext(props: { bookmarkId: string }) {
         <>
           <strong>{item().title}</strong>
           <div>
-            <a class="sv-bookmark-url" href={item().url} target="_blank" rel="noreferrer">
+            <a
+              class="sv-bookmark-url"
+              href={item().url}
+              target="_blank"
+              rel="noreferrer"
+            >
               {item().url}
             </a>
           </div>

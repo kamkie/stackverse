@@ -9,8 +9,9 @@ interface Props {
 
 export default function AdminNavigation(props: Props) {
   onMount(() => void initializeClient());
+  const currentPath = () => props.currentPath.replace(/\/$/, "");
   const linkClass = (path: string) =>
-    `sv-nav-link${props.currentPath === path ? " is-active" : ""}`;
+    `sv-nav-link${currentPath() === path ? " is-active" : ""}`;
   return (
     <aside class="sv-sidebar">
       <h2 class="sv-sidebar-title">{m(i18n(), "ui.nav.admin")}</h2>
