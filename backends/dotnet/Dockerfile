@@ -11,7 +11,7 @@ RUN dotnet restore src/StackverseBackend/StackverseBackend.csproj --locked-mode
 COPY backends/dotnet/src/ src/
 RUN dotnet publish src/StackverseBackend/StackverseBackend.csproj --no-restore -c Release -o /app /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.9 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS runtime
 # Npgsql probes for Kerberos/GSSAPI at startup; without the library it prints a
 # loader error to stderr on every boot (harmless, but noise is a defect here)
 RUN apt-get update \
