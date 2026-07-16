@@ -6,7 +6,7 @@ RUN dotnet restore src/StackverseGateway/StackverseGateway.csproj --locked-mode
 COPY src/ src/
 RUN dotnet publish src/StackverseGateway/StackverseGateway.csproj --no-restore -c Release -o /app /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.9 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.10 AS runtime
 WORKDIR /app
 COPY --from=build /app .
 ENV PORT=8000
