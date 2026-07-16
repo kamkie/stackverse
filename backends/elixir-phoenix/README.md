@@ -53,6 +53,11 @@ seed), from the repo root:
 docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoenix/Dockerfile .
 ```
 
+The release image uses Debian/glibc. Erlang/OTP 27+ JIT builds on
+Alpine/musl can abort at startup on AVX-512/AMX hosts because musl's fixed
+alternate-signal-stack size is too small; the remaining intermittent upstream
+case is tracked in [Erlang/OTP #11349](https://github.com/erlang/otp/issues/11349).
+
 ## What this implementation demonstrates
 
 - **Phoenix as a thin API boundary** — the router is explicit and a single

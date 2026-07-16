@@ -2,8 +2,10 @@
 #
 #   docker build -t stackverse/backend-elixir-phoenix:local -f backends/elixir-phoenix/Dockerfile .
 
-FROM elixir:1.20-alpine AS build
-RUN apk add --no-cache build-base git
+FROM elixir:1.20-slim AS build
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends build-essential ca-certificates git \
+  && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV MIX_ENV=prod
 RUN mix local.hex --force && mix local.rebar --force
@@ -14,10 +16,12 @@ COPY backends/elixir-phoenix/lib lib
 COPY backends/elixir-phoenix/priv priv
 RUN mix compile && mix release
 
-FROM alpine:3.24
-RUN apk add --no-cache ca-certificates libstdc++ ncurses-libs openssl \
-  && addgroup -S app \
-  && adduser -S app -G app
+FROM debian:trixie-slim
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates libncurses6 libstdc++6 openssl \
+  && rm -rf /var/lib/apt/lists/* \
+  && groupadd --system app \
+  && useradd --system --gid app --home-dir /app --no-create-home app
 WORKDIR /app
 COPY --from=build /app/_build/prod/rel/stackverse_backend ./
 COPY spec/messages seed/messages
