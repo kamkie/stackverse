@@ -17,7 +17,7 @@ COPY spec /build/spec
 COPY frontends/vanilla-ts ./
 RUN yarn build
 
-FROM nginx:1.31.2-alpine
+FROM nginx:1.31.3-alpine
 COPY frontends/vanilla-ts/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/frontends/vanilla-ts/dist /usr/share/nginx/html
 EXPOSE 8080
