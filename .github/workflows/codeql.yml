@@ -57,7 +57,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         if: matrix.language == 'java-kotlin'
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         if: matrix.language == 'go'
         with:
           go-version-file: backends/go/go.mod

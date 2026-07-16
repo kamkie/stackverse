@@ -294,7 +294,7 @@ jobs:
       - name: Start infra + backend
         run: docker compose --profile app up -d backend
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       # Yarn Berry PnP: archives live in the global cache, not node_modules
@@ -355,7 +355,7 @@ jobs:
       - name: Start the full stack
         run: docker compose --profile app up -d
       - run: corepack enable
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       # Yarn Berry PnP: archives live in the global cache, not node_modules

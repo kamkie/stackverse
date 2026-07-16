@@ -18,7 +18,7 @@ COPY spec /build/spec
 COPY frontends/angular ./
 RUN yarn build
 
-FROM nginx:1.31.2-alpine
+FROM nginx:1.31.3-alpine
 COPY frontends/angular/nginx.conf /etc/nginx/conf.d/default.conf
 # the application builder emits the browser bundle under dist/browser
 COPY --from=build /build/frontends/angular/dist/browser /usr/share/nginx/html
