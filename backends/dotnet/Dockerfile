@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
 WORKDIR /src
 # project file first so the dependency layer caches across source changes
 COPY backends/dotnet/src/StackverseBackend/StackverseBackend.csproj src/StackverseBackend/
