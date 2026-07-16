@@ -16,15 +16,16 @@ COPY backends/elixir-phoenix/lib lib
 COPY backends/elixir-phoenix/priv priv
 RUN mix compile && mix release
 
-FROM debian:trixie-slim
+FROM debian:13-slim
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates libncurses6 libstdc++6 openssl \
+  && apt-get install -y --no-install-recommends ca-certificates libncurses6 libssl3t64 libstdc++6 \
   && rm -rf /var/lib/apt/lists/* \
   && groupadd --system app \
   && useradd --system --gid app --home-dir /app --no-create-home app
 WORKDIR /app
 COPY --from=build /app/_build/prod/rel/stackverse_backend ./
 COPY spec/messages seed/messages
+ENV LANG=C.UTF-8
 ENV SEED_MESSAGES_DIR=/app/seed/messages
 ENV OTEL_SDK_DISABLED=true
 ENV PHX_SERVER=true
