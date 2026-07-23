@@ -14,7 +14,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <failOnMissingWebXml>false</failOnMissingWebXml>
     <version.openliberty-runtime>26.0.0.6</version.openliberty-runtime>
-    <version.liberty-maven-plugin>3.12.0</version.liberty-maven-plugin>
+    <version.liberty-maven-plugin>3.12.1</version.liberty-maven-plugin>
     <version.jackson>2.22.1</version.jackson>
     <version.flyway>12.11.0</version.flyway>
     <version.google-java-format>1.35.0</version.google-java-format>
