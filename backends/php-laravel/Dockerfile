@@ -18,7 +18,7 @@ COPY backends/php-laravel/routes ./routes
 COPY backends/php-laravel/storage ./storage
 RUN composer dump-autoload --no-dev --optimize
 
-FROM dunglas/frankenphp:1.12.4-php8.5-alpine
+FROM dunglas/frankenphp:1.12.6-php8.5-alpine
 
 RUN install-php-extensions pdo_pgsql pcntl
 
