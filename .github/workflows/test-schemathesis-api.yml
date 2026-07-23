@@ -35,7 +35,7 @@ jobs:
         run: docker build -t "$BACKEND_IMAGE" -f "backends/${{ inputs.backend }}/Dockerfile" .
       - name: Start infra + backend
         run: docker compose --profile app up -d backend
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
