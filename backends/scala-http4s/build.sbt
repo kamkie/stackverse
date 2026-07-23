@@ -21,7 +21,7 @@ lazy val root = (project in file("."))
       "io.circe" %% "circe-parser" % "0.14.16",
       "com.zaxxer" % "HikariCP" % "7.1.0",
       "org.postgresql" % "postgresql" % "42.7.13",
-      "org.flywaydb" % "flyway-core" % "12.11.0",
+      "org.flywaydb" % "flyway-core" % "13.0.0",
       "org.flywaydb" % "flyway-database-postgresql" % "13.0.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.9.1",
       "io.opentelemetry" % "opentelemetry-api" % "1.64.0",
