@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.4.0"
+    kotlin("jvm") version "2.4.10"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     application
     jacoco
@@ -35,7 +35,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core:12.11.0")
     implementation("org.flywaydb:flyway-database-postgresql:12.11.0")
     implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
-    implementation("ch.qos.logback:logback-classic:1.5.38")
+    implementation("ch.qos.logback:logback-classic:1.6.0")
     implementation("net.logstash.logback:logstash-logback-encoder:9.0")
 
     testImplementation(kotlin("test"))
