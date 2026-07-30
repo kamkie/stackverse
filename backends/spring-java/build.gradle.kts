@@ -19,6 +19,9 @@ repositories {
     mavenCentral()
 }
 
+extra["jackson-bom.version"] = "3.1.5"
+extra["postgresql.version"] = "42.7.12"
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
