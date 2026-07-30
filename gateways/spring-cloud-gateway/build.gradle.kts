@@ -21,9 +21,15 @@ repositories {
     mavenCentral()
 }
 
+extra["netty.version"] = "4.2.16.Final"
+extra["jackson-bom.version"] = "3.1.5"
+
 dependencyManagement {
     imports {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.2")
+    }
+    dependencies {
+        dependency("org.bouncycastle:bcprov-jdk18on:1.84")
     }
 }
 
