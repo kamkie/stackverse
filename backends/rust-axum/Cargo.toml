@@ -8,7 +8,7 @@ anyhow = "1.0.100"
 axum = { version = "0.8.9", features = ["json", "macros"] }
 base64 = "0.22.1"
 chrono = { version = "0.4.42", features = ["serde"] }
-jsonwebtoken = { version = "10.4.0", default-features = false, features = ["rust_crypto", "use_pem"] }
+jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto", "use_pem"] }
 md5 = "0.8.0"
 opentelemetry = "0.32.0"
 opentelemetry-appender-tracing = "0.32.0"
