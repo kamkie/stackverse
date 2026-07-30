@@ -23,6 +23,7 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-jdbc"
     implementation "org.flywaydb:flyway-core"
     implementation "org.flywaydb:flyway-database-postgresql"
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.21.5"
 
     implementation "org.apache.grails:grails-core"
     implementation "org.apache.grails:grails-web-boot"
@@ -35,7 +36,8 @@ dependencies {
     implementation "org.apache.grails:grails-databinding"
     implementation "org.apache.grails:grails-data-hibernate5"
 
-    runtimeOnly "org.postgresql:postgresql"
+    runtimeOnly "org.postgresql:postgresql:42.7.12"
+    profile "org.codehaus.plexus:plexus-utils:3.6.1"
     implementation "com.zaxxer:HikariCP"
     runtimeOnly "org.fusesource.jansi:jansi"
 
