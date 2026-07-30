@@ -122,21 +122,20 @@ implemented in many stacks. Read these before changing anything:
   first, name a fallback base branch if the required code is not on main yet,
   implement the change, run the component's relevant build/tests from its own
   directory, create or rename to an agent-owned `<agent>/<short-task-slug>` branch,
-  commit, push, open a PR, run the required cross-review below, triage every
-  finding, remove draft status after cross-review is recorded and all findings are
-  triaged, and report the PR link. Do not spawn agents with prompts that stop at
+  commit, push, open a PR, satisfy **Agent-authored PRs get cross-reviewed**
+  below, and report the PR link. Do not spawn agents with prompts that stop at
   "implement and test."
 - **A branch task is done only when its PR is up.** Committing locally is not the
   end of the job. Before ending the session or reporting the task complete: rename
   an auto-generated worktree branch to an agent-owned `<agent>/<short-task-slug>`
-  branch, push it, open the PR, and run the cross-review below with its findings
-  triaged. Work stranded unpushed in a local worktree is an unfinished task — any
-  agent that discovers such a branch finishes the handoff (push, PR, cross-review)
-  instead of waiting to be asked.
+  branch, push it, open the PR, and satisfy
+  **Agent-authored PRs get cross-reviewed** below. Work stranded unpushed in a
+  local worktree is an unfinished task — any agent that discovers such a branch
+  finishes the full handoff instead of waiting to be asked.
 - **Verify spawned-session handoffs.** When a spawned/background agent reports
   completion or a task-ended notification arrives, verify the branch is pushed, a
-  PR exists, and the required cross-review comment is present with findings
-  triaged. Use `git worktree list` and `gh pr list` as needed; complete missing
+  PR exists, and **Agent-authored PRs get cross-reviewed** below has been
+  satisfied. Use `git worktree list` and `gh pr list` as needed; complete missing
   handoff steps immediately instead of only reporting that they are missing.
 - **Agent-authored PRs get cross-reviewed.** Before a PR is handed to a human, the
   authoring agent asks the other agent for review, makes sure the review result is
