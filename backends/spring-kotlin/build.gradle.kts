@@ -12,6 +12,9 @@ group = "dev.stackverse"
 version = "0.0.1-SNAPSHOT"
 description = "Stackverse backend — Spring Boot + Kotlin"
 
+extra["jackson-bom.version"] = "3.1.5"
+extra["postgresql.version"] = "42.7.12"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
