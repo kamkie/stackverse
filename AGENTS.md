@@ -74,34 +74,6 @@ implemented in many stacks. Read these before changing anything:
   patch files, ad hoc review output, and similar temporary files there instead of
   at the repository root. The directory is gitignored and must not hold source or
   durable repo knowledge.
-- **Use separate GitHub identities for authorship and approval.** `kamkie` is the
-  repository owner, reviewer, approver, and default `gh` identity;
-  `kamkie-codex-bot` is the machine user that opens Codex-authored pull requests.
-  Branches and commits may still be pushed through the owner's existing Git/SSH
-  credentials because GitHub determines PR authorship from the credential that
-  creates the PR. Before `gh pr create` (and subsequent author-side PR mutations),
-  obtain the bot credential from the GitHub CLI keyring for that command only and
-  verify the effective login:
-
-  ```powershell
-  $env:GH_TOKEN = gh auth token --hostname github.com --user kamkie-codex-bot
-  try {
-      if ((gh api user --jq .login) -ne 'kamkie-codex-bot') {
-          throw 'Expected the kamkie-codex-bot GitHub identity.'
-      }
-      gh pr create --draft # supply the task-specific base, head, title, and body
-  } finally {
-      Remove-Item Env:GH_TOKEN -ErrorAction SilentlyContinue
-  }
-  ```
-
-  Do not globally switch the active `gh` account: concurrent sessions may rely on
-  the owner's identity. Never print, log, paste, or persist the token in repository
-  files or shell profiles. If the bot credential is unavailable, stop before PR
-  creation and request local authentication instead of opening the PR as `kamkie`.
-  Use `kamkie` for repository settings, collaborator/ruleset changes, and formal
-  review approval. A bot-authored PR remains Codex-authored for the Claude
-  cross-review rules below; the bot identity changes attribution, not review policy.
 - **Owner approval requires automatic merge.** After recording cross-review,
   pushing a commit, or marking a PR ready, and before ending the turn, re-fetch the
   PR's current head SHA and reviews. When the latest review by `kamkie` is
@@ -110,8 +82,7 @@ implemented in many stacks. Read these before changing anything:
   is not draft, mergeability is clean, and no blocking review remains. If all other
   gates are satisfied but checks are still pending, enable auto-merge instead of
   bypassing them. In either case, re-read the head SHA immediately before the merge
-  action and pass it to `gh pr merge --match-head-commit`; use the repository's
-  intended merge method and the `kamkie-codex-bot` credential for bot-authored PRs.
+  action and pass it to `gh pr merge --match-head-commit`.
   Never hand off an approved, eligible PR without either merging it or enabling
   auto-merge. Never treat a stale approval on an earlier commit as merge
   authorization, and verify the resulting commit on `origin/main` before reporting
