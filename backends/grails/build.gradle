@@ -9,6 +9,8 @@ group = "dev.stackverse"
 version = "0.0.1-SNAPSHOT"
 description = "Stackverse backend - Grails + Groovy"
 
+ext["jackson-bom.version"] = "2.21.5"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
@@ -23,7 +25,6 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-jdbc"
     implementation "org.flywaydb:flyway-core"
     implementation "org.flywaydb:flyway-database-postgresql"
-    implementation "com.fasterxml.jackson.core:jackson-databind:2.21.5"
 
     implementation "org.apache.grails:grails-core"
     implementation "org.apache.grails:grails-web-boot"
