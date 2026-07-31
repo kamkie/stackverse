@@ -37,7 +37,7 @@ dependencies {
     implementation "org.apache.grails:grails-databinding"
     implementation "org.apache.grails:grails-data-hibernate5"
 
-    runtimeOnly "org.postgresql:postgresql:42.7.12"
+    runtimeOnly "org.postgresql:postgresql:42.7.13"
     profile "org.codehaus.plexus:plexus-utils:3.6.1"
     implementation "com.zaxxer:HikariCP"
     runtimeOnly "org.fusesource.jansi:jansi"
