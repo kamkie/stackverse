@@ -120,7 +120,7 @@ implemented in many stacks. Read these before changing anything:
     `codex -C <repository-checkout> "review branch <name> ..."`; reference the
     branch by name instead of passing another agent's worktree path.
   - Codex-authored branch → Claude review: run
-    `claude --model claude-opus-4-8 --effort medium --permission-mode bypassPermissions -p "/review <PR number>"`
+    `claude --model claude-opus-5 --effort medium --permission-mode bypassPermissions -p "/review <PR number>"`
     from the authoring task's assigned repository checkout. Do not use Fable,
     Sonnet, or Haiku for Stackverse cross-reviews.
   - Cross-review location must not move or redirect implementation work out of
