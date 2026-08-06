@@ -6,7 +6,7 @@
 # The final image is a long-running static-file server on port 8080. It stays
 # internal to compose; the gateway proxies browser traffic to it.
 
-FROM node:26.5.0-alpine AS build
+FROM node:26.5.1-alpine AS build
 RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /build/frontends/svelte
 COPY frontends/svelte/package.json frontends/svelte/yarn.lock frontends/svelte/.yarnrc.yml ./
