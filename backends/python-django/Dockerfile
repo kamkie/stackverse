@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-python-django:local -f backends/python-django/Dockerfile .
 
-FROM python:3.14.6-slim AS build
+FROM python:3.15.0b3-slim AS build
 WORKDIR /build
 RUN python -m venv /venv
 ENV PATH="/venv/bin:${PATH}"
@@ -12,7 +12,7 @@ COPY backends/python-django/stackverse_api stackverse_api
 COPY backends/python-django/stackverse_django stackverse_django
 RUN python -m pip install --no-cache-dir .
 
-FROM python:3.14.6-slim
+FROM python:3.15.0b3-slim
 RUN addgroup --system app && adduser --system --ingroup app app
 WORKDIR /app
 ENV PATH="/venv/bin:${PATH}"
