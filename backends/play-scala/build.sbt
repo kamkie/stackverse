@@ -10,13 +10,13 @@ lazy val root = (project in file("."))
     version := "0.1.0",
     scalacOptions ++= Seq("-deprecation", "-feature", "-Werror"),
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.18.9",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.18.9",
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.18.9",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.18.9",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.18.9",
-      "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.18.9",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.9",
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.22.1",
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.22.1",
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.22.1",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.22.1",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.22.1",
+      "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.22.1",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.1",
       "org.codehaus.plexus" % "plexus-utils" % "4.0.3"
     ),
     excludeDependencies ++= Seq(
@@ -38,7 +38,7 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.64.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.64.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
-      "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.14.1" % Test,
+      "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.46.0" % Test,
       "org.testcontainers" % "postgresql" % "1.21.4" % Test
     ),
     Test / fork := true,
