@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.18.9",
       "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.18.9",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.18.9",
-      "org.codehaus.plexus" % "plexus-utils" % "3.6.1"
+      "org.codehaus.plexus" % "plexus-utils" % "4.0.3"
     ),
     excludeDependencies ++= Seq(
       "io.appium" % "java-client",
