@@ -6,7 +6,7 @@
 # The final image is a long-running static-file server on port 8080. It stays
 # internal to compose; the gateway proxies browser traffic to it.
 
-FROM node:26.5.0-alpine AS build
+FROM node:26.5.1-alpine AS build
 # node 25+ no longer bundles corepack — install it before enabling the yarn shim
 RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /build/frontends/angular
