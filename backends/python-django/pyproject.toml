@@ -6,7 +6,7 @@ requires-python = ">=3.14"
 dependencies = [
   # DRF 3.17.2 imports django.utils.cache.cc_delim_re, removed in Django 6.1.
   # Keep this minor series capped until DRF ships Django 6.1 compatibility.
-  "Django>=6.0.7,<6.1",
+  "Django>=6.0.7,<6.2",
   "djangorestframework>=3.17.1,<4",
   "psycopg[binary]>=3.3.4,<4",
   "PyJWT[crypto]>=2.13.0,<3",
