@@ -20,7 +20,7 @@ lazy val root = (project in file("."))
       "org.codehaus.plexus" % "plexus-utils" % "4.0.3"
     ),
     // Remove legacy browser-test transitives; the compatible HtmlUnit replacement is declared below.
-    Test / excludeDependencies ++= Seq(
+    excludeDependencies ++= Seq(
       "io.appium" % "java-client",
       "org.seleniumhq.selenium" % "htmlunit-driver",
       "net.sourceforge.htmlunit" % "htmlunit",
