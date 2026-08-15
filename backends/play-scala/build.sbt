@@ -42,7 +42,7 @@ lazy val root = (project in file("."))
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
       // Play Helpers initializes PlayRunners.HTMLUNIT (classOf[HtmlUnitDriver]) even for FakeRequest suites.
       // Keep this driver on scalatestplus-play's Selenium baseline (currently 4.14.1).
-      "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.14.1" % Test,
+      "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.45.0" % Test,
       "org.testcontainers" % "postgresql" % "1.21.4" % Test
     ),
     Test / fork := true,
