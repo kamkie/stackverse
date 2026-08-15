@@ -38,6 +38,7 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.65.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.65.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
+      // Keep Selenium aligned with scalatestplus-play 7.0.2 until that integration upgrades it.
       "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.14.1" % Test,
       "org.testcontainers" % "postgresql" % "1.21.4" % Test
     ),
