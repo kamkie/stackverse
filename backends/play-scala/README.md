@@ -48,6 +48,8 @@ ScalaTestPlus Play 7.0.2 is built against Selenium 4.14.1 and eagerly loads
 `HtmlUnitDriver` even in `FakeRequest`-only suites. Keep `htmlunit3-driver` on
 4.14.1 until ScalaTestPlus Play advances that baseline; newer driver lines are
 incompatible and fail test compilation on the removed Selenium `WebStorage` type.
+The Dependabot hold therefore also suppresses security updates for this test-only
+driver and must be revisited with the next ScalaTestPlus Play upgrade.
 
 Conformance, with infra and this backend running:
 

@@ -147,7 +147,8 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # Hold newer drivers until scalatestplus-play advances its Selenium 4.14.1 baseline.
+      # Test-only hold: newer drivers cannot compile against the Selenium 4.14.1 baseline.
+      # Revisit with the next scalatestplus-play upgrade; security updates are intentionally held.
       - dependency-name: org.seleniumhq.selenium:htmlunit3-driver
         versions: ["> 4.14.1"]
     groups:
