@@ -19,7 +19,8 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.1",
       "org.codehaus.plexus" % "plexus-utils" % "4.0.3"
     ),
-    // Remove legacy browser-test transitives; the compatible HtmlUnit replacement is declared below.
+    // Keep these project-scoped: sbt consumes excludeDependencies during project resolution.
+    // They remove legacy browser-test transitives; the compatible HtmlUnit replacement is declared below.
     excludeDependencies ++= Seq(
       "io.appium" % "java-client",
       "org.seleniumhq.selenium" % "htmlunit-driver",
@@ -39,7 +40,7 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.65.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.65.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
-      // Play test signatures reference HtmlUnitDriver even for FakeRequest suites.
+      // Play Helpers initializes PlayRunners.HTMLUNIT (classOf[HtmlUnitDriver]) even for FakeRequest suites.
       // Keep this driver on scalatestplus-play's Selenium baseline (currently 4.14.1).
       "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.14.1" % Test,
       "org.testcontainers" % "postgresql" % "1.21.4" % Test
