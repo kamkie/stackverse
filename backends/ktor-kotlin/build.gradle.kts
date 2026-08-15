@@ -35,7 +35,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core:13.2.0")
     implementation("org.flywaydb:flyway-database-postgresql:13.2.0")
     implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
-    implementation("ch.qos.logback:logback-classic:1.6.1")
+    implementation("ch.qos.logback:logback-classic:1.6.2")
     implementation("net.logstash.logback:logstash-logback-encoder:9.0")
 
     testImplementation(kotlin("test"))
