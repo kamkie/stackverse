@@ -14,6 +14,6 @@ end
 
 group :test do
   gem "minitest", "~> 6.0"
-  gem "simplecov", "~> 1.0", require: false
+  gem "simplecov", "~> 1.1", require: false
   gem "simplecov-cobertura", "~> 4.0", require: false
 end
