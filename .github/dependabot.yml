@@ -135,7 +135,15 @@ updates:
     schedule:
       interval: weekly
     groups:
+      play-browser-tests:
+        patterns:
+          - org.scalatestplus.play:scalatestplus-play*
+          - org.seleniumhq.selenium:htmlunit3-driver
+        update-types: [minor, patch]
       sbt-minor:
+        exclude-patterns:
+          - org.scalatestplus.play:scalatestplus-play*
+          - org.seleniumhq.selenium:htmlunit3-driver
         update-types: [minor, patch]
 
   - package-ecosystem: pip
