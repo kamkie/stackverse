@@ -1,7 +1,7 @@
 # One update config per ecosystem per implementation directory — implementations
 # are siblings with independent toolchains, so their updates stay independent too.
-# Minor + patch bumps are grouped into compatible update streams per ecosystem;
-# majors stay separate so a breaking upgrade is reviewed on its own.
+# Minor + patch bumps are grouped into a single PR per ecosystem; majors stay
+# separate so a breaking upgrade is reviewed on its own.
 #
 # Planned-but-unstarted variants are pre-seeded as commented entries (Dependabot
 # errors on directories that do not exist yet): a variant PR uncomments its line
@@ -135,21 +135,8 @@ updates:
     schedule:
       interval: weekly
     groups:
-      play-browser-tests:
-        patterns:
-          - org.scalatestplus.play:scalatestplus-play*
-          - org.seleniumhq.selenium:htmlunit3-driver
-        update-types: [minor, patch]
       sbt-minor:
-        exclude-patterns:
-          - org.scalatestplus.play:scalatestplus-play*
-          - org.seleniumhq.selenium:htmlunit3-driver
         update-types: [minor, patch]
-    ignore:
-      # Play Helpers requires HtmlUnitDriver, whose Selenium API must match
-      # scalatestplus-play 7.0.2. Remove this guard when that baseline changes.
-      - dependency-name: org.seleniumhq.selenium:htmlunit3-driver
-        versions: [">= 4.15"]
 
   - package-ecosystem: pip
     directories:
