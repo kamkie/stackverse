@@ -146,6 +146,10 @@ updates:
       - /backends/scala-http4s
     schedule:
       interval: weekly
+    ignore:
+      # scalatestplus-play 7.0.2 is built against Selenium 4.14.1; newer drivers break test compilation.
+      - dependency-name: org.seleniumhq.selenium:htmlunit3-driver
+        versions: ["> 4.14.1"]
     groups:
       sbt-minor:
         update-types: [minor, patch]
