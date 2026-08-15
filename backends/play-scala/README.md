@@ -44,6 +44,11 @@ The Scalafmt config uses `project.git = true`; a brand-new untracked Scala file
 is therefore outside `scalafmtAll`. Add it with intent-to-add (`git add -N`) or
 otherwise make it tracked before formatting, then run `scalafmtCheckAll`.
 
+ScalaTestPlus Play 7.0.2 is built against Selenium 4.14.1 and eagerly loads
+`HtmlUnitDriver` even in `FakeRequest`-only suites. Keep `htmlunit3-driver` on
+4.14.1 until ScalaTestPlus Play advances that baseline; 4.46.0 is incompatible
+and fails test compilation on the removed Selenium `WebStorage` type.
+
 Conformance, with infra and this backend running:
 
 ```sh
