@@ -19,8 +19,8 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.1",
       "org.codehaus.plexus" % "plexus-utils" % "4.0.3"
     ),
-    // Replace scalatestplus-play's legacy HtmlUnit transitives with a compatible, aligned driver.
-    excludeDependencies ++= Seq(
+    // Remove legacy browser-test transitives; the compatible HtmlUnit replacement is declared below.
+    Test / excludeDependencies ++= Seq(
       "io.appium" % "java-client",
       "org.seleniumhq.selenium" % "htmlunit-driver",
       "net.sourceforge.htmlunit" % "htmlunit",
