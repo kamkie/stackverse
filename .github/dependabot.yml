@@ -56,8 +56,20 @@ updates:
         update-types: [minor, patch]
 
   - package-ecosystem: gradle
+    directory: /backends/grails
+    schedule:
+      interval: weekly
+    groups:
+      gradle-minor:
+        update-types: [minor, patch]
+    ignore:
+      # Grails 7.2 finalizes configurationScriptFile too late for Gradle 9.7;
+      # retry this wrapper line after the Grails Gradle plugin adds support.
+      - dependency-name: gradle-wrapper
+        versions: ["[9.7,10)"]
+
+  - package-ecosystem: gradle
     directories:
-      - /backends/grails
       - /backends/ktor-kotlin
       - /backends/micronaut-java
       - /backends/spring-java
