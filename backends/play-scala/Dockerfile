@@ -1,7 +1,5 @@
 FROM eclipse-temurin:25-jdk AS build
 
-ARG SBT_VERSION=1.12.15
-
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
@@ -9,7 +7,9 @@ RUN apt-get update \
 WORKDIR /workspace
 COPY backends/play-scala ./backends/play-scala
 
-RUN curl -fsSL "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz" \
+RUN SBT_VERSION="$(sed -n 's/^sbt\.version=//p' backends/play-scala/project/build.properties)" \
+    && test -n "${SBT_VERSION}" \
+    && curl -fsSL "https://github.com/sbt/sbt/releases/download/v${SBT_VERSION}/sbt-${SBT_VERSION}.tgz" \
     | tar -xz -C /opt \
     && ln -s /opt/sbt/bin/sbt /usr/local/bin/sbt
 
