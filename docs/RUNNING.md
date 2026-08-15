@@ -625,6 +625,8 @@ Two more automations live in `.github/`:
   every ecosystem (Bundler, Cargo, Composer, Gradle, Go modules, Maven, Mix,
   npm, NuGet, pip, sbt, GitHub Actions, Dockerfiles, and the root plus
   Tracetest compose images), with minor/patch bumps grouped per ecosystem.
+  Grails uses a separate Gradle update entry so its wrapper can stay below 9.7
+  until the Grails plugin supports the newer property-finalization lifecycle.
 
 ## Observability
 
