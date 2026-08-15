@@ -196,8 +196,8 @@
       },
       "Microsoft.Bcl.Cryptography": {
         "type": "Transitive",
-        "resolved": "10.0.10",
-        "contentHash": "Qdx/MB+kxJoPIWZ0PpKpGSj8C02oaGXgue59HixUX/vinLsBIDYTX3RNW8mj9fBCeCmCp5+28KojlvI1N9hQPw=="
+        "resolved": "10.0.11",
+        "contentHash": "7foJyHT7LbitR/l0BGJ2T86U6cULoc0P6mc+/Ih1Hj1nPOL8Wh2qc1DF4rn2sUzlcJH4tZ8M2A75/Xqrce2QGg=="
       },
       "Microsoft.CodeCoverage": {
         "type": "Transitive",
@@ -206,20 +206,20 @@
       },
       "Microsoft.Extensions.Caching.Abstractions": {
         "type": "Transitive",
-        "resolved": "10.0.10",
-        "contentHash": "4ZFBNE+jzR+CrWWlhOesnmywCW7pYKT0dxyAQRdL11yJwxe4jvcAu31eorFtEkoFeCDcUTeNssgPv2yaRRptaQ==",
+        "resolved": "10.0.11",
+        "contentHash": "vUl798SmruTqqlt/xH2gDk3tJlhk6k3HdOXAHirlRfbNKDym4g/kRpUL9S4sl6F6FsOTOMW+ZsDapqlZMOOiEw==",
         "dependencies": {
-          "Microsoft.Extensions.Primitives": "10.0.10"
+          "Microsoft.Extensions.Primitives": "10.0.11"
         }
       },
       "Microsoft.Extensions.Caching.StackExchangeRedis": {
         "type": "Transitive",
-        "resolved": "10.0.10",
-        "contentHash": "E+3pfEY68WQh1ZVFTGDNK0JCoayzL3aIDgVHHM85HIbQO7MiABG14A7+ajHH2P/y3a4W2Rla5p2nzut3+mzoyQ==",
+        "resolved": "10.0.11",
+        "contentHash": "0SCQuU1m+BcLMjyh6q1X9j0hongN9EZx9KhgDyPgHxVa5RJ5xuHBkvcgnX95KSa5bQlkYupeQFu8IAI3NgPIUQ==",
         "dependencies": {
-          "Microsoft.Extensions.Caching.Abstractions": "10.0.10",
-          "Microsoft.Extensions.Logging.Abstractions": "10.0.10",
-          "Microsoft.Extensions.Options": "10.0.10",
+          "Microsoft.Extensions.Caching.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.11",
+          "Microsoft.Extensions.Options": "10.0.11",
           "StackExchange.Redis": "2.7.27"
         }
       },
@@ -630,8 +630,8 @@
       },
       "RESPite": {
         "type": "Transitive",
-        "resolved": "3.1.11",
-        "contentHash": "jkm3/wiiYN2zRPjR9Yyu5NNVDBxgCYmrqC/u5ZPwJpOHTaT/7OOIU6pqDTHOqvOg5snzPuxPJYS1HOVeRZPpTA=="
+        "resolved": "3.1.13",
+        "contentHash": "wqViG+Dl4Ln/X33IyfmciyGirm1ET+M7kjwbb+oJAbDXLP2u2hX1eOnaEgyIAerJNSP98BytyddcW3ZQH55wgw=="
       },
       "SharpZipLib": {
         "type": "Transitive",
@@ -649,11 +649,11 @@
       },
       "StackExchange.Redis": {
         "type": "Transitive",
-        "resolved": "3.1.11",
-        "contentHash": "E+HnHo9rw8OZEz0QAoMEup8lwRi6DbQh/nTBGPrCpJLS+L/JrtbPSURgpYjI7TnAvtUsfo9AMYNlqfU1awYPLg==",
+        "resolved": "3.1.13",
+        "contentHash": "OvhFdV2ucee2hnN2v2EOcOTMvIzGsq1PX4kAbIYC8cax+MyabSa7Eu3hWY6D//SbxzZQ/eYFvD8Tvg+pK+969g==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "10.0.5",
-          "RESPite": "3.1.11",
+          "RESPite": "3.1.13",
           "System.IO.Hashing": "10.0.5"
         }
       },
@@ -673,8 +673,8 @@
       },
       "System.IO.Hashing": {
         "type": "Transitive",
-        "resolved": "10.0.10",
-        "contentHash": "eE839zyWZD/UBZYzP2lu9fhHX6RWe63/jz3Jxf+JumzO/db+Vc2s7CMiDwxk9ti2NTUft2tdRx31Rw2OjKbecA=="
+        "resolved": "10.0.11",
+        "contentHash": "OzKDcIRkeNJeC8qAsbn8yJXnfTLP1dtkWILe+T56Gf/z+IkAASi7sMqLqJQat08j5z/mRN5xVtoAwbkMNMoBUQ=="
       },
       "System.Security.Cryptography.Pkcs": {
         "type": "Transitive",
@@ -749,15 +749,15 @@
         "dependencies": {
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.11, )",
           "Microsoft.AspNetCore.DataProtection.StackExchangeRedis": "[10.0.11, )",
-          "Microsoft.Bcl.Cryptography": "[10.0.10, )",
-          "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.10, )",
+          "Microsoft.Bcl.Cryptography": "[10.0.11, )",
+          "Microsoft.Extensions.Caching.StackExchangeRedis": "[10.0.11, )",
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "[8.22.0, )",
           "OpenTelemetry.Exporter.OpenTelemetryProtocol": "[1.17.0, )",
           "OpenTelemetry.Extensions.Hosting": "[1.17.0, )",
           "OpenTelemetry.Instrumentation.AspNetCore": "[1.17.0, )",
           "OpenTelemetry.Instrumentation.Http": "[1.17.0, )",
-          "StackExchange.Redis": "[3.1.11, )",
-          "System.IO.Hashing": "[10.0.10, )",
+          "StackExchange.Redis": "[3.1.13, )",
+          "System.IO.Hashing": "[10.0.11, )",
           "Yarp.ReverseProxy": "[2.3.0, )"
         }
       }
