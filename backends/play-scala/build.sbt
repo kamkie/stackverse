@@ -39,7 +39,8 @@ lazy val root = (project in file("."))
       "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.65.0",
       "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.65.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
-      // Play Helpers initializes HtmlUnitDriver even for FakeRequest suites; keep Selenium aligned at 4.14.1.
+      // Play test signatures reference HtmlUnitDriver even for FakeRequest suites.
+      // Keep this driver on scalatestplus-play's Selenium baseline (currently 4.14.1).
       "org.seleniumhq.selenium" % "htmlunit3-driver" % "4.14.1" % Test,
       "org.testcontainers" % "postgresql" % "1.21.4" % Test
     ),
