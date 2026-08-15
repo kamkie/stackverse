@@ -137,6 +137,11 @@ updates:
     groups:
       sbt-minor:
         update-types: [minor, patch]
+    ignore:
+      # scalatestplus-play 7.0.2 is compiled against Selenium 4.14.1; newer
+      # htmlunit3-driver releases remove APIs required by that integration.
+      - dependency-name: org.seleniumhq.selenium:htmlunit3-driver
+        versions: ["[4.15,)"]
 
   - package-ecosystem: pip
     directories:
