@@ -2,7 +2,7 @@
 #
 #   docker build -t stackverse/backend-go:local -f backends/go/Dockerfile .
 
-FROM golang:1.27rc2-alpine AS build
+FROM golang:1.27rc3-alpine AS build
 WORKDIR /build
 # module files first so the dependency layer caches across source changes
 COPY backends/go/go.mod backends/go/go.sum ./
