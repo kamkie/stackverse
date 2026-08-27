@@ -174,6 +174,11 @@ function cancelScheduledRender(): void {
   pendingInputRender = undefined;
 }
 
+function cancelScheduledRenderAtInteractionBoundary(): void {
+  cancelScheduledRender();
+  state.renderVersion += 1;
+}
+
 function updateBoundValue(
   bind: string,
   value: string,
@@ -762,6 +767,7 @@ export async function startAppController(
       const action = target.closest<HTMLElement>("[data-action]");
       if (action) {
         event.preventDefault();
+        cancelScheduledRenderAtInteractionBoundary();
         void handleActionAtBoundary(action, epoch, controller.signal);
       }
     },
@@ -803,6 +809,7 @@ export async function startAppController(
         event.target instanceof HTMLFormElement ? event.target : null;
       if (!form) return;
       event.preventDefault();
+      cancelScheduledRenderAtInteractionBoundary();
       void handleForm(form, controller.signal);
     },
     listenerOptions,

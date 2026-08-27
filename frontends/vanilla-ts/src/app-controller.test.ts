@@ -133,6 +133,122 @@ describe("app controller event boundary", () => {
     });
   });
 
+  it("cancels a queued filter render before a dialog action and preserves block retry values", async () => {
+    const user = {
+      username: "demo",
+      firstSeen: "2026-08-27T00:00:00Z",
+      lastSeen: "2026-08-27T00:00:00Z",
+      status: "active" as const,
+      bookmarkCount: 0,
+    };
+    const blockBodies: Array<Record<string, unknown>> = [];
+    let userListRequests = 0;
+    const fetchMock = installFetchMock();
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = new URL(String(input), window.location.origin);
+      const method = init?.method ?? "GET";
+      if (url.pathname === "/api/v1/admin/users" && method === "GET") {
+        userListRequests += 1;
+        return jsonResponse({
+          items: [user],
+          page: 0,
+          size: 20,
+          totalItems: 1,
+          totalPages: 1,
+        });
+      }
+      if (
+        url.pathname === "/api/v1/admin/users/demo/status" &&
+        method === "PUT"
+      ) {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        blockBodies.push(body);
+        if (!body.reason) {
+          return jsonResponse(
+            {
+              title: "Bad Request",
+              status: 400,
+              errors: [
+                {
+                  field: "reason",
+                  message: "A reason is required when blocking a user.",
+                  messageKey: "validation.block.reason.required",
+                },
+              ],
+            },
+            400,
+          );
+        }
+        return jsonResponse({
+          ...user,
+          status: "blocked",
+          blockedReason: body.reason,
+        });
+      }
+      return defaultFetch(input, init);
+    });
+
+    const root = document.querySelector<HTMLElement>("#app");
+    expect(root).not.toBeNull();
+    stopController = await startAppController(root!, {
+      enableDevInstrumentation: false,
+    });
+    state.session = { authenticated: true, username: "admin" };
+    state.me = { username: "admin", roles: ["admin"] };
+    history.pushState(null, "", "/admin/users");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    const search = await vi.waitFor(() => {
+      const input = root!.querySelector<HTMLInputElement>(
+        '[data-bind="users-q"]',
+      );
+      expect(input).not.toBeNull();
+      return input!;
+    });
+    search.value = "demo";
+    search.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    root!
+      .querySelector<HTMLButtonElement>('[data-action="open-block-user"]')!
+      .click();
+
+    await vi.waitFor(() =>
+      expect(
+        root!.querySelector('form[data-form="block-user"]'),
+      ).not.toBeNull(),
+    );
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
+    expect(userListRequests).toBe(2);
+
+    root!
+      .querySelector<HTMLFormElement>('form[data-form="block-user"]')!
+      .dispatchEvent(
+        new SubmitEvent("submit", { bubbles: true, cancelable: true }),
+      );
+    await vi.waitFor(() => {
+      expect(root!.querySelector(".sv-field-error")?.textContent).toBe(
+        "A reason is required when blocking a user.",
+      );
+    });
+
+    const reason = root!.querySelector<HTMLTextAreaElement>(
+      'textarea[name="reason"]',
+    )!;
+    reason.value = "e2e block test";
+    reason.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    root!
+      .querySelector<HTMLFormElement>('form[data-form="block-user"]')!
+      .dispatchEvent(
+        new SubmitEvent("submit", { bubbles: true, cancelable: true }),
+      );
+
+    await vi.waitFor(() => expect(state.dialog).toBeNull());
+    expect(blockBodies).toEqual([
+      { status: "blocked", reason: "" },
+      { status: "blocked", reason: "e2e block test" },
+    ]);
+  });
+
   it.each([
     {
       name: "server failure",
