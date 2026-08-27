@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.22.2",
       "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.22.2",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.2",
-      "org.codehaus.plexus" % "plexus-utils" % "4.0.3"
+      "org.codehaus.plexus" % "plexus-utils" % "4.1.0"
     ),
     // Keep these project-scoped: sbt consumes excludeDependencies during project resolution.
     // They remove legacy browser-test transitives; the compatible HtmlUnit replacement is declared below.
