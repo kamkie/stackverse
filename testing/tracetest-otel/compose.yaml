@@ -87,7 +87,7 @@ services:
 
   tracetest-otel-collector:
     profiles: [tracetest]
-    image: otel/opentelemetry-collector-contrib:0.158.0-386
+    image: otel/opentelemetry-collector-contrib:0.159.0
     command:
       - --config=/etc/otelcol-contrib/config.yaml
     volumes:
