@@ -35,7 +35,7 @@
     "@opentelemetry/sdk-node": "^0.220.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
-    "fastify": "5.10.0",
+    "fastify": "5.12.1",
     "jose": "^6.2.3",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.22.0",
@@ -45,7 +45,7 @@
     "rxjs": "^7.8.2"
   },
   "resolutions": {
-    "fastify": "5.10.0"
+    "fastify": "5.12.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
