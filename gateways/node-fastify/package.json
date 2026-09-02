@@ -32,7 +32,7 @@
     "@opentelemetry/sdk-logs": "^0.220.0",
     "@opentelemetry/sdk-metrics": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.220.0",
-    "fastify": "^5.10.0",
+    "fastify": "^5.12.1",
     "ioredis": "^5.11.1",
     "jose": "^6.2.3",
     "pino": "^10.3.1",
