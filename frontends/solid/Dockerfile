@@ -15,7 +15,7 @@ COPY spec /build/spec
 COPY frontends/solid ./
 RUN yarn build
 
-FROM nginx:1.31.4-alpine
+FROM nginx:1.31.5-alpine
 COPY frontends/solid/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/frontends/solid/dist /dist
 EXPOSE 8080
