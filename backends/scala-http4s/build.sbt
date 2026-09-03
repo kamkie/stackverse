@@ -1,6 +1,6 @@
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 
-ThisBuild / scalaVersion := "3.8.4"
+ThisBuild / scalaVersion := "3.9.0"
 
 lazy val coverageRunId = settingKey[String]("Unique id that keeps scoverage instrumentation out of sbt 2 disk cache")
 
@@ -21,8 +21,8 @@ lazy val root = (project in file("."))
       "io.circe" %% "circe-parser" % "0.14.16",
       "com.zaxxer" % "HikariCP" % "7.1.0",
       "org.postgresql" % "postgresql" % "42.7.13",
-      "org.flywaydb" % "flyway-core" % "13.3.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "13.3.0",
+      "org.flywaydb" % "flyway-core" % "13.4.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "13.4.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.9.1",
       "io.opentelemetry" % "opentelemetry-api" % "1.65.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.65.0",
