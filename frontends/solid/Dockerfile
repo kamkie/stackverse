@@ -6,7 +6,7 @@
 # The final image is a long-running static-file server on port 8080. It stays
 # internal to compose; the gateway proxies browser traffic to it.
 
-FROM node:26.7.0-alpine AS build
+FROM node:26.8.1-alpine AS build
 RUN npm install -g corepack@0.35.0 && corepack enable
 WORKDIR /build/frontends/solid
 COPY frontends/solid/package.json frontends/solid/yarn.lock frontends/solid/.yarnrc.yml ./
