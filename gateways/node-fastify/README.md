@@ -123,3 +123,11 @@ docker build -t stackverse/gateway-node-fastify:local .
 # then from the repo root:
 # GATEWAY_IMAGE=stackverse/gateway-node-fastify:local docker compose --profile app up
 ```
+
+## Test toolchain
+
+Use Node.js 24 (as in CI). Upgrade `vitest` and `@vitest/coverage-v8`
+together to matching versions; mixing major versions breaks coverage collection.
+Vitest 5 requires Node.js >= 22.12 and a compatible Vite peer dependency.
+Vite is an explicit development dependency because Vitest 5 moved it from
+a dependency to a peer dependency.
