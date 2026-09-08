@@ -113,4 +113,4 @@ docker build -t stackverse/frontend-lit:local -f frontends/lit/Dockerfile .
 
 Use Node.js 24 (as in CI). Upgrade `vitest` and `@vitest/coverage-v8`
 together to matching versions; mixing major versions breaks coverage collection.
-Vitest 5 requires Node.js >= 22.12 and a compatible Vite peer dependency.
+Vitest 5 requires a compatible Vite peer dependency.
