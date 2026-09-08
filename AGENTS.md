@@ -39,9 +39,9 @@ implemented in many stacks. Read these before changing anything:
 - Upgrade `vitest` and `@vitest/*` together: coverage providers require matching
   Vitest versions. Dependabot's `vitest` group precedes the general npm group
   and includes major updates. Vitest 5 requires an explicit Vite peer dependency
-  and Node.js >= 22.12; validate each variant's build and coverage before upgrading.
-  Angular and Solid currently stay on v4 for the compatibility constraints
-  documented in their component READMEs; grouping is not approval to bypass them.
+  and a supported Node.js release (CI uses Node.js 24); validate each variant's
+  build and coverage before upgrading. Component READMEs document compatibility
+  holds, backed by Dependabot ignores; grouping is not approval to bypass them.
 - **Shared files stay O(1) in the number of implementations** — that is what lets
   parallel variant PRs merge without conflicting. Per-implementation content lives
   in that implementation's directory or its own file: its build/test CI in
