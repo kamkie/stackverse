@@ -13,7 +13,7 @@ stack is deliberately thin: no ORM, no DI container, no validation framework.
 
 ## Run it locally
 
-Prerequisites: Node.js ≥ 22 with corepack (Yarn Berry resolves from
+Prerequisites: Node.js ≥ 22.12 with corepack (Yarn Berry resolves from
 `packageManager`), the compose infra (`docker compose up -d` at the repo root).
 
 ```sh
@@ -29,12 +29,12 @@ message seed resolves to the repo's `spec/messages` automatically. Migrations
 (when switching from another backend: `docker compose down -v` first, see
 [docs/RUNNING.md](../../docs/RUNNING.md)).
 
-Tests (Vitest units plus Fastify injection, no containers):
-
 Use Node.js 24 (as in CI) for the test toolchain; Vitest 5 requires Node.js
 ≥ 22.12. Upgrade `vitest` and `@vitest/coverage-v8` together to matching
-versions. Vite is an explicit development dependency because Vitest 5
-requires it as a peer, which Yarn PnP does not supply transitively.
+versions. Vitest 5 moved Vite from a dependency to a peer dependency, so
+this project explicitly provides Vite as a development dependency.
+
+Tests (Vitest units plus Fastify injection, no containers):
 
 ```sh
 yarn lint           # ESLint flat config: JavaScript + TypeScript recommended rules
