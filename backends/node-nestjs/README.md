@@ -15,7 +15,7 @@ Fastify remains only the HTTP adapter.
 
 ## Run it locally
 
-Prerequisites: Node.js >= 22.12 with corepack (Yarn Berry resolves from
+Prerequisites: Node.js 24 with corepack (Yarn Berry resolves from
 `packageManager`), the compose infra (`docker compose up -d` at the repo root).
 
 ```sh
@@ -155,6 +155,6 @@ discovery / JWKS retrieval failure). There are no retry loops, so
 
 Use Node.js 24 (as in CI). Upgrade `vitest` and `@vitest/coverage-v8`
 together to matching versions; mixing major versions breaks coverage collection.
-Vitest 5 requires Node.js >= 22.12 and a compatible Vite peer dependency.
+Vitest 5 requires a compatible Vite peer dependency.
 Vite is an explicit development dependency because Vitest 5 moved it from
 a dependency to a peer dependency.
