@@ -76,7 +76,7 @@ jobs:
         run: dotnet restore --locked-mode
         working-directory: gateways/yarp
       - name: Submit NuGet dependency graph
-        uses: advanced-security/component-detection-dependency-submission-action@v0.1.4
+        uses: advanced-security/component-detection-dependency-submission-action@v0.1.6
         with:
           filePath: gateways/yarp
           detectorsCategories: NuGet
