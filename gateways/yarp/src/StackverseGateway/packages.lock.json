@@ -4,33 +4,33 @@
     "net10.0": {
       "Microsoft.AspNetCore.Authentication.OpenIdConnect": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "LM2J/cxqAB6W1sZ0Lo8sf0AYcnYQWEDTyRQTIxGt/cZ7C24VKugbvux2iswkyAbPC8M4HP7NEqC2cWbvyTWVnQ==",
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "UfkKr9EP+LBgnFfxwkfnZzta7XkalCroZWoxg2yW9dt8iPXO7bJYpcmyFIeM+FLcAlOKZeduP93XhuCcfWaYIQ==",
         "dependencies": {
           "Microsoft.IdentityModel.Protocols.OpenIdConnect": "8.19.2"
         }
       },
       "Microsoft.AspNetCore.DataProtection.StackExchangeRedis": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "lUeo4YZaLNv0939lSwHuy4L9HSRV6m0J5Zt+SAiZjvo1ors/uK4Mr199zJe8/rHdsdfkT3bmRh+f8YMlXiJEmg==",
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "secUkbBZ3PVVMhb0E+WVtNSFrKmDYNQwKrmsqkSftk9AgHjtb/Aaknsd9xD3E0iD7gwDvUTsSLUmAKb6FluXgA==",
         "dependencies": {
           "StackExchange.Redis": "2.7.27"
         }
       },
       "Microsoft.Bcl.Cryptography": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "7foJyHT7LbitR/l0BGJ2T86U6cULoc0P6mc+/Ih1Hj1nPOL8Wh2qc1DF4rn2sUzlcJH4tZ8M2A75/Xqrce2QGg=="
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "gRMy9aW3sAZxKGQwfIh5i/sB7gqCLnhRowjyuCYnZEqM3LyZ+SUi9MlMc4pq3a+ddUflo86yp7vJ9lOy3u0xBw=="
       },
       "Microsoft.Extensions.Caching.StackExchangeRedis": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "0SCQuU1m+BcLMjyh6q1X9j0hongN9EZx9KhgDyPgHxVa5RJ5xuHBkvcgnX95KSa5bQlkYupeQFu8IAI3NgPIUQ==",
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "iQoMgbt02dl49cv7GLNeh771xstAbg9xKpuWosYmnOU0CJ9ni10F3+1IrgvbjyaV0JGulauGRrNir50QKWonKQ==",
         "dependencies": {
           "StackExchange.Redis": "2.7.27"
         }
@@ -93,9 +93,9 @@
       },
       "System.IO.Hashing": {
         "type": "Direct",
-        "requested": "[10.0.11, )",
-        "resolved": "10.0.11",
-        "contentHash": "OzKDcIRkeNJeC8qAsbn8yJXnfTLP1dtkWILe+T56Gf/z+IkAASi7sMqLqJQat08j5z/mRN5xVtoAwbkMNMoBUQ=="
+        "requested": "[10.0.12, )",
+        "resolved": "10.0.12",
+        "contentHash": "jDix4bBMYnpZdSPcnY+KDV6ik3SRMzpMKby/bZl/XUwIiflwRNAFZ0oOl61R/pSaveIJ8t1gs2BUlrGsPs/bcg=="
       },
       "Yarp.ReverseProxy": {
         "type": "Direct",
