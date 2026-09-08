@@ -1,7 +1,7 @@
 # One update config per ecosystem per implementation directory — implementations
 # are siblings with independent toolchains, so their updates stay independent too.
-# Minor + patch bumps are grouped into a single PR per ecosystem; majors stay
-# separate so a breaking upgrade is reviewed on its own.
+# Minor + patch bumps are grouped per ecosystem. Vitest and its matching packages
+# also group major updates; other majors stay separate for focused review.
 #
 # Planned-but-unstarted variants are pre-seeded as commented entries (Dependabot
 # errors on directories that do not exist yet): a variant PR uncomments its line
@@ -110,12 +110,10 @@ updates:
       - /backends/node-ts
       - /conformance
       - /e2e
-      - /frontends/angular
       - /frontends/astro
       - /frontends/lit
       - /frontends/qwik
       - /frontends/react
-      - /frontends/solid
       - /frontends/svelte
       - /frontends/vanilla-ts
       - /frontends/vue
@@ -128,8 +126,29 @@ updates:
     schedule:
       interval: weekly
     groups:
+      vitest:
+        patterns: [vitest, '@vitest/*']
+        update-types: [major, minor, patch]
       npm-minor:
         update-types: [minor, patch]
+  # These builders are held on Vitest 4; component READMEs document the blockers.
+  - package-ecosystem: npm
+    directories:
+      - /frontends/angular
+      - /frontends/solid
+    schedule:
+      interval: weekly
+    groups:
+      vitest:
+        patterns: [vitest, '@vitest/*']
+        update-types: [minor, patch]
+      npm-minor:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: vitest
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@vitest/*'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: nuget
     directories:
       - /backends/dotnet

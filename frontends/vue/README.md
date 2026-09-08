@@ -106,3 +106,9 @@ gateway. Build it with the **repo root** as context:
 ```sh
 docker build -t stackverse/frontend-vue:local -f frontends/vue/Dockerfile .
 ```
+
+## Test toolchain
+
+Use Node.js 24 (as in CI). Upgrade `vitest` and `@vitest/coverage-v8`
+together to matching versions; mixing major versions breaks coverage collection.
+Vitest 5 requires a compatible Vite peer dependency.

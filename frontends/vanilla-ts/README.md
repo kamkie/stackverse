@@ -113,3 +113,9 @@ see [docs/RUNNING.md](../../docs/RUNNING.md)):
 ```sh
 docker build -t stackverse/frontend-vanilla-ts:local -f frontends/vanilla-ts/Dockerfile .
 ```
+
+## Test toolchain
+
+Use Node.js 24 (as in CI). Upgrade `vitest` and `@vitest/coverage-v8`
+together to matching versions; mixing major versions breaks coverage collection.
+Vitest 5 requires a compatible Vite peer dependency.

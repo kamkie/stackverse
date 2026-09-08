@@ -36,6 +36,12 @@ implemented in many stacks. Read these before changing anything:
   on its documented TypeScript 5 line): TypeScript 7's native compiler cannot
   resolve the PnP dependency graph. A TypeScript 7 upgrade is blocked until a
   module's actual typecheck succeeds under PnP, not merely until Yarn can install it.
+- Upgrade `vitest` and `@vitest/*` together: coverage providers require matching
+  Vitest versions. Dependabot's `vitest` group precedes the general npm group
+  and includes major updates. Vitest 5 requires an explicit Vite peer dependency
+  and a supported Node.js release (CI uses Node.js 24); validate each variant's
+  build and coverage before upgrading. Component READMEs document compatibility
+  holds, backed by Dependabot ignores; grouping is not approval to bypass them.
 - **Shared files stay O(1) in the number of implementations** — that is what lets
   parallel variant PRs merge without conflicting. Per-implementation content lives
   in that implementation's directory or its own file: its build/test CI in
