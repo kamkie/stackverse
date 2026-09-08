@@ -2,7 +2,7 @@ source "https://rubygems.org"
 
 ruby "4.0.5"
 
-gem "bootsnap", "~> 1.25", require: false
+gem "bootsnap", "~> 1.26", require: false
 gem "jwt", "~> 3.2"
 gem "pg", "~> 1.6"
 gem "puma", "~> 8.0"
@@ -14,6 +14,6 @@ end
 
 group :test do
   gem "minitest", "~> 6.0"
-  gem "simplecov", "~> 1.1", require: false
+  gem "simplecov", "~> 1.2", require: false
   gem "simplecov-cobertura", "~> 4.0", require: false
 end
