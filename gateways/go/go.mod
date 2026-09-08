@@ -3,7 +3,7 @@ module github.com/kamkie/stackverse/gateways/go
 go 1.26.5
 
 require (
-	github.com/coreos/go-oidc/v3 v3.20.0
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/redis/go-redis/v9 v9.22.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.20.1
@@ -17,7 +17,7 @@ require (
 	go.opentelemetry.io/otel/sdk/log v0.22.0
 	go.opentelemetry.io/otel/sdk/metric v1.46.0
 	go.opentelemetry.io/otel/trace v1.46.0
-	golang.org/x/oauth2 v0.36.0
+	golang.org/x/oauth2 v0.37.0
 )
 
 require (
