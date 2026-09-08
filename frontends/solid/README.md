@@ -89,3 +89,12 @@ the gateway. Build it with the **repo root** as context:
 ```sh
 docker build -t stackverse/frontend-solid:local -f frontends/solid/Dockerfile .
 ```
+
+## Vitest compatibility
+
+Keep Vitest and its coverage provider on v4. With both packages at 5.0.0,
+`yarn build` fails in Vitest's declarations under the existing strict PnP
+TypeScript build: `config.d.ts` references missing `@vitest/expect`, and
+`plugin.d.*.d.ts` imports an unexported `MarkOptions` from `vitest/browser`.
+Revisit when those declarations are fixed; retain strict library checking
+and validate the build and coverage rather than adding shims or suppressions.
