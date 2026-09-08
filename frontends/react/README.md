@@ -9,6 +9,10 @@ admins can translate them later through the Messages screen without a deploy.
 
 ## Commands
 
+Use Node.js 24 (as in CI). Vitest 5 requires Node.js ≥ 22.12 and Vite ≥ 6.4.
+Upgrade `vitest` and `@vitest/coverage-v8` together to matching versions;
+mixing Vitest 5 with the v4 coverage provider breaks coverage collection.
+
 ```sh
 yarn install
 yarn dev              # dev server on :5173, API mocked in-browser (MSW)
