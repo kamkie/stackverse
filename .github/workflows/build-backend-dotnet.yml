@@ -76,7 +76,7 @@ jobs:
         run: dotnet restore --locked-mode
         working-directory: backends/dotnet
       - name: Submit NuGet dependency graph
-        uses: advanced-security/component-detection-dependency-submission-action@v0.1.4
+        uses: advanced-security/component-detection-dependency-submission-action@v0.1.6
         with:
           filePath: backends/dotnet
           detectorsCategories: NuGet
