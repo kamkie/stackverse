@@ -37,9 +37,5 @@
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.69.0",
     "vitest": "^4.1.11"
-  },
-  "resolutions": {
-    "@angular/build/vite": "7.3.6",
-    "@angular/build/@babel/core": "7.29.7"
   }
 }
