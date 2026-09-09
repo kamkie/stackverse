@@ -114,7 +114,7 @@ docker build -t stackverse/frontend-angular:local -f frontends/angular/Dockerfil
 ## Vitest compatibility
 
 Keep Vitest and its coverage provider on v4 while using `@angular/build`
-22.0.5: that builder declares `vitest: ^4.0.8`. The coordinated v5 trial
-passed 105 tests locally, but falls outside the builder's supported peer
+22.1.7: that builder still declares `vitest: ^4.0.8`. The earlier coordinated
+v5 trial on builder 22.0.5 passed 105 tests locally, but falls outside the supported peer
 range. Revisit when the Angular builder supports v5; upgrade the runner and
 coverage provider together and validate `yarn build` and `yarn test --coverage`.
