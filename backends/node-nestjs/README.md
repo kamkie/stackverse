@@ -81,9 +81,11 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 - **Fastify adapter boundary** - Fastify is still the Nest platform adapter so
   the backend keeps pino integration and Fastify replies for explicit status,
   header, and ETag handling, but routes are not registered directly on a
-  Fastify instance. `fastify` is intentionally pinned to `5.12.1`, the exact
-  version resolved by `@nestjs/platform-fastify@12.0.1`, so Yarn PnP loads a
+  Fastify instance. `fastify` and `resolutions.fastify` are pinned to `5.12.3`,
+  overriding the adapter's internal `5.12.1` dependency so Yarn PnP loads a
   single Fastify copy and adapter hooks/decorators share one runtime instance.
+  Validate adapter compatibility with the HTTP tests and backend conformance
+  when changing this resolution.
 - **Coordinated Nest upgrades** - upgrade `@nestjs/common`, `@nestjs/core`,
   `@nestjs/platform-fastify`, and `@nestjs/testing` together on the same release
   line, with a compatible Nest CLI. Mixing Nest 11 and 12 breaks package-internal

@@ -25,6 +25,12 @@ This variant therefore uses Yarn Berry's `node-modules` linker, documented in
 `.yarnrc.yml`; it remains independently locked with Yarn like its sibling
 frontends. There is no mock mode, so development requires a running gateway.
 
+Keep the direct Vite dependency and the Vite versions resolved by Astro and
+`@astrojs/solid-js` aligned. After dependency updates, run `yarn dedupe vite`
+and validate `yarn build` and `yarn test`. A lockfile mixing Vite 8.1.4 and
+8.2.2 causes TS2321 (excessive stack depth) when Astro checks the Vite plugin
+types in `astro.config.ts`; deduplicating to 8.2.2 fixes it without type casts.
+
 ## Architecture
 
 `src/layouts/BaseLayout.astro` owns the complete shared document and application

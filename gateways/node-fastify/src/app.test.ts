@@ -601,6 +601,9 @@ describe("node-fastify gateway", () => {
           const unknownPath = await app.inject({ method: "GET", url: "/%2e%2e/secret.txt" });
           expect(unknownPath.statusCode).toBe(200);
           expect(unknownPath.body).toBe("<main>fallback shell</main>");
+          const unsafeHead = await app.inject({ method: "HEAD", url: "/%2e%2e/secret.txt" });
+          expect(unsafeHead.statusCode).toBe(200);
+          expect(unsafeHead.body).toBe("");
 
           if (process.platform === "win32") {
             const driveQualifiedPath = await app.inject({ method: "GET", url: "/%43:%5CWindows%5Cwin.ini" });
