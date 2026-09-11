@@ -126,6 +126,9 @@ updates:
     schedule:
       interval: weekly
     groups:
+      nestjs:
+        patterns: ['@nestjs/*']
+        update-types: [major, minor, patch]
       vitest:
         patterns: [vitest, '@vitest/*']
         update-types: [major, minor, patch]
