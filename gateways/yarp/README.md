@@ -145,7 +145,10 @@ dotnet test
 
 NuGet resolves through committed `packages.lock.json` files. After changing
 `PackageReference` versions, run `dotnet restore --force-evaluate` from this
-directory and commit the updated lock files.
+directory and commit the updated lock files for both the gateway and test
+projects. The test project locks the gateway's transitive dependencies too;
+updating only the application lock file causes `NU1004` in CI. Verify the
+refresh with `dotnet restore --locked-mode`.
 
 ## Docker
 
