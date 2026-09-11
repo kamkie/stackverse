@@ -1,6 +1,6 @@
 # Backend - Node.js (NestJS)
 
-The Stackverse backend on Node.js 24: **NestJS 11** on the Fastify adapter,
+The Stackverse backend on Node.js 24: **NestJS 12** on the Fastify adapter,
 plain `pg` for PostgreSQL access, JWT bearer authentication with `jose`
 against Keycloak's JWKS, and `pino` structured logging. Shared behavior,
 endpoints, and environment variables are documented once in
@@ -79,9 +79,15 @@ docker build -t stackverse/backend-node-nestjs:local -f backends/node-nestjs/Doc
 - **Fastify adapter boundary** - Fastify is still the Nest platform adapter so
   the backend keeps pino integration and Fastify replies for explicit status,
   header, and ETag handling, but routes are not registered directly on a
-  Fastify instance. `fastify` is intentionally pinned to `5.10.0`, the exact
-  version resolved by `@nestjs/platform-fastify@^11.1.28`, so Yarn PnP loads a
+  Fastify instance. `fastify` is intentionally pinned to `5.12.1`, the exact
+  version resolved by `@nestjs/platform-fastify@12.0.1`, so Yarn PnP loads a
   single Fastify copy and adapter hooks/decorators share one runtime instance.
+- **Coordinated Nest upgrades** - upgrade `@nestjs/common`, `@nestjs/core`,
+  `@nestjs/platform-fastify`, and `@nestjs/testing` together on the same release
+  line, with a compatible Nest CLI. Mixing Nest 11 and 12 breaks package-internal
+  imports under Yarn PnP and prevents the backend from starting. The Dependabot
+  `nestjs` group keeps these updates together; validate build, unit tests, and
+  backend conformance before accepting a new release line.
 - **SQL without an ORM** - hand-written parameterized queries per feature
   service (`src/*/*.service.ts`), with a tiny `withTransaction` helper for the
   moderation state machine. Lock ordering, keyset predicates, and partial
