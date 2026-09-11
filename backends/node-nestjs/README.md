@@ -15,8 +15,10 @@ Fastify remains only the HTTP adapter.
 
 ## Run it locally
 
-Prerequisites: Node.js 24 with corepack (Yarn Berry resolves from
-`packageManager`), the compose infra (`docker compose up -d` at the repo root).
+Prerequisites: Node.js 22.22.3+, 24.15.0+, or 26+ with corepack (Yarn Berry
+resolves from `packageManager`), and the compose infra (`docker compose up -d`
+at the repo root). These Node release ranges match the Nest CLI 12 devkit
+dependencies; CI uses Node.js 24 and the container uses Node.js 26.
 
 ```sh
 cd backends/node-nestjs
