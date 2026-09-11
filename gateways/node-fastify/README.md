@@ -40,7 +40,11 @@ Route contract, cookie rules, and the login sequence live in
   backend/frontend proxying; the gateway's code only applies Stackverse-specific
   header policy, bearer-token attachment, trace propagation, and 502 problem
   mapping. `@fastify/static` serves the bundled SPA fallback with the plugin's
-  path safety and MIME handling.
+  path safety and MIME handling. In static mode, unknown paths and paths the
+  plugin rejects with 403 return only the fixed public `index.html` for GET/HEAD;
+  the rejected path is never retried. This preserves the SPA fallback with
+  `@fastify/static` 10.1.3's stricter path rejection, including on Windows.
+  Other errors still reach the gateway's normal error handler.
 - **CSRF and same-origin checks** follow the shared double-submit contract:
   readable `XSRF-TOKEN` cookie plus `X-XSRF-TOKEN` header on `POST`/`PUT`/
   `PATCH`/`DELETE` `/api/**` calls, with `Origin` and `Sec-Fetch-Site` enforced

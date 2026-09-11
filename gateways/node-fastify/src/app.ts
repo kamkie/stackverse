@@ -241,6 +241,19 @@ async function registerStaticSpa(app: FastifyInstance, root: string): Promise<vo
       redirect: false,
       wildcard: true,
     });
+    spa.setErrorHandler((error, request, reply) => {
+      if (
+        error instanceof Error &&
+        "statusCode" in error &&
+        error.statusCode === 403 &&
+        (request.method === "GET" || request.method === "HEAD")
+      ) {
+        // The static plugin rejected the path. Serve only the fixed public shell;
+        // never retry the rejected URL or normalize it into a filesystem path.
+        return reply.code(200).sendFile("index.html", root);
+      }
+      throw error;
+    });
     spa.setNotFoundHandler(async (request, reply) => {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return sendProblem(reply, 404, "Not Found", "No route matched the request.");
