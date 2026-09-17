@@ -207,9 +207,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@stackverse/selenium-e2e@workspace:."
   dependencies:
-    "@types/node": "npm:^26.5.0"
+    "@types/node": "npm:^26.5.1"
     "@types/selenium-webdriver": "npm:^4.35.6"
-    selenium-webdriver: "npm:^4.48.0"
+    selenium-webdriver: "npm:^4.49.0"
     tsx: "npm:^4.23.13"
     typescript: "npm:^6.0.3"
   languageName: unknown
@@ -224,12 +224,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^26.5.0":
-  version: 26.5.0
-  resolution: "@types/node@npm:26.5.0"
+"@types/node@npm:^26.5.1":
+  version: 26.5.1
+  resolution: "@types/node@npm:26.5.1"
   dependencies:
     undici-types: "npm:~8.9.0"
-  checksum: 10c0/1ab105dfe717f6442092ad8732d25d115fcf44596bb64009b3a6eb2dd988aef9ea76ad8a372e88cdf28800161681e1597c779451bade4428801f1a34129e5e37
+  checksum: 10c0/40aa7aa4c099c8a08bf39b5bcb15eaf2cc073666c2191b1d9ac8243ce6b68b23ace904a044c521f6d310b70e94514b531be5f4fc184f141a7ce7f0679ebc7bb3
   languageName: node
   linkType: hard
 
@@ -560,15 +560,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"selenium-webdriver@npm:^4.48.0":
-  version: 4.48.0
-  resolution: "selenium-webdriver@npm:4.48.0"
+"selenium-webdriver@npm:^4.49.0":
+  version: 4.49.0
+  resolution: "selenium-webdriver@npm:4.49.0"
   dependencies:
     "@bazel/runfiles": "npm:^6.5.0"
     jszip: "npm:^3.10.1"
     tmp: "npm:^0.2.7"
     ws: "npm:^8.21.3"
-  checksum: 10c0/2cf96d7d064ddb26d874a87c1806a4d12a736b4c3edf1f0e1e3e65749eb656586beceef7c154cfd8d3b8427adb1e033a040613e81f5aa41c5541115ee2bdf7eb
+  checksum: 10c0/7dcd430d6803b7b0733b5ce7fd9daa4ab03262accd4cf78157b2c08423eba74a736e1e59d42e524a8d4ec8f772f817527378a5a9b659142553e38f13265a012a
   languageName: node
   linkType: hard
 
