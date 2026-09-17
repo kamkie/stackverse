@@ -830,9 +830,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/testing@npm:^12.0.1":
-  version: 12.0.1
-  resolution: "@nestjs/testing@npm:12.0.1"
+"@nestjs/testing@npm:^12.0.2":
+  version: 12.0.2
+  resolution: "@nestjs/testing@npm:12.0.2"
   dependencies:
     tslib: "npm:2.8.1"
   peerDependencies:
@@ -845,7 +845,7 @@ __metadata:
       optional: true
     "@nestjs/platform-express":
       optional: true
-  checksum: 10c0/79efea430bd359b4d98ad20b81d9f2b589a3dbcb680dbe6e105622395ef953574e2ec6d92b4ce02e64ee45b5873efa1f16d94a27b03da72e5051accf16837711
+  checksum: 10c0/644d44dd07d75b9cd7b27452f6f71a2fe100b086ab62c0e9c48fa7fa5bb24e5cd2eace0dc273fafca04d4f3f671c3f14ba7b74a931d233b5a3ab1af5c1ff1be0
   languageName: node
   linkType: hard
 
@@ -1504,7 +1504,7 @@ __metadata:
     "@nestjs/common": "npm:^12.0.2"
     "@nestjs/core": "npm:^12.0.1"
     "@nestjs/platform-fastify": "npm:^12.0.1"
-    "@nestjs/testing": "npm:^12.0.1"
+    "@nestjs/testing": "npm:^12.0.2"
     "@opentelemetry/api": "npm:^1.9.1"
     "@opentelemetry/api-logs": "npm:^0.222.0"
     "@opentelemetry/exporter-logs-otlp-grpc": "npm:^0.222.0"
