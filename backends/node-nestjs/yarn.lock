@@ -732,9 +732,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/common@npm:^12.0.1":
-  version: 12.0.1
-  resolution: "@nestjs/common@npm:12.0.1"
+"@nestjs/common@npm:^12.0.2":
+  version: 12.0.2
+  resolution: "@nestjs/common@npm:12.0.2"
   dependencies:
     "@standard-schema/spec": "npm:1.1.0"
     file-type: "npm:22.0.2"
@@ -752,7 +752,7 @@ __metadata:
       optional: true
     class-validator:
       optional: true
-  checksum: 10c0/5a4c18372b0ebc4974e3e1032fa3e860702a28621e49d04634af7664752f5d71ae5794e97cf0efc9b6a48ba8886a077dc4f340bea4f323d3109ae84060d3952b
+  checksum: 10c0/e5f538d4b0ee0efdda79eaffb539c60f838f13178dfc979ae5bdbb298b0adfdd943d33e2d146876d856b6f7c2813b08ff6d9d632c1e6d92a19342be607fd3d1b
   languageName: node
   linkType: hard
 
@@ -1501,7 +1501,7 @@ __metadata:
   dependencies:
     "@eslint/js": "npm:^10.0.1"
     "@nestjs/cli": "npm:^12.0.0"
-    "@nestjs/common": "npm:^12.0.1"
+    "@nestjs/common": "npm:^12.0.2"
     "@nestjs/core": "npm:^12.0.1"
     "@nestjs/platform-fastify": "npm:^12.0.1"
     "@nestjs/testing": "npm:^12.0.1"
