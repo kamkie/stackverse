@@ -756,9 +756,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/core@npm:^12.0.1":
-  version: 12.0.1
-  resolution: "@nestjs/core@npm:12.0.1"
+"@nestjs/core@npm:^12.0.2":
+  version: 12.0.2
+  resolution: "@nestjs/core@npm:12.0.2"
   dependencies:
     fast-safe-stringify: "npm:2.1.1"
     iterare: "npm:1.2.1"
@@ -779,7 +779,7 @@ __metadata:
       optional: true
     "@nestjs/websockets":
       optional: true
-  checksum: 10c0/ccf18a31ce5d1409466f722805cc8bd1f1525ce13ea4a19dfad83a930a35c9de602b9e8e55a6837a46856ee107966763db2bb79b4e2e691bc29f22d2728fd897
+  checksum: 10c0/63394bd338b0e1c795848bd8cb543fc8a6c00c2ceec8056ad7b1c4c4c0b6b5e7976b363184b27d82711eb55f4bfc3f720bb67308c9d05e69a1f843a9e5a41225
   languageName: node
   linkType: hard
 
@@ -1502,7 +1502,7 @@ __metadata:
     "@eslint/js": "npm:^10.0.1"
     "@nestjs/cli": "npm:^12.0.0"
     "@nestjs/common": "npm:^12.0.2"
-    "@nestjs/core": "npm:^12.0.1"
+    "@nestjs/core": "npm:^12.0.2"
     "@nestjs/platform-fastify": "npm:^12.0.1"
     "@nestjs/testing": "npm:^12.0.2"
     "@opentelemetry/api": "npm:^1.9.1"
