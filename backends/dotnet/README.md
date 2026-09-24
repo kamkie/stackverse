@@ -44,7 +44,11 @@ migration artifacts and underscore-separated xUnit test names.
 
 NuGet resolves through committed `packages.lock.json` files. After changing
 `PackageReference` versions or local tools, run `dotnet restore --force-evaluate`
-from this directory and commit the updated lock files.
+from this directory and commit the updated lock files for both the backend and
+test projects. The test project locks the backend's transitive dependencies too;
+updating only the application lock file causes `NU1004` in CI (Dependabot's nuget
+updates do exactly that, so refresh the test lock file on those PRs). Verify the
+refresh with `dotnet restore --locked-mode`.
 
 Conformance (the acceptance gate), with the backend running:
 
