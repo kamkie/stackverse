@@ -38,7 +38,9 @@ implemented in many stacks. Read these before changing anything:
   module's actual typecheck succeeds under PnP, not merely until Yarn can install it.
 - Upgrade `vitest` and `@vitest/*` together: coverage providers require matching
   Vitest versions. Dependabot's `vitest` group precedes the general npm group
-  and includes major updates. Vitest 5 requires an explicit Vite peer dependency
+  and includes major updates. It can still bump `vitest` alone (kamkie/stackverse#1004 left
+  `@vitest/coverage-v8` behind), so check that both moved before merging; the
+  packages pin each other's exact version as peers. Vitest 5 requires an explicit Vite peer dependency
   and a supported Node.js release (CI uses Node.js 24); validate each variant's
   build and coverage before upgrading. Component READMEs document compatibility
   holds, backed by Dependabot ignores; grouping is not approval to bypass them.
