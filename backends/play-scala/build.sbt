@@ -10,12 +10,12 @@ lazy val root = (project in file("."))
     version := "0.1.0",
     scalacOptions ++= Seq("-deprecation", "-feature", "-Werror"),
     dependencyOverrides ++= Seq(
-      "com.fasterxml.jackson.core" % "jackson-core" % "2.22.2",
-      "com.fasterxml.jackson.core" % "jackson-databind" % "2.22.2",
-      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.22.2",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.22.2",
-      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.22.2",
-      "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.22.2",
+      "com.fasterxml.jackson.core" % "jackson-core" % "2.22.3",
+      "com.fasterxml.jackson.core" % "jackson-databind" % "2.22.3",
+      "com.fasterxml.jackson.dataformat" % "jackson-dataformat-cbor" % "2.22.3",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.22.3",
+      "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.22.3",
+      "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.22.3",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.2",
       "org.codehaus.plexus" % "plexus-utils" % "4.1.0"
     ),
