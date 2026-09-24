@@ -24,6 +24,10 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # 0.x minor bumps are semver-breaking for Cargo and fall outside cargo-minor;
+      # the OpenTelemetry crates only compile when they move together.
+      opentelemetry:
+        patterns: ['opentelemetry*', tracing-opentelemetry]
       cargo-minor:
         update-types: [minor, patch]
 
