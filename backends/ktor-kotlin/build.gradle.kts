@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.4.10"
+    kotlin("jvm") version "2.4.20"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     application
     jacoco
@@ -19,7 +19,7 @@ repositories {
     mavenCentral()
 }
 
-val ktorVersion = "3.5.2"
+val ktorVersion = "3.6.0"
 
 dependencies {
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
@@ -32,9 +32,9 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.13")
-    implementation("org.flywaydb:flyway-core:13.5.0")
-    implementation("org.flywaydb:flyway-database-postgresql:13.5.0")
-    implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
+    implementation("org.flywaydb:flyway-core:13.7.0")
+    implementation("org.flywaydb:flyway-database-postgresql:13.7.0")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.10")
     implementation("ch.qos.logback:logback-classic:1.6.3")
     implementation("net.logstash.logback:logstash-logback-encoder:9.0")
 
