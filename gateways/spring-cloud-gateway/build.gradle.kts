@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.4.10"
-    kotlin("plugin.spring") version "2.4.10"
+    kotlin("jvm") version "2.4.20"
+    kotlin("plugin.spring") version "2.4.20"
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
@@ -30,7 +30,7 @@ dependencyManagement {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.3")
     }
     dependencies {
-        dependency("org.bouncycastle:bcprov-jdk18on:1.85.2")
+        dependency("org.bouncycastle:bcprov-jdk18on:1.86")
     }
 }
 
@@ -74,4 +74,17 @@ tasks.jacocoTestReport {
 // only the boot jar is a deliverable; the plain jar would just confuse the Dockerfile's COPY
 tasks.jar {
     enabled = false
+}
+
+// Spring dependency management aligns every org.jetbrains.kotlin module to the
+// Kotlin plugin version, including ktlint's embedded compiler. ktlint only parses
+// reliably with the compiler it was built against, so restore the version its own
+// metadata requests.
+configurations.named("ktlint") {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains.kotlin") {
+            useVersion(requested.version!!)
+            because("ktlint parses with the Kotlin compiler it was built against")
+        }
+    }
 }
