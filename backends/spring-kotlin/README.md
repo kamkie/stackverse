@@ -61,7 +61,11 @@ docker build -t stackverse/backend-spring-kotlin:local -f backends/spring-kotlin
   trimmed/lowercased first) and error messages localized from the database, which
   annotation-driven validation cannot express cleanly.
 - **Build-enforced Kotlin style** — ktlint checks Kotlin sources and Gradle scripts in
-  the same Gradle build used locally and in CI.
+  the same Gradle build used locally and in CI. Spring dependency management would
+  otherwise align ktlint's embedded Kotlin compiler to the Kotlin plugin version, which
+  breaks ktlint's parser ("KtLint failed to parse file") on newer Kotlin releases;
+  `build.gradle.kts` restores the compiler version ktlint itself requests for the
+  `ktlint` configuration.
 
 ## Deliberate deviations & notes
 
