@@ -14,10 +14,10 @@ futures-util = "0.3.31"
 http-body-util = "0.1.3"
 jsonwebtoken = { version = "11.0.0", default-features = false, features = ["rust_crypto", "use_pem"] }
 mime_guess = "2.0.5"
-opentelemetry = "0.32.0"
-opentelemetry-appender-tracing = "0.32.0"
-opentelemetry-otlp = { version = "0.32.0", default-features = false, features = ["http-proto", "internal-logs", "logs", "reqwest-client", "trace"] }
-opentelemetry_sdk = { version = "0.32.1", features = ["experimental_logs_batch_log_processor_with_async_runtime", "experimental_trace_batch_span_processor_with_async_runtime", "rt-tokio-current-thread"] }
+opentelemetry = "0.33.0"
+opentelemetry-appender-tracing = "0.33.0"
+opentelemetry-otlp = { version = "0.33.0", default-features = false, features = ["http-proto", "internal-logs", "logs", "reqwest-client", "trace"] }
+opentelemetry_sdk = { version = "0.33.0", features = ["experimental_logs_batch_log_processor_with_async_runtime", "experimental_trace_batch_span_processor_with_async_runtime", "rt-tokio-current-thread"] }
 rand = "0.10.2"
 redis = { version = "1.3.0", features = ["tokio-comp"] }
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls-no-provider", "stream", "form"] }
@@ -30,7 +30,7 @@ tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread", "signal"]
 tower = { version = "0.5.2", features = ["util"] }
 tower-http = { version = "0.7.0", features = ["trace"] }
 tracing = "0.1.44"
-tracing-opentelemetry = "0.33.0"
+tracing-opentelemetry = "0.34.0"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 url = "2.5.7"
 uuid = { version = "1.19.0", features = ["v4"] }
