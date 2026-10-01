@@ -8,7 +8,7 @@ group = "dev.stackverse"
 version = "0.0.1-SNAPSHOT"
 description = "Stackverse backend - Micronaut + Java"
 
-val micronautVersion = "5.1.4"
+val micronautVersion = "5.1.5"
 
 java {
     toolchain {
@@ -44,7 +44,7 @@ dependencies {
     testImplementation("io.micronaut.test:micronaut-test-junit5")
     testImplementation("org.junit.jupiter:junit-jupiter-api")
     testImplementation("org.assertj:assertj-core:3.27.7")
-    testImplementation("org.mockito:mockito-core:5.23.0")
+    testImplementation("org.mockito:mockito-core:5.24.0")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
