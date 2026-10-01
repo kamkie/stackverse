@@ -277,6 +277,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fastify/middie@npm:9.3.4":
+  version: 9.3.4
+  resolution: "@fastify/middie@npm:9.3.4"
+  dependencies:
+    "@fastify/error": "npm:^4.0.0"
+    fastify-plugin: "npm:^6.0.0"
+    find-my-way: "npm:^9.5.0"
+    path-to-regexp: "npm:^8.1.0"
+    reusify: "npm:^1.0.4"
+  checksum: 10c0/829398775e16ec5fc5cc9727b01f4ab1d907f193ce0e3840a87df9844f0afed7aedffee79dda4b21e87331c78bdcbf1283f2185b251f1a0a308e0903edf0ab23
+  languageName: node
+  linkType: hard
+
 "@fastify/proxy-addr@npm:^5.0.0":
   version: 5.1.0
   resolution: "@fastify/proxy-addr@npm:5.1.0"
@@ -783,19 +796,18 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nestjs/platform-fastify@npm:^12.0.1":
-  version: 12.0.1
-  resolution: "@nestjs/platform-fastify@npm:12.0.1"
+"@nestjs/platform-fastify@npm:^12.0.2":
+  version: 12.0.2
+  resolution: "@nestjs/platform-fastify@npm:12.0.2"
   dependencies:
     "@fastify/cors": "npm:11.3.0"
     "@fastify/formbody": "npm:9.0.0"
+    "@fastify/middie": "npm:9.3.4"
     fast-querystring: "npm:1.1.2"
-    fastify: "npm:5.12.1"
-    fastify-plugin: "npm:6.0.0"
+    fastify: "npm:5.12.4"
     find-my-way: "npm:9.9.0"
     light-my-request: "npm:6.6.0"
     path-to-regexp: "npm:8.4.2"
-    reusify: "npm:1.1.0"
     tslib: "npm:2.8.1"
   peerDependencies:
     "@fastify/static": ^10.1.2
@@ -807,7 +819,7 @@ __metadata:
       optional: true
     "@fastify/view":
       optional: true
-  checksum: 10c0/a84821325db3456c9cd2ad184eca1f562141ba7242f5dbc5257d904c1c30a882c34caebab88972c4b051cf5694e8513be365d7c919e323983e81b42dcc9db862
+  checksum: 10c0/f2c6ba442b24366543ec89259f18ae9a1b2a03bbf2f24dc95d21b42cb482d0de30a3598f816c27193155b9d049956c798f12a4f5825f34ab87e38c6d4d49d9b8
   languageName: node
   linkType: hard
 
@@ -1503,7 +1515,7 @@ __metadata:
     "@nestjs/cli": "npm:^12.0.0"
     "@nestjs/common": "npm:^12.0.2"
     "@nestjs/core": "npm:^12.0.2"
-    "@nestjs/platform-fastify": "npm:^12.0.1"
+    "@nestjs/platform-fastify": "npm:^12.0.2"
     "@nestjs/testing": "npm:^12.0.2"
     "@opentelemetry/api": "npm:^1.9.1"
     "@opentelemetry/api-logs": "npm:^0.222.0"
@@ -2611,7 +2623,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fastify-plugin@npm:6.0.0, fastify-plugin@npm:^6.0.0":
+"fastify-plugin@npm:^6.0.0":
   version: 6.0.0
   resolution: "fastify-plugin@npm:6.0.0"
   checksum: 10c0/4d9207efcbb0e6e8bd849eb8e00b097ae2d73590b1499f51d0bed135d08664e19d9428f2e8fc1a126b55ec4d2ac011dbcc72e753c255c46a751d6d34b57e5d4f
@@ -2683,7 +2695,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"find-my-way@npm:9.9.0, find-my-way@npm:^9.6.0":
+"find-my-way@npm:9.9.0, find-my-way@npm:^9.5.0, find-my-way@npm:^9.6.0":
   version: 9.9.0
   resolution: "find-my-way@npm:9.9.0"
   dependencies:
@@ -3492,7 +3504,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"path-to-regexp@npm:8.4.2":
+"path-to-regexp@npm:8.4.2, path-to-regexp@npm:^8.1.0":
   version: 8.4.2
   resolution: "path-to-regexp@npm:8.4.2"
   checksum: 10c0/05b115c49b47ad252ce05faa32930f643f23769c68b8bcfe78ad833545140c48bbffb3266986d6c8d5db13a64cf12e07e0d72d9882cab830efeefa553533ebaf
@@ -3881,7 +3893,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"reusify@npm:1.1.0, reusify@npm:^1.0.4":
+"reusify@npm:^1.0.4":
   version: 1.1.0
   resolution: "reusify@npm:1.1.0"
   checksum: 10c0/4eff0d4a5f9383566c7d7ec437b671cc51b25963bd61bf127c3f3d3f68e44a026d99b8d2f1ad344afff8d278a8fe70a8ea092650a716d22287e8bef7126bb2fa
