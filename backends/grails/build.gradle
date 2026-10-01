@@ -1,6 +1,6 @@
 plugins {
     id "groovy"
-    id "org.apache.grails.gradle.grails-web" version "7.2.3"
+    id "org.apache.grails.gradle.grails-web" version "7.2.4"
     id "codenarc"
     id "jacoco"
 }
