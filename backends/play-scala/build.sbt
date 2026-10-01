@@ -16,7 +16,7 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % "2.22.3",
       "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.22.3",
       "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.22.3",
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.2",
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.22.3.1",
       "org.codehaus.plexus" % "plexus-utils" % "4.1.0"
     ),
     // Keep these project-scoped: sbt consumes excludeDependencies during project resolution.
@@ -32,8 +32,8 @@ lazy val root = (project in file("."))
       guice,
       "com.zaxxer" % "HikariCP" % "7.1.0",
       "org.postgresql" % "postgresql" % "42.7.13",
-      "org.flywaydb" % "flyway-core" % "13.7.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "13.7.0",
+      "org.flywaydb" % "flyway-core" % "13.8.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "13.8.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.10",
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.66.0",
