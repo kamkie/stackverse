@@ -1,1 +1,1 @@
-schemathesis==4.27.5
+schemathesis==4.28.0
