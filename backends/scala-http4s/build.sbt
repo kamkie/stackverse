@@ -1,6 +1,6 @@
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 
-ThisBuild / scalaVersion := "3.9.0"
+ThisBuild / scalaVersion := "3.10.0"
 
 lazy val coverageRunId = settingKey[String]("Unique id that keeps scoverage instrumentation out of sbt 2 disk cache")
 
@@ -14,15 +14,15 @@ lazy val root = (project in file("."))
     scalacOptions ++= Seq("-deprecation", "-feature", "-Werror"),
     libraryDependencies ++= Seq(
       "org.typelevel" %% "cats-effect" % "3.7.1",
-      "org.http4s" %% "http4s-ember-server" % "0.23.37",
-      "org.http4s" %% "http4s-dsl" % "0.23.37",
-      "org.http4s" %% "http4s-circe" % "0.23.37",
+      "org.http4s" %% "http4s-ember-server" % "0.23.38",
+      "org.http4s" %% "http4s-dsl" % "0.23.38",
+      "org.http4s" %% "http4s-circe" % "0.23.38",
       "io.circe" %% "circe-core" % "0.14.16",
       "io.circe" %% "circe-parser" % "0.14.16",
       "com.zaxxer" % "HikariCP" % "7.1.0",
       "org.postgresql" % "postgresql" % "42.7.13",
-      "org.flywaydb" % "flyway-core" % "13.8.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "13.8.0",
+      "org.flywaydb" % "flyway-core" % "13.9.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "13.9.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.10",
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.66.0",
