@@ -1,6 +1,6 @@
 import play.sbt.PlayImport._
 
-ThisBuild / scalaVersion := "3.9.0"
+ThisBuild / scalaVersion := "3.10.0"
 
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
@@ -32,8 +32,8 @@ lazy val root = (project in file("."))
       guice,
       "com.zaxxer" % "HikariCP" % "7.1.0",
       "org.postgresql" % "postgresql" % "42.7.13",
-      "org.flywaydb" % "flyway-core" % "13.8.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "13.8.0",
+      "org.flywaydb" % "flyway-core" % "13.9.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "13.9.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.10",
       "io.opentelemetry" % "opentelemetry-api" % "1.66.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.66.0",
