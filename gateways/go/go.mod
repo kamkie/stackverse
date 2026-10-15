@@ -4,8 +4,8 @@ go 1.26.5
 
 require (
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/go-chi/chi/v5 v5.3.2
-	github.com/redis/go-redis/v9 v9.22.0
+	github.com/go-chi/chi/v5 v5.4.0
+	github.com/redis/go-redis/v9 v9.23.0
 	go.opentelemetry.io/contrib/bridges/otelslog v0.21.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	go.opentelemetry.io/otel v1.47.0
@@ -33,7 +33,7 @@ require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/atomic v1.12.0 // indirect
 	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
