@@ -31,14 +31,14 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       guice,
       "com.zaxxer" % "HikariCP" % "7.1.0",
-      "org.postgresql" % "postgresql" % "42.7.13",
-      "org.flywaydb" % "flyway-core" % "13.9.0",
-      "org.flywaydb" % "flyway-database-postgresql" % "13.9.0",
+      "org.postgresql" % "postgresql" % "42.7.14",
+      "org.flywaydb" % "flyway-core" % "13.10.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "13.10.0",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.10",
-      "io.opentelemetry" % "opentelemetry-api" % "1.66.0",
-      "io.opentelemetry" % "opentelemetry-sdk" % "1.66.0",
-      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.66.0",
-      "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.66.0",
+      "io.opentelemetry" % "opentelemetry-api" % "1.67.0",
+      "io.opentelemetry" % "opentelemetry-sdk" % "1.67.0",
+      "io.opentelemetry" % "opentelemetry-sdk-extension-autoconfigure" % "1.67.0",
+      "io.opentelemetry" % "opentelemetry-exporter-otlp" % "1.67.0",
       "org.scalatestplus.play" %% "scalatestplus-play" % "7.0.2" % Test,
       // Play Helpers initializes PlayRunners.HTMLUNIT (classOf[HtmlUnitDriver]) even for FakeRequest suites.
       // Keep this driver on scalatestplus-play's Selenium baseline (currently 4.14.1).
