@@ -223,7 +223,7 @@ This complements [INVARIANTS.md](INVARIANTS.md): §1 there defines what every st
 | [Elixir Phoenix](../backends/elixir-phoenix/README.md) | mix format; Credo/Dialyzer optional for larger apps | mix format --check-formatted plus compile --warnings-as-errors in CI | ✅ idiomatic |
 | [Go (chi)](../backends/go/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
 | [Go (Echo)](../backends/go-echo/README.md) | gofmt plus go vet; golangci-lint is an optional additional gate | gofmt and go vet are both enforced in CI | ✅ idiomatic |
-| [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | CodeNarc 3.6 Groovy-4 rules for duplicate/empty constructs, insecure randomness, and unnecessary semicolons in Gradle check | ✅ idiomatic |
+| [Grails](../backends/grails/README.md) | CodeNarc static analysis (grails default ruleset) | CodeNarc 4.0 Groovy-5 rules for duplicate/empty constructs, insecure randomness, and unnecessary semicolons in Gradle check | ✅ idiomatic |
 | [Micronaut](../backends/micronaut-java/README.md) | No framework-enforced formatter; Spotless/Checkstyle optional | No Spotless/Checkstyle/PMD; only shared root .editorconfig | ✅ idiomatic |
 | [Node (Fastify/TS)](../backends/node-ts/README.md) | ESLint + Prettier (or Biome) alongside tsc | ESLint flat config with JavaScript/TypeScript recommended rules plus Prettier; lint and format checks run in CI beside strict tsc | ✅ idiomatic |
 | [NestJS](../backends/node-nestjs/README.md) | ESLint (typescript-eslint) + Prettier from Nest CLI scaffold | ESLint + Prettier scripts alongside Nest CLI build/dev flow | ✅ idiomatic |
