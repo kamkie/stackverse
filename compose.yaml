@@ -43,7 +43,7 @@ services:
       retries: 10
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.8.0-0
+    image: quay.io/keycloak/keycloak:26.8.1-0
     command: start-dev --import-realm
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
@@ -148,7 +148,7 @@ services:
   # Grafana. Dev-grade by design — one container, no persistence.
   lgtm:
     profiles: [observability]
-    image: grafana/otel-lgtm:0.35.0
+    image: grafana/otel-lgtm:0.36.0
     ports:
       - "3000:3000" # Grafana UI (admin / admin)
       - "4317:4317" # OTLP gRPC

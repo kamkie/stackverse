@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.4.20"
+    kotlin("jvm") version "2.4.21"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     application
     jacoco
@@ -31,9 +31,9 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.zaxxer:HikariCP:7.1.0")
-    implementation("org.postgresql:postgresql:42.7.13")
-    implementation("org.flywaydb:flyway-core:13.9.0")
-    implementation("org.flywaydb:flyway-database-postgresql:13.9.0")
+    implementation("org.postgresql:postgresql:42.7.14")
+    implementation("org.flywaydb:flyway-core:13.10.0")
+    implementation("org.flywaydb:flyway-database-postgresql:13.10.0")
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
     implementation("ch.qos.logback:logback-classic:1.6.5")
     implementation("net.logstash.logback:logstash-logback-encoder:9.0")
