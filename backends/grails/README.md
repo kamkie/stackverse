@@ -1,6 +1,6 @@
 # Backend - Grails (Groovy)
 
-Grails 7.2 · Groovy · Java 25 · GORM/Hibernate · Spring Security resource
+Grails 8.0 · Groovy · Java 25 · GORM/Hibernate · Spring Security resource
 server · Flyway · PostgreSQL.
 
 Shared behavior, endpoints, and environment variables are documented in
@@ -30,11 +30,6 @@ Tests:
 `build` runs the Spock suite, CodeNarc, packaging, and combined unit/integration
 coverage generation. CI enables the PostgreSQL-gated integration specs and
 uploads both unit and integration test results.
-
-The Gradle wrapper intentionally stays on 9.6.1 while the Grails Gradle plugin
-is incompatible with Gradle 9.7. Gradle 9.7 finalizes `configurationScriptFile`
-before Grails configures it, so the build fails during `compileGroovy`; retry
-the wrapper update only after the Grails plugin supports that lifecycle.
 
 Conformance, with the backend running:
 
