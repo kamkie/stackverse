@@ -9,8 +9,6 @@ group = "dev.stackverse"
 version = "0.0.1-SNAPSHOT"
 description = "Stackverse backend - Grails + Groovy"
 
-ext["jackson-bom.version"] = "2.21.5"
-
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
@@ -40,7 +38,6 @@ dependencies {
     runtimeOnly "org.postgresql:postgresql:42.7.14"
     profile "org.codehaus.plexus:plexus-utils:4.1.0"
     implementation "com.zaxxer:HikariCP"
-    runtimeOnly "org.fusesource.jansi:jansi"
 
     testImplementation "org.apache.grails:grails-testing-support-web"
     testImplementation "org.apache.grails:grails-testing-support-datamapping"
@@ -59,7 +56,7 @@ jacoco {
 }
 
 codenarc {
-    toolVersion = "3.7.0-groovy-4.0"
+    toolVersion = "4.0.0"
     configFile = file("config/codenarc/rules.groovy")
 }
 
