@@ -22,7 +22,6 @@ repositories {
 }
 
 // Security floors above current BOM defaults; remove once the BOMs manage patched versions.
-extra["netty.version"] = "4.2.16.Final"
 extra["jackson-bom.version"] = "3.1.5"
 
 dependencyManagement {
