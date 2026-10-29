@@ -16,7 +16,7 @@
     <version.openliberty-runtime>26.0.0.6</version.openliberty-runtime>
     <version.liberty-maven-plugin>3.12.4</version.liberty-maven-plugin>
     <version.jackson>2.22.4</version.jackson>
-    <version.flyway>13.10.3</version.flyway>
+    <version.flyway>13.11.1</version.flyway>
     <version.google-java-format>1.35.0</version.google-java-format>
     <version.jersey>4.0.3</version.jersey>
     <version.mockito>5.24.0</version.mockito>
@@ -126,12 +126,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.6.1</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.6.1</version>
         <executions>
           <execution>
             <goals>
@@ -167,7 +167,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.15</version>
+        <version>0.8.16</version>
         <executions>
           <execution>
             <goals>

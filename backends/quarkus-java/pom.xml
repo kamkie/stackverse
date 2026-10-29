@@ -18,7 +18,7 @@
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
     <quarkus.platform.version>3.40.1.1</quarkus.platform.version>
     <spotless-plugin.version>3.10.4</spotless-plugin.version>
-    <surefire-plugin.version>3.6.0</surefire-plugin.version>
+    <surefire-plugin.version>3.6.1</surefire-plugin.version>
   </properties>
 
   <dependencyManagement>
@@ -148,7 +148,7 @@
       <plugin>
         <groupId>org.jacoco</groupId>
         <artifactId>jacoco-maven-plugin</artifactId>
-        <version>0.8.15</version>
+        <version>0.8.16</version>
         <executions>
           <execution>
             <goals>
