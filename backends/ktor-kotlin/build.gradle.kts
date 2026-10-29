@@ -32,10 +32,10 @@ dependencies {
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.zaxxer:HikariCP:7.1.0")
     implementation("org.postgresql:postgresql:42.7.14")
-    implementation("org.flywaydb:flyway-core:13.10.3")
-    implementation("org.flywaydb:flyway-database-postgresql:13.10.3")
+    implementation("org.flywaydb:flyway-core:13.11.1")
+    implementation("org.flywaydb:flyway-database-postgresql:13.11.1")
     implementation("com.nimbusds:nimbus-jose-jwt:10.10")
-    implementation("ch.qos.logback:logback-classic:1.6.5")
+    implementation("ch.qos.logback:logback-classic:1.6.6")
     implementation("net.logstash.logback:logstash-logback-encoder:9.0")
 
     testImplementation(kotlin("test"))
