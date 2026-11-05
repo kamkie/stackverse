@@ -18,7 +18,7 @@ COPY spec /build/spec
 COPY frontends/react ./
 RUN yarn build
 
-FROM nginx:1.31.7-alpine
+FROM nginx:1.31.8-alpine
 COPY frontends/react/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /build/frontends/react/dist /usr/share/nginx/html
 EXPOSE 8080
