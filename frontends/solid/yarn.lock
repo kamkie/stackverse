@@ -644,13 +644,13 @@ __metadata:
   dependencies:
     "@solidjs/testing-library": "npm:^0.8.10"
     "@testing-library/dom": "npm:^10.4.2"
-    "@types/node": "npm:^26.6.5"
+    "@types/node": "npm:^26.6.6"
     "@vitest/coverage-v8": "npm:^4.1.12"
     jsdom: "npm:^30.1.3"
-    solid-js: "npm:^1.9.17"
+    solid-js: "npm:^1.9.18"
     typescript: "npm:^6.0.3"
     vite: "npm:^8.3.5"
-    vite-plugin-solid: "npm:^2.11.14"
+    vite-plugin-solid: "npm:^2.11.15"
     vitest: "npm:^4.1.12"
   languageName: unknown
   linkType: soft
@@ -766,12 +766,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^26.6.5":
-  version: 26.6.5
-  resolution: "@types/node@npm:26.6.5"
+"@types/node@npm:^26.6.6":
+  version: 26.6.6
+  resolution: "@types/node@npm:26.6.6"
   dependencies:
     undici-types: "npm:~8.9.0"
-  checksum: 10c0/4f791f69466ace7842c09e7bef96cb1ddbb65cf3db916ef7e84f0e2b2a17220b6b816dc7539d01520cadfb17ed7169b8214910900493e0a83be8bc7d124ec20a
+  checksum: 10c0/5cb63f644f6e85a257a9cd2403cbcbe196760e2a35fd3ec9fb8b5cff663e14cc832b198cc17b53f870a2e30900ed45a1fb3f53e6589aba26b8e8c484aa672053
   languageName: node
   linkType: hard
 
@@ -1876,7 +1876,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"seroval@npm:~1.6.8":
+"seroval@npm:~1.6.11":
   version: 1.6.12
   resolution: "seroval@npm:1.6.12"
   checksum: 10c0/f13160fe35803d3b12fb9bc161a06deee1e5b91b2773de9ea5cec5001de4f77a3c89b25f163f2f8577f9c9eadfe6ec9ada13eaa2debdf0205553cc8cb059083c
@@ -1890,14 +1890,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"solid-js@npm:^1.9.17":
-  version: 1.9.17
-  resolution: "solid-js@npm:1.9.17"
+"solid-js@npm:^1.9.18":
+  version: 1.9.18
+  resolution: "solid-js@npm:1.9.18"
   dependencies:
     csstype: "npm:^3.1.0"
-    seroval: "npm:~1.6.8"
+    seroval: "npm:~1.6.11"
     seroval-plugins: "npm:~1.6.8"
-  checksum: 10c0/a41b5b8577dd30e70d9448efbe84a393fce43df00ffa258f4c1133d7e6cfe90a0d5a6ff677e204f588638a08955b47f2dfca388d6201c3c81e281ac6f9552145
+  checksum: 10c0/f7693829bdbb33f846bb72a8fcb2e6fa6894bbe0ef8152493087d1a193ea3600060df063b23957670fd02ba1fb1cf73bb0a2a810866c1e77ad9119fb2021d3f7
   languageName: node
   linkType: hard
 
@@ -2072,16 +2072,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vite-plugin-solid@npm:^2.11.14":
-  version: 2.11.14
-  resolution: "vite-plugin-solid@npm:2.11.14"
+"vite-plugin-solid@npm:^2.11.15":
+  version: 2.11.15
+  resolution: "vite-plugin-solid@npm:2.11.15"
   dependencies:
     "@babel/core": "npm:^7.23.3"
     "@types/babel__core": "npm:^7.20.4"
     babel-preset-solid: "npm:^1.8.4"
     merge-anything: "npm:^5.1.7"
     solid-refresh: "npm:^0.6.3"
-    vitefu: "npm:^1.0.4"
+    vitefu: "npm:^1.1.1"
   peerDependencies:
     "@testing-library/jest-dom": ^5.16.6 || ^5.17.0 || ^6.0.0 || ^7.0.0
     solid-js: ^1.7.2
@@ -2089,7 +2089,7 @@ __metadata:
   peerDependenciesMeta:
     "@testing-library/jest-dom":
       optional: true
-  checksum: 10c0/9fe4c9b43b047546d6b006056e90da92edcaf36ad40d5b7ed4e861c603eeed3b9196d279cc27c462e5209b0a055df1e12ef752cffd4150c2fe220335e357a463
+  checksum: 10c0/3e735ee8ff5e7d0097749d6646d0124a9fda4cf3c632be505680c66ea83d56c3e06dfa4c786ac3c73f618069ba84b6faea31da6587c55df3f2a5590c0cd785f6
   languageName: node
   linkType: hard
 
@@ -2207,7 +2207,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vitefu@npm:^1.0.4":
+"vitefu@npm:^1.1.1":
   version: 1.1.3
   resolution: "vitefu@npm:1.1.3"
   peerDependencies:
