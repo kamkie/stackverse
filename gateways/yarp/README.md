@@ -1,6 +1,6 @@
 # Gateway: YARP (ASP.NET Core)
 
-The Stackverse BFF on .NET 10 / ASP.NET Core with [YARP](https://github.com/dotnet/yarp)
+The Stackverse BFF on .NET 11 / ASP.NET Core with [YARP](https://github.com/dotnet/yarp)
 as the reverse proxy. Route contract, cookie rules, and the login sequence live in
 [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md); shared env vars in
 [gateways/README.md](../README.md).
@@ -125,6 +125,13 @@ is the normal path in compose and dev mode. If it is unset, `SPA_ROOT`
 defaults to the bundled `wwwroot` placeholder page.
 
 ## Run
+
+Requires .NET SDK 11. The application and tests target `net11.0`; keep that
+target, the CI SDK, and the Docker SDK/runtime images on the same major
+version. Updating only the runtime image leaves the application requesting
+the old shared framework, so the container exits before startup. NuGet
+package versions and the explicit analyzer baseline above are upgraded
+separately from the runtime.
 
 ```sh
 # infra first, from the repo root: docker compose up -d
