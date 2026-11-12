@@ -1,6 +1,6 @@
 # Backend · ASP.NET Core (C#)
 
-The Stackverse backend on .NET 10: minimal APIs, EF Core with Npgsql, JWT bearer
+The Stackverse backend on .NET 11: minimal APIs, EF Core with Npgsql, JWT bearer
 authentication against Keycloak's JWKS. Shared behavior, endpoints, and
 environment variables are documented once in [backends/README.md](../README.md)
 and the contract documents it points to — this file covers only what is
@@ -8,8 +8,15 @@ specific to this stack.
 
 ## Run it locally
 
-Prerequisites: .NET SDK 10, the compose infra
+Prerequisites: .NET SDK 11, the compose infra
 (`docker compose up -d` at the repo root).
+
+The application and tests target `net11.0`. Keep that target, the CI SDK, and
+the Docker SDK/runtime images on the same major version. Updating only the
+runtime image leaves the application requesting the old shared framework,
+which is absent from the new image, so the container exits before startup.
+EF Core/Npgsql package versions and the explicit analyzer baseline below
+are upgraded separately from the runtime.
 
 ```sh
 cd backends/dotnet
@@ -67,7 +74,7 @@ docker build -t stackverse/backend-dotnet:local -f backends/dotnet/Dockerfile .
 
 - **Minimal APIs over controllers** — endpoint groups per feature
   (`Bookmarks/`, `Messages/`, `Moderation/`, ...), services carrying the
-  business rules, no MVC layer. The idiomatic .NET 10 shape for a service of
+  business rules, no MVC layer. The idiomatic .NET 11 shape for a service of
   this size.
 - **EF Core as the schema owner** — the model in `Data/AppDbContext.cs` maps
   to explicit snake_case DDL; `dotnet ef migrations add` generates the checked-in
