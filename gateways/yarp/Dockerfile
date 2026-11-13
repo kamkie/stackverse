@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0.403 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100 AS build
 WORKDIR /src
 COPY src/StackverseGateway/StackverseGateway.csproj src/StackverseGateway/
 COPY src/StackverseGateway/packages.lock.json src/StackverseGateway/
@@ -6,7 +6,7 @@ RUN dotnet restore src/StackverseGateway/StackverseGateway.csproj --locked-mode
 COPY src/ src/
 RUN dotnet publish src/StackverseGateway/StackverseGateway.csproj --no-restore -c Release -o /app /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0.14 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:11.0.0 AS runtime
 WORKDIR /app
 COPY --from=build /app .
 ENV PORT=8000

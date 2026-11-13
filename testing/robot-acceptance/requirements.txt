@@ -1,2 +1,2 @@
-robotframework==7.5
+robotframework==7.5.1
 robotframework-seleniumlibrary==6.9.0
