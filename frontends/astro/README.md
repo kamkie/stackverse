@@ -27,9 +27,11 @@ frontends. There is no mock mode, so development requires a running gateway.
 
 Keep the direct Vite dependency and the Vite versions resolved by Astro and
 `@astrojs/solid-js` aligned. After dependency updates, run `yarn dedupe vite`
-and validate `yarn build` and `yarn test`. A lockfile mixing Vite 8.1.4 and
-8.2.2 causes TS2321 (excessive stack depth) when Astro checks the Vite plugin
-types in `astro.config.ts`; deduplicating to 8.2.2 fixes it without type casts.
+and validate `yarn build` and `yarn test --coverage`. With Astro 7.4.7, a
+lockfile mixing Vite 8.3.4 and 8.3.8 causes TS2321 (excessive stack depth)
+when Astro checks the Vite plugin types in `astro.config.ts`; aligning the
+direct dependency and deduplicating to 8.3.8 fixes it without type casts.
+Use `yarn dedupe vite --check` to verify the lockfile stays aligned.
 
 ## Architecture
 
