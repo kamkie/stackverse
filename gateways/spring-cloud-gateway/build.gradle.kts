@@ -29,7 +29,7 @@ dependencyManagement {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.4")
     }
     dependencies {
-        dependency("org.bouncycastle:bcprov-jdk18on:1.86")
+        dependency("org.bouncycastle:bcprov-jdk18on:1.87")
     }
 }
 
