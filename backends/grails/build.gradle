@@ -36,7 +36,7 @@ dependencies {
     implementation "org.apache.grails:grails-data-hibernate5"
 
     runtimeOnly "org.postgresql:postgresql:42.7.14"
-    profile "org.codehaus.plexus:plexus-utils:4.1.0"
+    profile "org.codehaus.plexus:plexus-utils:4.2.0"
     implementation "com.zaxxer:HikariCP"
 
     testImplementation "org.apache.grails:grails-testing-support-web"
