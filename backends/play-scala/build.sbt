@@ -1,6 +1,6 @@
 import play.sbt.PlayImport._
 
-ThisBuild / scalaVersion := "3.10.0"
+ThisBuild / scalaVersion := "3.10.1"
 
 lazy val root = (project in file("."))
   .enablePlugins(PlayScala)
@@ -17,7 +17,7 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % "2.23.0",
       "com.fasterxml.jackson.module" % "jackson-module-parameter-names" % "2.23.0",
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % "2.23.0",
-      "org.codehaus.plexus" % "plexus-utils" % "4.1.0"
+      "org.codehaus.plexus" % "plexus-utils" % "4.2.0"
     ),
     // Keep these project-scoped: sbt consumes excludeDependencies during project resolution.
     // They remove legacy browser-test transitives; the compatible HtmlUnit replacement is declared below.
@@ -32,8 +32,8 @@ lazy val root = (project in file("."))
       guice,
       "com.zaxxer" % "HikariCP" % "7.1.0",
       "org.postgresql" % "postgresql" % "42.7.14",
-      "org.flywaydb" % "flyway-core" % "13.12.1",
-      "org.flywaydb" % "flyway-database-postgresql" % "13.12.1",
+      "org.flywaydb" % "flyway-core" % "13.12.2",
+      "org.flywaydb" % "flyway-database-postgresql" % "13.12.2",
       "com.nimbusds" % "nimbus-jose-jwt" % "10.10",
       "io.opentelemetry" % "opentelemetry-api" % "1.68.0",
       "io.opentelemetry" % "opentelemetry-sdk" % "1.68.0",
