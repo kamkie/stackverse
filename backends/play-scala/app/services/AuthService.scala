@@ -16,6 +16,7 @@ import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Instant
 import javax.inject._
 import scala.jdk.CollectionConverters._
+import scala.util.control.NonFatal
 
 @Singleton
 class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: EventLogger) {
@@ -90,7 +91,7 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
       }
       Caller(username, roles, Option(claims.getStringClaim("name")), Option(claims.getStringClaim("email")))
     } catch {
-      case _: Throwable => throw invalidToken("invalid_token")
+      case NonFatal(_) => throw invalidToken("invalid_token")
     }
 
   private def jwtProcessor: DefaultJWTProcessor[SecurityContext] = processor match {
@@ -120,7 +121,7 @@ class AuthService @Inject() (config: BackendConfig, db: Db, i18n: I18n, logger: 
         throw new RuntimeException(s"OIDC discovery answered ${response.statusCode()}")
       (Json.parse(response.body()) \ "jwks_uri").as[String]
     } catch {
-      case error: Throwable =>
+      case NonFatal(error) =>
         logger.event(
           "error",
           "dependency_call_failed",

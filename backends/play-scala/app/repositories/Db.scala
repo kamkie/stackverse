@@ -67,7 +67,7 @@ class Db @Inject() (config: BackendConfig, logger: EventLogger) {
       conn.commit()
       value
     } catch {
-      case error: Throwable =>
+      case error =>
         scala.util.Try(conn.rollback())
         throw error
     } finally conn.setAutoCommit(oldAutoCommit)
