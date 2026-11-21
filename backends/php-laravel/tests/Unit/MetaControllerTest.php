@@ -14,6 +14,8 @@ class MetaControllerTest extends TestCase
     {
         $readyState = new ReflectionProperty(MetaController::class, 'wasReady');
         $readyState->setValue(null, true);
+        // Laravel inspects open connections during test cleanup.
+        DB::shouldReceive('getConnections')->andReturn([]);
         DB::shouldReceive('select')->once()->andThrow(new RuntimeException('database unavailable'));
         DB::shouldReceive('select')->once()->andReturn([(object) ['value' => 1]]);
 
