@@ -110,7 +110,9 @@ docker build -t stackverse/backend-play-scala:local -f backends/play-scala/Docke
   JDBC repositories, and contract-sensitive transactions. A deterministic
   loopback issuer covers the signed-JWT path without a live Keycloak.
 - **Warnings and formatting as gates** — compilation uses `-Werror`, and scalafmt is
-  checked locally and in the component workflow.
+  checked locally and in the component workflow. Use `NonFatal` in recovery
+  handlers. Transaction rollback and startup failure logging catch and rethrow
+  the original failure.
 
 ## Deliberate deviations worth comparing
 

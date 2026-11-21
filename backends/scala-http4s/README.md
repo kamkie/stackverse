@@ -102,7 +102,9 @@ docker build -t stackverse/backend-scala-http4s:local -f backends/scala-http4s/D
   shutdown follows resource release. Any acquisition failure is logged once as
   structured `FATAL application_start` with its stack trace and then rethrown.
 - **Formatting and warnings as gates** — scalafmt is checked in CI and Scala
-  compilation enables deprecation/feature warnings with `-Werror`.
+  compilation enables deprecation/feature warnings with `-Werror`. Use
+  `NonFatal` in synchronous recovery handlers. Transaction rollback also runs
+  for fatal failures before rethrowing them.
 
 ## Deliberate deviations worth comparing
 

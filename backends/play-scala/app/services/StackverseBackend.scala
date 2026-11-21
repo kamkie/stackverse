@@ -36,7 +36,7 @@ class StackverseBackend @Inject() (
       "otel_enabled" -> JsBoolean(config.otelEnabled)
     )
   } catch {
-    case error: Throwable =>
+    case error =>
       logger.line("fatal", s"Failed to start: ${error.getClass.getSimpleName}")
       throw error
   }

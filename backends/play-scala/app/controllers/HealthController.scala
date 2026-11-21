@@ -7,6 +7,7 @@ import services.{DatabaseExecutionContext, EventLogger, SqlErrors}
 
 import javax.inject.{Inject, Singleton}
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 @Singleton
 class HealthController @Inject() (
@@ -27,7 +28,7 @@ class HealthController @Inject() (
         db.withConnection(conn => db.one(conn, "select 1")(_.getInt(1)))
         Ok(Json.obj("status" -> "ready"))
       } catch {
-        case error: Throwable =>
+        case NonFatal(error) =>
           logger.event(
             "warn",
             "dependency_call_failed",

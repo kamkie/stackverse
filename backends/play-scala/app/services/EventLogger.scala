@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter
 import java.io.{PrintWriter, StringWriter}
 import javax.inject._
 import scala.util.Try
+import scala.util.control.NonFatal
 
 @Singleton
 class EventLogger @Inject() (config: BackendConfig) {
@@ -100,7 +101,7 @@ class EventLogger @Inject() (config: BackendConfig) {
         }
         record.emit()
       } catch {
-        case _: Throwable => ()
+        case NonFatal(_) => ()
       }
     }
 

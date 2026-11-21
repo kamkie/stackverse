@@ -4,6 +4,8 @@ import cats.effect.IO
 import io.circe.Json
 import org.http4s.*
 
+import scala.util.control.NonFatal
+
 trait HealthOperations {
   def healthz: IO[Response[IO]]
   def readyz: IO[Response[IO]]
@@ -22,7 +24,7 @@ final class HealthService(db: Db, logger: EventLogger) extends HealthOperations 
         db.withConnection(conn => db.one(conn, "select 1")(_.getInt(1)))
         jsonResponse(Status.Ok, Json.obj("status" -> Json.fromString("ready")))
       } catch {
-        case error: Throwable =>
+        case NonFatal(error) =>
           logger.event(
             "warn",
             "dependency_call_failed",
