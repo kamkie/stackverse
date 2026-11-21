@@ -10,6 +10,7 @@ import java.io.{PrintWriter, StringWriter}
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import scala.util.Try
+import scala.util.control.NonFatal
 
 final class EventLogger(config: BackendConfig) extends ProblemEvents {
   private val priorities = Map("debug" -> 10, "info" -> 20, "warn" -> 30, "error" -> 40, "fatal" -> 50)
@@ -90,7 +91,7 @@ final class EventLogger(config: BackendConfig) extends ProblemEvents {
         }
         record.emit()
       } catch {
-        case _: Throwable => ()
+        case NonFatal(_) => ()
       }
     }
 

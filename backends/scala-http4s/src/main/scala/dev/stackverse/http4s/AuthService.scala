@@ -13,6 +13,7 @@ import java.net.URI
 import java.net.http.{HttpClient, HttpRequest, HttpResponse}
 import java.time.Instant
 import scala.jdk.CollectionConverters.*
+import scala.util.control.NonFatal
 
 final class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: EventLogger) {
   private val http = HttpClient.newHttpClient()
@@ -83,7 +84,7 @@ final class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: Event
       }
       Caller(username, roles, Option(claims.getStringClaim("name")), Option(claims.getStringClaim("email")))
     } catch {
-      case _: Throwable => throw invalidToken("invalid_token")
+      case NonFatal(_) => throw invalidToken("invalid_token")
     }
 
   private def jwtProcessor: DefaultJWTProcessor[SecurityContext] = processor match {
@@ -114,7 +115,7 @@ final class AuthService(config: BackendConfig, db: Db, i18n: I18n, logger: Event
         throw RuntimeException("OIDC discovery response omitted jwks_uri")
       }
     } catch {
-      case error: Throwable =>
+      case NonFatal(error) =>
         logger.event(
           "error",
           "dependency_call_failed",
