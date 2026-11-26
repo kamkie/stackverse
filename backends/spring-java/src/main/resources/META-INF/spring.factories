@@ -1,1 +1,1 @@
-org.springframework.boot.env.EnvironmentPostProcessor=dev.stackverse.backend.config.LoggingEnvironmentPostProcessor
+org.springframework.boot.EnvironmentPostProcessor=dev.stackverse.backend.config.LoggingEnvironmentPostProcessor
