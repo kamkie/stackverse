@@ -26,7 +26,7 @@ extra["jackson-bom.version"] = "3.1.5"
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.4")
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:2026.0.0")
     }
     dependencies {
         dependency("org.bouncycastle:bcprov-jdk18on:1.87")
