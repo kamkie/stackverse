@@ -39,6 +39,7 @@ bin/
 obj/
 dist/
 out/
+/.angular/
 
 # Python runtime and tool artifacts — also covers repo-root helper scripts
 __pycache__/
