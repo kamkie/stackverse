@@ -20,7 +20,6 @@
   },
   "dependencies": {
     "@opentelemetry/api": "^1.10.0",
-    "@opentelemetry/api-logs": "^0.223.0",
     "@opentelemetry/exporter-logs-otlp-grpc": "^0.301.2",
     "@opentelemetry/exporter-metrics-otlp-grpc": "^0.301.2",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.301.2",

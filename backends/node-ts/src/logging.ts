@@ -1,7 +1,6 @@
 import { pino, multistream, type Level, type StreamEntry } from "pino";
 import pretty from "pino-pretty";
-import { trace } from "@opentelemetry/api";
-import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import { logs, SeverityNumber, trace } from "@opentelemetry/api";
 import { config } from "./config.js";
 
 /**
