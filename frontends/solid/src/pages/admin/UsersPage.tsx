@@ -18,16 +18,21 @@ export default function UsersPage() {
   const [reason, setReason] = createSignal("");
   const [blockError, setBlockError] = createSignal<unknown>(undefined);
   const [blockReasonError, setBlockReasonError] = createSignal<string | undefined>(undefined);
+  let loadRequest = 0;
 
   async function load(nextPage = page(), query = q()) {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
-      setUsers(await api<Page<UserAccount>>(`/api/v1/admin/users${queryString({ q: query, page: nextPage })}`));
+      const nextUsers = await api<Page<UserAccount>>(`/api/v1/admin/users${queryString({ q: query, page: nextPage })}`);
+      if (request === loadRequest) setUsers(nextUsers);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 

@@ -27,12 +27,15 @@ export default function MyReportsPage(props: Props) {
   const [editComment, setEditComment] = createSignal("");
   const [editError, setEditError] = createSignal<unknown>(undefined);
   const [editPending, setEditPending] = createSignal(false);
+  let loadRequest = 0;
 
   async function load(nextPage = page(), filter = status()) {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
       const nextReports = await api<Page<Report>>(`/api/v1/reports${queryString({ status: filter, page: nextPage })}`);
+      if (request !== loadRequest) return;
       if (nextReports.items.length === 0 && nextPage > 0) {
         const lastPage = Math.max(0, nextReports.totalPages - 1);
         setPage(lastPage);
@@ -41,9 +44,11 @@ export default function MyReportsPage(props: Props) {
       }
       setReports(nextReports);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 
