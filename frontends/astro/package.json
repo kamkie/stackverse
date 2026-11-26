@@ -16,17 +16,17 @@
     "solid-js": "^1.9.15"
   },
   "devDependencies": {
-    "@astrojs/check": "^0.9.10",
-    "@astrojs/solid-js": "^7.1.2",
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/solid-js": "^7.1.6",
     "@solidjs/testing-library": "^0.8.10",
-    "@testing-library/dom": "^10.4.1",
-    "@types/node": "^26.4.1",
-    "@vitest/coverage-v8": "^5.1.0",
-    "astro": "^7.4.7",
+    "@testing-library/dom": "^10.4.2",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.1.1",
+    "astro": "^7.4.13",
     "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
     "vite": "^8.3.8",
-    "vite-plugin-solid": "^2.11.14",
-    "vitest": "^5.1.0"
+    "vite-plugin-solid": "^2.11.17",
+    "vitest": "^5.1.1"
   }
 }
