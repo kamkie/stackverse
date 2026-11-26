@@ -95,6 +95,13 @@ implemented in many stacks. Read these before changing anything:
   auto-merge. Never treat a stale approval on an earlier commit as merge
   authorization, and verify the resulting commit on `origin/main` before reporting
   completion.
+- **Close superseded PRs when their replacements land.** When a PR replaces
+  another Stackverse PR, link the original in the replacement PR description.
+  Once the replacement has merged, verify its landed commit on the fetched target
+  branch and confirm that it covers the original PR's scope. Close the superseded
+  PR as part of the same delivery, including when the user reports the merge.
+  Verify the original is closed before finishing. If the original still covers
+  work outside the replacement, leave it open and record what remains.
 - **Delegated tasks carry the full delivery flow.** When spawning a background
   task, task chip, Codex session, Claude session, or other agent for Stackverse
   work, include the whole handoff in the prompt: fetch and update `origin/main`
