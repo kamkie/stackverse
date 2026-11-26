@@ -18,7 +18,7 @@ if (config.otelEnabled) {
       }),
     ],
     traceExporter: new OTLPTraceExporter(),
-    metricReader: new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter() }),
+    metricReaders: [new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter() })],
     logRecordProcessors: [new BatchLogRecordProcessor({ exporter: new OTLPLogExporter() })],
   });
   sdk.start();

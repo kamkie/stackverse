@@ -105,12 +105,12 @@
       error={fieldErrorFor(error, "visibility")}
     >
       <select class="sv-select" bind:value={visibility}>
-        <option value="private"
-          >{m(i18nState.current, "ui.visibility.private")}</option
-        >
-        <option value="public"
-          >{m(i18nState.current, "ui.visibility.public")}</option
-        >
+        <option value="private">
+          {m(i18nState.current, "ui.visibility.private")}
+        </option>
+        <option value="public">
+          {m(i18nState.current, "ui.visibility.public")}
+        </option>
       </select>
     </Field>
     {#if error instanceof ApiError && error.status === 409}

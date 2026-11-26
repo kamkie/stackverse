@@ -15,6 +15,6 @@
     "node-forge": "1.4.0"
   },
   "devDependencies": {
-    "newman": "^6.2.2"
+    "newman": "^6.2.3"
   }
 }

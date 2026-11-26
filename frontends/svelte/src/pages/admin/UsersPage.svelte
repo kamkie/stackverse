@@ -107,37 +107,35 @@
           <th scope="col">{m(i18nState.current, "ui.field.last-seen")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.bookmarks")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.status")}</th>
-          <th scope="col"
-            ><span class="sv-visually-hidden"
-              >{m(i18nState.current, "ui.field.actions")}</span
-            ></th
-          >
+          <th scope="col">
+            <span class="sv-visually-hidden">
+              {m(i18nState.current, "ui.field.actions")}
+            </span>
+          </th>
         </tr>
       </thead>
       <tbody>
         {#each users.items as user (user.username)}
           <tr data-ctx={`user:${user.username}`}>
             <td>{user.username}</td>
-            <td
-              ><time dateTime={user.lastSeen}
-                >{formatDate(
-                  user.lastSeen,
-                  i18nState.current.resolvedLanguage,
-                )}</time
-              ></td
-            >
+            <td>
+              <time dateTime={user.lastSeen}>
+                {formatDate(user.lastSeen, i18nState.current.resolvedLanguage)}
+              </time>
+            </td>
             <td>{user.bookmarkCount}</td>
             <td>
               {#if user.status === "blocked"}
                 <span
                   class="sv-badge sv-badge--danger"
                   title={user.blockedReason}
-                  >{m(i18nState.current, "ui.user.status.blocked")}</span
                 >
+                  {m(i18nState.current, "ui.user.status.blocked")}
+                </span>
               {:else}
-                <span class="sv-badge sv-badge--success"
-                  >{m(i18nState.current, "ui.user.status.active")}</span
-                >
+                <span class="sv-badge sv-badge--success">
+                  {m(i18nState.current, "ui.user.status.active")}
+                </span>
               {/if}
             </td>
             <td class="sv-cell-actions">

@@ -55,7 +55,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@stackverse/postman-api@workspace:."
   dependencies:
-    newman: "npm:^6.2.2"
+    newman: "npm:^6.2.3"
   languageName: unknown
   linkType: soft
 
@@ -798,9 +798,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"newman@npm:^6.2.2":
-  version: 6.2.2
-  resolution: "newman@npm:6.2.2"
+"newman@npm:^6.2.3":
+  version: 6.2.3
+  resolution: "newman@npm:6.2.3"
   dependencies:
     "@postman/tough-cookie": "npm:4.1.3-postman.1"
     async: "npm:3.2.5"
@@ -825,7 +825,7 @@ __metadata:
     xmlbuilder: "npm:15.1.1"
   bin:
     newman: bin/newman.js
-  checksum: 10c0/e2f71be6f2fb17222670d41a8fecd97ef3192803fabc0235df4a3308996aafac7552d3edcd98949384428dc54d1e3cdf496fc8813bb9a67dfe8c90407cc50d23
+  checksum: 10c0/1724646b3333d7832bed03567bdd5863e1c3fd8b26fc95e922295d365649388529f3e4586cfbbf8339ab4a02af230a7256206be721bd7946ed25dcc4e6a4c448
   languageName: node
   linkType: hard
 
