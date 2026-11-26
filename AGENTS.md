@@ -124,15 +124,19 @@ implemented in many stacks. Read these before changing anything:
   review command prints findings but does not post a GitHub comment, the authoring
   agent posts a concise PR comment with the reviewer, findings, and triage
   decision:
-  - Claude-authored branch → Codex review: `/codex-cr`, or
-    `codex -C <repository-checkout> "review branch <name> ..."` using the
-    latest model in the Sol family; reference the branch by name instead of
-    passing another agent's worktree path.
-  - Codex-authored branch (or non-Claude Copilot branch) → Claude review: run
+  - Claude-authored branch (or Copilot branch authored with a Claude model) →
+    Codex review: `/codex-cr` (with Codex configured to the latest model in the
+    Sol family) or `codex -m <latest-sol-model> -C <repository-checkout> "review branch <name> ..."`;
+    reference the branch by name instead of passing another agent's worktree
+    path.
+  - Codex-authored branch (or Copilot branch authored with a non-Claude model) →
+    Claude review: run
     `claude --model opus --effort medium --permission-mode bypassPermissions -p "/review <PR number>"`
-    (the `opus` alias selects the latest model in the Opus family) from the
-    authoring task's assigned repository checkout. Do not pin an older Opus
-    release or use Fable, Sonnet, or Haiku for Stackverse cross-reviews.
+    (`opus` selects the latest Opus model offered by the configured provider)
+    from the authoring task's assigned repository checkout. Do not pin an older
+    Opus release or use Fable, Sonnet, or Haiku for Stackverse cross-reviews.
+  - Record the resolved reviewer model in the PR review comment alongside the
+    findings and triage decision.
   - Cross-review location must not move or redirect implementation work out of
     the authoring task's assigned checkout or managed worktree.
   - Commits that implement review findings credit the reviewing agent as
