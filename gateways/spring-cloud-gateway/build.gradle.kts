@@ -21,9 +21,6 @@ repositories {
     mavenCentral()
 }
 
-// Security floors above current BOM defaults; remove once the BOMs manage patched versions.
-extra["jackson-bom.version"] = "3.1.5"
-
 dependencyManagement {
     imports {
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:2026.0.0")
