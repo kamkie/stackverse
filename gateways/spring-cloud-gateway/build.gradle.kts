@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.4.21"
     kotlin("plugin.spring") version "2.4.21"
-    id("org.springframework.boot") version "4.1.2"
+    id("org.springframework.boot") version "4.2.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.jlleitschuh.gradle.ktlint") version "14.2.0"
     jacoco
@@ -26,7 +26,7 @@ extra["jackson-bom.version"] = "3.1.5"
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.cloud:spring-cloud-dependencies:2025.1.4")
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:2026.0.0")
     }
     dependencies {
         dependency("org.bouncycastle:bcprov-jdk18on:1.87")
