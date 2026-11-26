@@ -44,27 +44,27 @@
   <div class="sv-stats-grid">
     <div class="sv-stat">
       <span class="sv-stat-value">{stats.totals.users}</span>
-      <span class="sv-stat-label"
-        >{m(i18nState.current, "ui.admin.stats.users")}</span
-      >
+      <span class="sv-stat-label">
+        {m(i18nState.current, "ui.admin.stats.users")}
+      </span>
     </div>
     <div class="sv-stat">
       <span class="sv-stat-value">{stats.totals.bookmarks}</span>
-      <span class="sv-stat-label"
-        >{m(i18nState.current, "ui.admin.stats.bookmarks")}</span
-      >
+      <span class="sv-stat-label">
+        {m(i18nState.current, "ui.admin.stats.bookmarks")}
+      </span>
     </div>
     <div class="sv-stat">
       <span class="sv-stat-value">{stats.totals.publicBookmarks}</span>
-      <span class="sv-stat-label"
-        >{m(i18nState.current, "ui.admin.stats.public-bookmarks")}</span
-      >
+      <span class="sv-stat-label">
+        {m(i18nState.current, "ui.admin.stats.public-bookmarks")}
+      </span>
     </div>
     <div class="sv-stat">
       <span class="sv-stat-value">{stats.totals.hiddenBookmarks}</span>
-      <span class="sv-stat-label"
-        >{m(i18nState.current, "ui.admin.stats.hidden-bookmarks")}</span
-      >
+      <span class="sv-stat-label">
+        {m(i18nState.current, "ui.admin.stats.hidden-bookmarks")}
+      </span>
     </div>
     <a
       class="sv-stat sv-stat--link"
@@ -75,13 +75,13 @@
       }}
     >
       <span class="sv-stat-value">{stats.totals.openReports}</span>
-      <span class="sv-stat-label"
-        >{mc(
+      <span class="sv-stat-label">
+        {mc(
           i18nState.current,
           "ui.admin.stats.open-reports",
           stats.totals.openReports,
-        )}</span
-      >
+        )}
+      </span>
     </a>
   </div>
 
@@ -110,10 +110,10 @@
           width="7"
           height={createdHeight}
         >
-          <title
-            >{day.date}: {day.bookmarksCreated}
-            {m(i18nState.current, "ui.admin.stats.bookmarks-created")}</title
-          >
+          <title>
+            {day.date}: {day.bookmarksCreated}
+            {m(i18nState.current, "ui.admin.stats.bookmarks-created")}
+          </title>
         </rect>
         <rect
           class="sv-chart-bar sv-chart-bar--secondary"
@@ -122,26 +122,26 @@
           width="7"
           height={activeHeight}
         >
-          <title
-            >{day.date}: {day.activeUsers}
-            {m(i18nState.current, "ui.admin.stats.active-users")}</title
-          >
+          <title>
+            {day.date}: {day.activeUsers}
+            {m(i18nState.current, "ui.admin.stats.active-users")}
+          </title>
         </rect>
       {/each}
     </svg>
     <div class="sv-legend">
-      <span
-        ><span class="sv-legend-swatch"></span>{m(
+      <span>
+        <span class="sv-legend-swatch"></span>{m(
           i18nState.current,
           "ui.admin.stats.bookmarks-created",
-        )}</span
-      >
-      <span
-        ><span class="sv-legend-swatch sv-legend-swatch--secondary"></span>{m(
+        )}
+      </span>
+      <span>
+        <span class="sv-legend-swatch sv-legend-swatch--secondary"></span>{m(
           i18nState.current,
           "ui.admin.stats.active-users",
-        )}</span
-      >
+        )}
+      </span>
     </div>
   </div>
 {/if}

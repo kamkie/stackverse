@@ -143,9 +143,9 @@
       void load();
     }}
   >
-    <option value=""
-      >{m(i18nState.current, "ui.messages.filter.all-languages")}</option
-    >
+    <option value="">
+      {m(i18nState.current, "ui.messages.filter.all-languages")}
+    </option>
     {#each SUPPORTED_LANGUAGES as code (code)}
       <option value={code}>{code}</option>
     {/each}
@@ -180,11 +180,11 @@
           <th scope="col">{m(i18nState.current, "ui.field.key")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.language")}</th>
           <th scope="col">{m(i18nState.current, "ui.field.text")}</th>
-          <th scope="col"
-            ><span class="sv-visually-hidden"
-              >{m(i18nState.current, "ui.field.actions")}</span
-            ></th
-          >
+          <th scope="col">
+            <span class="sv-visually-hidden">
+              {m(i18nState.current, "ui.field.actions")}
+            </span>
+          </th>
         </tr>
       </thead>
       <tbody>

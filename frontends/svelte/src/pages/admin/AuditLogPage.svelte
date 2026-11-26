@@ -182,19 +182,19 @@
       <tbody>
         {#each audit.items as entry (entry.id)}
           <tr>
-            <td
-              ><time dateTime={entry.createdAt}
-                >{formatDate(
+            <td>
+              <time dateTime={entry.createdAt}>
+                {formatDate(
                   entry.createdAt,
                   i18nState.current.resolvedLanguage,
-                )}</time
-              ></td
-            >
+                )}
+              </time>
+            </td>
             <td>{entry.actor}</td>
             <td><span class="sv-badge">{entry.action}</span></td>
-            <td class="sv-cell-mono"
-              >{entry.targetType}/{entry.targetId.slice(0, 8)}</td
-            >
+            <td class="sv-cell-mono">
+              {entry.targetType}/{entry.targetId.slice(0, 8)}
+            </td>
           </tr>
         {/each}
       </tbody>

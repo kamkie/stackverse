@@ -70,9 +70,9 @@
     >
       <select class="sv-select" bind:value={reason}>
         {#each reasons as option (option)}
-          <option value={option}
-            >{m(i18nState.current, `ui.report.reason.${option}`)}</option
-          >
+          <option value={option}>
+            {m(i18nState.current, `ui.report.reason.${option}`)}
+          </option>
         {/each}
       </select>
     </Field>
