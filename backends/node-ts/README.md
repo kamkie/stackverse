@@ -13,7 +13,7 @@ stack is deliberately thin: no ORM, no DI container, no validation framework.
 
 ## Run it locally
 
-Prerequisites: Node.js ≥ 22.12 with corepack (Yarn Berry resolves from
+Prerequisites: Node.js ≥ 22.15 with corepack (Yarn Berry resolves from
 `packageManager`), the compose infra (`docker compose up -d` at the repo root).
 
 ```sh
