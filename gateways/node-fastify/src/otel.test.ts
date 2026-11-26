@@ -8,6 +8,7 @@ const otelDoubles = vi.hoisted(() => ({
   config: { otelEnabled: false },
   sdkOptions: undefined as Record<string, unknown> | undefined,
   httpOptions: undefined as HttpInstrumentationOptions | undefined,
+  metricReader: { kind: "metric-reader" },
   metricReaderOptions: undefined as Record<string, unknown> | undefined,
   logProcessorOptions: undefined as Record<string, unknown> | undefined,
   start: vi.fn(),
@@ -65,6 +66,7 @@ vi.mock("@opentelemetry/sdk-metrics", () => ({
   PeriodicExportingMetricReader: class {
     constructor(options: Record<string, unknown>) {
       otelDoubles.metricReaderOptions = options;
+      return otelDoubles.metricReader;
     }
   },
 }));
@@ -110,6 +112,7 @@ describe("OpenTelemetry lifecycle", () => {
     expect(otelDoubles.sdkOptions).toMatchObject({
       serviceName: "stackverse-gateway-node-fastify",
       traceExporter: otelDoubles.traceExporter,
+      metricReaders: [otelDoubles.metricReader],
     });
     expect(otelDoubles.metricReaderOptions).toEqual({ exporter: otelDoubles.metricExporter });
     expect(otelDoubles.logProcessorOptions).toEqual({ exporter: otelDoubles.logExporter });

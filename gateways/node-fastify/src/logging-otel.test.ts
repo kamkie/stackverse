@@ -23,8 +23,6 @@ vi.mock("@opentelemetry/api", () => ({
       spanContext: () => ({ traceId: "trace-id", spanId: "span-id" }),
     })),
   },
-}));
-vi.mock("@opentelemetry/api-logs", () => ({
   logs: { getLogger: vi.fn(() => ({ emit: loggingDoubles.emit })) },
   SeverityNumber: { TRACE: 1, DEBUG: 5, INFO: 9, WARN: 13, ERROR: 17, FATAL: 21 },
 }));
