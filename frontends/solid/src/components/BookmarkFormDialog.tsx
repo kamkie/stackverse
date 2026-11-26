@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, Show, untrack } from "solid-js";
 import { ApiError, api, fieldErrorFor, jsonBody } from "../lib/api";
 import { i18n, m } from "../lib/i18n";
 import type { Bookmark, BookmarkInput, Visibility } from "../lib/types";
@@ -12,12 +12,13 @@ interface Props {
 }
 
 export default function BookmarkFormDialog(props: Props) {
-  const [url, setUrl] = createSignal(props.bookmark?.url ?? "");
-  const [title, setTitle] = createSignal(props.bookmark?.title ?? "");
-  const [notes, setNotes] = createSignal(props.bookmark?.notes ?? "");
-  const [tags, setTags] = createSignal(props.bookmark?.tags.join(" ") ?? "");
+  const initialBookmark = untrack(() => props.bookmark);
+  const [url, setUrl] = createSignal(initialBookmark?.url ?? "");
+  const [title, setTitle] = createSignal(initialBookmark?.title ?? "");
+  const [notes, setNotes] = createSignal(initialBookmark?.notes ?? "");
+  const [tags, setTags] = createSignal(initialBookmark?.tags.join(" ") ?? "");
   const [visibility, setVisibility] = createSignal<Visibility>(
-    props.bookmark?.visibility ?? "private",
+    initialBookmark?.visibility ?? "private",
   );
   const [error, setError] = createSignal<unknown>(undefined);
   const [pending, setPending] = createSignal(false);

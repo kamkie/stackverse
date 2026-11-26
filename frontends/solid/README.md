@@ -1,6 +1,6 @@
 # Frontend - SolidJS
 
-SolidJS + TypeScript (strict), Vite, and hand-written API types from the
+Solid 2 + TypeScript (strict), Vite, and hand-written API types from the
 OpenAPI contract. Plain CSS from the shared design package
 ([spec/design/](../../spec/design)) is imported verbatim; this app has no
 stylesheets of its own. All user-facing text comes from
@@ -22,6 +22,19 @@ through `.pnp.cjs` and packages live in the global cache. Like the Svelte
 frontend, this implementation has no mock mode: run it against a real gateway
 or through the root dev-stack recipe and replace the frontend tab with
 `yarn dev` in this directory.
+
+## Solid compatibility
+
+Update `solid-js` and the `@solidjs/web` renderer together. The renderer owns
+the JSX types and `@solidjs/vite-plugin` compiles JSX for Vite and Vitest.
+Solid Testing Library 1.0.0-rc.2 supports these packages. Keep that release
+candidate until the Solid 2-compatible stable release is available.
+The Solid JSX compiler uses its WASI fallback in the Alpine Docker build
+because it ships glibc binaries for Linux.
+
+Solid 2 commits signal updates on the next microtask. Pass new filter and page
+values to requests triggered in the same handler. Use `flush` in synchronous
+tests that need to read a signal immediately after dispatching an event.
 
 ## Dev action log
 

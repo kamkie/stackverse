@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import Dialog from "../../components/Dialog";
 import Field from "../../components/Field";
 import Pagination from "../../components/Pagination";
@@ -18,16 +18,21 @@ export default function UsersPage() {
   const [reason, setReason] = createSignal("");
   const [blockError, setBlockError] = createSignal<unknown>(undefined);
   const [blockReasonError, setBlockReasonError] = createSignal<string | undefined>(undefined);
+  let loadRequest = 0;
 
-  async function load() {
+  async function load(nextPage = page(), query = q()) {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
-      setUsers(await api<Page<UserAccount>>(`/api/v1/admin/users${queryString({ q: q(), page: page() })}`));
+      const nextUsers = await api<Page<UserAccount>>(`/api/v1/admin/users${queryString({ q: query, page: nextPage })}`);
+      if (request === loadRequest) setUsers(nextUsers);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 
@@ -63,7 +68,7 @@ export default function UsersPage() {
     if (user) void setUserStatus(user.username, "blocked");
   }
 
-  onMount(() => {
+  onSettled(() => {
     void load();
   });
 
@@ -77,9 +82,10 @@ export default function UsersPage() {
           placeholder={m(i18n(), "ui.users.search.placeholder")}
           value={q()}
           onInput={(event) => {
-            setQ(event.currentTarget.value);
+            const query = event.currentTarget.value;
+            setQ(query);
             setPage(0);
-            void load();
+            void load(0, query);
           }}
         />
       </div>
@@ -106,7 +112,7 @@ export default function UsersPage() {
                   {(user) => (
                     <tr data-ctx={`user:${user.username}`}>
                       <td>{user.username}</td>
-                      <td><time dateTime={user.lastSeen}>{formatDate(user.lastSeen, i18n().resolvedLanguage)}</time></td>
+                      <td><time datetime={user.lastSeen}>{formatDate(user.lastSeen, i18n().resolvedLanguage)}</time></td>
                       <td>{user.bookmarkCount}</td>
                       <td>
                         <Show
@@ -142,7 +148,7 @@ export default function UsersPage() {
           </div>
           <Pagination page={page()} totalPages={users()!.totalPages} onPage={(next) => {
             setPage(next);
-            void load();
+            void load(next);
           }} />
         </>
       ) : null}

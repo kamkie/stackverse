@@ -3,7 +3,7 @@
 import "../../../spec/design/tokens.css";
 import "../../../spec/design/stackverse.css";
 
-import { render } from "solid-js/web";
+import { render } from "@solidjs/web";
 import App from "./App";
 
 async function bootstrap() {

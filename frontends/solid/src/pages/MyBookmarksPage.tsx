@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import { api } from "../lib/api";
 import { loadBookmarkCursor } from "../lib/bookmarkCursor";
 import { i18n, m } from "../lib/i18n";
@@ -26,7 +26,7 @@ export default function MyBookmarksPage(props: Props) {
   const [tagReloadKey, setTagReloadKey] = createSignal(0);
   let loadRequest = 0;
 
-  async function load(reset = true) {
+  async function load(reset = true, tag = selectedTag(), query = q()) {
     const request = ++loadRequest;
     setLoading(true);
     setError(null);
@@ -36,8 +36,8 @@ export default function MyBookmarksPage(props: Props) {
         current: bookmarks(),
         nextCursor: nextCursor(),
         params: {
-          q: q(),
-          tag: selectedTag() ? [selectedTag()] : [],
+          q: query,
+          tag: tag ? [tag] : [],
         },
       });
       if (request !== loadRequest) return;
@@ -66,7 +66,7 @@ export default function MyBookmarksPage(props: Props) {
 
   function selectTag(tag: string) {
     setSelectedTag(tag);
-    void load();
+    void load(true, tag);
   }
 
   async function reloadAfterSave() {
@@ -74,7 +74,7 @@ export default function MyBookmarksPage(props: Props) {
     setTagReloadKey((current) => current + 1);
   }
 
-  onMount(() => {
+  onSettled(() => {
     void load();
   });
 
@@ -91,7 +91,7 @@ export default function MyBookmarksPage(props: Props) {
               placeholder={m(i18n(), "ui.bookmarks.search.placeholder")}
               value={q()}
               onInput={(event) => setQ(event.currentTarget.value)}
-              onChange={() => load()}
+              onChange={(event) => load(true, selectedTag(), event.currentTarget.value)}
             />
             <button
               type="button"
@@ -138,17 +138,14 @@ export default function MyBookmarksPage(props: Props) {
         </section>
       </div>
 
-      <Show when={dialog()}>
-        {(currentDialog) => {
-          const current = currentDialog();
-          return (
-            <BookmarkFormDialog
-              bookmark={current.mode === "edit" ? current.bookmark : undefined}
-              onSaved={reloadAfterSave}
-              onClose={() => setDialog(null)}
-            />
-          );
-        }}
+      <Show when={dialog()} keyed>
+        {(current) => (
+          <BookmarkFormDialog
+            bookmark={current.mode === "edit" ? current.bookmark : undefined}
+            onSaved={reloadAfterSave}
+            onClose={() => setDialog(null)}
+          />
+        )}
       </Show>
 
       <Show when={deleting()}>

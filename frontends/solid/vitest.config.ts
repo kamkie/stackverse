@@ -1,8 +1,8 @@
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
-  plugins: [solid({ hot: false })],
+  plugins: [solid()],
   test: {
     environment: "jsdom",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],

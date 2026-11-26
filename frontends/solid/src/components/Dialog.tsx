@@ -1,4 +1,5 @@
-import { type JSX, onCleanup, onMount } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { onSettled } from "solid-js";
 
 interface Props {
   title: string;
@@ -10,12 +11,11 @@ interface Props {
 export default function Dialog(props: Props) {
   let dialog!: HTMLDialogElement;
 
-  onMount(() => {
+  onSettled(() => {
     dialog.showModal();
-  });
-
-  onCleanup(() => {
-    if (dialog.open) dialog.close();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   });
 
   return (

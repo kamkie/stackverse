@@ -71,7 +71,7 @@ export default function BookmarkCard(props: Props) {
       <div class="sv-bookmark-meta">
         <span>{m(i18n(), `ui.visibility.${props.bookmark.visibility}`)}</span>
         <span>{props.bookmark.owner}</span>
-        <time dateTime={props.bookmark.createdAt}>
+        <time datetime={props.bookmark.createdAt}>
           {new Date(props.bookmark.createdAt).toLocaleDateString(i18n().resolvedLanguage)}
         </time>
       </div>

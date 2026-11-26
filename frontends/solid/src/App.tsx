@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, For, Show } from "solid-js";
+import { createSignal, onSettled, For, Show } from "solid-js";
 import ToastRegion, { type Toast } from "./components/ToastRegion";
 import { i18n, loadBundle, m, setLanguage, SUPPORTED_LANGUAGES } from "./lib/i18n";
 import { goto, installRouteListener, route } from "./lib/route";
@@ -35,7 +35,6 @@ export default function App() {
   const [theme, setTheme] = createSignal<ThemeOption>(readStoredTheme());
   const [toasts, setToasts] = createSignal<Toast[]>([]);
   let toastId = 0;
-  let uninstallRouteListener: (() => void) | undefined;
 
   function navClass(path: string, exact = true): string {
     const currentRoute = route();
@@ -140,14 +139,11 @@ export default function App() {
     return <PublicFeedPage toast={showToast} />;
   }
 
-  onMount(() => {
-    uninstallRouteListener = installRouteListener();
+  onSettled(() => {
+    const uninstallRouteListener = installRouteListener();
     void loadBundle();
     void refreshSession();
-  });
-
-  onCleanup(() => {
-    uninstallRouteListener?.();
+    return uninstallRouteListener;
   });
 
   return (

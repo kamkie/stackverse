@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import ConfirmDialog from "../../components/ConfirmDialog";
 import Dialog from "../../components/Dialog";
 import Field from "../../components/Field";
@@ -25,22 +25,28 @@ export default function MessagesPage(props: Props) {
   const [text, setText] = createSignal("");
   const [description, setDescription] = createSignal("");
   const [formError, setFormError] = createSignal<unknown>(undefined);
+  let loadRequest = 0;
 
-  async function load() {
+  async function load(nextPage = page(), query = q(), filterLanguage = language()) {
+    const request = ++loadRequest;
     setLoading(true);
     setError(null);
     try {
-      const nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: q(), language: language(), page: page() })}`);
-      if (nextMessages.items.length === 0 && page() > 0) {
-        setPage(Math.max(0, nextMessages.totalPages - 1));
-        await load();
+      const nextMessages = await api<Page<Message>>(`/api/v1/messages${queryString({ q: query, language: filterLanguage, page: nextPage })}`);
+      if (request !== loadRequest) return;
+      if (nextMessages.items.length === 0 && nextPage > 0) {
+        const lastPage = Math.max(0, nextMessages.totalPages - 1);
+        setPage(lastPage);
+        await load(lastPage, query, filterLanguage);
         return;
       }
       setMessages(nextMessages);
     } catch (caught) {
-      setError(caught instanceof Error ? caught : new Error(String(caught)));
+      if (request === loadRequest) {
+        setError(caught instanceof Error ? caught : new Error(String(caught)));
+      }
     } finally {
-      setLoading(false);
+      if (request === loadRequest) setLoading(false);
     }
   }
 
@@ -102,7 +108,7 @@ export default function MessagesPage(props: Props) {
     setQ("");
     setLanguage("");
     setPage(0);
-    void load();
+    void load(0, "", "");
   }
 
   function submit(event: SubmitEvent) {
@@ -110,7 +116,7 @@ export default function MessagesPage(props: Props) {
     void save();
   }
 
-  onMount(() => {
+  onSettled(() => {
     void load();
   });
 
@@ -124,9 +130,10 @@ export default function MessagesPage(props: Props) {
           aria-label={m(i18n(), "ui.messages.search.placeholder")}
           value={q()}
           onInput={(event) => {
-            setQ(event.currentTarget.value);
+            const query = event.currentTarget.value;
+            setQ(query);
             setPage(0);
-            void load();
+            void load(0, query);
           }}
         />
         <select
@@ -134,9 +141,10 @@ export default function MessagesPage(props: Props) {
           aria-label={m(i18n(), "ui.field.language")}
           value={language()}
           onChange={(event) => {
-            setLanguage(event.currentTarget.value);
+            const language = event.currentTarget.value;
+            setLanguage(language);
             setPage(0);
-            void load();
+            void load(0, q(), language);
           }}
         >
           <option value="">{m(i18n(), "ui.messages.filter.all-languages")}</option>
@@ -191,7 +199,7 @@ export default function MessagesPage(props: Props) {
           </div>
           <Pagination page={page()} totalPages={messages()!.totalPages} onPage={(next) => {
             setPage(next);
-            void load();
+            void load(next);
           }} />
         </>
       )}

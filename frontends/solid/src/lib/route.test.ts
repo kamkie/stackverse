@@ -1,3 +1,4 @@
+import { flush } from "solid-js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 async function loadRoute(path: string) {
@@ -24,7 +25,7 @@ describe("route", () => {
   it("updates history and the route signal on navigation", async () => {
     const router = await loadRoute("/feed");
 
-    router.goto("/admin/reports/");
+    flush(() => router.goto("/admin/reports/"));
 
     expect(location.pathname).toBe("/admin/reports");
     expect(router.route()).toBe("/admin/reports");
@@ -35,12 +36,12 @@ describe("route", () => {
     const cleanup = router.installRouteListener();
 
     history.pushState({}, "", "/my-reports");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    flush(() => window.dispatchEvent(new PopStateEvent("popstate")));
     expect(router.route()).toBe("/my-reports");
 
     cleanup();
     history.pushState({}, "", "/admin/messages");
-    window.dispatchEvent(new PopStateEvent("popstate"));
+    flush(() => window.dispatchEvent(new PopStateEvent("popstate")));
     expect(router.route()).toBe("/my-reports");
   });
 

@@ -21,10 +21,12 @@ export default function TagSidebar(props: Props) {
     }
   }
 
-  createEffect(() => {
-    props.reloadKey;
-    void reload();
-  });
+  createEffect(
+    () => props.reloadKey,
+    () => {
+      void reload();
+    },
+  );
 
   return (
     <aside class="sv-sidebar">

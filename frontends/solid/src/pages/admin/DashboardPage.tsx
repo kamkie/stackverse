@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, onMount } from "solid-js";
+import { createMemo, createSignal, For, onSettled } from "solid-js";
 import { api } from "../../lib/api";
 import { goto } from "../../lib/route";
 import { i18n, m, mc } from "../../lib/i18n";
@@ -17,7 +17,7 @@ export default function DashboardPage() {
     );
   });
 
-  onMount(() => {
+  onSettled(() => {
     api<AdminStats>("/api/v1/admin/stats")
       .then(setStats)
       .catch((caught) => setError(caught instanceof Error ? caught : new Error(String(caught))));
