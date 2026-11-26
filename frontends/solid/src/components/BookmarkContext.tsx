@@ -1,4 +1,4 @@
-import { createSignal, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, onSettled, Show } from "solid-js";
 import { api } from "../lib/api";
 import { i18n, m } from "../lib/i18n";
 import type { Bookmark } from "../lib/types";
@@ -7,7 +7,7 @@ export default function BookmarkContext(props: { bookmarkId: string }) {
   const [bookmark, setBookmark] = createSignal<Bookmark | null>(null);
   const [failed, setFailed] = createSignal(false);
 
-  onMount(() => {
+  onSettled(() => {
     let cancelled = false;
     api<Bookmark>(`/api/v1/bookmarks/${props.bookmarkId}`)
       .then((loaded) => {
@@ -16,9 +16,9 @@ export default function BookmarkContext(props: { bookmarkId: string }) {
       .catch(() => {
         if (!cancelled) setFailed(true);
       });
-    onCleanup(() => {
+    return () => {
       cancelled = true;
-    });
+    };
   });
 
   return (

@@ -74,6 +74,32 @@ describe("ReportsPage", () => {
     }
   });
 
+  it("requests the selected page and resets it when the status changes", async () => {
+    const fetchMock = vi.fn(async (url: URL) => {
+      if (url.pathname === "/api/v1/bookmarks/bookmark-1") return jsonResponse(bookmark());
+      if (url.pathname !== "/api/v1/admin/reports") {
+        throw new Error(`Unexpected request: ${url}`);
+      }
+      return jsonResponse(page([report()], { totalPages: 2 }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(() => <ReportsPage />);
+
+    await fireEvent.click(await screen.findByRole("button", { name: "next" }));
+    expect(await screen.findByText("2 / 2")).toBeTruthy();
+    await fireEvent.change(screen.getByRole("combobox"), { target: { value: "dismissed" } });
+    expect(await screen.findByText("1 / 2")).toBeTruthy();
+
+    const requests = fetchMock.mock.calls
+      .map(([url]) => url)
+      .filter((url) => url.pathname === "/api/v1/admin/reports");
+    expect(requests.map(({ searchParams }) => Object.fromEntries(searchParams))).toEqual([
+      { status: "open", page: "0" },
+      { status: "open", page: "1" },
+      { status: "dismissed", page: "0" },
+    ]);
+  });
+
   it("surfaces authorization failures from the privileged list endpoint", async () => {
     vi.stubGlobal(
       "fetch",

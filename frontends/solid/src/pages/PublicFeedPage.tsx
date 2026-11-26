@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import BookmarkCard from "../components/BookmarkCard";
 import ReportDialog from "../components/ReportDialog";
 import { loadBookmarkCursor } from "../lib/bookmarkCursor";
@@ -20,7 +20,7 @@ export default function PublicFeedPage(props: Props) {
   const [reporting, setReporting] = createSignal<Bookmark | null>(null);
   let loadRequest = 0;
 
-  async function load(reset = true) {
+  async function load(reset = true, query = q()) {
     const request = ++loadRequest;
     setLoading(true);
     setError(null);
@@ -31,7 +31,7 @@ export default function PublicFeedPage(props: Props) {
         nextCursor: nextCursor(),
         params: {
           visibility: "public",
-          q: q(),
+          q: query,
         },
       });
       if (request !== loadRequest) return;
@@ -46,7 +46,7 @@ export default function PublicFeedPage(props: Props) {
     }
   }
 
-  onMount(() => {
+  onSettled(() => {
     void load();
   });
 
@@ -61,7 +61,7 @@ export default function PublicFeedPage(props: Props) {
             placeholder={m(i18n(), "ui.bookmarks.search.placeholder")}
             value={q()}
             onInput={(event) => setQ(event.currentTarget.value)}
-            onChange={() => load()}
+            onChange={(event) => load(true, event.currentTarget.value)}
           />
         </div>
 

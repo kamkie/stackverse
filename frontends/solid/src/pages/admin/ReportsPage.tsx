@@ -1,4 +1,4 @@
-import { createSignal, For, onMount, Show } from "solid-js";
+import { createSignal, For, onSettled, Show } from "solid-js";
 import BookmarkContext from "../../components/BookmarkContext";
 import Pagination from "../../components/Pagination";
 import { api, jsonBody, queryString } from "../../lib/api";
@@ -15,14 +15,15 @@ export default function ReportsPage() {
   const [error, setError] = createSignal<Error | null>(null);
   const [resolvingId, setResolvingId] = createSignal<string | null>(null);
 
-  async function load() {
+  async function load(nextPage = page(), filter = status()) {
     setLoading(true);
     setError(null);
     try {
-      const nextReports = await api<Page<Report>>(`/api/v1/admin/reports${queryString({ status: status(), page: page() })}`);
-      if (nextReports.items.length === 0 && page() > 0) {
-        setPage(Math.max(0, nextReports.totalPages - 1));
-        await load();
+      const nextReports = await api<Page<Report>>(`/api/v1/admin/reports${queryString({ status: filter, page: nextPage })}`);
+      if (nextReports.items.length === 0 && nextPage > 0) {
+        const lastPage = Math.max(0, nextReports.totalPages - 1);
+        setPage(lastPage);
+        await load(lastPage, filter);
         return;
       }
       setReports(nextReports);
@@ -49,7 +50,7 @@ export default function ReportsPage() {
     }
   }
 
-  onMount(() => {
+  onSettled(() => {
     void load();
   });
 
@@ -61,9 +62,10 @@ export default function ReportsPage() {
           class="sv-select"
           value={status()}
           onChange={(event) => {
-            setStatus(event.currentTarget.value as ReportStatus);
+            const filter = event.currentTarget.value as ReportStatus;
+            setStatus(filter);
             setPage(0);
-            void load();
+            void load(0, filter);
           }}
         >
           <For each={REPORT_STATUSES}>
@@ -96,7 +98,7 @@ export default function ReportsPage() {
                 <For each={reports()!.items}>
                   {(report) => (
                     <tr data-ctx={`report:${report.id}`}>
-                      <td><time dateTime={report.createdAt}>{formatDate(report.createdAt, i18n().resolvedLanguage)}</time></td>
+                      <td><time datetime={report.createdAt}>{formatDate(report.createdAt, i18n().resolvedLanguage)}</time></td>
                       <td><BookmarkContext bookmarkId={report.bookmarkId} /></td>
                       <td>{report.reporter}</td>
                       <td><span class="sv-badge">{m(i18n(), `ui.report.reason.${report.reason}`)}</span></td>
@@ -143,7 +145,7 @@ export default function ReportsPage() {
           </div>
           <Pagination page={page()} totalPages={reports()!.totalPages} onPage={(next) => {
             setPage(next);
-            void load();
+            void load(next);
           }} />
         </>
       )}

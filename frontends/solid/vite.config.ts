@@ -1,4 +1,4 @@
-import solid from "vite-plugin-solid";
+import solid from "@solidjs/vite-plugin";
 import { defineConfig, type Plugin } from "vite";
 
 // Receives batched console output from the browser (posted by

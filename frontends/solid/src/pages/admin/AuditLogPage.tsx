@@ -1,4 +1,4 @@
-import { createSignal, For, onCleanup, onMount } from "solid-js";
+import { createSignal, For, onCleanup, onSettled } from "solid-js";
 import Pagination from "../../components/Pagination";
 import { api, queryString } from "../../lib/api";
 import { endOfDayIso, formatDate } from "../../lib/format";
@@ -34,20 +34,30 @@ export default function AuditLogPage() {
     }
   }
 
-  async function load(options: { clear?: boolean } = {}) {
+  async function load(options: {
+    page?: number;
+    actor?: string;
+    action?: string;
+    from?: string;
+    to?: string;
+    clear?: boolean;
+  } = {}) {
     const request = ++loadRequest;
     setLoading(true);
     setError(null);
     if (options.clear) setAudit(null);
 
+    const start = options.from ?? from();
+    const end = options.to ?? to();
+
     try {
       const nextAudit = await api<Page<AuditEntry>>(
         `/api/v1/admin/audit-log${queryString({
-          actor: actor(),
-          action: action(),
-          from: from() ? new Date(`${from()}T00:00:00`).toISOString() : "",
-          to: to() ? endOfDayIso(to()) : "",
-          page: page(),
+          actor: options.actor ?? actor(),
+          action: options.action ?? action(),
+          from: start ? new Date(`${start}T00:00:00`).toISOString() : "",
+          to: end ? endOfDayIso(end) : "",
+          page: options.page ?? page(),
         })}`,
       );
       if (request === loadRequest) setAudit(nextAudit);
@@ -60,10 +70,10 @@ export default function AuditLogPage() {
     }
   }
 
-  function reloadFirstPage() {
+  function reloadFirstPage(dates: { from?: string; to?: string }) {
     clearPendingFilterReload();
     setPage(0);
-    void load({ clear: true });
+    void load({ ...dates, page: 0, clear: true });
   }
 
   function scheduleFilterReload() {
@@ -71,7 +81,7 @@ export default function AuditLogPage() {
     setPage(0);
     filterTimer = window.setTimeout(() => {
       filterTimer = undefined;
-      void load({ clear: true });
+      void load({ page: 0, clear: true });
     }, 200);
   }
 
@@ -82,10 +92,10 @@ export default function AuditLogPage() {
     setFrom("");
     setTo("");
     setPage(0);
-    void load({ clear: true });
+    void load({ actor: "", action: "", from: "", to: "", page: 0, clear: true });
   }
 
-  onMount(() => {
+  onSettled(() => {
     void load();
   });
 
@@ -125,8 +135,9 @@ export default function AuditLogPage() {
             class="sv-input"
             value={from()}
             onChange={(event) => {
-              setFrom(event.currentTarget.value);
-              reloadFirstPage();
+              const from = event.currentTarget.value;
+              setFrom(from);
+              reloadFirstPage({ from });
             }}
           />
         </label>
@@ -137,8 +148,9 @@ export default function AuditLogPage() {
             class="sv-input"
             value={to()}
             onChange={(event) => {
-              setTo(event.currentTarget.value);
-              reloadFirstPage();
+              const to = event.currentTarget.value;
+              setTo(to);
+              reloadFirstPage({ to });
             }}
           />
         </label>
@@ -167,7 +179,7 @@ export default function AuditLogPage() {
                 <For each={audit()!.items}>
                   {(entry) => (
                     <tr>
-                      <td><time dateTime={entry.createdAt}>{formatDate(entry.createdAt, i18n().resolvedLanguage)}</time></td>
+                      <td><time datetime={entry.createdAt}>{formatDate(entry.createdAt, i18n().resolvedLanguage)}</time></td>
                       <td>{entry.actor}</td>
                       <td><span class="sv-badge">{entry.action}</span></td>
                       <td class="sv-cell-mono">{entry.targetType}/{entry.targetId.slice(0, 8)}</td>
@@ -179,7 +191,7 @@ export default function AuditLogPage() {
           </div>
           <Pagination page={page()} totalPages={audit()!.totalPages} onPage={(next) => {
             setPage(next);
-            void load();
+            void load({ page: next });
           }} />
         </>
       ) : null}
