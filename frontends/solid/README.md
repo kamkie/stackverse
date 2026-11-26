@@ -29,6 +29,8 @@ Update `solid-js` and the `@solidjs/web` renderer together. The renderer owns
 the JSX types and `@solidjs/vite-plugin` compiles JSX for Vite and Vitest.
 Solid Testing Library 1.0.0-rc.2 supports these packages. Keep that release
 candidate until the Solid 2-compatible stable release is available.
+The Solid JSX compiler uses its WASI fallback in the Alpine Docker build
+because it ships glibc binaries for Linux.
 
 Solid 2 commits signal updates on the next microtask. Pass new filter and page
 values to requests triggered in the same handler. Use `flush` in synchronous
