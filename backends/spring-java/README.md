@@ -1,6 +1,6 @@
 # Backend - Spring Boot (Java)
 
-Spring Boot 4.1 - Java 25 - Spring Web MVC - Spring Security (OAuth2 resource
+Spring Boot 4.2 - Java 25 - Spring Web MVC - Spring Security (OAuth2 resource
 server) - Spring Data JPA - Flyway - PostgreSQL.
 
 Shared behavior (endpoints, env vars, rules) is documented in
